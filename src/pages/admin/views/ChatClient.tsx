@@ -173,16 +173,16 @@ export default function ChatClient({ initialLead, onMessageSent, onClientViewed 
   const selectedContact = contacts.find(c => c.id === selectedId);
 
   return (
-    <div className="flex flex-col h-full space-y-4" style={{ minHeight: 0 }}>
+    <div className="flex flex-col h-full space-y-2 md:space-y-4" style={{ minHeight: 0 }}>
       <div className="flex items-center justify-between flex-shrink-0">
         <div>
-          <h2 className="text-xl font-bold" style={{ color: tokens.text.primary }}>Chat Client</h2>
-          <p className="text-xs mt-0.5" style={{ color: tokens.text.quaternary }}>
+          <h2 className="text-base md:text-xl font-bold" style={{ color: tokens.text.primary }}>Chat Client</h2>
+          <p className="text-[11px] md:text-xs mt-0.5 hidden sm:block" style={{ color: tokens.text.quaternary }}>
             {selectedContact ? `Conversation avec ${selectedContact.displayName}` : 'Sélectionnez un client'}
           </p>
         </div>
         <div
-          className="w-9 h-9 rounded-xl flex items-center justify-center"
+          className="w-8 h-8 md:w-9 md:h-9 rounded-xl flex items-center justify-center"
           style={{ background: 'rgba(52,211,153,0.08)', boxShadow: '0 0 16px rgba(52,211,153,0.15)' }}
         >
           <MessageCircle className="w-4 h-4 text-emerald-400" />

@@ -234,7 +234,10 @@ export default function ClientDashboard({ onLogout, impersonatedClient, onBackTo
           propositionsEntries={unseenProposals}
           onPropositionEntryClick={handleProposalNotifClick}
         />
-        <main className="flex-1 overflow-auto p-3 sm:p-4 md:p-6">
+        <main
+          className={`flex-1 flex flex-col md:p-6 ${activeView === 'messagerie' ? 'p-2 sm:p-3 overflow-hidden' : 'p-3 sm:p-4 overflow-auto'}`}
+          style={{ minHeight: 0 }}
+        >
           {renderView()}
         </main>
       </div>

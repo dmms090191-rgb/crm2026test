@@ -110,7 +110,7 @@ export default function MessagingPanel({
   const showSidebar = contacts.length >= 1;
 
   return (
-    <div className={`flex gap-0 overflow-hidden rounded-2xl md:h-full ${mobileConvoOpen ? 'h-full' : 'max-h-[calc(100vh-180px)]'}`} style={{ border: `1px solid ${tokens.chat.border}`, minHeight: 0 }}>
+    <div className={`flex gap-0 overflow-hidden rounded-2xl md:h-full ${mobileConvoOpen ? 'h-[calc(100dvh-100px)] md:h-full' : 'h-[calc(100dvh-180px)] md:h-full'}`} style={{ border: `1px solid ${tokens.chat.border}`, minHeight: 0 }}>
       {showSidebar && (
         <ContactSidebar
           contacts={contacts}
@@ -138,27 +138,27 @@ export default function MessagingPanel({
         ) : (
           <>
             <div
-              className="flex items-center justify-between px-3 md:px-5 py-2 md:py-3 flex-shrink-0"
+              className="flex items-center justify-between px-2.5 md:px-5 py-1.5 md:py-3 flex-shrink-0"
               style={{ borderBottom: `1px solid ${tokens.chat.border}` }}
             >
-              <div className="flex items-center gap-2.5">
+              <div className="flex items-center gap-2">
                 <button
                   onClick={handleMobileBack}
-                  className="md:hidden p-1.5 -ml-1 rounded-lg transition-colors"
+                  className="md:hidden p-1 -ml-0.5 rounded-lg transition-colors"
                   style={{ color: tokens.text.tertiary }}
                 >
-                  <ArrowLeft className="w-5 h-5" />
+                  <ArrowLeft className="w-4 h-4 md:w-5 md:h-5" />
                 </button>
                 <div
-                  className="w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold"
+                  className="w-7 h-7 md:w-8 md:h-8 rounded-lg md:rounded-xl flex items-center justify-center text-[10px] md:text-xs font-bold"
                   style={{ background: `rgba(${accentRgb},0.15)`, border: `1px solid rgba(${accentRgb},0.25)`, color: accentColor }}
                 >
                   {selectedContact.initial}
                 </div>
                 <div>
-                  <p className="text-sm font-semibold" style={{ color: tokens.text.primary }}>{selectedContact.displayName}</p>
+                  <p className="text-xs md:text-sm font-semibold" style={{ color: tokens.text.primary }}>{selectedContact.displayName}</p>
                   {selectedContact.subtitle && (
-                    <p className="text-[10px]" style={{ color: tokens.text.quaternary }}>{selectedContact.subtitle}</p>
+                    <p className="text-[9px] md:text-[10px] hidden sm:block" style={{ color: tokens.text.quaternary }}>{selectedContact.subtitle}</p>
                   )}
                 </div>
               </div>
@@ -179,7 +179,7 @@ export default function MessagingPanel({
               )}
             </div>
 
-            <div className="flex-1 overflow-y-auto px-3 md:px-5 py-2.5 md:py-4 space-y-2 md:space-y-4" style={{ minHeight: 0 }}>
+            <div className="flex-1 overflow-y-auto px-2.5 md:px-5 py-1.5 md:py-4 space-y-1 md:space-y-4" style={{ minHeight: 0 }}>
               {loading ? (
                 <div className="flex items-center justify-center h-full">
                   <div className="w-6 h-6 border-2 rounded-full animate-spin" style={{ borderColor: tokens.surface.border, borderTopColor: accentColor }} />
@@ -197,16 +197,16 @@ export default function MessagingPanel({
                   return (
                     <div
                       key={msg.id}
-                      className={`flex items-end gap-2 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}
+                      className={`flex items-end gap-1 md:gap-2 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}
                       onMouseEnter={() => setHoveredId(msg.id)}
                       onMouseLeave={() => setHoveredId(null)}
                     >
                       <div className={`flex flex-col max-w-[82%] md:max-w-xs ${isOwn ? 'items-end' : 'items-start'}`}>
-                        <span className={`text-[10px] md:text-[11px] font-medium mb-0.5 md:mb-1 px-1 ${isOwn ? 'text-right' : 'text-left'}`} style={{ color: isOwn ? `rgba(${accentRgb},0.8)` : tokens.text.tertiary }}>
+                        <span className={`text-[9px] md:text-[11px] font-medium mb-px md:mb-1 px-0.5 md:px-1 ${isOwn ? 'text-right' : 'text-left'}`} style={{ color: isOwn ? `rgba(${accentRgb},0.8)` : tokens.text.tertiary }}>
                           {senderLabel}
                         </span>
                         <div
-                          className="relative px-3 md:px-4 py-1.5 md:py-2.5 rounded-2xl"
+                          className="relative px-2.5 md:px-4 py-1 md:py-2.5 rounded-xl md:rounded-2xl"
                           style={isOwn
                             ? { background: isOwn ? myCfg.bubbleGradient : undefined, boxShadow: `0 2px 12px ${myCfg.glow}` }
                             : senderCfg.bubbleSolid(tokens)
@@ -219,7 +219,7 @@ export default function MessagingPanel({
                           ) : (
                             <>
                               {msg.content && (
-                                <p className="text-[13px] md:text-sm leading-snug md:leading-relaxed whitespace-pre-wrap break-words" style={{ color: isOwn ? tokens.chat.messageTextOwn : tokens.chat.messageTextOther }}>{msg.content}</p>
+                                <p className="text-xs md:text-sm leading-normal md:leading-relaxed whitespace-pre-wrap break-words" style={{ color: isOwn ? tokens.chat.messageTextOwn : tokens.chat.messageTextOther }}>{msg.content}</p>
                               )}
                               {msg.file_url && msg.file_name && (
                                 <FilePreview url={msg.file_url} name={msg.file_name} type={msg.file_type} tokens={tokens} />
@@ -239,7 +239,7 @@ export default function MessagingPanel({
                           )}
                         </div>
 
-                        <span className="text-[9px] md:text-[10px] mt-0.5 md:mt-1" style={{ color: tokens.chat.timestamp }}>
+                        <span className="text-[8px] md:text-[10px] mt-px md:mt-1 px-0.5" style={{ color: tokens.chat.timestamp }}>
                           {formatTime(msg.created_at, timezone)}
                         </span>
                       </div>
@@ -250,16 +250,16 @@ export default function MessagingPanel({
               <div ref={bottomRef} />
             </div>
 
-            <div className="px-3 md:px-4 py-3 flex-shrink-0" style={{ borderTop: `1px solid ${tokens.chat.border}` }}>
-              <div className="flex items-center gap-2">
+            <div className="px-2 md:px-4 py-2 md:py-3 flex-shrink-0" style={{ borderTop: `1px solid ${tokens.chat.border}` }}>
+              <div className="flex items-center gap-1.5 md:gap-2">
                 <button
                   onClick={() => fileRef.current?.click()}
                   disabled={uploading}
-                  className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-all hover:scale-105 disabled:opacity-40"
+                  className="w-8 h-8 md:w-9 md:h-9 rounded-lg md:rounded-xl flex items-center justify-center flex-shrink-0 transition-all hover:scale-105 disabled:opacity-40"
                   style={{ background: tokens.chat.inputBg, border: `1px solid ${tokens.chat.inputBorder}`, color: tokens.text.tertiary }}
                   title="Joindre un fichier"
                 >
-                  {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Paperclip className="w-4 h-4" />}
+                  {uploading ? <Loader2 className="w-3.5 h-3.5 md:w-4 md:h-4 animate-spin" /> : <Paperclip className="w-3.5 h-3.5 md:w-4 md:h-4" />}
                 </button>
                 <input
                   ref={fileRef}
@@ -274,7 +274,7 @@ export default function MessagingPanel({
                   onChange={e => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
                   placeholder="Ecrire un message..."
-                  className="flex-1 px-4 py-2.5 rounded-xl text-sm outline-none transition-all min-w-0"
+                  className="flex-1 px-3 md:px-4 py-2 md:py-2.5 rounded-lg md:rounded-xl text-xs md:text-sm outline-none transition-all min-w-0"
                   style={{
                     background: tokens.chat.inputBg,
                     border: `1px solid ${tokens.chat.inputBorder}`,
@@ -286,10 +286,10 @@ export default function MessagingPanel({
                 <button
                   onClick={handleSend}
                   disabled={!input.trim() || sending}
-                  className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-all hover:scale-105 disabled:opacity-40"
+                  className="w-8 h-8 md:w-9 md:h-9 rounded-lg md:rounded-xl flex items-center justify-center flex-shrink-0 transition-all hover:scale-105 disabled:opacity-40"
                   style={{ background: myCfg.bubbleGradient, boxShadow: `0 0 14px rgba(${accentRgb},0.3)` }}
                 >
-                  {sending ? <Loader2 className="w-4 h-4 animate-spin" style={{ color: '#ffffff' }} /> : <Send className="w-4 h-4" style={{ color: '#ffffff' }} />}
+                  {sending ? <Loader2 className="w-3.5 h-3.5 md:w-4 md:h-4 animate-spin" style={{ color: '#ffffff' }} /> : <Send className="w-3.5 h-3.5 md:w-4 md:h-4" style={{ color: '#ffffff' }} />}
                 </button>
               </div>
             </div>

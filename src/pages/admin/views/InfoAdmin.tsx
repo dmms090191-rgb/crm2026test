@@ -141,7 +141,7 @@ export default function InfoAdmin({ onNameChange }: InfoAdminProps) {
   };
 
   return (
-    <div className="max-w-2xl space-y-3 md:space-y-5">
+    <div className="w-full max-w-2xl space-y-3 md:space-y-5 min-w-0 overflow-x-hidden">
       <div className="flex items-center gap-3 md:gap-4 rounded-2xl p-3 md:p-5" style={cardStyle}>
         <div
           className="w-9 h-9 md:w-12 md:h-12 rounded-xl flex items-center justify-center flex-shrink-0"
@@ -155,34 +155,34 @@ export default function InfoAdmin({ onNameChange }: InfoAdminProps) {
         </div>
       </div>
 
-      <div className="rounded-2xl p-3.5 md:p-5 space-y-3 md:space-y-4" style={cardStyle}>
+      <div className="rounded-2xl p-3.5 md:p-5 space-y-3 md:space-y-4 min-w-0" style={cardStyle}>
         <div className="flex items-center gap-2">
           <User className="w-4 h-4" style={{ color: t.label.muted }} />
           <h3 className="text-sm font-semibold" style={{ color: t.heading.primary }}>Identité</h3>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 md:gap-3">
-          <div>
+        <div className="grid grid-cols-2 gap-2 md:gap-3 min-w-0">
+          <div className="min-w-0">
             <label className="text-[10px] font-bold tracking-[0.12em] uppercase mb-1 md:mb-1.5 block" style={{ color: t.label.muted }}>Prénom</label>
             <input
               type="text"
               value={firstName}
               onChange={e => setFirstName(e.target.value)}
               placeholder="Votre prénom"
-              className="w-full rounded-xl px-3 py-2 md:py-2.5 text-sm transition-all"
+              className="w-full rounded-xl px-3 py-2 md:py-2.5 text-sm transition-all min-w-0"
               style={inputStyle}
               onFocus={e => (e.currentTarget.style.borderColor = t.input.borderFocus)}
               onBlur={e => (e.currentTarget.style.borderColor = t.input.border)}
             />
           </div>
-          <div>
+          <div className="min-w-0">
             <label className="text-[10px] font-bold tracking-[0.12em] uppercase mb-1 md:mb-1.5 block" style={{ color: t.label.muted }}>Nom</label>
             <input
               type="text"
               value={lastName}
               onChange={e => setLastName(e.target.value)}
               placeholder="Entrez votre nom"
-              className="w-full rounded-xl px-3 py-2 md:py-2.5 text-sm transition-all"
+              className="w-full rounded-xl px-3 py-2 md:py-2.5 text-sm transition-all min-w-0"
               style={inputStyle}
               onFocus={e => (e.currentTarget.style.borderColor = t.input.borderFocus)}
               onBlur={e => (e.currentTarget.style.borderColor = t.input.border)}
@@ -207,7 +207,7 @@ export default function InfoAdmin({ onNameChange }: InfoAdminProps) {
         </button>
       </div>
 
-      <div className="rounded-2xl p-3.5 md:p-5 space-y-3 md:space-y-4" style={cardStyle}>
+      <div className="rounded-2xl p-3.5 md:p-5 space-y-3 md:space-y-4 min-w-0" style={cardStyle}>
         <div className="flex items-center gap-2">
           <Mail className="w-4 h-4" style={{ color: t.label.muted }} />
           <h3 className="text-sm font-semibold" style={{ color: t.heading.primary }}>Email et mot de passe</h3>
@@ -244,7 +244,7 @@ export default function InfoAdmin({ onNameChange }: InfoAdminProps) {
             </button>
           </div>
 
-          <div className="flex gap-1.5 md:gap-2 justify-center">
+          <div className="flex gap-1 xs:gap-1.5 md:gap-2 justify-center max-w-full">
             {digits.map((digit, i) => (
               <input
                 key={i}
@@ -256,7 +256,7 @@ export default function InfoAdmin({ onNameChange }: InfoAdminProps) {
                 onChange={e => handlePinInput(i, e.target.value)}
                 onKeyDown={e => handlePinKeyDown(i, e)}
                 onFocus={() => handlePinFocus(i)}
-                className="w-10 h-11 md:w-12 md:h-14 rounded-xl text-center text-lg md:text-xl font-bold transition-all caret-transparent"
+                className="flex-1 max-w-10 h-11 md:max-w-12 md:h-14 rounded-xl text-center text-lg md:text-xl font-bold transition-all caret-transparent"
                 style={{
                   background: digit ? t.pin.bgFilled : t.pin.bg,
                   border: `1px solid ${digit ? t.pin.borderFilled : t.pin.border}`,
