@@ -37,9 +37,13 @@ export default function MessagingPanel({
   const [mobileConvoOpen, setMobileConvoOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const prevMsgCountRef = useRef(0);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (messages.length > prevMsgCountRef.current && prevMsgCountRef.current > 0) {
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+    prevMsgCountRef.current = messages.length;
   }, [messages]);
 
   const handleSelectContact = useCallback((id: string) => {

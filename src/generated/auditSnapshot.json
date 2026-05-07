@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-07T15:24:14.200Z",
+  "generatedAt": "2026-05-07T15:31:05.085Z",
   "anyCount": 0,
   "anyOccurrences": [],
   "unusedImportCount": 0,
@@ -7,14 +7,14 @@
   "largeFileCount": 12,
   "largeFiles": [
     {
-      "file": "src/components/chat/ChatView.tsx",
-      "lines": 302,
-      "overflow": 2
-    },
-    {
       "file": "src/components/agenda/AgendaView.tsx",
       "lines": 303,
       "overflow": 3
+    },
+    {
+      "file": "src/components/chat/ChatView.tsx",
+      "lines": 306,
+      "overflow": 6
     },
     {
       "file": "src/pages/admin/views/crm/CrmFilters.tsx",
@@ -73,6 +73,6 @@
   "eslintWarningCount": 0,
   "eslintIssues": [],
   "totalFilesAnalyzed": 225,
-  "totalLinesAnalyzed": 32072,
-  "totalOverflowLines": 1348
+  "totalLinesAnalyzed": 32076,
+  "totalOverflowLines": 1352
 }
