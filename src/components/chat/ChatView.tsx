@@ -110,7 +110,7 @@ export default function MessagingPanel({
   const showSidebar = contacts.length >= 1;
 
   return (
-    <div className="flex h-full gap-0 overflow-hidden rounded-2xl" style={{ border: `1px solid ${tokens.chat.border}`, minHeight: 0 }}>
+    <div className={`flex gap-0 overflow-hidden rounded-2xl md:h-full ${mobileConvoOpen ? 'h-full' : 'max-h-[calc(100vh-180px)]'}`} style={{ border: `1px solid ${tokens.chat.border}`, minHeight: 0 }}>
       {showSidebar && (
         <ContactSidebar
           contacts={contacts}
@@ -138,7 +138,7 @@ export default function MessagingPanel({
         ) : (
           <>
             <div
-              className="flex items-center justify-between px-3 md:px-5 py-3 flex-shrink-0"
+              className="flex items-center justify-between px-3 md:px-5 py-2 md:py-3 flex-shrink-0"
               style={{ borderBottom: `1px solid ${tokens.chat.border}` }}
             >
               <div className="flex items-center gap-2.5">
@@ -179,7 +179,7 @@ export default function MessagingPanel({
               )}
             </div>
 
-            <div className="flex-1 overflow-y-auto px-3 md:px-5 py-4 space-y-4" style={{ minHeight: 0 }}>
+            <div className="flex-1 overflow-y-auto px-3 md:px-5 py-2.5 md:py-4 space-y-2 md:space-y-4" style={{ minHeight: 0 }}>
               {loading ? (
                 <div className="flex items-center justify-center h-full">
                   <div className="w-6 h-6 border-2 rounded-full animate-spin" style={{ borderColor: tokens.surface.border, borderTopColor: accentColor }} />
@@ -201,12 +201,12 @@ export default function MessagingPanel({
                       onMouseEnter={() => setHoveredId(msg.id)}
                       onMouseLeave={() => setHoveredId(null)}
                     >
-                      <div className={`flex flex-col max-w-[80%] md:max-w-xs ${isOwn ? 'items-end' : 'items-start'}`}>
-                        <span className={`text-[11px] font-medium mb-1 px-1 ${isOwn ? 'text-right' : 'text-left'}`} style={{ color: isOwn ? `rgba(${accentRgb},0.8)` : tokens.text.tertiary }}>
+                      <div className={`flex flex-col max-w-[82%] md:max-w-xs ${isOwn ? 'items-end' : 'items-start'}`}>
+                        <span className={`text-[10px] md:text-[11px] font-medium mb-0.5 md:mb-1 px-1 ${isOwn ? 'text-right' : 'text-left'}`} style={{ color: isOwn ? `rgba(${accentRgb},0.8)` : tokens.text.tertiary }}>
                           {senderLabel}
                         </span>
                         <div
-                          className="relative px-3 md:px-4 py-2.5 rounded-2xl"
+                          className="relative px-3 md:px-4 py-1.5 md:py-2.5 rounded-2xl"
                           style={isOwn
                             ? { background: isOwn ? myCfg.bubbleGradient : undefined, boxShadow: `0 2px 12px ${myCfg.glow}` }
                             : senderCfg.bubbleSolid(tokens)
@@ -219,7 +219,7 @@ export default function MessagingPanel({
                           ) : (
                             <>
                               {msg.content && (
-                                <p className="text-sm leading-relaxed whitespace-pre-wrap break-words" style={{ color: isOwn ? tokens.chat.messageTextOwn : tokens.chat.messageTextOther }}>{msg.content}</p>
+                                <p className="text-[13px] md:text-sm leading-snug md:leading-relaxed whitespace-pre-wrap break-words" style={{ color: isOwn ? tokens.chat.messageTextOwn : tokens.chat.messageTextOther }}>{msg.content}</p>
                               )}
                               {msg.file_url && msg.file_name && (
                                 <FilePreview url={msg.file_url} name={msg.file_name} type={msg.file_type} tokens={tokens} />
@@ -239,7 +239,7 @@ export default function MessagingPanel({
                           )}
                         </div>
 
-                        <span className="text-[10px] mt-1" style={{ color: tokens.chat.timestamp }}>
+                        <span className="text-[9px] md:text-[10px] mt-0.5 md:mt-1" style={{ color: tokens.chat.timestamp }}>
                           {formatTime(msg.created_at, timezone)}
                         </span>
                       </div>

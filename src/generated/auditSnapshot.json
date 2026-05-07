@@ -1,10 +1,10 @@
 {
-  "generatedAt": "2026-05-07T01:18:45.523Z",
+  "generatedAt": "2026-05-07T15:08:32.012Z",
   "anyCount": 0,
   "anyOccurrences": [],
   "unusedImportCount": 0,
   "unusedImports": [],
-  "largeFileCount": 11,
+  "largeFileCount": 12,
   "largeFiles": [
     {
       "file": "src/components/chat/ChatView.tsx",
@@ -20,6 +20,11 @@
       "file": "src/pages/admin/views/crm/CrmFilters.tsx",
       "lines": 307,
       "overflow": 7
+    },
+    {
+      "file": "src/pages/admin/AdminDashboard.tsx",
+      "lines": 309,
+      "overflow": 9
     },
     {
       "file": "src/components/LoginModal.tsx",
@@ -67,7 +72,7 @@
   "eslintErrorCount": 0,
   "eslintWarningCount": 0,
   "eslintIssues": [],
-  "totalFilesAnalyzed": 224,
-  "totalLinesAnalyzed": 31986,
-  "totalOverflowLines": 1339
+  "totalFilesAnalyzed": 225,
+  "totalLinesAnalyzed": 32066,
+  "totalOverflowLines": 1348
 }

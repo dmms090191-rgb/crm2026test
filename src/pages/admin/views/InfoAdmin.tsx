@@ -141,48 +141,48 @@ export default function InfoAdmin({ onNameChange }: InfoAdminProps) {
   };
 
   return (
-    <div className="max-w-2xl space-y-5">
-      <div className="flex items-center gap-4 rounded-2xl p-5" style={cardStyle}>
+    <div className="max-w-2xl space-y-3 md:space-y-5">
+      <div className="flex items-center gap-3 md:gap-4 rounded-2xl p-3 md:p-5" style={cardStyle}>
         <div
-          className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
+          className="w-9 h-9 md:w-12 md:h-12 rounded-xl flex items-center justify-center flex-shrink-0"
           style={{ background: 'linear-gradient(135deg, #f97316, #ec4899)', boxShadow: '0 0 20px rgba(249,115,22,0.35)' }}
         >
-          <User className="w-6 h-6" style={{ color: '#ffffff' }} />
+          <User className="w-4 h-4 md:w-6 md:h-6" style={{ color: '#ffffff' }} />
         </div>
         <div>
-          <h2 className="text-base font-bold" style={{ color: t.heading.primary }}>Info Admin</h2>
-          <p className="text-xs" style={{ color: t.label.muted }}>Informations sur l'administrateur</p>
+          <h2 className="text-sm md:text-base font-bold" style={{ color: t.heading.primary }}>Info Admin</h2>
+          <p className="text-[11px] md:text-xs" style={{ color: t.label.muted }}>Informations sur l'administrateur</p>
         </div>
       </div>
 
-      <div className="rounded-2xl p-5 space-y-4" style={cardStyle}>
-        <div className="flex items-center gap-2 mb-1">
+      <div className="rounded-2xl p-3.5 md:p-5 space-y-3 md:space-y-4" style={cardStyle}>
+        <div className="flex items-center gap-2">
           <User className="w-4 h-4" style={{ color: t.label.muted }} />
           <h3 className="text-sm font-semibold" style={{ color: t.heading.primary }}>Identité</h3>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-2 md:gap-3">
           <div>
-            <label className="text-[10px] font-bold tracking-[0.12em] uppercase mb-1.5 block" style={{ color: t.label.muted }}>Prénom</label>
+            <label className="text-[10px] font-bold tracking-[0.12em] uppercase mb-1 md:mb-1.5 block" style={{ color: t.label.muted }}>Prénom</label>
             <input
               type="text"
               value={firstName}
               onChange={e => setFirstName(e.target.value)}
               placeholder="Votre prénom"
-              className="w-full rounded-xl px-3 py-2.5 text-sm transition-all"
+              className="w-full rounded-xl px-3 py-2 md:py-2.5 text-sm transition-all"
               style={inputStyle}
               onFocus={e => (e.currentTarget.style.borderColor = t.input.borderFocus)}
               onBlur={e => (e.currentTarget.style.borderColor = t.input.border)}
             />
           </div>
           <div>
-            <label className="text-[10px] font-bold tracking-[0.12em] uppercase mb-1.5 block" style={{ color: t.label.muted }}>Nom</label>
+            <label className="text-[10px] font-bold tracking-[0.12em] uppercase mb-1 md:mb-1.5 block" style={{ color: t.label.muted }}>Nom</label>
             <input
               type="text"
               value={lastName}
               onChange={e => setLastName(e.target.value)}
               placeholder="Entrez votre nom"
-              className="w-full rounded-xl px-3 py-2.5 text-sm transition-all"
+              className="w-full rounded-xl px-3 py-2 md:py-2.5 text-sm transition-all"
               style={inputStyle}
               onFocus={e => (e.currentTarget.style.borderColor = t.input.borderFocus)}
               onBlur={e => (e.currentTarget.style.borderColor = t.input.border)}
@@ -195,7 +195,7 @@ export default function InfoAdmin({ onNameChange }: InfoAdminProps) {
         <button
           onClick={saveIdentity}
           disabled={savingIdentity}
-          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-all hover:brightness-110 disabled:opacity-60"
+          className="w-full flex items-center justify-center gap-2 py-2 md:py-2.5 rounded-xl text-sm font-bold transition-all hover:brightness-110 disabled:opacity-60"
           style={{
             background: t.success.bg,
             color: '#ffffff',
@@ -207,44 +207,44 @@ export default function InfoAdmin({ onNameChange }: InfoAdminProps) {
         </button>
       </div>
 
-      <div className="rounded-2xl p-5 space-y-4" style={cardStyle}>
-        <div className="flex items-center gap-2 mb-1">
+      <div className="rounded-2xl p-3.5 md:p-5 space-y-3 md:space-y-4" style={cardStyle}>
+        <div className="flex items-center gap-2">
           <Mail className="w-4 h-4" style={{ color: t.label.muted }} />
           <h3 className="text-sm font-semibold" style={{ color: t.heading.primary }}>Email et mot de passe</h3>
         </div>
 
         <div>
-          <label className="text-[10px] font-bold tracking-[0.12em] uppercase mb-1.5 block" style={{ color: t.label.muted }}>Email</label>
+          <label className="text-[10px] font-bold tracking-[0.12em] uppercase mb-1 md:mb-1.5 block" style={{ color: t.label.muted }}>Email</label>
           <input
             type="email"
             value={email}
             onChange={e => setEmail(e.target.value)}
             placeholder="votre@email.com"
-            className="w-full rounded-xl px-3 py-2.5 text-sm transition-all"
+            className="w-full rounded-xl px-3 py-2 md:py-2.5 text-sm transition-all"
             style={inputStyle}
             onFocus={e => (e.currentTarget.style.borderColor = t.input.borderFocus)}
             onBlur={e => (e.currentTarget.style.borderColor = t.input.border)}
           />
-          <p className="text-[10px] mt-1" style={{ color: t.label.hint }}>Modifier l'email changera vos identifiants de connexion</p>
+          <p className="text-[9px] md:text-[10px] mt-0.5 md:mt-1" style={{ color: t.label.hint }}>Modifier l'email changera vos identifiants de connexion</p>
         </div>
 
         <div>
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <Lock className="w-4 h-4" style={{ color: t.label.muted }} />
-              <label className="text-sm font-medium" style={{ color: t.heading.primary }}>Mot de passe (6 chiffres)</label>
+          <div className="flex items-center justify-between mb-2 md:mb-3">
+            <div className="flex items-center gap-1.5 md:gap-2">
+              <Lock className="w-3.5 h-3.5 md:w-4 md:h-4" style={{ color: t.label.muted }} />
+              <label className="text-xs md:text-sm font-medium" style={{ color: t.heading.primary }}>Mot de passe (6 chiffres)</label>
             </div>
             <button
               onClick={() => setShowPin(v => !v)}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-all"
+              className="flex items-center gap-1 md:gap-1.5 px-2 md:px-2.5 py-0.5 md:py-1 rounded-lg text-[11px] md:text-xs font-medium transition-all"
               style={{ background: t.button.toggleBg, color: t.button.toggleText, border: `1px solid ${t.button.toggleBorder}` }}
             >
-              {showPin ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+              {showPin ? <EyeOff className="w-3 h-3 md:w-3.5 md:h-3.5" /> : <Eye className="w-3 h-3 md:w-3.5 md:h-3.5" />}
               {showPin ? 'Masquer' : 'Afficher'}
             </button>
           </div>
 
-          <div className="flex gap-2 justify-center">
+          <div className="flex gap-1.5 md:gap-2 justify-center">
             {digits.map((digit, i) => (
               <input
                 key={i}
@@ -256,7 +256,7 @@ export default function InfoAdmin({ onNameChange }: InfoAdminProps) {
                 onChange={e => handlePinInput(i, e.target.value)}
                 onKeyDown={e => handlePinKeyDown(i, e)}
                 onFocus={() => handlePinFocus(i)}
-                className="w-12 h-14 rounded-xl text-center text-xl font-bold transition-all caret-transparent"
+                className="w-10 h-11 md:w-12 md:h-14 rounded-xl text-center text-lg md:text-xl font-bold transition-all caret-transparent"
                 style={{
                   background: digit ? t.pin.bgFilled : t.pin.bg,
                   border: `1px solid ${digit ? t.pin.borderFilled : t.pin.border}`,
@@ -268,7 +268,7 @@ export default function InfoAdmin({ onNameChange }: InfoAdminProps) {
               />
             ))}
           </div>
-          <p className="text-[10px] text-center mt-2" style={{ color: t.label.hint }}>Utilisez les flèches gauche/droite pour naviguer entre les chiffres</p>
+          <p className="text-[9px] md:text-[10px] text-center mt-1.5 md:mt-2" style={{ color: t.label.hint }}>Utilisez les flèches gauche/droite pour naviguer entre les chiffres</p>
         </div>
 
         {credMsg && <Toast message={credMsg.text} type={credMsg.type} tokens={t} />}
@@ -276,7 +276,7 @@ export default function InfoAdmin({ onNameChange }: InfoAdminProps) {
         <button
           onClick={saveCredentials}
           disabled={savingCred}
-          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-all hover:brightness-110 disabled:opacity-60"
+          className="w-full flex items-center justify-center gap-2 py-2 md:py-2.5 rounded-xl text-sm font-bold transition-all hover:brightness-110 disabled:opacity-60"
           style={{
             background: t.accent.bg,
             color: t.accent.text,

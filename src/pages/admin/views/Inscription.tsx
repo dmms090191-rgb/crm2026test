@@ -151,21 +151,21 @@ export default function Inscription() {
           </div>
         </div>
 
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3">
           {stats.map(s => (
             <div
               key={s.label}
               onClick={s.clickable ? s.onClick : undefined}
-              className={`rounded-2xl p-4 transition-all ${s.clickable ? 'cursor-pointer hover:brightness-110' : ''}`}
+              className={`rounded-2xl p-3 sm:p-4 transition-all ${s.clickable ? 'cursor-pointer hover:brightness-110' : ''}`}
               style={{ background: tokens.card.bg, border: s.clickable ? `1px solid ${s.border}` : tokens.card.border }}
             >
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-medium" style={{ color: tokens.text.tertiary }}>{s.label}</span>
-                <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: s.bg, color: s.color }}>
+              <div className="flex items-center justify-between mb-2 sm:mb-3">
+                <span className="text-[11px] sm:text-xs font-medium leading-tight" style={{ color: tokens.text.tertiary }}>{s.label}</span>
+                <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg flex items-center justify-center flex-shrink-0 ml-2" style={{ background: s.bg, color: s.color }}>
                   {s.icon}
                 </div>
               </div>
-              <div className="text-2xl font-bold" style={{ color: s.color }}>{s.value}</div>
+              <div className="text-xl sm:text-2xl font-bold" style={{ color: s.color }}>{s.value}</div>
               {s.clickable && (
                 <p className="text-[10px] mt-1" style={{ color: s.color, opacity: 0.6 }}>Voir l'historique</p>
               )}

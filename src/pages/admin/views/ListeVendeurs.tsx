@@ -107,6 +107,7 @@ export default function ListeVendeurs({ onConnectAsVendor, onOpenChat }: ListeVe
                     {vendors.map((vendor, idx) => (
                       <tr
                         key={vendor.id}
+                        data-row-id={vendor.id}
                         className="group transition-all duration-150"
                         style={{
                           borderBottom: idx < vendors.length - 1 ? `1px solid ${tokens.table.rowBorder}` : 'none',

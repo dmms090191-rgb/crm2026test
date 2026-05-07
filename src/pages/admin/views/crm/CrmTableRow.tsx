@@ -49,6 +49,7 @@ const CrmTableRow = forwardRef<HTMLTableRowElement, Props>(function CrmTableRow(
   return (
     <tr
       ref={ref}
+      data-row-id={lead.id}
       className="group transition-all duration-150"
       style={{ borderBottom: tokens.table.rowBorder, background: rowBg }}
       onMouseEnter={e => { if (!isSelected && !isWorkActive) e.currentTarget.style.background = tokens.table.rowHover; }}

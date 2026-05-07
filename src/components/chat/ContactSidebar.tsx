@@ -72,7 +72,7 @@ export default function ContactSidebar({
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-2 pb-2">
+      <div className="md:flex-1 overflow-y-auto px-2 pb-2">
         {contactLoading ? (
           <div className="flex items-center justify-center h-20">
             <div className="w-5 h-5 border-2 rounded-full animate-spin" style={{ borderColor: tokens.surface.border, borderTopColor: accentColor }} />

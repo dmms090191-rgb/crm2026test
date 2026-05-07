@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import VendorSidebar from './VendorSidebar';
 import VendorTopBar from './VendorTopBar';
 import VendorVueEnsemble from './views/VendorVueEnsemble';
@@ -8,6 +8,7 @@ import VendorChatClient from './views/VendorChatClient';
 import VendorAgenda from './views/VendorAgenda';
 import VendorPropositionsRdv from './views/VendorPropositionsRdv';
 import { supabase } from '../../lib/supabase';
+import { saveConnectReturnContext, consumeConnectReturnContext } from '../../lib/connectReturnContext';
 import type { ImpersonatedClientInfo } from '../client/ClientDashboard';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
 import { useUnreadVendorAdminMessages } from '../../hooks/useUnreadVendorAdminMessages';
@@ -52,6 +53,29 @@ export default function VendorDashboard({ onLogout, impersonatedVendor, onBackTo
   const { unreadCount: unreadClientCount, unreadEntries: unreadClientEntries, markAsRead: markClientRead } = useUnreadVendorClientMessages(vendorDbId);
   const { notifications: agendaNotifs, count: agendaCount, markAsSeen: markAgendaSeen } = useAgendaNotifications('vendor', vendorDbId);
   const [confirmedUnseen, setConfirmedUnseen] = useState<{ id: string; lead_name: string; created_at: string }[]>([]);
+  const pendingScrollRef = useRef<{ leadId?: string; scrollY: number } | null>(null);
+
+  useEffect(() => {
+    const ctx = consumeConnectReturnContext('vendor');
+    if (ctx) {
+      setActiveView(ctx.fromTab as VendorActiveView);
+      pendingScrollRef.current = { leadId: ctx.leadId, scrollY: ctx.scrollY };
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!pendingScrollRef.current) return;
+    const { leadId, scrollY } = pendingScrollRef.current;
+    pendingScrollRef.current = null;
+    const timeout = setTimeout(() => {
+      if (leadId) {
+        const el = document.querySelector(`[data-row-id="${leadId}"]`);
+        if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
+      }
+      window.scrollTo({ top: scrollY, behavior: 'smooth' });
+    }, 300);
+    return () => clearTimeout(timeout);
+  }, [activeView]);
 
   useEffect(() => {
     if (impersonatedVendor) {
@@ -147,7 +171,7 @@ export default function VendorDashboard({ onLogout, impersonatedVendor, onBackTo
   const renderView = () => {
     switch (activeView) {
       case 'vue-ensemble': return <VendorVueEnsemble vendorId={vendorDbId} />;
-      case 'leads': return <VendorLeads vendorId={vendorDbId} onOpenChat={(lead) => { setChatLead(lead); setActiveView('chat-client'); }} onConnectAsClient={onConnectAsClient} onOpenRdv={(lead) => { setRdvLead(lead); setActiveView('propositions-rdv'); }} />;
+      case 'leads': return <VendorLeads vendorId={vendorDbId} onOpenChat={(lead) => { setChatLead(lead); setActiveView('chat-client'); }} onConnectAsClient={(client) => { saveConnectReturnContext({ fromRole: 'vendor', fromTab: 'leads', leadId: client.id, scrollY: window.scrollY }); onConnectAsClient?.(client); }} onOpenRdv={(lead) => { setRdvLead(lead); setActiveView('propositions-rdv'); }} />;
       case 'chat-admin': return <VendorChatAdmin vendorName={vendorName} vendorDbId={vendorDbId} vendorAuthId={impersonatedVendor?.auth_user_id ?? undefined} onAdminMessageViewed={markAdminRead} />;
       case 'chat-client': return <VendorChatClient vendorName={vendorName} vendorDbId={vendorDbId} initialLead={chatLead} onClientViewed={handleClientViewed} />;
       case 'agenda': return <VendorAgenda vendorId={vendorDbId} />;

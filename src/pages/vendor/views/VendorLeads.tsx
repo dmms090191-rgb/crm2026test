@@ -357,7 +357,7 @@ export default function VendorLeads({ vendorId, onOpenChat, onConnectAsClient, o
                       const isWorkActive = workMode.enabled && workMode.activeId === lead.id;
                       const rowBg = isWorkActive ? 'rgba(249,115,22,0.04)' : isSelected ? tokens.table.rowSelected : 'transparent';
                       return (
-                        <tr key={lead.id} ref={el => { if (el) rowRefsMap.current.set(lead.id, el); else rowRefsMap.current.delete(lead.id); }} className="group transition-all duration-150" style={{ borderBottom: `1px solid ${tokens.table.rowBorder}`, background: rowBg }} onMouseEnter={e => { if (!isSelected && !isWorkActive) e.currentTarget.style.background = tokens.table.rowHover; }} onMouseLeave={e => { e.currentTarget.style.background = isWorkActive ? 'rgba(249,115,22,0.04)' : isSelected ? tokens.table.rowSelected : 'transparent'; }}>
+                        <tr key={lead.id} data-row-id={lead.id} ref={el => { if (el) rowRefsMap.current.set(lead.id, el); else rowRefsMap.current.delete(lead.id); }} className="group transition-all duration-150" style={{ borderBottom: `1px solid ${tokens.table.rowBorder}`, background: rowBg }} onMouseEnter={e => { if (!isSelected && !isWorkActive) e.currentTarget.style.background = tokens.table.rowHover; }} onMouseLeave={e => { e.currentTarget.style.background = isWorkActive ? 'rgba(249,115,22,0.04)' : isSelected ? tokens.table.rowSelected : 'transparent'; }}>
                           <td className="px-3 py-3.5 w-28" style={colSep}>
                             {workMode.enabled ? (
                               <div className="flex items-center gap-1">

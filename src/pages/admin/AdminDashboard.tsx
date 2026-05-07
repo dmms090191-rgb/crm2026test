@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
+import { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import Sidebar from './Sidebar';
 import TopBar from './TopBar';
 import InfoAdmin from './views/InfoAdmin';
@@ -21,6 +21,7 @@ const ImportLeads = lazy(() => import('./views/ImportLeads'));
 const importDocumentationCrm = () => import('./views/DocumentationCrm');
 const DocumentationCrm = lazy(importDocumentationCrm);
 import { supabase } from '../../lib/supabase';
+import { saveConnectReturnContext, consumeConnectReturnContext } from '../../lib/connectReturnContext';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
 import { useUnreadClientMessages } from '../../hooks/useUnreadClientMessages';
 import { useUnreadVendorMessages } from '../../hooks/useUnreadVendorMessages';
@@ -69,6 +70,30 @@ export default function AdminDashboard({ onLogout, onConnectAsVendor, onConnectA
   const [chatClientMessageSent, setChatClientMessageSent] = useState(false);
   const [chatVendorMessageSent, setChatVendorMessageSent] = useState(false);
   const [docInitialTab, setDocInitialTab] = useState<string | undefined>(undefined);
+  const pendingScrollRef = useRef<{ leadId?: string; vendorId?: string; scrollY: number } | null>(null);
+
+  useEffect(() => {
+    const ctx = consumeConnectReturnContext('admin');
+    if (ctx) {
+      setActiveView(ctx.fromTab as ActiveView);
+      pendingScrollRef.current = { leadId: ctx.leadId, vendorId: ctx.vendorId, scrollY: ctx.scrollY };
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!pendingScrollRef.current) return;
+    const { leadId, vendorId, scrollY } = pendingScrollRef.current;
+    pendingScrollRef.current = null;
+    const targetId = leadId || vendorId;
+    const timeout = setTimeout(() => {
+      if (targetId) {
+        const el = document.querySelector(`[data-row-id="${targetId}"]`);
+        if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
+      }
+      window.scrollTo({ top: scrollY, behavior: 'smooth' });
+    }, 300);
+    return () => clearTimeout(timeout);
+  }, [activeView]);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -174,9 +199,9 @@ export default function AdminDashboard({ onLogout, onConnectAsVendor, onConnectA
       case 'inscription': return <Suspense fallback={lazyFallback}><Inscription /></Suspense>;
       case 'import-leads': return <Suspense fallback={lazyFallback}><ImportLeads onNavigateToCrm={() => handleNavigate('crm')} /></Suspense>;
       case 'ajouter-leads': return <Suspense fallback={lazyFallback}><AjouterLeads /></Suspense>;
-      case 'crm': return <Suspense fallback={lazyFallback}><Crm onConnectAsClient={onConnectAsClient} onOpenChat={(lead) => { setChatLead(lead); setChatClientMessageSent(false); setActiveView('chat-client'); }} onOpenRdv={(lead) => { setRdvLead(lead); setActiveView('propositions-rdv'); }} /></Suspense>;
+      case 'crm': return <Suspense fallback={lazyFallback}><Crm onConnectAsClient={(client) => { saveConnectReturnContext({ fromRole: 'admin', fromTab: 'crm', leadId: client.id, scrollY: window.scrollY }); onConnectAsClient?.(client); }} onOpenChat={(lead) => { setChatLead(lead); setChatClientMessageSent(false); setActiveView('chat-client'); }} onOpenRdv={(lead) => { setRdvLead(lead); setActiveView('propositions-rdv'); }} /></Suspense>;
       case 'ajouter-vendeur': return <Suspense fallback={lazyFallback}><AjouterVendeur /></Suspense>;
-      case 'liste-vendeurs': return <Suspense fallback={lazyFallback}><ListeVendeurs onConnectAsVendor={onConnectAsVendor} onOpenChat={(vendor) => { setChatVendor(vendor); setChatVendorMessageSent(false); setActiveView('chat-vendeur'); }} /></Suspense>;
+      case 'liste-vendeurs': return <Suspense fallback={lazyFallback}><ListeVendeurs onConnectAsVendor={(vendor) => { saveConnectReturnContext({ fromRole: 'admin', fromTab: 'liste-vendeurs', vendorId: vendor.id, scrollY: window.scrollY }); onConnectAsVendor?.(vendor); }} onOpenChat={(vendor) => { setChatVendor(vendor); setChatVendorMessageSent(false); setActiveView('chat-vendeur'); }} /></Suspense>;
       case 'chat-client': return null;
       case 'chat-vendeur': return null;
       case 'agenda': return <Suspense fallback={lazyFallback}><Agenda /></Suspense>;
