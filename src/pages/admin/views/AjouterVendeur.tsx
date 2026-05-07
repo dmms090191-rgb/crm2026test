@@ -1,11 +1,13 @@
 import { useState, useRef } from 'react';
 import { UserCheck, Eye, EyeOff } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
+import { useThemeTokens } from '../../../hooks/useThemeTokens';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 export default function AjouterVendeur() {
+  const tokens = useThemeTokens();
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
@@ -107,28 +109,28 @@ export default function AjouterVendeur() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-white text-xl font-bold">Vendeur</h2>
-          <p className="text-slate-600 text-xs mt-0.5">Créer un nouveau compte vendeur</p>
+          <h2 className="text-xl font-bold" style={{ color: tokens.text.primary }}>Vendeur</h2>
+          <p className="text-xs mt-0.5" style={{ color: tokens.text.quaternary }}>Créer un nouveau compte vendeur</p>
         </div>
         <div
           className="w-9 h-9 rounded-xl flex items-center justify-center"
-          style={{ background: 'rgba(34,211,238,0.08)', boxShadow: '0 0 16px rgba(34,211,238,0.15)' }}
+          style={{ background: tokens.accent.bg }}
         >
-          <UserCheck className="w-4 h-4 text-cyan-400" />
+          <UserCheck className="w-4 h-4" style={{ color: tokens.accent.text }} />
         </div>
       </div>
 
       <div
         className="rounded-2xl p-6 max-w-lg"
         style={{
-          background: 'linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)',
-          border: '1px solid rgba(255,255,255,0.06)',
+          background: tokens.card.bg,
+          border: `1px solid ${tokens.card.border}`,
         }}
       >
         <form onSubmit={handleSubmit} className="space-y-5">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-[10px] font-bold tracking-[0.15em] uppercase text-slate-500 mb-2">
+              <label className="block text-[10px] font-bold tracking-[0.15em] uppercase mb-2" style={{ color: tokens.text.tertiary }}>
                 Prénom
               </label>
               <input
@@ -136,12 +138,16 @@ export default function AjouterVendeur() {
                 value={firstName}
                 onChange={e => setFirstName(e.target.value)}
                 placeholder="Jean"
-                className="w-full px-3 py-2.5 rounded-lg text-sm text-white placeholder-slate-600 outline-none focus:ring-1 focus:ring-cyan-500/50 transition-all"
-                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
+                className="w-full px-3 py-2.5 rounded-lg text-sm outline-none focus:ring-1 transition-all"
+                style={{
+                  background: tokens.input.bg,
+                  border: `1px solid ${tokens.input.border}`,
+                  color: tokens.input.text,
+                }}
               />
             </div>
             <div>
-              <label className="block text-[10px] font-bold tracking-[0.15em] uppercase text-slate-500 mb-2">
+              <label className="block text-[10px] font-bold tracking-[0.15em] uppercase mb-2" style={{ color: tokens.text.tertiary }}>
                 Nom
               </label>
               <input
@@ -149,14 +155,18 @@ export default function AjouterVendeur() {
                 value={lastName}
                 onChange={e => setLastName(e.target.value)}
                 placeholder="Dupont"
-                className="w-full px-3 py-2.5 rounded-lg text-sm text-white placeholder-slate-600 outline-none focus:ring-1 focus:ring-cyan-500/50 transition-all"
-                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
+                className="w-full px-3 py-2.5 rounded-lg text-sm outline-none focus:ring-1 transition-all"
+                style={{
+                  background: tokens.input.bg,
+                  border: `1px solid ${tokens.input.border}`,
+                  color: tokens.input.text,
+                }}
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-[10px] font-bold tracking-[0.15em] uppercase text-slate-500 mb-2">
+            <label className="block text-[10px] font-bold tracking-[0.15em] uppercase mb-2" style={{ color: tokens.text.tertiary }}>
               Adresse email
             </label>
             <input
@@ -164,13 +174,17 @@ export default function AjouterVendeur() {
               value={email}
               onChange={e => setEmail(e.target.value)}
               placeholder="jean.dupont@exemple.com"
-              className="w-full px-3 py-2.5 rounded-lg text-sm text-white placeholder-slate-600 outline-none focus:ring-1 focus:ring-cyan-500/50 transition-all"
-              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
+              className="w-full px-3 py-2.5 rounded-lg text-sm outline-none focus:ring-1 transition-all"
+              style={{
+                background: tokens.input.bg,
+                border: `1px solid ${tokens.input.border}`,
+                color: tokens.input.text,
+              }}
             />
           </div>
 
           <div>
-            <label className="block text-[10px] font-bold tracking-[0.15em] uppercase text-slate-500 mb-2">
+            <label className="block text-[10px] font-bold tracking-[0.15em] uppercase mb-2" style={{ color: tokens.text.tertiary }}>
               Téléphone
             </label>
             <input
@@ -178,20 +192,25 @@ export default function AjouterVendeur() {
               value={phone}
               onChange={e => setPhone(e.target.value)}
               placeholder="+33 6 00 00 00 00"
-              className="w-full px-3 py-2.5 rounded-lg text-sm text-white placeholder-slate-600 outline-none focus:ring-1 focus:ring-cyan-500/50 transition-all"
-              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
+              className="w-full px-3 py-2.5 rounded-lg text-sm outline-none focus:ring-1 transition-all"
+              style={{
+                background: tokens.input.bg,
+                border: `1px solid ${tokens.input.border}`,
+                color: tokens.input.text,
+              }}
             />
           </div>
 
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label className="block text-[10px] font-bold tracking-[0.15em] uppercase text-slate-500">
+              <label className="block text-[10px] font-bold tracking-[0.15em] uppercase" style={{ color: tokens.text.tertiary }}>
                 Mot de passe (6 chiffres)
               </label>
               <button
                 type="button"
                 onClick={() => setShowPin(v => !v)}
-                className="flex items-center gap-1 text-[10px] text-slate-500 hover:text-slate-300 transition-colors"
+                className="flex items-center gap-1 text-[10px] transition-colors"
+                style={{ color: tokens.text.tertiary }}
               >
                 {showPin ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
                 {showPin ? 'Masquer' : 'Afficher'}
@@ -209,11 +228,11 @@ export default function AjouterVendeur() {
                   onChange={e => handlePinChange(i, e.target.value)}
                   onKeyDown={e => handlePinKeyDown(i, e)}
                   onPaste={handlePinPaste}
-                  className="w-11 h-11 text-center text-lg font-bold text-white rounded-xl outline-none focus:ring-2 focus:ring-cyan-500/60 transition-all"
+                  className="w-11 h-11 text-center text-lg font-bold rounded-xl outline-none focus:ring-2 transition-all"
                   style={{
-                    background: digit ? 'rgba(34,211,238,0.08)' : 'rgba(255,255,255,0.05)',
-                    border: digit ? '1px solid rgba(34,211,238,0.3)' : '1px solid rgba(255,255,255,0.08)',
-                    boxShadow: digit ? '0 0 10px rgba(34,211,238,0.15)' : 'none',
+                    background: digit ? tokens.accent.bg : tokens.input.bg,
+                    border: digit ? `1px solid ${tokens.accent.border}` : `1px solid ${tokens.input.border}`,
+                    color: tokens.input.text,
                   }}
                 />
               ))}
@@ -221,19 +240,19 @@ export default function AjouterVendeur() {
           </div>
 
           {error && (
-            <p className="text-xs text-rose-400 px-1">{error}</p>
+            <p className="text-xs px-1" style={{ color: tokens.danger.text }}>{error}</p>
           )}
           {success && (
-            <p className="text-xs text-emerald-400 px-1">{success}</p>
+            <p className="text-xs px-1" style={{ color: tokens.success.text }}>{success}</p>
           )}
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2.5 rounded-xl text-sm font-semibold text-white transition-all duration-200 disabled:opacity-50"
+            className="w-full py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 disabled:opacity-50"
             style={{
-              background: 'linear-gradient(90deg, #0ea5e9, #22d3ee)',
-              boxShadow: '0 0 20px rgba(34,211,238,0.25)',
+              background: tokens.accent.solid,
+              color: '#ffffff',
             }}
           >
             {loading ? 'Création...' : 'Créer le vendeur'}

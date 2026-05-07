@@ -31,7 +31,7 @@ export interface ColumnMapping {
 const PRENOM_VARIANTS = ['prenom', 'prénom', 'firstname', 'first_name', 'first name', 'prénom'];
 const NOM_VARIANTS = ['nom', 'name', 'lastname', 'last_name', 'last name', 'surname'];
 const EMAIL_VARIANTS = ['email', 'e-mail', 'mail', 'courriel', 'adresse email', 'adresse mail'];
-const TEL_VARIANTS = ['telephone', 'téléphone', 'tel', 'tél', 'phone', 'mobile', 'portable', 'numero', 'numéro'];
+const TEL_VARIANTS = ['telephone', 'téléphone', 'tel', 'tél', 'phone', 'mobile', 'portable'];
 
 function detectColumn(columns: string[], variants: string[]): string | undefined {
   return columns.find(col => variants.includes(col.toLowerCase().trim()));
@@ -44,6 +44,30 @@ export function detectColumnMapping(columns: string[]): ColumnMapping {
     email: detectColumn(columns, EMAIL_VARIANTS),
     telephone: detectColumn(columns, TEL_VARIANTS),
   };
+}
+
+const TEL_SAMPLE_SIZE = 10;
+const TEL_SAMPLE_THRESHOLD = 0.4;
+
+export function refineTelephoneMapping(
+  mapping: ColumnMapping,
+  rows: Record<string, string>[]
+): ColumnMapping {
+  if (!mapping.telephone) return mapping;
+
+  const nonEmpty = rows
+    .map(r => (r[mapping.telephone!] ?? '').trim())
+    .filter(v => v !== '');
+
+  const sample = nonEmpty.slice(0, TEL_SAMPLE_SIZE);
+  if (sample.length === 0) return { ...mapping, telephone: undefined };
+
+  const validCount = sample.filter(v => normalizePhone(v).valid).length;
+  if (validCount / sample.length < TEL_SAMPLE_THRESHOLD) {
+    return { ...mapping, telephone: undefined };
+  }
+
+  return mapping;
 }
 
 export function parseCSVText(text: string): { columns: string[]; rows: Record<string, string>[] } {
@@ -89,10 +113,12 @@ export function parseCSVText(text: string): { columns: string[]; rows: Record<st
 
 export function processRows(
   rows: Record<string, string>[],
-  mapping: ColumnMapping
+  mapping: ColumnMapping,
+  emailMap?: Map<string, number>,
+  telMap?: Map<string, number>
 ): ProcessedRow[] {
-  const emailMap = new Map<string, number>();
-  const telMap = new Map<string, number>();
+  const _emailMap = emailMap ?? new Map<string, number>();
+  const _telMap = telMap ?? new Map<string, number>();
 
   return rows.map((raw, index) => {
     const rawPrenom = mapping.prenom ? raw[mapping.prenom] ?? '' : '';
@@ -114,26 +140,28 @@ export function processRows(
     }
 
     const telResult = normalizePhone(rawTel);
-    if (!telResult.valid) {
-      return { index, raw, prenom, nom, email: emailNorm, telephone: null, status: 'error' as RowStatus, errorReason: telResult.error ?? 'Téléphone invalide' };
+    let telephone: string | null = null;
+    if (telResult.valid) {
+      telephone = telResult.canonical;
+    } else if (emailNorm === null) {
+      return { index, raw, prenom, nom, email: null, telephone: null, status: 'error' as RowStatus, errorReason: telResult.error ?? 'Téléphone invalide' };
     }
 
     const email = emailNorm;
-    const telephone = telResult.canonical;
 
     if (email === null && telephone === null) {
       return { index, raw, prenom, nom, email: null, telephone: null, status: 'error' as RowStatus, errorReason: 'Email et téléphone tous les deux absents' };
     }
 
-    if (email !== null && emailMap.has(email)) {
-      return { index, raw, prenom, nom, email, telephone, status: 'dup_file' as RowStatus, dupOriginalIndex: emailMap.get(email)! };
+    if (email !== null && _emailMap.has(email)) {
+      return { index, raw, prenom, nom, email, telephone, status: 'dup_file' as RowStatus, dupOriginalIndex: _emailMap.get(email)! };
     }
-    if (telephone !== null && telMap.has(telephone)) {
-      return { index, raw, prenom, nom, email, telephone, status: 'dup_file' as RowStatus, dupOriginalIndex: telMap.get(telephone)! };
+    if (telephone !== null && _telMap.has(telephone)) {
+      return { index, raw, prenom, nom, email, telephone, status: 'dup_file' as RowStatus, dupOriginalIndex: _telMap.get(telephone)! };
     }
 
-    if (email !== null) emailMap.set(email, index);
-    if (telephone !== null) telMap.set(telephone, index);
+    if (email !== null) _emailMap.set(email, index);
+    if (telephone !== null) _telMap.set(telephone, index);
 
     return { index, raw, prenom, nom, email, telephone, status: 'valid' as RowStatus };
   });
@@ -191,7 +219,7 @@ export function countByStatus(rows: ProcessedRow[]) {
   };
 }
 
-export function generateErrorCSV(rows: ProcessedRow[], mapping: ColumnMapping, allColumns: string[]): string {
+export function generateErrorCSV(rows: ProcessedRow[], _mapping: ColumnMapping, allColumns: string[]): string {
   const errorRows = rows.filter(r => r.status === 'error');
   if (errorRows.length === 0) return '';
 

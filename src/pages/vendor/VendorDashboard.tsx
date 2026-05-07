@@ -9,6 +9,11 @@ import VendorAgenda from './views/VendorAgenda';
 import VendorPropositionsRdv from './views/VendorPropositionsRdv';
 import { supabase } from '../../lib/supabase';
 import type { ImpersonatedClientInfo } from '../client/ClientDashboard';
+import { useThemeTokens } from '../../hooks/useThemeTokens';
+import { useUnreadVendorAdminMessages } from '../../hooks/useUnreadVendorAdminMessages';
+import { useUnreadVendorClientMessages } from '../../hooks/useUnreadVendorClientMessages';
+import { useAgendaNotifications } from '../../hooks/useAgendaNotifications';
+import type { VendorClientNotifEntry } from './VendorTopBar';
 
 export interface ImpersonatedVendor {
   id: string;
@@ -35,11 +40,18 @@ export interface VendorChatLead {
 }
 
 export default function VendorDashboard({ onLogout, impersonatedVendor, onBackToAdmin, onConnectAsClient }: VendorDashboardProps) {
+  const tokens = useThemeTokens();
   const [activeView, setActiveView] = useState<VendorActiveView>('vue-ensemble');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [vendorName, setVendorName] = useState('Vendeur');
   const [vendorDbId, setVendorDbId] = useState<string | null>(null);
   const [chatLead, setChatLead] = useState<VendorChatLead | null>(null);
+  const [rdvLead, setRdvLead] = useState<VendorChatLead | null>(null);
+  const { unreadCount: unreadAdminCount, latestAt: unreadAdminLatestAt, markAsRead: markAdminRead } = useUnreadVendorAdminMessages(vendorDbId);
+  const { unreadCount: unreadClientCount, unreadEntries: unreadClientEntries, markAsRead: markClientRead } = useUnreadVendorClientMessages(vendorDbId);
+  const { notifications: agendaNotifs, count: agendaCount, markAsSeen: markAgendaSeen } = useAgendaNotifications('vendor', vendorDbId);
+  const [confirmedUnseen, setConfirmedUnseen] = useState<{ id: string; lead_name: string; created_at: string }[]>([]);
 
   useEffect(() => {
     if (impersonatedVendor) {
@@ -64,6 +76,62 @@ export default function VendorDashboard({ onLogout, impersonatedVendor, onBackTo
     });
   }, [impersonatedVendor]);
 
+  useEffect(() => {
+    if (!vendorDbId) return;
+    const fetchUnseen = async () => {
+      const { data } = await supabase
+        .from('rdv_proposals')
+        .select('id, lead_name, created_at')
+        .eq('vendor_id', vendorDbId)
+        .eq('status', 'confirmed')
+        .eq('seen_by_vendor', false)
+        .order('created_at', { ascending: false });
+      setConfirmedUnseen(data ?? []);
+    };
+    fetchUnseen();
+    const ch = supabase
+      .channel(`vendor-confirmed-unseen-${vendorDbId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'rdv_proposals' }, fetchUnseen)
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [vendorDbId]);
+
+  useEffect(() => {
+    if (activeView === 'chat-admin') {
+      markAdminRead();
+    }
+  }, [activeView, markAdminRead]);
+
+  const handleAdminNotifClick = useCallback(() => {
+    setActiveView('chat-admin');
+  }, []);
+
+  const handleAgendaNotifClick = useCallback((rdvId: string) => {
+    markAgendaSeen(rdvId);
+    setActiveView('agenda');
+  }, [markAgendaSeen]);
+
+  const handleProposalEntryClick = useCallback((proposalId: string) => {
+    supabase
+      .from('rdv_proposals')
+      .update({ seen_by_vendor: true })
+      .eq('id', proposalId)
+      .then(() => {
+        setConfirmedUnseen(prev => prev.filter(p => p.id !== proposalId));
+      });
+    setActiveView('propositions-rdv');
+  }, []);
+
+  const handleClientEntryClick = useCallback((entry: VendorClientNotifEntry) => {
+    setChatLead({ id: entry.leadId, nom: entry.nom, prenom: entry.prenom, email: entry.email });
+    setActiveView('chat-client');
+    markClientRead(entry.clientAuthId);
+  }, [markClientRead]);
+
+  const handleClientViewed = useCallback((clientAuthId: string) => {
+    markClientRead(clientAuthId);
+  }, [markClientRead]);
+
   const getBreadcrumb = useCallback(() => {
     const labels: Record<VendorActiveView, string> = {
       'vue-ensemble': "Vue d'ensemble",
@@ -79,27 +147,57 @@ export default function VendorDashboard({ onLogout, impersonatedVendor, onBackTo
   const renderView = () => {
     switch (activeView) {
       case 'vue-ensemble': return <VendorVueEnsemble vendorId={vendorDbId} />;
-      case 'leads': return <VendorLeads vendorId={vendorDbId} onOpenChat={(lead) => { setChatLead(lead); setActiveView('chat-client'); }} onConnectAsClient={onConnectAsClient} />;
-      case 'chat-admin': return <VendorChatAdmin vendorName={vendorName} vendorDbId={vendorDbId} vendorAuthId={impersonatedVendor?.auth_user_id ?? undefined} />;
-      case 'chat-client': return <VendorChatClient vendorName={vendorName} vendorDbId={vendorDbId} initialLead={chatLead} />;
-      case 'agenda': return <VendorAgenda />;
-      case 'propositions-rdv': return <VendorPropositionsRdv />;
+      case 'leads': return <VendorLeads vendorId={vendorDbId} onOpenChat={(lead) => { setChatLead(lead); setActiveView('chat-client'); }} onConnectAsClient={onConnectAsClient} onOpenRdv={(lead) => { setRdvLead(lead); setActiveView('propositions-rdv'); }} />;
+      case 'chat-admin': return <VendorChatAdmin vendorName={vendorName} vendorDbId={vendorDbId} vendorAuthId={impersonatedVendor?.auth_user_id ?? undefined} onAdminMessageViewed={markAdminRead} />;
+      case 'chat-client': return <VendorChatClient vendorName={vendorName} vendorDbId={vendorDbId} initialLead={chatLead} onClientViewed={handleClientViewed} />;
+      case 'agenda': return <VendorAgenda vendorId={vendorDbId} />;
+      case 'propositions-rdv': return <VendorPropositionsRdv vendorDbId={vendorDbId} initialLead={rdvLead} onInitialLeadConsumed={() => setRdvLead(null)} onNavigateToLeads={() => setActiveView('leads')} />;
       default: return <VendorVueEnsemble vendorId={vendorDbId} />;
     }
   };
 
   return (
-    <div className="flex h-screen bg-[#0d1117] overflow-hidden">
-      <VendorSidebar
-        activeView={activeView}
-        onNavigate={setActiveView}
-        collapsed={sidebarCollapsed}
-        onCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
-        onLogout={onLogout}
-      />
+    <div className="flex h-screen overflow-hidden" style={{ background: tokens.main.bg }}>
+      {mobileOpen && (
+        <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setMobileOpen(false)} />
+      )}
+      <div
+        className={`
+          fixed inset-y-0 left-0 z-50 w-[min(300px,calc(100vw-24px))]
+          md:relative md:z-auto md:w-auto
+          transition-transform duration-300 md:transition-none md:translate-x-0
+          ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}
+        `}
+      >
+        <VendorSidebar
+          activeView={activeView}
+          onNavigate={(view) => { setActiveView(view); setMobileOpen(false); }}
+          collapsed={mobileOpen ? false : sidebarCollapsed}
+          onCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+          onLogout={onLogout}
+        />
+      </div>
       <div className="flex flex-col flex-1 overflow-hidden">
-        <VendorTopBar breadcrumb={getBreadcrumb()} vendorName={vendorName} isImpersonating={!!impersonatedVendor} onBackToAdmin={onBackToAdmin} />
-        <main className="flex-1 overflow-auto p-6">
+        <VendorTopBar
+          breadcrumb={getBreadcrumb()}
+          onMobileMenuToggle={() => setMobileOpen(!mobileOpen)}
+          vendorName={vendorName}
+          isImpersonating={!!impersonatedVendor}
+          onBackToAdmin={onBackToAdmin}
+          unreadAdminCount={unreadAdminCount}
+          unreadAdminLatestAt={unreadAdminLatestAt}
+          onAdminNotifClick={handleAdminNotifClick}
+          unreadClientCount={unreadClientCount}
+          unreadClientEntries={unreadClientEntries}
+          onClientEntryClick={handleClientEntryClick}
+          agendaCount={agendaCount}
+          agendaEntries={agendaNotifs}
+          onAgendaEntryClick={handleAgendaNotifClick}
+          propositionsCount={confirmedUnseen.length}
+          propositionsEntries={confirmedUnseen}
+          onPropositionEntryClick={handleProposalEntryClick}
+        />
+        <main className="flex-1 overflow-auto p-3 sm:p-4 md:p-6">
           {renderView()}
         </main>
       </div>

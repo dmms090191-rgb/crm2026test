@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { ProcessedRow, RowStatus } from '../../../../lib/csvImportPipeline';
+import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 
 const PAGE_SIZE = 20;
 
@@ -44,6 +45,7 @@ function StatusBadge({ status, reason, dupIndex, dupName, dupMatchType }: {
 }
 
 export default function PreviewTable({ rows, allColumns, mappedColumns }: PreviewTableProps) {
+  const tokens = useThemeTokens();
   const [page, setPage] = useState(0);
   const [filter, setFilter] = useState<FilterType>('all');
 
@@ -52,11 +54,11 @@ export default function PreviewTable({ rows, allColumns, mappedColumns }: Previe
   const pageRows = filteredRows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   const filterTabs: { key: FilterType; label: string; count: number }[] = [
-    { key: 'all', label: 'Tous', count: rows.length },
-    { key: 'valid', label: 'Nouveaux', count: rows.filter(r => r.status === 'valid').length },
-    { key: 'dup_file', label: 'Doublons fichier', count: rows.filter(r => r.status === 'dup_file').length },
-    { key: 'dup_crm', label: 'Doublons CRM', count: rows.filter(r => r.status === 'dup_crm').length },
-    { key: 'error', label: 'Erreurs', count: rows.filter(r => r.status === 'error').length },
+    { key: 'all' as const, label: 'Tous', count: rows.length },
+    { key: 'valid' as const, label: 'Nouveaux', count: rows.filter(r => r.status === 'valid').length },
+    { key: 'dup_file' as const, label: 'Doublons fichier', count: rows.filter(r => r.status === 'dup_file').length },
+    { key: 'dup_crm' as const, label: 'Doublons CRM', count: rows.filter(r => r.status === 'dup_crm').length },
+    { key: 'error' as const, label: 'Erreurs', count: rows.filter(r => r.status === 'error').length },
   ].filter(t => t.key === 'all' || t.count > 0);
 
   const isMapped = (col: string) =>
@@ -65,11 +67,11 @@ export default function PreviewTable({ rows, allColumns, mappedColumns }: Previe
   return (
     <div
       className="rounded-2xl overflow-hidden"
-      style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)', border: '1px solid rgba(255,255,255,0.07)' }}
+      style={{ background: tokens.card.bg, border: tokens.card.border }}
     >
       <div
         className="flex items-center justify-between flex-wrap gap-2 px-5 py-3"
-        style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}
+        style={{ borderBottom: tokens.table.headerBorder }}
       >
         <div className="flex items-center gap-1.5 flex-wrap">
           {filterTabs.map(t => (
@@ -79,16 +81,16 @@ export default function PreviewTable({ rows, allColumns, mappedColumns }: Previe
               className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-semibold transition-all"
               style={
                 filter === t.key
-                  ? { background: 'rgba(34,211,238,0.12)', color: '#22d3ee', border: '1px solid rgba(34,211,238,0.25)' }
-                  : { background: 'rgba(255,255,255,0.03)', color: 'rgba(255,255,255,0.35)', border: '1px solid rgba(255,255,255,0.06)' }
+                  ? { background: 'rgba(34,211,238,0.12)', color: tokens.accent.text, border: tokens.accent.border }
+                  : { background: tokens.surface.tertiary, color: tokens.text.tertiary, border: tokens.surface.borderLight }
               }
             >
               {t.label}
               <span
                 className="px-1 py-0.5 rounded text-[9px] font-bold"
                 style={{
-                  background: filter === t.key ? 'rgba(34,211,238,0.15)' : 'rgba(255,255,255,0.06)',
-                  color: filter === t.key ? '#22d3ee' : 'rgba(255,255,255,0.3)',
+                  background: filter === t.key ? 'rgba(34,211,238,0.15)' : tokens.surface.borderLight,
+                  color: filter === t.key ? tokens.accent.text : tokens.text.tertiary,
                 }}
               >
                 {t.count}
@@ -102,18 +104,18 @@ export default function PreviewTable({ rows, allColumns, mappedColumns }: Previe
               onClick={() => setPage(p => Math.max(0, p - 1))}
               disabled={page === 0}
               className="w-7 h-7 rounded-lg flex items-center justify-center transition-all disabled:opacity-30"
-              style={{ background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.5)' }}
+              style={{ background: tokens.surface.tertiary, color: tokens.text.tertiary }}
             >
               <ChevronLeft className="w-3.5 h-3.5" />
             </button>
-            <span className="text-[10px] text-slate-500 tabular-nums">
+            <span className="text-[10px] tabular-nums" style={{ color: tokens.text.tertiary }}>
               {page + 1} / {totalPages}
             </span>
             <button
               onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
               disabled={page >= totalPages - 1}
               className="w-7 h-7 rounded-lg flex items-center justify-center transition-all disabled:opacity-30"
-              style={{ background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.5)' }}
+              style={{ background: tokens.surface.tertiary, color: tokens.text.tertiary }}
             >
               <ChevronRight className="w-3.5 h-3.5" />
             </button>
@@ -124,14 +126,14 @@ export default function PreviewTable({ rows, allColumns, mappedColumns }: Previe
       <div className="overflow-x-auto">
         <table className="w-full text-xs" style={{ borderCollapse: 'collapse' }}>
           <thead>
-            <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', background: 'rgba(255,255,255,0.01)' }}>
-              <th className="text-left px-4 py-2.5 text-[10px] font-bold tracking-widest uppercase text-slate-600 w-10">#</th>
-              <th className="text-left px-4 py-2.5 text-[10px] font-bold tracking-widest uppercase text-slate-600 whitespace-nowrap">Statut</th>
+            <tr style={{ borderBottom: tokens.table.headerBorder, background: tokens.table.headerBg }}>
+              <th className="text-left px-4 py-2.5 text-[10px] font-bold tracking-widest uppercase w-10" style={{ color: tokens.table.headerText }}>#</th>
+              <th className="text-left px-4 py-2.5 text-[10px] font-bold tracking-widest uppercase whitespace-nowrap" style={{ color: tokens.table.headerText }}>Statut</th>
               {allColumns.map(col => (
                 <th
                   key={col}
                   className="text-left px-4 py-2.5 text-[10px] font-bold tracking-widest uppercase whitespace-nowrap"
-                  style={{ color: isMapped(col) ? '#22d3ee' : 'rgba(100,116,139,0.8)' }}
+                  style={{ color: isMapped(col) ? tokens.accent.text : tokens.table.headerText }}
                 >
                   {col}
                   {isMapped(col) && (
@@ -147,7 +149,7 @@ export default function PreviewTable({ rows, allColumns, mappedColumns }: Previe
                 key={row.index}
                 className="transition-colors"
                 style={{
-                  borderBottom: '1px solid rgba(255,255,255,0.03)',
+                  borderBottom: tokens.table.rowBorder,
                   background:
                     row.status === 'error' ? 'rgba(248,113,113,0.03)' :
                     row.status === 'dup_crm' ? 'rgba(251,146,60,0.03)' :
@@ -155,7 +157,7 @@ export default function PreviewTable({ rows, allColumns, mappedColumns }: Previe
                     'transparent',
                 }}
               >
-                <td className="px-4 py-2.5 text-slate-700 tabular-nums">{row.index + 1}</td>
+                <td className="px-4 py-2.5 tabular-nums" style={{ color: tokens.label.hint }}>{row.index + 1}</td>
                 <td className="px-4 py-2.5">
                   <StatusBadge
                     status={row.status}
@@ -166,8 +168,8 @@ export default function PreviewTable({ rows, allColumns, mappedColumns }: Previe
                   />
                 </td>
                 {allColumns.map(col => (
-                  <td key={col} className="px-4 py-2.5 text-slate-400 max-w-[180px] truncate">
-                    {row.raw[col] || <span className="text-slate-700">—</span>}
+                  <td key={col} className="px-4 py-2.5 max-w-[180px] truncate" style={{ color: tokens.table.cellText }}>
+                    {row.raw[col] || <span style={{ color: tokens.label.hint }}>—</span>}
                   </td>
                 ))}
               </tr>
@@ -178,7 +180,7 @@ export default function PreviewTable({ rows, allColumns, mappedColumns }: Previe
 
       {filteredRows.length === 0 && (
         <div className="flex items-center justify-center py-8">
-          <p className="text-slate-600 text-xs">Aucune ligne dans cette catégorie</p>
+          <p className="text-xs" style={{ color: tokens.text.quaternary }}>Aucune ligne dans cette catégorie</p>
         </div>
       )}
     </div>

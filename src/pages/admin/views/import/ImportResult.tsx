@@ -1,5 +1,6 @@
 import { CheckCircle, Upload, Users, AlertCircle, Copy, Download } from 'lucide-react';
 import type { ImportMode } from './ImportModeSelector';
+import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 
 interface ImportResultProps {
   inserted: number;
@@ -20,6 +21,8 @@ const modeLabel: Record<ImportMode, string> = {
 };
 
 export default function ImportResult({ inserted, updated, ignored, errors, mode, errorCsvData, fileName, onNewImport, onGoToCrm }: ImportResultProps) {
+  const tokens = useThemeTokens();
+
   const handleDownloadErrors = () => {
     if (!errorCsvData) return;
     const blob = new Blob([errorCsvData], { type: 'text/csv;charset=utf-8;' });
@@ -41,19 +44,19 @@ export default function ImportResult({ inserted, updated, ignored, errors, mode,
   return (
     <div
       className="rounded-2xl p-8 space-y-6"
-      style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)', border: '1px solid rgba(255,255,255,0.07)' }}
+      style={{ background: tokens.card.bg, border: tokens.card.border }}
     >
       <div className="flex flex-col items-center gap-3">
         <div
           className="w-14 h-14 rounded-2xl flex items-center justify-center"
-          style={{ background: 'rgba(52,211,153,0.1)', border: '1px solid rgba(52,211,153,0.2)' }}
+          style={{ background: tokens.success.bg, border: tokens.success.border }}
         >
-          <CheckCircle className="w-7 h-7 text-emerald-400" />
+          <CheckCircle className="w-7 h-7" style={{ color: tokens.success.text }} />
         </div>
         <div className="text-center">
-          <p className="text-white font-bold text-base">Import terminé</p>
-          <p className="text-slate-500 text-xs mt-1">
-            Mode : <span className="text-slate-300">{modeLabel[mode]}</span> &nbsp;·&nbsp; Fichier : <span className="text-slate-300">{fileName}</span>
+          <p className="font-bold text-base" style={{ color: tokens.text.primary }}>Import terminé</p>
+          <p className="text-xs mt-1" style={{ color: tokens.text.tertiary }}>
+            Mode : <span style={{ color: tokens.text.secondary }}>{modeLabel[mode]}</span> &nbsp;·&nbsp; Fichier : <span style={{ color: tokens.text.secondary }}>{fileName}</span>
           </p>
         </div>
       </div>
@@ -63,10 +66,10 @@ export default function ImportResult({ inserted, updated, ignored, errors, mode,
           <div
             key={s.label}
             className="rounded-xl p-3 text-center"
-            style={{ background: s.value > 0 && s.label !== 'Ignorés' ? s.bg : 'rgba(255,255,255,0.02)', border: `1px solid ${s.value > 0 && s.label !== 'Ignorés' ? s.border : 'rgba(255,255,255,0.05)'}` }}
+            style={{ background: s.value > 0 && s.label !== 'Ignorés' ? s.bg : tokens.surface.tertiary, border: `1px solid ${s.value > 0 && s.label !== 'Ignorés' ? s.border : tokens.surface.borderLight}` }}
           >
-            <p className="text-xl font-bold tabular-nums" style={{ color: s.value > 0 ? s.color : 'rgba(255,255,255,0.2)' }}>{s.value}</p>
-            <p className="text-[10px] text-slate-500 mt-0.5">{s.label}</p>
+            <p className="text-xl font-bold tabular-nums" style={{ color: s.value > 0 ? s.color : tokens.text.tertiary }}>{s.value}</p>
+            <p className="text-[10px] mt-0.5" style={{ color: tokens.text.tertiary }}>{s.label}</p>
           </div>
         ))}
       </div>
@@ -76,7 +79,7 @@ export default function ImportResult({ inserted, updated, ignored, errors, mode,
           <button
             onClick={handleDownloadErrors}
             className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all hover:brightness-110"
-            style={{ background: 'rgba(248,113,113,0.1)', color: '#f87171', border: '1px solid rgba(248,113,113,0.2)' }}
+            style={{ background: tokens.danger.bg, color: tokens.danger.text, border: tokens.danger.border }}
           >
             <Download className="w-3.5 h-3.5" />
             Télécharger les erreurs ({errors} lignes)
@@ -85,7 +88,7 @@ export default function ImportResult({ inserted, updated, ignored, errors, mode,
         <button
           onClick={onGoToCrm}
           className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all hover:brightness-110"
-          style={{ background: 'rgba(52,211,153,0.1)', color: '#34d399', border: '1px solid rgba(52,211,153,0.2)' }}
+          style={{ background: tokens.success.bg, color: tokens.success.text, border: tokens.success.border }}
         >
           <Users className="w-3.5 h-3.5" />
           Voir dans le CRM
@@ -93,7 +96,7 @@ export default function ImportResult({ inserted, updated, ignored, errors, mode,
         <button
           onClick={onNewImport}
           className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all hover:brightness-110"
-          style={{ background: 'rgba(34,211,238,0.1)', color: '#22d3ee', border: '1px solid rgba(34,211,238,0.2)' }}
+          style={{ background: tokens.accent.bg, color: tokens.accent.text, border: tokens.accent.border }}
         >
           <Upload className="w-3.5 h-3.5" />
           Importer un autre fichier

@@ -2,6 +2,7 @@ import { useState, useRef, useCallback } from 'react';
 import { Download, Upload, CheckCircle, AlertTriangle, Loader2, X, FileJson, Shield } from 'lucide-react';
 import { exportDocumentation, downloadJson } from '../../../../lib/exportDocumentation';
 import { importDocumentation, validateExportFile, type ImportResult } from '../../../../lib/importDocumentation';
+import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 
 interface Props {
   onImportComplete: () => void;
@@ -16,9 +17,12 @@ const SECTION_LABELS: Record<string, string> = {
   crm_notes: 'Notes',
   crm_ideas: 'Idees',
   crm_context_cards: 'Cartes de contexte',
+  crm_amelioration_categories: 'Categories d\'ameliorations',
+  crm_ameliorations: 'Ameliorations',
 };
 
 export default function ImportExportPanel({ onImportComplete }: Props) {
+  const tokens = useThemeTokens();
   const [step, setStep] = useState<Step>('idle');
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
@@ -96,13 +100,13 @@ export default function ImportExportPanel({ onImportComplete }: Props) {
           disabled={step === 'exporting' || step === 'importing'}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150"
           style={{
-            background: 'rgba(34,197,94,0.08)',
-            border: '1px solid rgba(34,197,94,0.2)',
-            color: '#4ade80',
+            background: tokens.success.bg,
+            border: `1px solid ${tokens.success.border}`,
+            color: tokens.success.text,
             opacity: step === 'exporting' || step === 'importing' ? 0.5 : 1,
           }}
           onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(34,197,94,0.15)'; e.currentTarget.style.borderColor = 'rgba(34,197,94,0.35)'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(34,197,94,0.08)'; e.currentTarget.style.borderColor = 'rgba(34,197,94,0.2)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = tokens.success.bg; e.currentTarget.style.borderColor = tokens.success.border; }}
         >
           {step === 'exporting' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
           Exporter JSON
@@ -113,13 +117,13 @@ export default function ImportExportPanel({ onImportComplete }: Props) {
           disabled={step === 'exporting' || step === 'importing'}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150"
           style={{
-            background: 'rgba(56,189,248,0.08)',
-            border: '1px solid rgba(56,189,248,0.2)',
-            color: '#38bdf8',
+            background: tokens.accent.bg,
+            border: `1px solid ${tokens.accent.border}`,
+            color: tokens.accent.text,
             opacity: step === 'exporting' || step === 'importing' ? 0.5 : 1,
           }}
-          onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(56,189,248,0.15)'; e.currentTarget.style.borderColor = 'rgba(56,189,248,0.35)'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(56,189,248,0.08)'; e.currentTarget.style.borderColor = 'rgba(56,189,248,0.2)'; }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = tokens.accent.bgHover; e.currentTarget.style.borderColor = 'rgba(56,189,248,0.35)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = tokens.accent.bg; e.currentTarget.style.borderColor = tokens.accent.border; }}
         >
           {step === 'importing' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
           Importer JSON
@@ -137,7 +141,7 @@ export default function ImportExportPanel({ onImportComplete }: Props) {
       {step === 'importing' && (
         <div
           className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs"
-          style={{ background: 'rgba(56,189,248,0.06)', border: '1px solid rgba(56,189,248,0.12)', color: '#7dd3fc' }}
+          style={{ background: tokens.accent.bg, border: `1px solid ${tokens.accent.border}`, color: tokens.accent.text }}
         >
           <Loader2 className="w-3.5 h-3.5 animate-spin flex-shrink-0" />
           Import en cours...
@@ -148,36 +152,36 @@ export default function ImportExportPanel({ onImportComplete }: Props) {
         <div
           className="rounded-xl p-4 flex flex-col gap-3"
           style={{
-            background: 'rgba(34,197,94,0.04)',
-            border: '1px solid rgba(34,197,94,0.15)',
+            background: tokens.success.bg,
+            border: `1px solid ${tokens.success.border}`,
           }}
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <CheckCircle className="w-4 h-4" style={{ color: '#4ade80' }} />
-              <span className="text-sm font-semibold" style={{ color: '#4ade80' }}>
+              <CheckCircle className="w-4 h-4" style={{ color: tokens.success.text }} />
+              <span className="text-sm font-semibold" style={{ color: tokens.success.text }}>
                 Import termine
               </span>
             </div>
             <button
               onClick={handleCloseResult}
               className="p-1 rounded-lg transition-all duration-150"
-              style={{ color: 'rgba(148,163,184,0.5)' }}
-              onMouseEnter={(e) => { e.currentTarget.style.color = '#e2e8f0'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(148,163,184,0.5)'; }}
+              style={{ color: tokens.text.quaternary }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = tokens.text.secondary; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = tokens.text.quaternary; }}
             >
               <X className="w-3.5 h-3.5" />
             </button>
           </div>
 
-          <div className="flex items-center gap-4 text-xs" style={{ color: 'rgba(203,213,225,0.8)' }}>
+          <div className="flex items-center gap-4 text-xs" style={{ color: tokens.text.tertiary }}>
             <div className="flex items-center gap-1.5">
-              <FileJson className="w-3.5 h-3.5" style={{ color: '#4ade80' }} />
-              <span className="font-medium" style={{ color: '#4ade80' }}>{totalImported}</span> importes
+              <FileJson className="w-3.5 h-3.5" style={{ color: tokens.success.text }} />
+              <span className="font-medium" style={{ color: tokens.success.text }}>{totalImported}</span> importes
             </div>
             <div className="flex items-center gap-1.5">
-              <Shield className="w-3.5 h-3.5" style={{ color: 'rgba(148,163,184,0.5)' }} />
-              <span className="font-medium" style={{ color: 'rgba(148,163,184,0.6)' }}>{totalSkipped}</span> ignores (deja existants)
+              <Shield className="w-3.5 h-3.5" style={{ color: tokens.text.quaternary }} />
+              <span className="font-medium" style={{ color: tokens.text.quaternary }}>{totalSkipped}</span> ignores (deja existants)
             </div>
           </div>
 
@@ -189,15 +193,15 @@ export default function ImportExportPanel({ onImportComplete }: Props) {
                 <div
                   key={key}
                   className="flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs"
-                  style={{ background: 'rgba(255,255,255,0.02)' }}
+                  style={{ background: tokens.surface.secondary }}
                 >
-                  <span style={{ color: 'rgba(203,213,225,0.7)' }}>{SECTION_LABELS[key] ?? key}</span>
+                  <span style={{ color: tokens.text.tertiary }}>{SECTION_LABELS[key] ?? key}</span>
                   <div className="flex items-center gap-3">
                     {imported > 0 && (
-                      <span style={{ color: '#4ade80' }}>+{imported}</span>
+                      <span style={{ color: tokens.success.text }}>+{imported}</span>
                     )}
                     {skipped > 0 && (
-                      <span style={{ color: 'rgba(148,163,184,0.5)' }}>{skipped} ignores</span>
+                      <span style={{ color: tokens.text.quaternary }}>{skipped} ignores</span>
                     )}
                   </div>
                 </div>
@@ -210,7 +214,7 @@ export default function ImportExportPanel({ onImportComplete }: Props) {
       {step === 'error' && (
         <div
           className="flex items-center justify-between px-3 py-2.5 rounded-lg text-xs"
-          style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)', color: '#f87171' }}
+          style={{ background: tokens.danger.bg, border: `1px solid ${tokens.danger.border}`, color: tokens.danger.text }}
         >
           <div className="flex items-center gap-2">
             <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
@@ -219,9 +223,9 @@ export default function ImportExportPanel({ onImportComplete }: Props) {
           <button
             onClick={handleCloseError}
             className="p-0.5 rounded transition-all duration-150 flex-shrink-0 ml-2"
-            style={{ color: 'rgba(248,113,113,0.6)' }}
-            onMouseEnter={(e) => { e.currentTarget.style.color = '#f87171'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(248,113,113,0.6)'; }}
+            style={{ color: tokens.danger.text }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = tokens.danger.text; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = tokens.danger.text; }}
           >
             <X className="w-3 h-3" />
           </button>

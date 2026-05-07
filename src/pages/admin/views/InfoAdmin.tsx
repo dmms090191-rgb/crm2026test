@@ -1,30 +1,21 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { User, Mail, Lock, Save, Eye, EyeOff, CheckCircle, AlertCircle } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
+import { useThemeTokens } from '../../../hooks/useThemeTokens';
+import type { ThemeTokens } from '../../../lib/themeTokens';
 
 interface InfoAdminProps {
   onNameChange?: (firstName: string, lastName: string) => void;
 }
 
-const cardStyle = {
-  background: 'linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)',
-  border: '1px solid rgba(255,255,255,0.07)',
-};
-
-const inputStyle = {
-  background: 'rgba(255,255,255,0.05)',
-  border: '1px solid rgba(255,255,255,0.09)',
-  outline: 'none',
-};
-
-function Toast({ message, type }: { message: string; type: 'success' | 'error' }) {
+function Toast({ message, type, tokens }: { message: string; type: 'success' | 'error'; tokens: ThemeTokens }) {
   return (
     <div
       className="flex items-center gap-2.5 px-4 py-3 rounded-xl text-sm font-medium"
       style={{
-        background: type === 'success' ? 'rgba(52,211,153,0.1)' : 'rgba(248,113,113,0.1)',
-        border: `1px solid ${type === 'success' ? 'rgba(52,211,153,0.25)' : 'rgba(248,113,113,0.25)'}`,
-        color: type === 'success' ? '#34d399' : '#f87171',
+        background: type === 'success' ? tokens.success.bg : tokens.danger.bg,
+        border: `1px solid ${type === 'success' ? tokens.success.border : tokens.danger.border}`,
+        color: type === 'success' ? tokens.success.text : tokens.danger.text,
       }}
     >
       {type === 'success'
@@ -36,6 +27,7 @@ function Toast({ message, type }: { message: string; type: 'success' | 'error' }
 }
 
 export default function InfoAdmin({ onNameChange }: InfoAdminProps) {
+  const t = useThemeTokens();
   const [firstName, setFirstName] = useState('Administrateur');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
@@ -135,6 +127,19 @@ export default function InfoAdmin({ onNameChange }: InfoAdminProps) {
     }
   };
 
+  const cardStyle = {
+    background: t.card.bg,
+    border: `1px solid ${t.card.border}`,
+    boxShadow: t.card.shadow,
+  };
+
+  const inputStyle = {
+    background: t.input.bg,
+    border: `1px solid ${t.input.border}`,
+    outline: 'none',
+    color: t.input.text,
+  };
+
   return (
     <div className="max-w-2xl space-y-5">
       <div className="flex items-center gap-4 rounded-2xl p-5" style={cardStyle}>
@@ -142,58 +147,58 @@ export default function InfoAdmin({ onNameChange }: InfoAdminProps) {
           className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
           style={{ background: 'linear-gradient(135deg, #f97316, #ec4899)', boxShadow: '0 0 20px rgba(249,115,22,0.35)' }}
         >
-          <User className="w-6 h-6 text-white" />
+          <User className="w-6 h-6" style={{ color: '#ffffff' }} />
         </div>
         <div>
-          <h2 className="text-white text-base font-bold">Info Admin</h2>
-          <p className="text-slate-600 text-xs">Modifiez vos informations et cliquez sur Enregistrer</p>
+          <h2 className="text-base font-bold" style={{ color: t.heading.primary }}>Info Admin</h2>
+          <p className="text-xs" style={{ color: t.label.muted }}>Informations sur l'administrateur</p>
         </div>
       </div>
 
       <div className="rounded-2xl p-5 space-y-4" style={cardStyle}>
         <div className="flex items-center gap-2 mb-1">
-          <User className="w-4 h-4 text-slate-500" />
-          <h3 className="text-white text-sm font-semibold">Identité</h3>
+          <User className="w-4 h-4" style={{ color: t.label.muted }} />
+          <h3 className="text-sm font-semibold" style={{ color: t.heading.primary }}>Identité</h3>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="text-[10px] font-bold tracking-[0.12em] uppercase text-slate-600 mb-1.5 block">Prénom</label>
+            <label className="text-[10px] font-bold tracking-[0.12em] uppercase mb-1.5 block" style={{ color: t.label.muted }}>Prénom</label>
             <input
               type="text"
               value={firstName}
               onChange={e => setFirstName(e.target.value)}
               placeholder="Votre prénom"
-              className="w-full rounded-xl px-3 py-2.5 text-sm text-slate-200 placeholder-slate-700 transition-all"
+              className="w-full rounded-xl px-3 py-2.5 text-sm transition-all"
               style={inputStyle}
-              onFocus={e => (e.currentTarget.style.borderColor = 'rgba(34,211,238,0.35)')}
-              onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.09)')}
+              onFocus={e => (e.currentTarget.style.borderColor = t.input.borderFocus)}
+              onBlur={e => (e.currentTarget.style.borderColor = t.input.border)}
             />
           </div>
           <div>
-            <label className="text-[10px] font-bold tracking-[0.12em] uppercase text-slate-600 mb-1.5 block">Nom</label>
+            <label className="text-[10px] font-bold tracking-[0.12em] uppercase mb-1.5 block" style={{ color: t.label.muted }}>Nom</label>
             <input
               type="text"
               value={lastName}
               onChange={e => setLastName(e.target.value)}
               placeholder="Entrez votre nom"
-              className="w-full rounded-xl px-3 py-2.5 text-sm text-slate-200 placeholder-slate-700 transition-all"
+              className="w-full rounded-xl px-3 py-2.5 text-sm transition-all"
               style={inputStyle}
-              onFocus={e => (e.currentTarget.style.borderColor = 'rgba(34,211,238,0.35)')}
-              onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.09)')}
+              onFocus={e => (e.currentTarget.style.borderColor = t.input.borderFocus)}
+              onBlur={e => (e.currentTarget.style.borderColor = t.input.border)}
             />
           </div>
         </div>
 
-        {identityMsg && <Toast message={identityMsg.text} type={identityMsg.type} />}
+        {identityMsg && <Toast message={identityMsg.text} type={identityMsg.type} tokens={t} />}
 
         <button
           onClick={saveIdentity}
           disabled={savingIdentity}
           className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-all hover:brightness-110 disabled:opacity-60"
           style={{
-            background: 'linear-gradient(135deg, #f97316, #ec4899)',
-            color: 'white',
+            background: t.success.bg,
+            color: '#ffffff',
             boxShadow: '0 0 20px rgba(249,115,22,0.25)',
           }}
         >
@@ -204,35 +209,35 @@ export default function InfoAdmin({ onNameChange }: InfoAdminProps) {
 
       <div className="rounded-2xl p-5 space-y-4" style={cardStyle}>
         <div className="flex items-center gap-2 mb-1">
-          <Mail className="w-4 h-4 text-slate-500" />
-          <h3 className="text-white text-sm font-semibold">Email et mot de passe</h3>
+          <Mail className="w-4 h-4" style={{ color: t.label.muted }} />
+          <h3 className="text-sm font-semibold" style={{ color: t.heading.primary }}>Email et mot de passe</h3>
         </div>
 
         <div>
-          <label className="text-[10px] font-bold tracking-[0.12em] uppercase text-slate-600 mb-1.5 block">Email</label>
+          <label className="text-[10px] font-bold tracking-[0.12em] uppercase mb-1.5 block" style={{ color: t.label.muted }}>Email</label>
           <input
             type="email"
             value={email}
             onChange={e => setEmail(e.target.value)}
             placeholder="votre@email.com"
-            className="w-full rounded-xl px-3 py-2.5 text-sm text-slate-200 placeholder-slate-700 transition-all"
+            className="w-full rounded-xl px-3 py-2.5 text-sm transition-all"
             style={inputStyle}
-            onFocus={e => (e.currentTarget.style.borderColor = 'rgba(34,211,238,0.35)')}
-            onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.09)')}
+            onFocus={e => (e.currentTarget.style.borderColor = t.input.borderFocus)}
+            onBlur={e => (e.currentTarget.style.borderColor = t.input.border)}
           />
-          <p className="text-[10px] text-slate-700 mt-1">Modifier l'email changera vos identifiants de connexion</p>
+          <p className="text-[10px] mt-1" style={{ color: t.label.hint }}>Modifier l'email changera vos identifiants de connexion</p>
         </div>
 
         <div>
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <Lock className="w-4 h-4 text-slate-500" />
-              <label className="text-sm text-white font-medium">Mot de passe (6 chiffres)</label>
+              <Lock className="w-4 h-4" style={{ color: t.label.muted }} />
+              <label className="text-sm font-medium" style={{ color: t.heading.primary }}>Mot de passe (6 chiffres)</label>
             </div>
             <button
               onClick={() => setShowPin(v => !v)}
               className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-all"
-              style={{ background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.08)' }}
+              style={{ background: t.button.toggleBg, color: t.button.toggleText, border: `1px solid ${t.button.toggleBorder}` }}
             >
               {showPin ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
               {showPin ? 'Masquer' : 'Afficher'}
@@ -251,30 +256,31 @@ export default function InfoAdmin({ onNameChange }: InfoAdminProps) {
                 onChange={e => handlePinInput(i, e.target.value)}
                 onKeyDown={e => handlePinKeyDown(i, e)}
                 onFocus={() => handlePinFocus(i)}
-                className="w-12 h-14 rounded-xl text-center text-xl font-bold text-white transition-all caret-transparent"
+                className="w-12 h-14 rounded-xl text-center text-xl font-bold transition-all caret-transparent"
                 style={{
-                  background: digit ? 'rgba(34,211,238,0.08)' : 'rgba(255,255,255,0.04)',
-                  border: digit ? '1px solid rgba(34,211,238,0.3)' : '1px solid rgba(255,255,255,0.09)',
+                  background: digit ? t.pin.bgFilled : t.pin.bg,
+                  border: `1px solid ${digit ? t.pin.borderFilled : t.pin.border}`,
                   outline: 'none',
+                  color: t.pin.text,
                 }}
-                onFocusCapture={e => (e.currentTarget.style.borderColor = 'rgba(34,211,238,0.5)')}
-                onBlurCapture={e => (e.currentTarget.style.borderColor = digit ? 'rgba(34,211,238,0.3)' : 'rgba(255,255,255,0.09)')}
+                onFocusCapture={e => (e.currentTarget.style.borderColor = t.pin.borderFocus)}
+                onBlurCapture={e => (e.currentTarget.style.borderColor = digit ? t.pin.borderFilled : t.pin.border)}
               />
             ))}
           </div>
-          <p className="text-[10px] text-slate-700 text-center mt-2">Utilisez les flèches gauche/droite pour naviguer entre les chiffres</p>
+          <p className="text-[10px] text-center mt-2" style={{ color: t.label.hint }}>Utilisez les flèches gauche/droite pour naviguer entre les chiffres</p>
         </div>
 
-        {credMsg && <Toast message={credMsg.text} type={credMsg.type} />}
+        {credMsg && <Toast message={credMsg.text} type={credMsg.type} tokens={t} />}
 
         <button
           onClick={saveCredentials}
           disabled={savingCred}
           className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-all hover:brightness-110 disabled:opacity-60"
           style={{
-            background: 'linear-gradient(135deg, #22d3ee, #0ea5e9)',
-            color: '#050a10',
-            boxShadow: '0 0 20px rgba(34,211,238,0.25)',
+            background: t.accent.bg,
+            color: t.accent.text,
+            boxShadow: '0 0 20px rgba(14,165,233,0.25)',
           }}
         >
           <Save className="w-4 h-4" />

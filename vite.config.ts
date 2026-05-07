@@ -1,9 +1,12 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import auditAutoRefreshPlugin from './scripts/auditPlugin';
 
-// https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), auditAutoRefreshPlugin()],
+  server: {
+    host: true,
+  },
   optimizeDeps: {
     exclude: ['lucide-react'],
   },

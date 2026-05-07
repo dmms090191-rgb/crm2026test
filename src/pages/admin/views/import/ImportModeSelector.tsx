@@ -1,3 +1,5 @@
+import { useThemeTokens } from '../../../../hooks/useThemeTokens';
+
 export type ImportMode = 'ignore' | 'update' | 'force';
 
 interface ImportModeSelectorProps {
@@ -25,12 +27,14 @@ const modes: { key: ImportMode; label: string; description: string }[] = [
 ];
 
 export default function ImportModeSelector({ value, onChange, dupCrmCount }: ImportModeSelectorProps) {
+  const tokens = useThemeTokens();
+
   return (
     <div
       className="rounded-2xl p-4 space-y-3"
-      style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)', border: '1px solid rgba(255,255,255,0.07)' }}
+      style={{ background: tokens.card.bg, border: tokens.card.border }}
     >
-      <p className="text-xs font-bold tracking-widest uppercase text-slate-500">Mode d'import</p>
+      <p className="text-xs font-bold tracking-widest uppercase" style={{ color: tokens.text.tertiary }}>Mode d'import</p>
       <div className="space-y-2">
         {modes.map(m => {
           const isActive = value === m.key;
@@ -42,8 +46,8 @@ export default function ImportModeSelector({ value, onChange, dupCrmCount }: Imp
               disabled={isDisabled}
               className="w-full text-left flex items-start gap-3 px-3.5 py-3 rounded-xl transition-all"
               style={{
-                background: isActive ? 'rgba(34,211,238,0.06)' : 'rgba(255,255,255,0.02)',
-                border: isActive ? '1px solid rgba(34,211,238,0.3)' : '1px solid rgba(255,255,255,0.05)',
+                background: isActive ? 'rgba(34,211,238,0.06)' : tokens.surface.tertiary,
+                border: isActive ? tokens.accent.border : tokens.surface.borderLight,
                 opacity: isDisabled ? 0.4 : 1,
                 cursor: isDisabled ? 'not-allowed' : 'pointer',
               }}
@@ -51,13 +55,13 @@ export default function ImportModeSelector({ value, onChange, dupCrmCount }: Imp
               <div
                 className="w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
                 style={{
-                  border: isActive ? '5px solid #22d3ee' : '2px solid rgba(255,255,255,0.2)',
+                  border: isActive ? `5px solid ${tokens.accent.text}` : `2px solid ${tokens.surface.border}`,
                   background: 'transparent',
                 }}
               />
               <div>
-                <p className="text-xs font-semibold" style={{ color: isActive ? '#22d3ee' : 'rgba(255,255,255,0.7)' }}>{m.label}</p>
-                <p className="text-[10px] text-slate-500 mt-0.5">{m.description}</p>
+                <p className="text-xs font-semibold" style={{ color: isActive ? tokens.accent.text : tokens.text.secondary }}>{m.label}</p>
+                <p className="text-[10px] mt-0.5" style={{ color: tokens.text.tertiary }}>{m.description}</p>
               </div>
             </button>
           );

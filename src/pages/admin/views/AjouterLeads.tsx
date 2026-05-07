@@ -1,19 +1,13 @@
 import { useState, useRef } from 'react';
 import { UserPlus, Check } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
+import { useThemeTokens } from '../../../hooks/useThemeTokens';
+import type { ThemeTokens } from '../../../lib/themeTokens';
 
 
-const inputClass = "w-full px-3.5 py-2.5 rounded-xl text-sm text-white placeholder-slate-600 outline-none transition-all";
-const inputStyle = {
-  background: 'rgba(255,255,255,0.04)',
-  border: '1px solid rgba(255,255,255,0.08)',
-};
-const inputFocusStyle = {
-  background: 'rgba(255,255,255,0.06)',
-  border: '1px solid rgba(34,211,238,0.3)',
-};
+const inputClass = "w-full px-3.5 py-2.5 rounded-xl text-sm outline-none transition-all";
 
-function PinInput({ value, onChange }: { value: string[]; onChange: (v: string[]) => void }) {
+function PinInput({ value, onChange, tokens }: { value: string[]; onChange: (v: string[]) => void; tokens: ThemeTokens }) {
   const refs = useRef<(HTMLInputElement | null)[]>([]);
 
   function handleChange(i: number, raw: string) {
@@ -52,12 +46,14 @@ function PinInput({ value, onChange }: { value: string[]; onChange: (v: string[]
           onChange={e => handleChange(i, e.target.value)}
           onKeyDown={e => handleKeyDown(i, e)}
           onPaste={handlePaste}
-          className="w-11 h-11 text-center text-lg font-bold text-white rounded-xl outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all"
+          className="w-11 h-11 text-center text-lg font-bold rounded-xl outline-none focus:ring-2 transition-all"
           style={{
-            background: digit ? 'rgba(34,211,238,0.08)' : 'rgba(255,255,255,0.04)',
-            border: digit ? '1px solid rgba(34,211,238,0.3)' : '1px solid rgba(255,255,255,0.08)',
-            boxShadow: digit ? '0 0 10px rgba(34,211,238,0.12)' : 'none',
-          }}
+            color: tokens.text.primary,
+            background: digit ? tokens.accent.bg : tokens.input.bg,
+            border: digit ? `1px solid ${tokens.accent.border}` : `1px solid ${tokens.input.border}`,
+            boxShadow: 'none',
+            '--tw-ring-color': tokens.accent.border,
+          } as React.CSSProperties}
         />
       ))}
     </div>
@@ -70,15 +66,21 @@ function FocusInput({
   value,
   onChange,
   as,
+  tokens,
 }: {
   type?: string;
   placeholder?: string;
   value: string;
   onChange: (v: string) => void;
   as?: 'input' | 'textarea';
+  tokens: ThemeTokens;
 }) {
   const [focused, setFocused] = useState(false);
-  const style = { ...inputStyle, ...(focused ? inputFocusStyle : {}) };
+  const style = {
+    color: tokens.input.text,
+    background: tokens.input.bg,
+    border: focused ? `1px solid ${tokens.input.borderFocus}` : `1px solid ${tokens.input.border}`,
+  };
 
   if (as === 'textarea') {
     return (
@@ -111,6 +113,8 @@ function FocusInput({
 
 
 export default function AjouterLeads() {
+  const tokens = useThemeTokens();
+
   const [prenom, setPrenom] = useState('');
   const [nom, setNom] = useState('');
   const [email, setEmail] = useState('');
@@ -162,14 +166,14 @@ export default function AjouterLeads() {
     <div className="space-y-6 max-w-2xl">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-white text-xl font-bold">Ajouter un lead</h2>
-          <p className="text-slate-600 text-xs mt-0.5">Remplissez le formulaire pour ajouter un lead manuellement au CRM</p>
+          <h2 className="text-xl font-bold" style={{ color: tokens.text.primary }}>Ajouter leads</h2>
+          <p className="text-xs mt-0.5" style={{ color: tokens.text.quaternary }}>Ajouter leads</p>
         </div>
         <div
           className="w-9 h-9 rounded-xl flex items-center justify-center"
-          style={{ background: 'rgba(34,211,238,0.08)', boxShadow: '0 0 16px rgba(34,211,238,0.15)' }}
+          style={{ background: tokens.accent.bg }}
         >
-          <UserPlus className="w-4 h-4 text-cyan-400" />
+          <UserPlus className="w-4 h-4" style={{ color: tokens.accent.text }} />
         </div>
       </div>
 
@@ -177,63 +181,63 @@ export default function AjouterLeads() {
         onSubmit={handleSubmit}
         className="rounded-2xl overflow-hidden"
         style={{
-          background: 'linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)',
-          border: '1px solid rgba(255,255,255,0.07)',
+          background: tokens.card.bg,
+          border: `1px solid ${tokens.card.border}`,
         }}
       >
         <div className="px-6 py-5 space-y-5">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <label className="block text-[10px] font-bold tracking-[0.15em] uppercase text-slate-500">
-                Prénom <span className="text-rose-500">*</span>
+              <label className="block text-[10px] font-bold tracking-[0.15em] uppercase" style={{ color: tokens.text.tertiary }}>
+                Prénom <span style={{ color: tokens.danger.text }}>*</span>
               </label>
-              <FocusInput placeholder="Jean" value={prenom} onChange={setPrenom} />
+              <FocusInput placeholder="Jean" value={prenom} onChange={setPrenom} tokens={tokens} />
             </div>
             <div className="space-y-1.5">
-              <label className="block text-[10px] font-bold tracking-[0.15em] uppercase text-slate-500">
-                Nom <span className="text-rose-500">*</span>
+              <label className="block text-[10px] font-bold tracking-[0.15em] uppercase" style={{ color: tokens.text.tertiary }}>
+                Nom <span style={{ color: tokens.danger.text }}>*</span>
               </label>
-              <FocusInput placeholder="Dupont" value={nom} onChange={setNom} />
+              <FocusInput placeholder="Dupont" value={nom} onChange={setNom} tokens={tokens} />
             </div>
           </div>
 
           <div className="space-y-1.5">
-            <label className="block text-[10px] font-bold tracking-[0.15em] uppercase text-slate-500">
+            <label className="block text-[10px] font-bold tracking-[0.15em] uppercase" style={{ color: tokens.text.tertiary }}>
               Adresse email
             </label>
-            <FocusInput type="email" placeholder="jean.dupont@example.com" value={email} onChange={setEmail} />
+            <FocusInput type="email" placeholder="jean.dupont@example.com" value={email} onChange={setEmail} tokens={tokens} />
           </div>
 
           <div className="space-y-1.5">
-            <label className="block text-[10px] font-bold tracking-[0.15em] uppercase text-slate-500">
+            <label className="block text-[10px] font-bold tracking-[0.15em] uppercase" style={{ color: tokens.text.tertiary }}>
               Téléphone
             </label>
-            <FocusInput type="tel" placeholder="+33 6 00 00 00 00" value={telephone} onChange={setTelephone} />
+            <FocusInput type="tel" placeholder="+33 6 00 00 00 00" value={telephone} onChange={setTelephone} tokens={tokens} />
           </div>
 
           <div className="space-y-2.5">
-            <label className="block text-[10px] font-bold tracking-[0.15em] uppercase text-slate-500">
+            <label className="block text-[10px] font-bold tracking-[0.15em] uppercase" style={{ color: tokens.text.tertiary }}>
               Mot de passe (6 chiffres)
             </label>
-            <PinInput value={pin} onChange={setPin} />
+            <PinInput value={pin} onChange={setPin} tokens={tokens} />
           </div>
 
           {error && (
-            <p className="text-xs text-rose-400 px-1">{error}</p>
+            <p className="text-xs px-1" style={{ color: tokens.danger.text }}>{error}</p>
           )}
         </div>
 
         <div
           className="px-6 py-4 flex items-center gap-4"
-          style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}
+          style={{ borderTop: `1px solid ${tokens.card.border}` }}
         >
           <button
             type="submit"
             disabled={saving}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
             style={{
-              background: 'linear-gradient(90deg, #0ea5e9, #22d3ee)',
-              boxShadow: '0 0 20px rgba(34,211,238,0.2)',
+              color: '#ffffff',
+              background: tokens.accent.solid,
             }}
           >
             <UserPlus className="w-4 h-4" />
@@ -241,7 +245,7 @@ export default function AjouterLeads() {
           </button>
 
           {success && (
-            <div className="flex items-center gap-1.5 text-emerald-400 text-xs font-semibold">
+            <div className="flex items-center gap-1.5 text-xs font-semibold" style={{ color: tokens.success.text }}>
               <Check className="w-4 h-4" />
               Lead ajouté au CRM avec succès
             </div>

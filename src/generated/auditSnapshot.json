@@ -1,0 +1,73 @@
+{
+  "generatedAt": "2026-05-07T01:18:45.523Z",
+  "anyCount": 0,
+  "anyOccurrences": [],
+  "unusedImportCount": 0,
+  "unusedImports": [],
+  "largeFileCount": 11,
+  "largeFiles": [
+    {
+      "file": "src/components/chat/ChatView.tsx",
+      "lines": 302,
+      "overflow": 2
+    },
+    {
+      "file": "src/components/agenda/AgendaView.tsx",
+      "lines": 303,
+      "overflow": 3
+    },
+    {
+      "file": "src/pages/admin/views/crm/CrmFilters.tsx",
+      "lines": 307,
+      "overflow": 7
+    },
+    {
+      "file": "src/components/LoginModal.tsx",
+      "lines": 312,
+      "overflow": 12
+    },
+    {
+      "file": "src/pages/client/ClientTopBar.tsx",
+      "lines": 387,
+      "overflow": 87
+    },
+    {
+      "file": "src/pages/vendor/VendorTopBar.tsx",
+      "lines": 416,
+      "overflow": 116
+    },
+    {
+      "file": "src/pages/admin/TopBar.tsx",
+      "lines": 451,
+      "overflow": 151
+    },
+    {
+      "file": "src/pages/vendor/views/VendorPropositionsRdv.tsx",
+      "lines": 466,
+      "overflow": 166
+    },
+    {
+      "file": "src/pages/admin/views/PropositionsRdv.tsx",
+      "lines": 481,
+      "overflow": 181
+    },
+    {
+      "file": "src/pages/admin/views/Crm.tsx",
+      "lines": 567,
+      "overflow": 267
+    },
+    {
+      "file": "src/pages/vendor/views/VendorLeads.tsx",
+      "lines": 647,
+      "overflow": 347
+    }
+  ],
+  "tscErrorCount": 0,
+  "tscErrors": [],
+  "eslintErrorCount": 0,
+  "eslintWarningCount": 0,
+  "eslintIssues": [],
+  "totalFilesAnalyzed": 224,
+  "totalLinesAnalyzed": 31986,
+  "totalOverflowLines": 1339
+}

@@ -1,7 +1,7 @@
 import { supabase } from './supabase';
 
 export interface DocumentationExport {
-  version: 1;
+  version: 2;
   exported_at: string;
   crm_documentation: { tab_id: string; content: string }[];
   doc_tab_labels: { tab_id: string; label: string }[];
@@ -34,6 +34,22 @@ export interface DocumentationExport {
     created_at: string;
     updated_at: string;
   }[];
+  crm_amelioration_categories: {
+    id: string;
+    name: string;
+    position: number;
+    created_at: string;
+  }[];
+  crm_ameliorations: {
+    id: string;
+    title: string;
+    description: string;
+    status: string;
+    category_id: string | null;
+    position: number;
+    created_at: string;
+    updated_at: string;
+  }[];
 }
 
 export async function exportDocumentation(): Promise<DocumentationExport> {
@@ -44,6 +60,8 @@ export async function exportDocumentation(): Promise<DocumentationExport> {
     { data: notes },
     { data: ideas },
     { data: cards },
+    { data: categories },
+    { data: ameliorations },
   ] = await Promise.all([
     supabase.from('crm_documentation').select('tab_id, content'),
     supabase.from('doc_tab_labels').select('tab_id, label'),
@@ -51,10 +69,12 @@ export async function exportDocumentation(): Promise<DocumentationExport> {
     supabase.from('crm_notes').select('*').order('note_date', { ascending: false }),
     supabase.from('crm_ideas').select('*').order('position', { ascending: true }),
     supabase.from('crm_context_cards').select('*').order('position', { ascending: true }),
+    supabase.from('crm_amelioration_categories').select('*').order('position', { ascending: true }),
+    supabase.from('crm_ameliorations').select('*').order('position', { ascending: true }),
   ]);
 
   return {
-    version: 1,
+    version: 2,
     exported_at: new Date().toISOString(),
     crm_documentation: (docs ?? []).map((d) => ({ tab_id: d.tab_id, content: d.content })),
     doc_tab_labels: (labels ?? []).map((l) => ({ tab_id: l.tab_id, label: l.label })),
@@ -86,6 +106,22 @@ export async function exportDocumentation(): Promise<DocumentationExport> {
       position: c.position,
       created_at: c.created_at,
       updated_at: c.updated_at,
+    })),
+    crm_amelioration_categories: (categories ?? []).map((cat) => ({
+      id: cat.id,
+      name: cat.name,
+      position: cat.position,
+      created_at: cat.created_at,
+    })),
+    crm_ameliorations: (ameliorations ?? []).map((a) => ({
+      id: a.id,
+      title: a.title,
+      description: a.description ?? '',
+      status: a.status,
+      category_id: a.category_id,
+      position: a.position,
+      created_at: a.created_at,
+      updated_at: a.updated_at,
     })),
   };
 }

@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { MessageCircle } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import MessagingPanel, { ChatMessage, ChatContact } from '../../../components/chat/ChatView';
 import type { ChatLead } from './Crm';
+import { useThemeTokens } from '../../../hooks/useThemeTokens';
 
 interface LeadRow {
   id: string;
@@ -13,14 +14,21 @@ interface LeadRow {
 interface ChatClientProps {
   initialLead?: ChatLead | null;
   onMessageSent?: () => void;
+  onClientViewed?: (clientAuthId: string) => void;
 }
 
-export default function ChatClient({ initialLead, onMessageSent }: ChatClientProps) {
+export default function ChatClient({ initialLead, onMessageSent, onClientViewed }: ChatClientProps) {
+  const tokens = useThemeTokens();
+
   const [leads, setLeads] = useState<LeadRow[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [contactLoading, setContactLoading] = useState(true);
+  const [lastMessages, setLastMessages] = useState<Record<string, { content: string; created_at: string; sender: string }>>({});
+
+  const onClientViewedRef = useRef(onClientViewed);
+  onClientViewedRef.current = onClientViewed;
 
   useEffect(() => {
     setContactLoading(true);
@@ -41,6 +49,7 @@ export default function ChatClient({ initialLead, onMessageSent }: ChatClientPro
       const allLeads = (data ?? []) as LeadRow[];
 
       const filtered = allLeads.filter(l => {
+        if (l.vendor_id) return false;
         if (initialLead && l.id === initialLead.id) return true;
         const authId = l.data['AuthId'] ?? l.data['auth_id'] ?? l.id;
         return authIds.includes(authId);
@@ -48,6 +57,20 @@ export default function ChatClient({ initialLead, onMessageSent }: ChatClientPro
 
       setLeads(filtered);
       setContactLoading(false);
+
+      const filteredAuthIds = filtered.map(l => l.data['AuthId'] ?? l.data['auth_id'] ?? l.id);
+      if (filteredAuthIds.length > 0) {
+        const { data: lastMsgs } = await supabase
+          .from('client_messages')
+          .select('client_auth_id, content, created_at, sender')
+          .in('client_auth_id', filteredAuthIds)
+          .order('created_at', { ascending: false });
+        const map: Record<string, { content: string; created_at: string; sender: string }> = {};
+        (lastMsgs ?? []).forEach((m: { client_auth_id: string; content: string; created_at: string; sender: string }) => {
+          if (!map[m.client_auth_id]) map[m.client_auth_id] = m;
+        });
+        setLastMessages(map);
+      }
     })();
   }, [initialLead]);
 
@@ -65,46 +88,57 @@ export default function ChatClient({ initialLead, onMessageSent }: ChatClientPro
   const selectedLead = leads.find(l => l.id === selectedId) ?? null;
   const clientAuthId = selectedLead ? (selectedLead.data['AuthId'] ?? selectedLead.data['auth_id'] ?? selectedLead.id) : null;
 
-  const loadMessages = useCallback(async () => {
+  const loadMessages = useCallback(async (showLoader = true) => {
     if (!clientAuthId) return;
-    setLoading(true);
-    const { data } = await supabase
-      .from('client_messages')
-      .select('*')
-      .eq('client_auth_id', clientAuthId)
-      .order('created_at', { ascending: true });
-    setMessages((data ?? []) as ChatMessage[]);
-    setLoading(false);
+    if (showLoader) setLoading(true);
+    try {
+      const { data } = await supabase
+        .from('client_messages')
+        .select('*')
+        .eq('client_auth_id', clientAuthId)
+        .order('created_at', { ascending: true });
+      setMessages((data ?? []) as ChatMessage[]);
+    } finally {
+      if (showLoader) setLoading(false);
+    }
   }, [clientAuthId]);
 
   useEffect(() => {
-    if (clientAuthId) loadMessages();
+    if (clientAuthId) loadMessages(true);
     else setMessages([]);
   }, [clientAuthId, loadMessages]);
+
+  useEffect(() => {
+    if (clientAuthId) onClientViewedRef.current?.(clientAuthId);
+  }, [clientAuthId]);
 
   useEffect(() => {
     if (!clientAuthId) return;
     const ch = supabase
       .channel(`admin-client-chat-${clientAuthId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'client_messages' }, loadMessages)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'client_messages' }, () => loadMessages(false))
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [clientAuthId, loadMessages]);
 
   const handleSend = useCallback(async (content: string, file?: { url: string; name: string; type: string }) => {
     if (!clientAuthId) return;
-    const { data: inserted, error } = await supabase.from('client_messages').insert({
-      content: content || '',
-      sender: 'admin',
-      client_auth_id: clientAuthId,
-      vendor_id: selectedLead?.vendor_id ?? null,
-      ...(file ? { file_url: file.url, file_name: file.name, file_type: file.type } : {}),
-    }).select().maybeSingle();
-    if (!error && inserted) {
-      setMessages(prev => [...prev, inserted as ChatMessage]);
+    try {
+      const { data: inserted, error } = await supabase.from('client_messages').insert({
+        content: content || '',
+        sender: 'admin',
+        client_auth_id: clientAuthId,
+        vendor_id: null,
+        ...(file ? { file_url: file.url, file_name: file.name, file_type: file.type } : {}),
+      }).select().maybeSingle();
+      if (!error && inserted) {
+        setMessages(prev => [...prev, inserted as ChatMessage]);
+      }
+      onMessageSent?.();
+    } catch (err) {
+      console.error('ChatClient handleSend error:', err);
     }
-    onMessageSent?.();
-  }, [clientAuthId, selectedLead, onMessageSent]);
+  }, [clientAuthId, onMessageSent]);
 
   const handleDelete = useCallback(async (id: string) => {
     await supabase.from('client_messages').update({ deleted: true }).eq('id', id);
@@ -123,7 +157,17 @@ export default function ChatClient({ initialLead, onMessageSent }: ChatClientPro
     const email = l.data['Email'] ?? l.data['email'] ?? '';
     const displayName = [prenom, nom].filter(Boolean).join(' ') || email || l.id.slice(0, 8);
     const initial = (prenom || email || 'C').charAt(0).toUpperCase();
-    return { id: l.id, displayName, subtitle: email, initial };
+    const authId = l.data['AuthId'] ?? l.data['auth_id'] ?? l.id;
+    const lastMsg = lastMessages[authId];
+    return {
+      id: l.id,
+      displayName,
+      subtitle: email,
+      initial,
+      lastMessage: lastMsg?.content || undefined,
+      lastMessageAt: lastMsg?.created_at || undefined,
+      lastMessageSender: lastMsg?.sender || undefined,
+    };
   });
 
   const selectedContact = contacts.find(c => c.id === selectedId);
@@ -132,8 +176,8 @@ export default function ChatClient({ initialLead, onMessageSent }: ChatClientPro
     <div className="flex flex-col h-full space-y-4" style={{ minHeight: 0 }}>
       <div className="flex items-center justify-between flex-shrink-0">
         <div>
-          <h2 className="text-white text-xl font-bold">Chat Client</h2>
-          <p className="text-slate-600 text-xs mt-0.5">
+          <h2 className="text-xl font-bold" style={{ color: tokens.text.primary }}>Chat Client</h2>
+          <p className="text-xs mt-0.5" style={{ color: tokens.text.quaternary }}>
             {selectedContact ? `Conversation avec ${selectedContact.displayName}` : 'Sélectionnez un client'}
           </p>
         </div>

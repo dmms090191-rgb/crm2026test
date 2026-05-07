@@ -1,36 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Plus, Trash2, Pipette, Star } from 'lucide-react';
+import { Plus, Pipette, Star } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
-
-interface Statut {
-  id: string;
-  nom: string;
-  couleur: string;
-  created_at: string;
-}
-
-const PRESET_COLORS = [
-  '#38bdf8', '#22d3ee', '#34d399', '#4ade80',
-  '#fbbf24', '#f97316', '#f87171', '#fb7185',
-  '#a78bfa', '#818cf8', '#e879f9', '#94a3b8',
-];
-
-const MAX_FAVORITES = 6;
-const FAVORITES_KEY = 'statuts_favorite_colors';
-
-function hexToRgb(hex: string) {
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  return { r, g, b };
-}
-
-function colorWithAlpha(hex: string, alpha: number) {
-  const { r, g, b } = hexToRgb(hex);
-  return `rgba(${r},${g},${b},${alpha})`;
-}
+import { useThemeTokens } from '../../../hooks/useThemeTokens';
+import { Statut, PRESET_COLORS, MAX_FAVORITES, FAVORITES_KEY, colorWithAlpha } from './statuts/colorUtils';
+import StatutsList from './statuts/StatutsList';
 
 export default function Statuts() {
+  const tokens = useThemeTokens();
   const [statuts, setStatuts] = useState<Statut[]>([]);
   const [loading, setLoading] = useState(true);
   const [nom, setNom] = useState('');
@@ -86,22 +62,22 @@ export default function Statuts() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-white text-xl font-bold">Statuts</h2>
-        <p className="text-slate-600 text-xs mt-0.5">Créez et gérez les statuts personnalisés du CRM</p>
+        <h2 className="text-xl font-bold" style={{ color: tokens.text.primary }}>Statuts</h2>
+        <p className="text-xs mt-0.5" style={{ color: tokens.label.hint }}>Créez et gérez les statuts personnalisés du CRM</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div
           className="rounded-2xl p-6 space-y-5"
           style={{
-            background: 'linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)',
-            border: '1px solid rgba(255,255,255,0.07)',
+            background: tokens.card.bg,
+            border: `1px solid ${tokens.card.border}`,
           }}
         >
-          <h3 className="text-white text-sm font-bold">Créer un statut</h3>
+          <h3 className="text-sm font-bold" style={{ color: tokens.text.primary }}>Créer un statut</h3>
 
           <div className="space-y-1.5">
-            <label className="text-[10px] font-bold tracking-[0.15em] uppercase text-slate-600">
+            <label className="text-[10px] font-bold tracking-[0.15em] uppercase" style={{ color: tokens.label.hint }}>
               Nom du statut
             </label>
             <input
@@ -110,15 +86,19 @@ export default function Statuts() {
               onChange={e => setNom(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') handleCreate(); }}
               placeholder="Ex: Prioritaire, En attente..."
-              className="w-full px-3 py-2.5 rounded-xl text-sm text-white placeholder-slate-700 focus:outline-none transition-all"
-              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
+              className="w-full px-3 py-2.5 rounded-xl text-sm focus:outline-none transition-all"
+              style={{
+                background: tokens.input.bg,
+                border: `1px solid ${tokens.input.border}`,
+                color: tokens.input.text,
+              }}
               onFocus={e => (e.currentTarget.style.borderColor = `${couleur}55`)}
-              onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)')}
+              onBlur={e => (e.currentTarget.style.borderColor = tokens.input.border)}
             />
           </div>
 
           <div className="space-y-3">
-            <label className="text-[10px] font-bold tracking-[0.15em] uppercase text-slate-600">
+            <label className="text-[10px] font-bold tracking-[0.15em] uppercase" style={{ color: tokens.label.hint }}>
               Couleur
             </label>
 
@@ -130,7 +110,7 @@ export default function Statuts() {
                   className="w-7 h-7 rounded-lg transition-all hover:scale-110"
                   style={{
                     background: c,
-                    boxShadow: couleur === c ? `0 0 0 2px #0a0f1a, 0 0 0 4px ${c}` : 'none',
+                    boxShadow: couleur === c ? `0 0 0 2px ${tokens.surface.primary}, 0 0 0 4px ${c}` : 'none',
                     transform: couleur === c ? 'scale(1.15)' : 'scale(1)',
                   }}
                   title={c}
@@ -141,9 +121,9 @@ export default function Statuts() {
                 onClick={() => colorInputRef.current?.click()}
                 className="w-7 h-7 rounded-lg flex items-center justify-center transition-all hover:scale-110"
                 style={{
-                  background: 'rgba(255,255,255,0.07)',
-                  border: '1px solid rgba(255,255,255,0.12)',
-                  color: 'rgba(255,255,255,0.5)',
+                  background: tokens.surface.secondary,
+                  border: `1px solid ${tokens.surface.border}`,
+                  color: tokens.text.tertiary,
                 }}
                 title="Couleur personnalisée"
               >
@@ -162,8 +142,8 @@ export default function Statuts() {
             {favorites.length > 0 && (
               <div className="space-y-1.5">
                 <div className="flex items-center gap-1.5">
-                  <Star className="w-3 h-3 text-slate-600" />
-                  <span className="text-[9px] font-bold tracking-[0.15em] uppercase text-slate-600">Favoris</span>
+                  <Star className="w-3 h-3" style={{ color: tokens.label.hint }} />
+                  <span className="text-[9px] font-bold tracking-[0.15em] uppercase" style={{ color: tokens.label.hint }}>Favoris</span>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {favorites.map(c => (
@@ -173,7 +153,7 @@ export default function Statuts() {
                         className="w-7 h-7 rounded-lg transition-all hover:scale-110"
                         style={{
                           background: c,
-                          boxShadow: couleur === c ? `0 0 0 2px #0a0f1a, 0 0 0 4px ${c}` : 'none',
+                          boxShadow: couleur === c ? `0 0 0 2px ${tokens.surface.primary}, 0 0 0 4px ${c}` : 'none',
                           transform: couleur === c ? 'scale(1.15)' : 'scale(1)',
                         }}
                         title={c}
@@ -195,10 +175,10 @@ export default function Statuts() {
             <div className="flex items-center justify-between">
               <div
                 className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs"
-                style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
+                style={{ background: tokens.surface.secondary, border: `1px solid ${tokens.surface.borderLight}` }}
               >
-                <span className="text-slate-600 text-[10px]">Couleur choisie</span>
-                <span className="font-mono text-slate-400 text-[10px]">{couleur}</span>
+                <span className="text-[10px]" style={{ color: tokens.label.hint }}>Couleur choisie</span>
+                <span className="font-mono text-[10px]" style={{ color: tokens.text.tertiary }}>{ couleur}</span>
                 <div
                   className="w-4 h-4 rounded-md"
                   style={{ background: couleur }}
@@ -209,9 +189,9 @@ export default function Statuts() {
                 disabled={favorites.includes(couleur) || favorites.length >= MAX_FAVORITES}
                 className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[10px] font-semibold transition-all"
                 style={{
-                  background: favorites.includes(couleur) ? 'rgba(251,191,36,0.1)' : 'rgba(255,255,255,0.05)',
-                  color: favorites.includes(couleur) ? '#fbbf24' : 'rgba(255,255,255,0.3)',
-                  border: `1px solid ${favorites.includes(couleur) ? 'rgba(251,191,36,0.2)' : 'rgba(255,255,255,0.08)'}`,
+                  background: favorites.includes(couleur) ? 'rgba(251,191,36,0.1)' : tokens.surface.secondary,
+                  color: favorites.includes(couleur) ? '#fbbf24' : tokens.text.tertiary,
+                  border: `1px solid ${favorites.includes(couleur) ? 'rgba(251,191,36,0.2)' : tokens.input.border}`,
                   opacity: favorites.length >= MAX_FAVORITES && !favorites.includes(couleur) ? 0.4 : 1,
                   cursor: favorites.length >= MAX_FAVORITES && !favorites.includes(couleur) ? 'not-allowed' : 'pointer',
                 }}
@@ -225,9 +205,9 @@ export default function Statuts() {
 
           <div
             className="rounded-xl p-4"
-            style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}
+            style={{ background: tokens.surface.secondary, border: `1px solid ${tokens.surface.borderLight}` }}
           >
-            <p className="text-[9px] font-bold tracking-[0.15em] uppercase text-slate-600 mb-3">Aperçu</p>
+            <p className="text-[9px] font-bold tracking-[0.15em] uppercase mb-3" style={{ color: tokens.label.hint }}>Aperçu</p>
             <div className="flex items-center gap-3">
               <span
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold"
@@ -247,7 +227,7 @@ export default function Statuts() {
           </div>
 
           {error && (
-            <p className="text-xs font-medium" style={{ color: '#f87171' }}>{error}</p>
+            <p className="text-xs font-medium" style={{ color: tokens.danger.text }}>{error}</p>
           )}
 
           <button
@@ -266,80 +246,7 @@ export default function Statuts() {
           </button>
         </div>
 
-        <div
-          className="rounded-2xl p-6"
-          style={{
-            background: 'linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)',
-            border: '1px solid rgba(255,255,255,0.07)',
-          }}
-        >
-          <div className="flex items-center justify-between mb-5">
-            <h3 className="text-white text-sm font-bold">Statuts créés</h3>
-            <span
-              className="px-2.5 py-0.5 rounded-lg text-xs font-semibold"
-              style={{ background: 'rgba(34,211,238,0.08)', color: '#22d3ee', border: '1px solid rgba(34,211,238,0.15)' }}
-            >
-              {statuts.length}
-            </span>
-          </div>
-
-          {loading ? (
-            <div className="flex items-center justify-center py-10">
-              <div className="w-5 h-5 border-2 border-slate-700 border-t-cyan-400 rounded-full animate-spin" />
-            </div>
-          ) : statuts.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-10 gap-2">
-              <div
-                className="w-10 h-10 rounded-xl flex items-center justify-center"
-                style={{ background: 'rgba(255,255,255,0.03)' }}
-              >
-                <Plus className="w-4 h-4 text-slate-700" />
-              </div>
-              <p className="text-slate-600 text-xs">Aucun statut créé</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {statuts.map(s => (
-                <div
-                  key={s.id}
-                  className="flex items-center justify-between px-3 py-2.5 rounded-xl group transition-all"
-                  style={{
-                    background: 'rgba(255,255,255,0.02)',
-                    border: '1px solid rgba(255,255,255,0.05)',
-                  }}
-                  onMouseEnter={e => (e.currentTarget.style.borderColor = `${s.couleur}30`)}
-                  onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.05)')}
-                >
-                  <div className="flex items-center gap-3">
-                    <div
-                      className="w-3 h-3 rounded-full flex-shrink-0"
-                      style={{ background: s.couleur, boxShadow: `0 0 6px ${s.couleur}99` }}
-                    />
-                    <span
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold"
-                      style={{
-                        background: colorWithAlpha(s.couleur, 0.1),
-                        color: s.couleur,
-                        border: `1px solid ${colorWithAlpha(s.couleur, 0.22)}`,
-                      }}
-                    >
-                      {s.nom}
-                    </span>
-                    <span className="font-mono text-[10px] text-slate-700">{s.couleur}</span>
-                  </div>
-                  <button
-                    onClick={() => handleDelete(s.id)}
-                    className="w-6 h-6 rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all"
-                    style={{ background: 'rgba(248,113,113,0.1)', color: '#f87171', border: '1px solid rgba(248,113,113,0.2)' }}
-                    title="Supprimer"
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        <StatutsList statuts={statuts} loading={loading} onDelete={handleDelete} tokens={tokens} />
       </div>
     </div>
   );

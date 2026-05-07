@@ -1,146 +1,10 @@
 import { useState } from 'react';
 import {
-  Code2, Database, Zap, Shield, Layers, Globe, Box, GitBranch,
-  Cpu, FileCode, Paintbrush, Server, Lock, Radio, Pencil, X, CheckCircle
+  GitBranch, Pencil, X, CheckCircle, RefreshCw, Copy
 } from 'lucide-react';
-
-interface TechItem {
-  name: string;
-  description?: string;
-  badge?: string;
-}
-
-interface TechCategory {
-  id: string;
-  label: string;
-  icon: React.ReactNode;
-  color: string;
-  items: TechItem[];
-}
-
-const DEFAULT_STACK: TechCategory[] = [
-  {
-    id: 'frontend',
-    label: 'Frontend',
-    icon: <Globe className="w-4 h-4" />,
-    color: '#38bdf8',
-    items: [
-      { name: 'React', description: 'UI library', badge: '18' },
-      { name: 'TypeScript', description: 'Typage statique', badge: '5.x' },
-      { name: 'Vite', description: 'Build tool & dev server', badge: '5.x' },
-    ],
-  },
-  {
-    id: 'styling',
-    label: 'Styling',
-    icon: <Paintbrush className="w-4 h-4" />,
-    color: '#34d399',
-    items: [
-      { name: 'Tailwind CSS', description: 'Utility-first CSS framework', badge: '3.x' },
-      { name: 'Lucide React', description: 'Icônes SVG', badge: '0.344' },
-    ],
-  },
-  {
-    id: 'languages',
-    label: 'Langages',
-    icon: <Code2 className="w-4 h-4" />,
-    color: '#fb923c',
-    items: [
-      { name: 'TypeScript' },
-      { name: 'JavaScript' },
-      { name: 'SQL' },
-      { name: 'HTML' },
-      { name: 'CSS' },
-    ],
-  },
-  {
-    id: 'backend',
-    label: 'Backend / Base de données',
-    icon: <Server className="w-4 h-4" />,
-    color: '#a78bfa',
-    items: [
-      { name: 'Supabase', description: 'Backend as a Service', badge: 'BaaS' },
-      { name: 'PostgreSQL', description: 'Base de données relationnelle', badge: '15+' },
-      { name: 'Edge Functions', description: 'Fonctions serverless (Deno)', badge: 'Deno' },
-    ],
-  },
-  {
-    id: 'realtime',
-    label: 'Realtime',
-    icon: <Radio className="w-4 h-4" />,
-    color: '#f472b6',
-    items: [
-      { name: 'Supabase Realtime', description: 'WebSockets sur PostgreSQL', badge: 'WS' },
-      { name: 'Postgres Changes', description: 'Écoute des mutations en base', badge: 'CDC' },
-    ],
-  },
-  {
-    id: 'auth',
-    label: 'Authentification',
-    icon: <Lock className="w-4 h-4" />,
-    color: '#fbbf24',
-    items: [
-      { name: 'Supabase Auth', description: 'Auth email/password + JWT', badge: 'JWT' },
-      { name: 'Row Level Security', description: 'Contrôle d\'accès au niveau ligne', badge: 'RLS' },
-    ],
-  },
-];
-
-function parseTextToStack(text: string): TechCategory[] {
-  const lines = text.split('\n');
-  const categories: TechCategory[] = [];
-  let current: TechCategory | null = null;
-  const colorPalette = ['#38bdf8', '#34d399', '#fb923c', '#a78bfa', '#f472b6', '#fbbf24', '#e879f9', '#4ade80'];
-  const iconMap: Record<string, React.ReactNode> = {
-    frontend: <Globe className="w-4 h-4" />,
-    styling: <Paintbrush className="w-4 h-4" />,
-    langages: <Code2 className="w-4 h-4" />,
-    'languages': <Code2 className="w-4 h-4" />,
-    backend: <Server className="w-4 h-4" />,
-    'base de données': <Database className="w-4 h-4" />,
-    realtime: <Radio className="w-4 h-4" />,
-    'authentification': <Lock className="w-4 h-4" />,
-    auth: <Lock className="w-4 h-4" />,
-  };
-
-  let colorIdx = 0;
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (!trimmed) continue;
-    if (trimmed.endsWith(':') && !trimmed.startsWith('-')) {
-      const label = trimmed.slice(0, -1);
-      const key = label.toLowerCase();
-      const icon = Object.entries(iconMap).find(([k]) => key.includes(k))?.[1] ?? <Box className="w-4 h-4" />;
-      current = {
-        id: key.replace(/\s+/g, '-'),
-        label,
-        icon,
-        color: colorPalette[colorIdx % colorPalette.length],
-        items: [],
-      };
-      colorIdx++;
-      categories.push(current);
-    } else if (trimmed.startsWith('-') && current) {
-      const content = trimmed.slice(1).trim();
-      const parts = content.split(' : ');
-      if (parts.length === 2) {
-        current.items.push({ name: parts[0].trim(), description: parts[1].trim() });
-      } else {
-        current.items.push({ name: content });
-      }
-    }
-  }
-  return categories.length > 0 ? categories : DEFAULT_STACK;
-}
-
-function stackToText(stack: TechCategory[]): string {
-  return stack.map((cat) => {
-    const items = cat.items.map((item) =>
-      item.description ? `- ${item.name} : ${item.description}` : `- ${item.name}`
-    );
-    return `${cat.label} :\n${items.join('\n')}`;
-  }).join('\n\n');
-}
+import { useThemeTokens } from '../../../../hooks/useThemeTokens';
+import { DEFAULT_STACK, TechCategory, parseTextToStack, stackToText } from './technologiesData';
+import { detectStack, detectArchitecture } from './technologiesSync';
 
 interface Props {
   content: string;
@@ -148,18 +12,24 @@ interface Props {
 }
 
 export default function TechnologiesView({ content, onChange }: Props) {
+  const tokens = useThemeTokens();
   const [editMode, setEditMode] = useState(false);
   const [draft, setDraft] = useState('');
+  const [synced, setSynced] = useState(false);
+  const [syncedStack, setSyncedStack] = useState<TechCategory[] | null>(null);
+  const [copied, setCopied] = useState(false);
 
-  const stack = content.trim() ? parseTextToStack(content) : DEFAULT_STACK;
+  const stack = syncedStack ?? (content.trim() ? parseTextToStack(content) : DEFAULT_STACK);
+  const archNodes = detectArchitecture();
 
   const handleEdit = () => {
-    setDraft(content.trim() ? content : stackToText(DEFAULT_STACK));
+    setDraft(content.trim() ? content : stackToText(stack));
     setEditMode(true);
   };
 
   const handleSave = () => {
     onChange(draft);
+    setSyncedStack(null);
     setEditMode(false);
   };
 
@@ -168,20 +38,48 @@ export default function TechnologiesView({ content, onChange }: Props) {
     setDraft('');
   };
 
+  const handleSync = () => {
+    const detected = detectStack();
+    setSyncedStack(detected);
+    onChange(stackToText(detected));
+    setSynced(true);
+    setTimeout(() => setSynced(false), 2500);
+  };
+
+  const handleCopy = async () => {
+    const lines: string[] = [];
+    lines.push('=== TECHNOLOGIES ===\n');
+    for (const cat of stack) {
+      lines.push(`${cat.label.toUpperCase()}`);
+      for (const item of cat.items) {
+        const badge = item.badge ? ` [${item.badge}]` : '';
+        const desc = item.description ? ` — ${item.description}` : '';
+        lines.push(`  - ${item.name}${badge}${desc}`);
+      }
+      lines.push('');
+    }
+    lines.push('=== ARCHITECTURE ===\n');
+    lines.push(archNodes.map((n) => n.label).join('  →  '));
+    lines.push('');
+    await navigator.clipboard.writeText(lines.join('\n'));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   if (editMode) {
     return (
       <div className="flex flex-col flex-1 min-h-0 gap-3">
         <div className="flex items-center justify-between flex-shrink-0">
-          <p className="text-xs text-slate-500">
-            Format : <code className="text-cyan-400/70">Categorie :</code> puis <code className="text-cyan-400/70">- Nom : description</code>
+          <p className="text-xs" style={{ color: tokens.text.quaternary }}>
+            Format : <code style={{ color: tokens.accent.text }}>Categorie :</code> puis <code style={{ color: tokens.accent.text }}>- Nom : description</code>
           </p>
           <div className="flex items-center gap-2">
             <button
               onClick={handleSave}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150"
-              style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.25)', color: '#4ade80' }}
+              style={{ background: tokens.success.bg, border: `1px solid ${tokens.success.border}`, color: tokens.success.text }}
               onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(34,197,94,0.18)'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(34,197,94,0.1)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = tokens.success.bg; }}
             >
               <CheckCircle className="w-3.5 h-3.5" />
               Enregistrer
@@ -189,9 +87,9 @@ export default function TechnologiesView({ content, onChange }: Props) {
             <button
               onClick={handleCancel}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150"
-              style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#f87171' }}
+              style={{ background: tokens.danger.bg, border: `1px solid ${tokens.danger.border}`, color: tokens.danger.text }}
               onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(239,68,68,0.15)'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(239,68,68,0.08)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = tokens.danger.bg; }}
             >
               <X className="w-3.5 h-3.5" />
               Annuler
@@ -201,12 +99,12 @@ export default function TechnologiesView({ content, onChange }: Props) {
         <textarea
           className="flex-1 min-h-0 w-full resize-none text-sm leading-relaxed font-mono outline-none"
           style={{
-            background: 'rgba(34,211,238,0.02)',
-            border: '1px solid rgba(34,211,238,0.25)',
+            background: tokens.accent.bg,
+            border: `1px solid ${tokens.accent.border}`,
             borderRadius: '10px',
             padding: '16px 18px',
-            color: '#e2e8f0',
-            caretColor: '#22d3ee',
+            color: tokens.input.text,
+            caretColor: tokens.accent.solid,
           }}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
@@ -219,13 +117,51 @@ export default function TechnologiesView({ content, onChange }: Props) {
 
   return (
     <div className="flex flex-col flex-1 min-h-0">
-      <div className="flex items-center justify-end mb-4 flex-shrink-0">
+      <div className="flex items-center justify-end mb-4 flex-shrink-0 gap-2">
+        <button
+          onClick={handleSync}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition-all duration-150"
+          style={
+            synced
+              ? { background: tokens.success.bg, border: `1px solid ${tokens.success.border}`, color: tokens.success.text }
+              : { background: tokens.accent.bg, border: `1px solid ${tokens.accent.border}`, color: tokens.accent.text }
+          }
+          onMouseEnter={(e) => {
+            if (!synced) {
+              e.currentTarget.style.background = 'rgba(56,189,248,0.14)';
+              e.currentTarget.style.borderColor = 'rgba(56,189,248,0.35)';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!synced) {
+              e.currentTarget.style.background = tokens.accent.bg;
+              e.currentTarget.style.borderColor = tokens.accent.border;
+            }
+          }}
+        >
+          {synced ? <CheckCircle className="w-3.5 h-3.5" /> : <RefreshCw className="w-3.5 h-3.5" />}
+          {synced ? 'Synchronise !' : 'Synchroniser'}
+        </button>
+        <button
+          onClick={handleCopy}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150"
+          style={
+            copied
+              ? { background: tokens.success.bg, border: `1px solid ${tokens.success.border}`, color: tokens.success.text }
+              : { background: tokens.accent.bg, border: `1px solid ${tokens.accent.border}`, color: tokens.accent.text }
+          }
+          onMouseEnter={(e) => { if (!copied) { e.currentTarget.style.background = 'rgba(34,211,238,0.14)'; e.currentTarget.style.borderColor = 'rgba(34,211,238,0.35)'; } }}
+          onMouseLeave={(e) => { if (!copied) { e.currentTarget.style.background = tokens.accent.bg; e.currentTarget.style.borderColor = tokens.accent.border; } }}
+        >
+          {copied ? <CheckCircle className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+          {copied ? 'Copie !' : 'Copier'}
+        </button>
         <button
           onClick={handleEdit}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150"
-          style={{ background: 'rgba(100,116,139,0.1)', border: '1px solid rgba(100,116,139,0.2)', color: '#94a3b8' }}
-          onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(100,116,139,0.18)'; e.currentTarget.style.color = '#e2e8f0'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(100,116,139,0.1)'; e.currentTarget.style.color = '#94a3b8'; }}
+          style={{ background: 'rgba(100,116,139,0.1)', border: '1px solid rgba(100,116,139,0.2)', color: tokens.text.tertiary }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(100,116,139,0.18)'; e.currentTarget.style.color = tokens.text.secondary; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(100,116,139,0.1)'; e.currentTarget.style.color = tokens.text.tertiary; }}
         >
           <Pencil className="w-3.5 h-3.5" />
           Modifier
@@ -239,16 +175,16 @@ export default function TechnologiesView({ content, onChange }: Props) {
               key={category.id}
               className="rounded-xl p-4 transition-all duration-200"
               style={{
-                background: 'rgba(255,255,255,0.02)',
-                border: `1px solid rgba(255,255,255,0.06)`,
+                background: tokens.surface.tertiary,
+                border: `1px solid ${tokens.surface.border}`,
               }}
               onMouseEnter={(e) => {
                 (e.currentTarget as HTMLDivElement).style.border = `1px solid ${category.color}22`;
                 (e.currentTarget as HTMLDivElement).style.background = `${category.color}05`;
               }}
               onMouseLeave={(e) => {
-                (e.currentTarget as HTMLDivElement).style.border = '1px solid rgba(255,255,255,0.06)';
-                (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.02)';
+                (e.currentTarget as HTMLDivElement).style.border = `1px solid ${tokens.surface.border}`;
+                (e.currentTarget as HTMLDivElement).style.background = tokens.surface.tertiary;
               }}
             >
               <div className="flex items-center gap-2.5 mb-3">
@@ -280,14 +216,14 @@ export default function TechnologiesView({ content, onChange }: Props) {
                       <div className="min-w-0">
                         <span
                           className="text-sm font-medium leading-tight block"
-                          style={{ color: '#e2e8f0' }}
+                          style={{ color: tokens.text.secondary }}
                         >
                           {item.name}
                         </span>
                         {item.description && (
                           <span
                             className="text-xs leading-tight block mt-0.5"
-                            style={{ color: 'rgba(148,163,184,0.55)' }}
+                            style={{ color: tokens.text.tertiary }}
                           >
                             {item.description}
                           </span>
@@ -318,36 +254,28 @@ export default function TechnologiesView({ content, onChange }: Props) {
         <div
           className="mt-5 rounded-xl p-4"
           style={{
-            background: 'rgba(255,255,255,0.015)',
-            border: '1px solid rgba(255,255,255,0.05)',
+            background: tokens.surface.tertiary,
+            border: `1px solid ${tokens.surface.borderLight}`,
           }}
         >
           <div className="flex items-center gap-2 mb-3">
-            <GitBranch className="w-3.5 h-3.5" style={{ color: 'rgba(148,163,184,0.4)' }} />
+            <GitBranch className="w-3.5 h-3.5" style={{ color: tokens.text.tertiary }} />
             <span
               className="text-xs font-semibold tracking-widest uppercase"
-              style={{ color: 'rgba(148,163,184,0.4)' }}
+              style={{ color: tokens.text.tertiary }}
             >
               Architecture
             </span>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            {[
-              { label: 'Frontend', color: '#38bdf8', icon: <Layers className="w-3 h-3" /> },
-              { label: '↓', color: 'rgba(100,116,139,0.4)', icon: null },
-              { label: 'Supabase SDK', color: '#a78bfa', icon: <Zap className="w-3 h-3" /> },
-              { label: '↓', color: 'rgba(100,116,139,0.4)', icon: null },
-              { label: 'PostgreSQL', color: '#34d399', icon: <Database className="w-3 h-3" /> },
-              { label: '+', color: 'rgba(100,116,139,0.4)', icon: null },
-              { label: 'Edge Functions', color: '#fb923c', icon: <FileCode className="w-3 h-3" /> },
-              { label: '+', color: 'rgba(100,116,139,0.4)', icon: null },
-              { label: 'Realtime', color: '#f472b6', icon: <Radio className="w-3 h-3" /> },
-              { label: '+', color: 'rgba(100,116,139,0.4)', icon: null },
-              { label: 'Auth / RLS', color: '#fbbf24', icon: <Shield className="w-3 h-3" /> },
-            ].map((node, i) =>
-              node.icon ? (
+            {archNodes.map((node, i) => (
+              <span key={i} className="contents">
+                {i > 0 && (
+                  <span className="text-xs font-medium" style={{ color: 'rgba(100,116,139,0.4)' }}>
+                    {i === 1 ? '\u2192' : '+'}
+                  </span>
+                )}
                 <div
-                  key={i}
                   className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg"
                   style={{
                     background: `${node.color}10`,
@@ -358,12 +286,8 @@ export default function TechnologiesView({ content, onChange }: Props) {
                   {node.icon}
                   <span className="text-xs font-medium">{node.label}</span>
                 </div>
-              ) : (
-                <span key={i} className="text-xs font-medium" style={{ color: node.color }}>
-                  {node.label}
-                </span>
-              )
-            )}
+              </span>
+            ))}
           </div>
         </div>
       </div>

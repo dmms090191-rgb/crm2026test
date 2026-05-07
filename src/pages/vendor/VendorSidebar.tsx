@@ -10,6 +10,7 @@ import {
   CalendarClock,
 } from 'lucide-react';
 import type { VendorActiveView } from './VendorDashboard';
+import { useThemeTokens } from '../../hooks/useThemeTokens';
 
 interface VendorSidebarProps {
   activeView: VendorActiveView;
@@ -55,27 +56,31 @@ const sections: NavSection[] = [
 ];
 
 export default function VendorSidebar({ activeView, onNavigate, collapsed, onCollapse, onLogout }: VendorSidebarProps) {
+  const tokens = useThemeTokens();
+
   return (
     <aside
-      className={`relative flex flex-col flex-shrink-0 transition-all duration-300 ${collapsed ? 'w-16' : 'w-60'}`}
+      className={`relative flex flex-col flex-shrink-0 h-full transition-all duration-300 ${collapsed ? 'w-16' : 'w-full md:w-60'}`}
       style={{
-        background: 'linear-gradient(180deg, #06090f 0%, #080d16 60%, #060a12 100%)',
-        borderRight: '1px solid rgba(56,189,248,0.08)',
+        background: tokens.sidebar.bg,
+        borderRight: `1px solid ${tokens.sidebar.border}`,
+        backdropFilter: 'blur(16px) saturate(1.4)',
+        WebkitBackdropFilter: 'blur(16px) saturate(1.4)',
       }}
     >
       <div
         className="flex items-center gap-3 px-4 h-16 flex-shrink-0"
-        style={{ borderBottom: '1px solid rgba(56,189,248,0.08)' }}
+        style={{ borderBottom: `1px solid ${tokens.sidebar.border}` }}
       >
         <div className="relative flex-shrink-0">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center shadow-lg" style={{ boxShadow: '0 0 20px rgba(34,211,238,0.4)' }}>
-            <Hexagon className="w-4 h-4 text-white fill-white/20" strokeWidth={2} />
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center shadow-lg" style={{ boxShadow: `0 0 20px ${tokens.accent.text}66` }}>
+            <Hexagon className="w-4 h-4 fill-white/20" style={{ color: tokens.text.primary }} strokeWidth={2} />
           </div>
         </div>
         {!collapsed && (
           <div className="min-w-0 leading-tight">
-            <p className="text-sm font-bold text-white tracking-tight truncate">DesignSpace3D</p>
-            <p className="text-[9px] text-cyan-500/60 tracking-[0.2em] uppercase">Espace Vendeur</p>
+            <p className="text-sm font-bold tracking-tight truncate" style={{ color: tokens.sidebar.logoText }}>DesignSpace3D</p>
+            <p className="text-[9px] tracking-[0.2em] uppercase" style={{ color: tokens.sidebar.logoSub }}>Espace Vendeur</p>
           </div>
         )}
       </div>
@@ -84,10 +89,10 @@ export default function VendorSidebar({ activeView, onNavigate, collapsed, onCol
         {sections.map((section, si) => (
           <div key={section.title}>
             {si > 0 && (
-              <div className="mx-2 my-2" style={{ height: '1px', background: 'rgba(255,255,255,0.04)' }} />
+              <div className="mx-2 my-2" style={{ height: '1px', background: tokens.sidebar.divider }} />
             )}
             {!collapsed && (
-              <p className="px-2 pb-1 pt-2 text-[9px] font-bold tracking-[0.18em] uppercase text-slate-600">
+              <p className="px-2 pb-1 pt-2 text-[9px] font-bold tracking-[0.18em] uppercase" style={{ color: tokens.sidebar.sectionTitle }}>
                 {section.title}
               </p>
             )}
@@ -104,30 +109,32 @@ export default function VendorSidebar({ activeView, onNavigate, collapsed, onCol
                   style={
                     isActive
                       ? {
-                          background: 'linear-gradient(90deg, rgba(34,211,238,0.12) 0%, rgba(34,211,238,0.04) 100%)',
-                          boxShadow: 'inset 2px 0 0 rgba(34,211,238,0.8)',
+                          background: tokens.sidebar.activeItemBg,
+                          boxShadow: tokens.sidebar.activeItemShadow,
                         }
                       : {}
                   }
                 >
                   <span
-                    className={`flex-shrink-0 transition-all duration-150 ${
-                      isActive ? 'text-cyan-400' : 'text-slate-600 group-hover:text-slate-300'
-                    }`}
+                    className={`flex-shrink-0 transition-all duration-150`}
+                    style={{ color: isActive ? tokens.sidebar.activeItemIcon : tokens.sidebar.itemIcon }}
+                    onMouseEnter={e => { if (!isActive) e.currentTarget.style.color = tokens.sidebar.itemTextHover; }}
+                    onMouseLeave={e => { if (!isActive) e.currentTarget.style.color = tokens.sidebar.itemIcon; }}
                   >
                     {item.icon}
                   </span>
                   {!collapsed && (
                     <span
-                      className={`text-sm font-medium truncate transition-colors duration-150 ${
-                        isActive ? 'text-cyan-300' : 'text-slate-500 group-hover:text-slate-200'
-                      }`}
+                      className={`text-sm font-medium truncate transition-colors duration-150`}
+                      style={{ color: isActive ? tokens.sidebar.activeItemText : tokens.sidebar.itemText }}
+                      onMouseEnter={e => { if (!isActive) e.currentTarget.style.color = tokens.sidebar.itemTextHover; }}
+                      onMouseLeave={e => { if (!isActive) e.currentTarget.style.color = tokens.sidebar.itemText; }}
                     >
                       {item.label}
                     </span>
                   )}
                   {!collapsed && isActive && (
-                    <span className="ml-auto w-1.5 h-1.5 rounded-full bg-cyan-400 flex-shrink-0 shadow-sm" style={{ boxShadow: '0 0 6px rgba(34,211,238,0.8)' }} />
+                    <span className="ml-auto w-1.5 h-1.5 rounded-full flex-shrink-0 shadow-sm" style={{ background: tokens.sidebar.activeItemDot, boxShadow: `0 0 6px ${tokens.sidebar.activeItemDot}` }} />
                   )}
                 </button>
               );
@@ -138,23 +145,23 @@ export default function VendorSidebar({ activeView, onNavigate, collapsed, onCol
 
       <div
         className="px-2 pb-2 pt-2 space-y-0.5"
-        style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}
+        style={{ borderTop: `1px solid ${tokens.sidebar.divider}` }}
       >
         <button
           onClick={onLogout}
           title={collapsed ? 'Déconnexion' : undefined}
           className={`w-full flex items-center gap-3 rounded-lg py-2 transition-all group ${collapsed ? 'px-1 justify-center' : 'px-3'}`}
         >
-          <LogOut className="w-4 h-4 flex-shrink-0 text-slate-600 group-hover:text-rose-400 transition-colors" />
-          {!collapsed && <span className="text-sm font-medium text-slate-600 group-hover:text-rose-400 transition-colors">Déconnexion</span>}
+          <LogOut className="w-4 h-4 flex-shrink-0 transition-colors" style={{ color: tokens.sidebar.logoutText }} onMouseEnter={e => e.currentTarget.style.color = tokens.sidebar.logoutHover} onMouseLeave={e => e.currentTarget.style.color = tokens.sidebar.logoutText} />
+          {!collapsed && <span className="text-sm font-medium transition-colors" style={{ color: tokens.sidebar.logoutText }} onMouseEnter={e => e.currentTarget.style.color = tokens.sidebar.logoutHover} onMouseLeave={e => e.currentTarget.style.color = tokens.sidebar.logoutText}>Déconnexion</span>}
         </button>
         <button
           onClick={onCollapse}
           title={collapsed ? 'Agrandir' : undefined}
           className={`w-full flex items-center gap-3 rounded-lg py-2 transition-all group ${collapsed ? 'px-1 justify-center' : 'px-3'}`}
         >
-          <ChevronLeft className={`w-4 h-4 flex-shrink-0 text-slate-600 group-hover:text-slate-300 transition-all duration-300 ${collapsed ? 'rotate-180' : ''}`} />
-          {!collapsed && <span className="text-sm font-medium text-slate-600 group-hover:text-slate-300 transition-colors">Réduire</span>}
+          <ChevronLeft className={`w-4 h-4 flex-shrink-0 transition-all duration-300 ${collapsed ? 'rotate-180' : ''}`} style={{ color: tokens.sidebar.collapseText }} onMouseEnter={e => e.currentTarget.style.color = tokens.sidebar.itemTextHover} onMouseLeave={e => e.currentTarget.style.color = tokens.sidebar.collapseText} />
+          {!collapsed && <span className="text-sm font-medium transition-colors" style={{ color: tokens.sidebar.collapseText }} onMouseEnter={e => e.currentTarget.style.color = tokens.sidebar.itemTextHover} onMouseLeave={e => e.currentTarget.style.color = tokens.sidebar.collapseText}>Réduire</span>}
         </button>
       </div>
     </aside>

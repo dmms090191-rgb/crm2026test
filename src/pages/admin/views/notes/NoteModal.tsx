@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, Save } from 'lucide-react';
+import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 
 export interface NoteFormData {
   title: string;
@@ -20,6 +21,8 @@ function todayStr() {
 }
 
 export default function NoteModal({ initial, onSave, onClose }: NoteModalProps) {
+  const tokens = useThemeTokens();
+
   const [form, setForm] = useState<NoteFormData>(
     initial ?? { title: '', content: '', note_date: todayStr(), time_start: '', time_end: '' }
   );
@@ -49,50 +52,50 @@ export default function NoteModal({ initial, onSave, onClose }: NoteModalProps) 
 
   const field = (label: string, node: React.ReactNode) => (
     <label className="flex flex-col gap-1.5">
-      <span className="text-xs font-medium" style={{ color: 'rgba(148,163,184,0.8)' }}>{label}</span>
+      <span className="text-xs font-medium" style={{ color: tokens.text.tertiary }}>{label}</span>
       {node}
     </label>
   );
 
   const inputStyle: React.CSSProperties = {
-    background: 'rgba(255,255,255,0.04)',
-    border: '1px solid rgba(255,255,255,0.1)',
+    background: tokens.modal.fieldBg,
+    border: `1px solid ${tokens.modal.fieldBorder}`,
     borderRadius: '8px',
     padding: '8px 12px',
-    color: '#e2e8f0',
+    color: tokens.text.secondary,
     fontSize: '13px',
     outline: 'none',
     width: '100%',
-    caretColor: '#22d3ee',
+    caretColor: tokens.accent.text,
   };
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center"
-      style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}
+      style={{ background: tokens.modal.overlayBg, backdropFilter: 'blur(4px)' }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
         className="w-full max-w-lg mx-4 rounded-2xl flex flex-col"
         style={{
-          background: 'linear-gradient(135deg, #0d1117 0%, #0a0f1a 100%)',
-          border: '1px solid rgba(56,189,248,0.15)',
-          boxShadow: '0 25px 60px rgba(0,0,0,0.6)',
+          background: tokens.modal.bg,
+          border: `1px solid ${tokens.modal.border}`,
+          boxShadow: tokens.modal.shadow,
         }}
       >
         <div
           className="flex items-center justify-between px-5 py-4 flex-shrink-0"
-          style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}
+          style={{ borderBottom: `1px solid ${tokens.surface.borderLight}` }}
         >
-          <h3 className="text-sm font-semibold text-white">
+          <h3 className="text-sm font-semibold" style={{ color: tokens.modal.title }}>
             {initial ? 'Modifier la note' : 'Nouvelle note'}
           </h3>
           <button
             onClick={onClose}
             className="flex items-center justify-center w-7 h-7 rounded-lg transition-colors duration-150"
-            style={{ color: 'rgba(148,163,184,0.6)' }}
-            onMouseEnter={(e) => { e.currentTarget.style.color = '#e2e8f0'; e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(148,163,184,0.6)'; e.currentTarget.style.background = 'transparent'; }}
+            style={{ color: tokens.modal.closeBtnText }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = tokens.modal.closeBtnHoverText; e.currentTarget.style.background = tokens.modal.closeBtnHoverBg; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = tokens.modal.closeBtnText; e.currentTarget.style.background = 'transparent'; }}
           >
             <X className="w-4 h-4" />
           </button>
@@ -106,8 +109,8 @@ export default function NoteModal({ initial, onSave, onClose }: NoteModalProps) 
               onChange={(e) => setForm(f => ({ ...f, title: e.target.value }))}
               placeholder="Titre de la note"
               style={inputStyle}
-              onFocus={(e) => { e.currentTarget.style.border = '1px solid rgba(34,211,238,0.3)'; }}
-              onBlur={(e) => { e.currentTarget.style.border = '1px solid rgba(255,255,255,0.1)'; }}
+              onFocus={(e) => { e.currentTarget.style.border = `1px solid ${tokens.input.borderFocus}`; }}
+              onBlur={(e) => { e.currentTarget.style.border = `1px solid ${tokens.modal.fieldBorder}`; }}
               autoFocus
             />
           ))}
@@ -119,8 +122,8 @@ export default function NoteModal({ initial, onSave, onClose }: NoteModalProps) 
                 value={form.note_date}
                 onChange={(e) => setForm(f => ({ ...f, note_date: e.target.value }))}
                 style={{ ...inputStyle, colorScheme: 'dark' }}
-                onFocus={(e) => { e.currentTarget.style.border = '1px solid rgba(34,211,238,0.3)'; }}
-                onBlur={(e) => { e.currentTarget.style.border = '1px solid rgba(255,255,255,0.1)'; }}
+                onFocus={(e) => { e.currentTarget.style.border = `1px solid ${tokens.input.borderFocus}`; }}
+                onBlur={(e) => { e.currentTarget.style.border = `1px solid ${tokens.modal.fieldBorder}`; }}
               />
             ))}
             {field('Heure début', (
@@ -129,8 +132,8 @@ export default function NoteModal({ initial, onSave, onClose }: NoteModalProps) 
                 value={form.time_start}
                 onChange={(e) => setForm(f => ({ ...f, time_start: e.target.value }))}
                 style={{ ...inputStyle, colorScheme: 'dark' }}
-                onFocus={(e) => { e.currentTarget.style.border = '1px solid rgba(34,211,238,0.3)'; }}
-                onBlur={(e) => { e.currentTarget.style.border = '1px solid rgba(255,255,255,0.1)'; }}
+                onFocus={(e) => { e.currentTarget.style.border = `1px solid ${tokens.input.borderFocus}`; }}
+                onBlur={(e) => { e.currentTarget.style.border = `1px solid ${tokens.modal.fieldBorder}`; }}
               />
             ))}
             {field('Heure fin', (
@@ -139,8 +142,8 @@ export default function NoteModal({ initial, onSave, onClose }: NoteModalProps) 
                 value={form.time_end}
                 onChange={(e) => setForm(f => ({ ...f, time_end: e.target.value }))}
                 style={{ ...inputStyle, colorScheme: 'dark' }}
-                onFocus={(e) => { e.currentTarget.style.border = '1px solid rgba(34,211,238,0.3)'; }}
-                onBlur={(e) => { e.currentTarget.style.border = '1px solid rgba(255,255,255,0.1)'; }}
+                onFocus={(e) => { e.currentTarget.style.border = `1px solid ${tokens.input.borderFocus}`; }}
+                onBlur={(e) => { e.currentTarget.style.border = `1px solid ${tokens.modal.fieldBorder}`; }}
               />
             ))}
           </div>
@@ -152,21 +155,21 @@ export default function NoteModal({ initial, onSave, onClose }: NoteModalProps) 
               placeholder="Contenu de la note…"
               rows={6}
               style={{ ...inputStyle, resize: 'vertical', lineHeight: '1.6', fontFamily: 'inherit' }}
-              onFocus={(e) => { e.currentTarget.style.border = '1px solid rgba(34,211,238,0.3)'; }}
-              onBlur={(e) => { e.currentTarget.style.border = '1px solid rgba(255,255,255,0.1)'; }}
+              onFocus={(e) => { e.currentTarget.style.border = `1px solid ${tokens.input.borderFocus}`; }}
+              onBlur={(e) => { e.currentTarget.style.border = `1px solid ${tokens.modal.fieldBorder}`; }}
             />
           ))}
 
-          {error && <p className="text-xs text-red-400">{error}</p>}
+          {error && <p className="text-xs" style={{ color: tokens.danger.text }}>{error}</p>}
 
           <div className="flex justify-end gap-2 pt-1">
             <button
               type="button"
               onClick={onClose}
               className="px-4 py-2 rounded-lg text-xs font-medium transition-all duration-150"
-              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(148,163,184,0.8)' }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = '#e2e8f0'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.color = 'rgba(148,163,184,0.8)'; }}
+              style={{ background: tokens.modal.fieldBg, border: `1px solid ${tokens.surface.borderLight}`, color: tokens.text.tertiary }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = tokens.surface.hover; e.currentTarget.style.color = tokens.text.secondary; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = tokens.modal.fieldBg; e.currentTarget.style.color = tokens.text.tertiary; }}
             >
               Annuler
             </button>
@@ -175,12 +178,12 @@ export default function NoteModal({ initial, onSave, onClose }: NoteModalProps) 
               disabled={saving}
               className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium transition-all duration-150"
               style={{
-                background: saving ? 'rgba(34,211,238,0.06)' : 'rgba(34,211,238,0.12)',
-                border: '1px solid rgba(34,211,238,0.3)',
-                color: saving ? 'rgba(103,232,249,0.5)' : '#67e8f9',
+                background: saving ? tokens.accent.bg : tokens.accent.bgHover,
+                border: `1px solid ${tokens.accent.border}`,
+                color: saving ? 'rgba(103,232,249,0.5)' : tokens.accent.text,
               }}
               onMouseEnter={(e) => { if (!saving) { e.currentTarget.style.background = 'rgba(34,211,238,0.18)'; } }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = saving ? 'rgba(34,211,238,0.06)' : 'rgba(34,211,238,0.12)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = saving ? tokens.accent.bg : tokens.accent.bgHover; }}
             >
               <Save className="w-3.5 h-3.5" />
               {saving ? 'Enregistrement…' : 'Enregistrer'}

@@ -2,8 +2,140 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+}
+
 html, body, #root {
   height: 100%;
   margin: 0;
   padding: 0;
+  overflow-x: hidden;
+}
+
+@layer base {
+  *, *::before, *::after {
+    min-width: 0;
+  }
+
+  img, svg, video, canvas {
+    max-width: 100%;
+    height: auto;
+  }
+
+  input, textarea, select, button {
+    max-width: 100%;
+  }
+
+  table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .overflow-x-auto > table,
+  .dual-scroll-bottom > table {
+    display: table;
+    overflow-x: visible;
+    min-width: max-content;
+  }
+
+  @media (min-width: 768px) {
+    table {
+      display: table;
+      overflow-x: visible;
+    }
+  }
+}
+
+@layer components {
+  .modal-responsive {
+    width: calc(100vw - 24px);
+    max-width: 28rem;
+  }
+
+  @media (min-width: 640px) {
+    .modal-responsive {
+      width: 100%;
+    }
+  }
+
+  .dual-scroll-top {
+    overflow-x: scroll;
+    overflow-y: hidden;
+    height: 20px;
+  }
+
+  .dual-scroll-top-inner {
+    height: 1px;
+  }
+
+  .dual-scroll-top::-webkit-scrollbar {
+    height: 14px;
+  }
+
+  .dual-scroll-top::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 7px;
+  }
+
+  .dual-scroll-top::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.25);
+    border-radius: 7px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+
+  .dual-scroll-top::-webkit-scrollbar-thumb:active {
+    background: rgba(0, 0, 0, 0.4);
+    background-clip: content-box;
+  }
+
+  html[data-theme="dark"] .dual-scroll-top::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  html[data-theme="dark"] .dual-scroll-top::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.25);
+    border-radius: 7px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+
+  html[data-theme="dark"] .dual-scroll-top::-webkit-scrollbar-thumb:active {
+    background: rgba(255, 255, 255, 0.4);
+    background-clip: content-box;
+  }
+}
+
+html[data-theme="light"] {
+  background: linear-gradient(145deg, #d8e2f0 0%, #cdd8ea 50%, #c5d2e5 100%);
+  background-attachment: fixed;
+}
+
+html[data-theme="dark"] {
+  background: #050810;
+}
+
+html[data-theme="light"] input::placeholder,
+html[data-theme="light"] textarea::placeholder {
+  color: #6888a2;
+  opacity: 1;
+}
+
+html[data-theme="dark"] input::placeholder,
+html[data-theme="dark"] textarea::placeholder {
+  color: #3e5a72;
+  opacity: 1;
+}
+
+@keyframes fadeScaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes glowPulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
 }

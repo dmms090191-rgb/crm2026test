@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { MessageCircle } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import MessagingPanel, { ChatMessage, ChatContact } from '../../../components/chat/ChatView';
+import { useThemeTokens } from '../../../hooks/useThemeTokens';
 
 interface ClientMessagerieProps {
   clientName: string;
@@ -15,70 +16,88 @@ interface VendorRow {
   email: string;
 }
 
+const ADMIN_CONTACT_ID = '__admin__';
+
 export default function ClientMessagerie({ clientName, clientAuthId }: ClientMessagerieProps) {
+  const tokens = useThemeTokens();
   const [vendor, setVendor] = useState<VendorRow | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [contactLoading, setContactLoading] = useState(true);
+  const [leadVendorId, setLeadVendorId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!clientAuthId) { setContactLoading(false); return; }
     supabase
       .from('leads')
-      .select('vendor_id, vendors:vendor_id(id, first_name, last_name, email)')
+      .select('id, vendor_id, vendors:vendor_id(id, first_name, last_name, email)')
+      .eq('id', clientAuthId)
       .eq('actif', true)
-      .order('imported_at', { ascending: false })
-      .limit(1)
+      .maybeSingle()
       .then(({ data }) => {
-        if (data && data.length > 0 && data[0].vendors) {
-          const v = data[0].vendors as unknown as VendorRow;
+        if (data && data.vendors && data.vendor_id) {
+          const v = data.vendors as unknown as VendorRow;
           setVendor(v);
+          setLeadVendorId(data.vendor_id);
           setSelectedId(v.id);
+        } else {
+          setVendor(null);
+          setLeadVendorId(null);
+          setSelectedId(ADMIN_CONTACT_ID);
         }
         setContactLoading(false);
       });
   }, [clientAuthId]);
 
-  const vendorDbId = vendor?.id ?? null;
-
-  const loadMessages = useCallback(async () => {
+  const loadMessages = useCallback(async (showLoader = true) => {
     if (!clientAuthId) return;
-    setLoading(true);
-    let query = supabase
-      .from('client_messages')
-      .select('*')
-      .eq('client_auth_id', clientAuthId)
-      .order('created_at', { ascending: true });
-    if (vendorDbId) {
-      query = query.eq('vendor_id', vendorDbId);
+    if (showLoader) setLoading(true);
+    try {
+      const { data } = await supabase
+        .from('client_messages')
+        .select('*')
+        .eq('client_auth_id', clientAuthId)
+        .order('created_at', { ascending: true });
+      setMessages((data ?? []) as ChatMessage[]);
+    } finally {
+      if (showLoader) setLoading(false);
     }
-    const { data } = await query;
-    setMessages((data ?? []) as ChatMessage[]);
-    setLoading(false);
-  }, [clientAuthId, vendorDbId]);
+  }, [clientAuthId]);
 
-  useEffect(() => { loadMessages(); }, [loadMessages]);
+  useEffect(() => { loadMessages(true); }, [loadMessages]);
 
   useEffect(() => {
     const ch = supabase
       .channel(`client-messages-${clientAuthId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'client_messages' }, loadMessages)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'client_messages' }, () => loadMessages(false))
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [clientAuthId, loadMessages]);
 
   const handleSend = useCallback(async (content: string, file?: { url: string; name: string; type: string }) => {
     if (!clientAuthId) return;
-    await supabase.from('client_messages').insert({
-      content: content || '',
-      sender: 'client',
-      client_auth_id: clientAuthId,
-      vendor_id: vendorDbId,
-      ...(file ? { file_url: file.url, file_name: file.name, file_type: file.type } : {}),
-    });
-  }, [clientAuthId, vendorDbId]);
+    try {
+      const { data: inserted, error } = await supabase.from('client_messages').insert({
+        content: content || '',
+        sender: 'client',
+        client_auth_id: clientAuthId,
+        vendor_id: leadVendorId,
+        ...(file ? { file_url: file.url, file_name: file.name, file_type: file.type } : {}),
+      }).select().maybeSingle();
+      if (error) {
+        console.error('Erreur envoi message client:', error);
+        return;
+      }
+      if (inserted) {
+        setMessages(prev => [...prev, inserted as ChatMessage]);
+      }
+    } catch {
+      // Ensure the promise resolves so the send button spinner stops
+    }
+  }, [clientAuthId, leadVendorId]);
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleDelete = useCallback(async (_id: string) => {}, []);
 
   const contacts: ChatContact[] = vendor
@@ -88,14 +107,19 @@ export default function ClientMessagerie({ clientName, clientAuthId }: ClientMes
         subtitle: 'Votre conseiller',
         initial: (vendor.first_name || vendor.email || 'C').charAt(0).toUpperCase(),
       }]
-    : [];
+    : [{
+        id: ADMIN_CONTACT_ID,
+        displayName: 'Support',
+        subtitle: 'Assistance',
+        initial: 'S',
+      }];
 
   return (
     <div className="flex flex-col h-full space-y-4" style={{ minHeight: 0 }}>
       <div className="flex items-center justify-between flex-shrink-0">
         <div>
-          <h2 className="text-white text-xl font-bold">Messagerie</h2>
-          <p className="text-slate-600 text-xs mt-0.5">Communiquez avec votre conseiller</p>
+          <h2 className="text-xl font-bold" style={{ color: tokens.text.primary }}>Messagerie</h2>
+          <p className="text-xs mt-0.5" style={{ color: tokens.text.quaternary }}>Communiquez avec votre conseiller</p>
         </div>
         <div
           className="w-9 h-9 rounded-xl flex items-center justify-center"

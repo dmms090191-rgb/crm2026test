@@ -1,51 +1,104 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { MessageSquare } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import MessagingPanel, { ChatMessage, ChatContact } from '../../../components/chat/ChatView';
 import type { Vendor } from './ListeVendeurs';
+import { useThemeTokens } from '../../../hooks/useThemeTokens';
 
 interface ChatVendeurProps {
   initialVendor?: Vendor | null;
   onMessageSent?: () => void;
+  onVendorViewed?: (vendorId: string) => void;
 }
 
-export default function ChatVendeur({ initialVendor, onMessageSent }: ChatVendeurProps) {
+export default function ChatVendeur({ initialVendor, onMessageSent, onVendorViewed }: ChatVendeurProps) {
+  const tokens = useThemeTokens();
+
   const [allVendors, setAllVendors] = useState<Vendor[]>([]);
   const [vendorsWithMessages, setVendorsWithMessages] = useState<string[]>([]);
   const [selectedVendorId, setSelectedVendorId] = useState<string | null>(initialVendor?.id ?? null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [contactLoading, setContactLoading] = useState(true);
+  const [lastMessages, setLastMessages] = useState<Record<string, { content: string; created_at: string; sender: string }>>({});
 
   useEffect(() => {
+    let cancelled = false;
     setContactLoading(true);
-    Promise.all([
-      supabase.from('vendors').select('id,first_name,last_name,email,auth_user_id,password,phone,created_at').order('last_name'),
-      supabase.from('vendor_admin_messages').select('vendor_id').not('vendor_id', 'is', null),
-    ]).then(([{ data: vendorData }, { data: msgData }]) => {
-      if (vendorData) setAllVendors(vendorData as Vendor[]);
-      const vendorIdsWithMsgs = [...new Set((msgData ?? []).map((m: { vendor_id: string }) => m.vendor_id))];
-      setVendorsWithMessages(vendorIdsWithMsgs);
-      setContactLoading(false);
-    });
+    (async () => {
+      try {
+        const [{ data: vendorData }, { data: msgData }] = await Promise.all([
+          supabase.from('vendors').select('id,first_name,last_name,email,auth_user_id,password,phone,created_at').order('last_name'),
+          supabase.from('vendor_admin_messages').select('vendor_id').not('vendor_id', 'is', null),
+        ]);
+        if (cancelled) return;
+        if (vendorData) setAllVendors(vendorData as Vendor[]);
+        const vendorIdsWithMsgs = [...new Set((msgData ?? []).map((m: { vendor_id: string }) => m.vendor_id))];
+        setVendorsWithMessages(vendorIdsWithMsgs);
+
+        if (vendorIdsWithMsgs.length > 0) {
+          const { data: lastMsgs } = await supabase
+            .from('vendor_admin_messages')
+            .select('vendor_id, content, created_at, sender')
+            .in('vendor_id', vendorIdsWithMsgs)
+            .order('created_at', { ascending: false });
+          const map: Record<string, { content: string; created_at: string; sender: string }> = {};
+          (lastMsgs ?? []).forEach((m: { vendor_id: string; content: string; created_at: string; sender: string }) => {
+            if (!map[m.vendor_id]) map[m.vendor_id] = m;
+          });
+          if (!cancelled) setLastMessages(map);
+        }
+      } finally {
+        if (!cancelled) setContactLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
   }, []);
 
-  const selectedVendor = allVendors.find(v => v.id === selectedVendorId) ?? (initialVendor ?? null);
+  const onVendorViewedRef = useRef(onVendorViewed);
+  onVendorViewedRef.current = onVendorViewed;
+  const markingRef = useRef(false);
 
-  const loadMessages = useCallback(async () => {
-    if (!selectedVendorId) return;
-    setLoading(true);
-    const { data } = await supabase
-      .from('vendor_admin_messages')
-      .select('*')
-      .eq('vendor_id', selectedVendorId)
-      .order('created_at', { ascending: true });
-    setMessages((data ?? []) as ChatMessage[]);
-    setLoading(false);
+  useEffect(() => {
+    if (selectedVendorId) onVendorViewedRef.current?.(selectedVendorId);
   }, [selectedVendorId]);
 
   useEffect(() => {
-    if (selectedVendorId) loadMessages();
+    if (!selectedVendorId || messages.length === 0 || markingRef.current) return;
+    const hasUnread = messages.some(m => m.sender === 'vendor' && m.read === false && !m.deleted);
+    if (hasUnread) {
+      markingRef.current = true;
+      supabase
+        .from('vendor_admin_messages')
+        .update({ read: true })
+        .eq('vendor_id', selectedVendorId)
+        .eq('sender', 'vendor')
+        .eq('read', false)
+        .eq('deleted', false)
+        .then(() => {
+          onVendorViewedRef.current?.(selectedVendorId);
+          markingRef.current = false;
+        });
+    }
+  }, [selectedVendorId, messages]);
+
+  const loadMessages = useCallback(async (showLoader = true) => {
+    if (!selectedVendorId) return;
+    if (showLoader) setLoading(true);
+    try {
+      const { data } = await supabase
+        .from('vendor_admin_messages')
+        .select('*')
+        .eq('vendor_id', selectedVendorId)
+        .order('created_at', { ascending: true });
+      setMessages((data ?? []) as ChatMessage[]);
+    } finally {
+      if (showLoader) setLoading(false);
+    }
+  }, [selectedVendorId]);
+
+  useEffect(() => {
+    if (selectedVendorId) loadMessages(true);
     else setMessages([]);
   }, [selectedVendorId, loadMessages]);
 
@@ -53,25 +106,29 @@ export default function ChatVendeur({ initialVendor, onMessageSent }: ChatVendeu
     if (!selectedVendorId) return;
     const ch = supabase
       .channel(`admin-vendor-chat-${selectedVendorId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'vendor_admin_messages' }, loadMessages)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'vendor_admin_messages' }, () => loadMessages(false))
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [selectedVendorId, loadMessages]);
 
   const handleSend = useCallback(async (content: string, file?: { url: string; name: string; type: string }) => {
     if (!selectedVendorId) return;
-    const vendor = allVendors.find(v => v.id === selectedVendorId) ?? initialVendor;
-    const { data: inserted, error } = await supabase.from('vendor_admin_messages').insert({
-      content: content || '',
-      sender: 'admin',
-      vendor_id: selectedVendorId,
-      vendor_auth_id: vendor?.auth_user_id ?? null,
-      ...(file ? { file_url: file.url, file_name: file.name, file_type: file.type } : {}),
-    }).select().maybeSingle();
-    if (!error && inserted) {
-      setMessages(prev => [...prev, inserted as ChatMessage]);
+    try {
+      const vendor = allVendors.find(v => v.id === selectedVendorId) ?? initialVendor;
+      const { data: inserted, error } = await supabase.from('vendor_admin_messages').insert({
+        content: content || '',
+        sender: 'admin',
+        vendor_id: selectedVendorId,
+        vendor_auth_id: vendor?.auth_user_id ?? null,
+        ...(file ? { file_url: file.url, file_name: file.name, file_type: file.type } : {}),
+      }).select().maybeSingle();
+      if (!error && inserted) {
+        setMessages(prev => [...prev, inserted as ChatMessage]);
+      }
+      onMessageSent?.();
+    } catch (err) {
+      console.error('ChatVendeur handleSend error:', err);
     }
-    onMessageSent?.();
   }, [selectedVendorId, allVendors, initialVendor, onMessageSent]);
 
   const handleDelete = useCallback(async (id: string) => {
@@ -97,23 +154,25 @@ export default function ChatVendeur({ initialVendor, onMessageSent }: ChatVendeu
     return withMsgs;
   })();
 
-  const contacts: ChatContact[] = vendorsForContacts.map(v => ({
-    id: v.id,
-    displayName: [v.first_name, v.last_name].filter(Boolean).join(' ') || v.email,
-    subtitle: v.email,
-    initial: (v.first_name || v.email).charAt(0).toUpperCase(),
-  }));
+  const contacts: ChatContact[] = vendorsForContacts.map(v => {
+    const lastMsg = lastMessages[v.id];
+    return {
+      id: v.id,
+      displayName: [v.first_name, v.last_name].filter(Boolean).join(' ') || v.email,
+      subtitle: v.email,
+      initial: (v.first_name || v.email).charAt(0).toUpperCase(),
+      lastMessage: lastMsg?.content || undefined,
+      lastMessageAt: lastMsg?.created_at || undefined,
+      lastMessageSender: lastMsg?.sender || undefined,
+    };
+  });
 
   return (
     <div className="flex flex-col h-full space-y-4" style={{ minHeight: 0 }}>
       <div className="flex items-center justify-between flex-shrink-0">
         <div>
-          <h2 className="text-white text-xl font-bold">Chat Vendeurs</h2>
-          <p className="text-slate-600 text-xs mt-0.5">
-            {selectedVendor
-              ? `Conversation avec ${[selectedVendor.first_name, selectedVendor.last_name].filter(Boolean).join(' ')}`
-              : 'Sélectionnez un vendeur'}
-          </p>
+          <h2 className="text-xl font-bold" style={{ color: tokens.text.primary }}>Chat Vendeurs</h2>
+          <p className="text-xs mt-0.5" style={{ color: tokens.text.quaternary }}>Chat avec les vendeurs</p>
         </div>
         <div
           className="w-9 h-9 rounded-xl flex items-center justify-center"

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Pencil, Trash2, ChevronDown, ChevronUp, Clock, Calendar } from 'lucide-react';
+import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 
 export interface Note {
   id: string;
@@ -31,6 +32,8 @@ function timeRange(start: string, end: string) {
 }
 
 export default function NotesList({ notes, onEdit, onDelete }: NotesListProps) {
+  const tokens = useThemeTokens();
+
   const [expanded, setExpanded] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
@@ -38,9 +41,9 @@ export default function NotesList({ notes, onEdit, onDelete }: NotesListProps) {
     return (
       <div
         className="flex flex-col items-center justify-center py-10 rounded-xl"
-        style={{ background: 'rgba(255,255,255,0.015)', border: '1px solid rgba(255,255,255,0.05)' }}
+        style={{ background: tokens.surface.borderLight, border: `1px solid ${tokens.surface.borderLight}` }}
       >
-        <p className="text-xs text-slate-600">Aucune note pour l'instant</p>
+        <p className="text-xs" style={{ color: tokens.text.quaternary }}>Aucune note pour l'instant</p>
       </div>
     );
   }
@@ -56,8 +59,8 @@ export default function NotesList({ notes, onEdit, onDelete }: NotesListProps) {
             key={note.id}
             className="rounded-xl overflow-hidden transition-all duration-150"
             style={{
-              background: isOpen ? 'rgba(34,211,238,0.04)' : 'rgba(255,255,255,0.02)',
-              border: isOpen ? '1px solid rgba(34,211,238,0.18)' : '1px solid rgba(255,255,255,0.06)',
+              background: isOpen ? tokens.accent.bg : 'rgba(255,255,255,0.02)',
+              border: isOpen ? `1px solid ${tokens.accent.border}` : `1px solid ${tokens.surface.borderLight}`,
             }}
           >
             <div
@@ -66,18 +69,18 @@ export default function NotesList({ notes, onEdit, onDelete }: NotesListProps) {
             >
               <div className="flex flex-col flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-0.5">
-                  <span className="flex items-center gap-1 text-xs" style={{ color: 'rgba(100,116,139,0.9)' }}>
+                  <span className="flex items-center gap-1 text-xs" style={{ color: tokens.text.quaternary }}>
                     <Calendar className="w-3 h-3 flex-shrink-0" />
                     {formatDate(note.note_date)}
                   </span>
                   {tr && (
-                    <span className="flex items-center gap-1 text-xs" style={{ color: 'rgba(100,116,139,0.7)' }}>
+                    <span className="flex items-center gap-1 text-xs" style={{ color: tokens.text.quaternary }}>
                       <Clock className="w-3 h-3 flex-shrink-0" />
                       {tr}
                     </span>
                   )}
                 </div>
-                <span className="text-xs font-medium truncate" style={{ color: isOpen ? '#67e8f9' : '#cbd5e1' }}>
+                <span className="text-xs font-medium truncate" style={{ color: isOpen ? tokens.accent.text : tokens.text.secondary }}>
                   {note.title}
                 </span>
               </div>
@@ -86,9 +89,9 @@ export default function NotesList({ notes, onEdit, onDelete }: NotesListProps) {
                 <button
                   onClick={(e) => { e.stopPropagation(); onEdit(note); }}
                   className="flex items-center justify-center w-6 h-6 rounded-md transition-all duration-100"
-                  style={{ color: 'rgba(100,116,139,0.7)' }}
-                  onMouseEnter={(e) => { e.currentTarget.style.color = '#67e8f9'; e.currentTarget.style.background = 'rgba(34,211,238,0.08)'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(100,116,139,0.7)'; e.currentTarget.style.background = 'transparent'; }}
+                  style={{ color: tokens.text.quaternary }}
+                  onMouseEnter={(e) => { e.currentTarget.style.color = tokens.accent.text; e.currentTarget.style.background = tokens.accent.bg; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.color = tokens.text.quaternary; e.currentTarget.style.background = 'transparent'; }}
                   title="Modifier"
                 >
                   <Pencil className="w-3 h-3" />
@@ -98,14 +101,14 @@ export default function NotesList({ notes, onEdit, onDelete }: NotesListProps) {
                     <button
                       onClick={() => { onDelete(note.id); setConfirmDelete(null); }}
                       className="text-xs px-2 py-0.5 rounded-md font-medium transition-all duration-100"
-                      style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171' }}
+                      style={{ background: tokens.danger.bg, border: `1px solid ${tokens.danger.border}`, color: tokens.danger.text }}
                     >
                       Confirmer
                     </button>
                     <button
                       onClick={() => setConfirmDelete(null)}
                       className="text-xs px-2 py-0.5 rounded-md transition-all duration-100"
-                      style={{ color: 'rgba(148,163,184,0.7)' }}
+                      style={{ color: tokens.text.tertiary }}
                     >
                       Non
                     </button>
@@ -114,15 +117,15 @@ export default function NotesList({ notes, onEdit, onDelete }: NotesListProps) {
                   <button
                     onClick={(e) => { e.stopPropagation(); setConfirmDelete(note.id); }}
                     className="flex items-center justify-center w-6 h-6 rounded-md transition-all duration-100"
-                    style={{ color: 'rgba(100,116,139,0.7)' }}
-                    onMouseEnter={(e) => { e.currentTarget.style.color = '#f87171'; e.currentTarget.style.background = 'rgba(239,68,68,0.08)'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(100,116,139,0.7)'; e.currentTarget.style.background = 'transparent'; }}
+                    style={{ color: tokens.text.quaternary }}
+                    onMouseEnter={(e) => { e.currentTarget.style.color = tokens.danger.text; e.currentTarget.style.background = tokens.danger.bg; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.color = tokens.text.quaternary; e.currentTarget.style.background = 'transparent'; }}
                     title="Supprimer"
                   >
                     <Trash2 className="w-3 h-3" />
                   </button>
                 )}
-                <span style={{ color: 'rgba(100,116,139,0.5)' }}>
+                <span style={{ color: tokens.text.quaternary }}>
                   {isOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                 </span>
               </div>
@@ -132,8 +135,8 @@ export default function NotesList({ notes, onEdit, onDelete }: NotesListProps) {
               <div
                 className="px-4 pb-3 text-xs leading-relaxed font-mono whitespace-pre-wrap"
                 style={{
-                  color: 'rgba(203,213,225,0.8)',
-                  borderTop: '1px solid rgba(255,255,255,0.05)',
+                  color: tokens.modal.fieldValue,
+                  borderTop: `1px solid ${tokens.surface.borderLight}`,
                   paddingTop: '12px',
                 }}
               >

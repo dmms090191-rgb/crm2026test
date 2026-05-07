@@ -1,216 +1,51 @@
 import { useState, useEffect, useCallback } from 'react';
-import { CalendarDays, Clock, User, Phone, Mail, Pencil, Trash2, Check, X, ChevronDown, Plus, AlertCircle } from 'lucide-react';
+import { CalendarDays, Plus, Clock, Phone, Mail, Pencil, CheckCircle, XCircle, X } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
+import { useThemeTokens } from '../../../hooks/useThemeTokens';
+import { RdvProposal, statusConfig, filterToStatus, formatDate } from './rdvPropositionsConstants';
+import RdvEditModal from './RdvEditModal';
+import RdvAddForm from './RdvAddForm';
+import CheckBox from '../../admin/views/crm/CheckBox';
+import { useTimezone } from '../../../hooks/useTimezone';
+import { localToUTC, getRdvLocalTime, getRdvLocalDate } from '../../../lib/timezoneUtils';
+import { VendorRdvFilters, VendorRdvRow, VendorRdvBulkBar, VendorRdvDeleteModal } from './propositions-rdv';
 
-interface RdvProposal {
+interface RdvLeadRef {
   id: string;
-  vendor_id: string | null;
-  lead_id: string | null;
-  lead_name: string;
-  lead_phone: string;
-  lead_email: string;
-  proposed_date: string;
-  proposed_time: string;
-  notes: string;
-  status: string;
-  created_at: string;
+  nom: string;
+  prenom: string;
+  email: string;
+  tel?: string;
 }
 
-const statusConfig: Record<string, { label: string; color: string; bg: string; border: string }> = {
-  pending:   { label: 'En attente',  color: '#fbbf24', bg: 'rgba(251,191,36,0.08)',  border: 'rgba(251,191,36,0.2)'  },
-  confirmed: { label: 'Confirmé',    color: '#34d399', bg: 'rgba(52,211,153,0.08)',  border: 'rgba(52,211,153,0.2)'  },
-  cancelled: { label: 'Annulé',      color: '#f87171', bg: 'rgba(248,113,113,0.08)', border: 'rgba(248,113,113,0.2)' },
-  done:      { label: 'Terminé',     color: '#94a3b8', bg: 'rgba(148,163,184,0.08)', border: 'rgba(148,163,184,0.2)' },
-};
-
-const FILTERS = ['Tous', 'En attente', 'Confirmé', 'Annulé', 'Terminé'];
-const filterToStatus: Record<string, string> = {
-  'En attente': 'pending',
-  'Confirmé': 'confirmed',
-  'Annulé': 'cancelled',
-  'Terminé': 'done',
-};
-
-function formatDate(iso: string) {
-  const d = new Date(iso + 'T00:00:00');
-  return d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+interface VendorPropositionsRdvProps {
+  vendorDbId?: string | null;
+  initialLead?: RdvLeadRef | null;
+  onInitialLeadConsumed?: () => void;
+  onNavigateToLeads?: () => void;
 }
 
-function formatDateFull(iso: string) {
-  const d = new Date(iso + 'T00:00:00');
-  return d.toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
-}
+const emptyForm = () => ({
+  proposed_date: new Date().toISOString().split('T')[0],
+  proposed_time: '10:00', motif: '', description: '', notes: '',
+});
 
-interface EditModalProps {
-  rdv: RdvProposal;
-  onClose: () => void;
-  onSaved: () => void;
-}
-
-function EditModal({ rdv, onClose, onSaved }: EditModalProps) {
-  const [form, setForm] = useState({
-    lead_name: rdv.lead_name,
-    lead_phone: rdv.lead_phone,
-    lead_email: rdv.lead_email,
-    proposed_date: rdv.proposed_date,
-    proposed_time: rdv.proposed_time,
-    notes: rdv.notes,
-    status: rdv.status,
-  });
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-
-  const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
-
-  async function handleSave() {
-    if (!form.lead_name.trim() || !form.proposed_date) {
-      setError('Le nom du contact et la date sont obligatoires.');
-      return;
-    }
-    setSaving(true);
-    setError('');
-    const { error: err } = await supabase.from('rdv_proposals').update({
-      lead_name: form.lead_name.trim(),
-      lead_phone: form.lead_phone.trim(),
-      lead_email: form.lead_email.trim(),
-      proposed_date: form.proposed_date,
-      proposed_time: form.proposed_time,
-      notes: form.notes.trim(),
-      status: form.status,
-    }).eq('id', rdv.id);
-    setSaving(false);
-    if (err) { setError('Erreur lors de l\'enregistrement.'); return; }
-    onSaved();
-    onClose();
-  }
-
-  const inputCls = 'w-full px-3 py-2 rounded-lg text-sm text-white outline-none focus:ring-1 focus:ring-cyan-500/50 transition-all';
-  const inputStyle = { background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' };
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)' }}
-      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
-    >
-      <div
-        className="w-full max-w-md rounded-2xl overflow-hidden"
-        style={{
-          background: 'linear-gradient(135deg, #0d1420 0%, #0a1019 100%)',
-          border: '1px solid rgba(56,189,248,0.12)',
-          boxShadow: '0 24px 64px rgba(0,0,0,0.6)',
-        }}
-      >
-        <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-          <div>
-            <p className="text-white font-semibold text-sm">Modifier le rendez-vous</p>
-            <p className="text-slate-600 text-xs">{rdv.lead_name}</p>
-          </div>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:text-white transition-colors"
-            style={{ background: 'rgba(255,255,255,0.05)' }}
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-
-        <div className="px-6 py-5 space-y-4">
-          {error && (
-            <div className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-rose-400" style={{ background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.15)' }}>
-              <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
-              {error}
-            </div>
-          )}
-
-          <div>
-            <label className="block text-[10px] font-bold tracking-[0.15em] uppercase text-slate-500 mb-1.5">Nom du contact *</label>
-            <input type="text" value={form.lead_name} onChange={e => set('lead_name', e.target.value)} className={inputCls} style={inputStyle} />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-[10px] font-bold tracking-[0.15em] uppercase text-slate-500 mb-1.5">Téléphone</label>
-              <input type="tel" value={form.lead_phone} onChange={e => set('lead_phone', e.target.value)} className={inputCls} style={inputStyle} />
-            </div>
-            <div>
-              <label className="block text-[10px] font-bold tracking-[0.15em] uppercase text-slate-500 mb-1.5">Email</label>
-              <input type="email" value={form.lead_email} onChange={e => set('lead_email', e.target.value)} className={inputCls} style={inputStyle} />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-[10px] font-bold tracking-[0.15em] uppercase text-slate-500 mb-1.5">Date *</label>
-              <input type="date" value={form.proposed_date} onChange={e => set('proposed_date', e.target.value)} className={inputCls} style={inputStyle} />
-            </div>
-            <div>
-              <label className="block text-[10px] font-bold tracking-[0.15em] uppercase text-slate-500 mb-1.5">Heure</label>
-              <input type="time" value={form.proposed_time} onChange={e => set('proposed_time', e.target.value)} className={inputCls} style={inputStyle} />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-[10px] font-bold tracking-[0.15em] uppercase text-slate-500 mb-1.5">Statut</label>
-            <select
-              value={form.status}
-              onChange={e => set('status', e.target.value)}
-              className={inputCls + ' cursor-pointer'}
-              style={{ ...inputStyle, appearance: 'none' }}
-            >
-              {Object.entries(statusConfig).map(([k, v]) => (
-                <option key={k} value={k} style={{ background: '#0a0f1a' }}>{v.label}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-[10px] font-bold tracking-[0.15em] uppercase text-slate-500 mb-1.5">Notes</label>
-            <textarea
-              value={form.notes}
-              onChange={e => set('notes', e.target.value)}
-              rows={2}
-              className={inputCls + ' resize-none'}
-              style={inputStyle}
-            />
-          </div>
-
-          <div className="flex items-center gap-3 pt-1">
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold text-white transition-all disabled:opacity-50 hover:scale-105"
-              style={{ background: 'linear-gradient(90deg, #0ea5e9, #22d3ee)', boxShadow: '0 0 16px rgba(34,211,238,0.2)' }}
-            >
-              <Check className="w-3.5 h-3.5" />
-              {saving ? 'Enregistrement...' : 'Enregistrer'}
-            </button>
-            <button
-              onClick={onClose}
-              className="px-4 py-2 rounded-lg text-xs font-semibold text-slate-500 hover:text-white transition-all"
-              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
-            >
-              Annuler
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-export default function VendorPropositionsRdv() {
+export default function VendorPropositionsRdv({ vendorDbId, initialLead, onInitialLeadConsumed, onNavigateToLeads }: VendorPropositionsRdvProps) {
+  const tokens = useThemeTokens();
+  const { timezone, userName } = useTimezone();
   const [rdvs, setRdvs] = useState<RdvProposal[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('Tous');
   const [editRdv, setEditRdv] = useState<RdvProposal | null>(null);
   const [showAdd, setShowAdd] = useState(false);
-  const [newForm, setNewForm] = useState({
-    lead_name: '', lead_phone: '', lead_email: '',
-    proposed_date: new Date().toISOString().split('T')[0],
-    proposed_time: '10:00', notes: '', status: 'pending',
-  });
+  const [newForm, setNewForm] = useState(emptyForm());
+  const [pendingLeadId, setPendingLeadId] = useState<string | null>(null);
+  const [pendingLeadName, setPendingLeadName] = useState('');
   const [saving, setSaving] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [deleting, setDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [detailRdv, setDetailRdv] = useState<RdvProposal | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -225,270 +60,406 @@ export default function VendorPropositionsRdv() {
 
   useEffect(() => { load(); }, [load]);
 
+  useEffect(() => {
+    if (initialLead) {
+      const fullName = [initialLead.prenom, initialLead.nom].filter(Boolean).join(' ');
+      setPendingLeadName(fullName);
+      setPendingLeadId(initialLead.id);
+      setShowAdd(true);
+      onInitialLeadConsumed?.();
+    }
+  }, [initialLead, onInitialLeadConsumed]);
+
   const filtered = rdvs.filter(r => {
     if (filter === 'Tous') return true;
     return r.status === filterToStatus[filter];
   });
 
-  async function handleDelete(id: string) {
-    await supabase.from('rdv_proposals').delete().eq('id', id);
-    setRdvs(prev => prev.filter(r => r.id !== id));
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  const statusCounts = rdvs.reduce<Record<string, number>>((acc, r) => {
+    acc[r.status] = (acc[r.status] || 0) + 1;
+    return acc;
+  }, {});
+
+  async function handleAccept(id: string) {
+    const now = new Date().toISOString();
+    await supabase.from('rdv_proposals').update({ status: 'confirmed', responded_at: now, responded_by: 'vendor' }).eq('id', id);
+    setRdvs(prev => prev.map(r => r.id === id ? { ...r, status: 'confirmed', responded_at: now, responded_by: 'vendor' } : r));
   }
 
-  async function handleStatusChange(id: string, status: string) {
-    await supabase.from('rdv_proposals').update({ status }).eq('id', id);
-    setRdvs(prev => prev.map(r => r.id === id ? { ...r, status } : r));
+  async function handleRefuse(id: string) {
+    const now = new Date().toISOString();
+    await supabase.from('rdv_proposals').update({ status: 'cancelled', responded_at: now, responded_by: 'vendor' }).eq('id', id);
+    setRdvs(prev => prev.map(r => r.id === id ? { ...r, status: 'cancelled', responded_at: now, responded_by: 'vendor' } : r));
   }
-
-  const setNew = (k: string, v: string) => setNewForm(f => ({ ...f, [k]: v }));
 
   async function handleAdd() {
-    if (!newForm.lead_name.trim() || !newForm.proposed_date) return;
+    if (!newForm.proposed_date) return;
     setSaving(true);
+    let leadName = '';
+    let leadEmail = '';
+    let leadPhone = '';
+    if (pendingLeadId) {
+      const { data: lead } = await supabase
+        .from('leads')
+        .select('prenom, nom, email, telephone, data')
+        .eq('id', pendingLeadId)
+        .maybeSingle();
+      if (lead) {
+        const d = (lead.data && typeof lead.data === 'object') ? lead.data as Record<string, string> : {};
+        leadName = [lead.prenom || d.Prenom || d.prenom, lead.nom || d.Nom || d.nom].filter(Boolean).join(' ');
+        leadEmail = lead.email || d.Email || d.email || '';
+        leadPhone = lead.telephone || d.Telephone || d.telephone || '';
+      }
+    }
+    const appointmentUtc = localToUTC(newForm.proposed_date, newForm.proposed_time, timezone);
     await supabase.from('rdv_proposals').insert({
-      lead_name: newForm.lead_name.trim(),
-      lead_phone: newForm.lead_phone.trim(),
-      lead_email: newForm.lead_email.trim(),
+      lead_name: leadName,
+      lead_phone: leadPhone,
+      lead_email: leadEmail,
       proposed_date: newForm.proposed_date,
       proposed_time: newForm.proposed_time,
+      motif: newForm.motif.trim(),
+      description: newForm.description.trim(),
       notes: newForm.notes.trim(),
-      status: newForm.status,
+      status: 'pending',
+      created_by_role: 'vendor',
+      created_by_name: userName,
+      appointment_utc: appointmentUtc,
+      source_timezone: timezone,
+      ...(vendorDbId ? { vendor_id: vendorDbId } : {}),
+      ...(pendingLeadId ? { lead_id: pendingLeadId } : {}),
     });
     setSaving(false);
     setShowAdd(false);
-    setNewForm({ lead_name: '', lead_phone: '', lead_email: '', proposed_date: new Date().toISOString().split('T')[0], proposed_time: '10:00', notes: '', status: 'pending' });
+    setNewForm(emptyForm());
+    setPendingLeadId(null);
+    setPendingLeadName('');
     load();
   }
 
-  const todayStr = new Date().toISOString().split('T')[0];
-  const inputCls = 'w-full px-3 py-2 rounded-lg text-sm text-white outline-none focus:ring-1 focus:ring-cyan-500/50 transition-all';
-  const inputStyle = { background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' };
+  function toggleSelect(id: string) {
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleAll() {
+    if (selected.size === filtered.length) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(filtered.map(r => r.id)));
+    }
+  }
+
+  async function handleBulkDelete() {
+    if (selected.size === 0) return;
+    setDeleting(true);
+    const ids = Array.from(selected);
+    await supabase.from('rdv_proposals').delete().in('id', ids);
+    setSelected(new Set());
+    setConfirmDelete(false);
+    setDeleting(false);
+    load();
+  }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-white text-xl font-bold">Propositions RDV</h2>
-          <p className="text-slate-600 text-xs mt-0.5">{rdvs.length} proposition{rdvs.length !== 1 ? 's' : ''} au total</p>
+          <h2 className="text-xl font-bold" style={{ color: tokens.heading.primary }}>Propositions RDV</h2>
+          <p className="text-xs mt-0.5" style={{ color: tokens.text.quaternary }}>{rdvs.length} proposition{rdvs.length !== 1 ? 's' : ''} au total</p>
         </div>
         <button
           onClick={() => setShowAdd(v => !v)}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105"
-          style={{ background: 'rgba(34,211,238,0.08)', border: '1px solid rgba(34,211,238,0.15)', color: '#22d3ee' }}
+          style={{ background: tokens.accent.bg, border: `1px solid ${tokens.accent.border}`, color: tokens.accent.text }}
         >
           <Plus className="w-3.5 h-3.5" />
           Nouvelle proposition
         </button>
       </div>
 
+      <div className="flex items-center gap-3 md:gap-6 flex-wrap">
+        {Object.entries(statusConfig).map(([key, cfg]) => (
+          <div key={key} className="flex items-center gap-1 md:gap-2">
+            <div className="w-2 h-2 rounded-full" style={{ background: cfg.color }} />
+            <span className="text-[11px] md:text-xs font-medium" style={{ color: tokens.text.tertiary }}>{cfg.label}</span>
+            <span className="text-[11px] md:text-xs font-bold" style={{ color: cfg.color }}>{statusCounts[key] || 0}</span>
+          </div>
+        ))}
+      </div>
+
       {showAdd && (
-        <div
-          className="rounded-2xl p-5 space-y-4"
-          style={{ background: 'linear-gradient(135deg, rgba(34,211,238,0.04) 0%, rgba(14,165,233,0.02) 100%)', border: '1px solid rgba(34,211,238,0.12)' }}
-        >
-          <p className="text-white text-sm font-semibold">Nouvelle proposition de rendez-vous</p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-[10px] font-bold tracking-[0.15em] uppercase text-slate-500 mb-1.5">Nom du contact *</label>
-              <input type="text" value={newForm.lead_name} onChange={e => setNew('lead_name', e.target.value)} className={inputCls} style={inputStyle} placeholder="Jean Dupont" />
-            </div>
-            <div>
-              <label className="block text-[10px] font-bold tracking-[0.15em] uppercase text-slate-500 mb-1.5">Téléphone</label>
-              <input type="tel" value={newForm.lead_phone} onChange={e => setNew('lead_phone', e.target.value)} className={inputCls} style={inputStyle} placeholder="06 00 00 00 00" />
-            </div>
-            <div>
-              <label className="block text-[10px] font-bold tracking-[0.15em] uppercase text-slate-500 mb-1.5">Email</label>
-              <input type="email" value={newForm.lead_email} onChange={e => setNew('lead_email', e.target.value)} className={inputCls} style={inputStyle} placeholder="jean@email.com" />
-            </div>
-            <div>
-              <label className="block text-[10px] font-bold tracking-[0.15em] uppercase text-slate-500 mb-1.5">Statut</label>
-              <select value={newForm.status} onChange={e => setNew('status', e.target.value)} className={inputCls + ' cursor-pointer'} style={{ ...inputStyle, appearance: 'none' }}>
-                {Object.entries(statusConfig).map(([k, v]) => (
-                  <option key={k} value={k} style={{ background: '#0a0f1a' }}>{v.label}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-[10px] font-bold tracking-[0.15em] uppercase text-slate-500 mb-1.5">Date *</label>
-              <input type="date" value={newForm.proposed_date} onChange={e => setNew('proposed_date', e.target.value)} className={inputCls} style={inputStyle} />
-            </div>
-            <div>
-              <label className="block text-[10px] font-bold tracking-[0.15em] uppercase text-slate-500 mb-1.5">Heure</label>
-              <input type="time" value={newForm.proposed_time} onChange={e => setNew('proposed_time', e.target.value)} className={inputCls} style={inputStyle} />
-            </div>
-          </div>
-          <div>
-            <label className="block text-[10px] font-bold tracking-[0.15em] uppercase text-slate-500 mb-1.5">Notes</label>
-            <textarea value={newForm.notes} onChange={e => setNew('notes', e.target.value)} rows={2} className={inputCls + ' resize-none'} style={inputStyle} placeholder="Informations complémentaires..." />
-          </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={handleAdd}
-              disabled={saving || !newForm.lead_name.trim()}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold text-white transition-all disabled:opacity-50 hover:scale-105"
-              style={{ background: 'linear-gradient(90deg, #0ea5e9, #22d3ee)', boxShadow: '0 0 16px rgba(34,211,238,0.2)' }}
-            >
-              <Check className="w-3.5 h-3.5" />
-              {saving ? 'Enregistrement...' : 'Enregistrer'}
-            </button>
-            <button
-              onClick={() => setShowAdd(false)}
-              className="px-4 py-2 rounded-lg text-xs font-semibold text-slate-500 hover:text-white transition-all"
-              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
-            >
-              Annuler
-            </button>
-          </div>
-        </div>
+        <RdvAddForm
+          form={newForm}
+          leadName={pendingLeadName || undefined}
+          onChange={(k, v) => setNewForm(f => ({ ...f, [k]: v }))}
+          onSubmit={handleAdd}
+          onCancel={() => { setShowAdd(false); setPendingLeadId(null); setPendingLeadName(''); }}
+          onPickContact={onNavigateToLeads}
+          saving={saving}
+        />
       )}
 
-      <div className="rounded-2xl overflow-hidden" style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)', border: '1px solid rgba(255,255,255,0.06)' }}>
-        <div className="flex items-center gap-2 px-5 py-3.5 flex-wrap" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-          {FILTERS.map(f => {
-            const active = filter === f;
-            const statusKey = filterToStatus[f];
-            const cfg = statusKey ? statusConfig[statusKey] : null;
-            return (
-              <button
-                key={f}
-                onClick={() => setFilter(f)}
-                className="px-3 py-1 rounded-lg text-xs font-semibold transition-all"
-                style={active
-                  ? { background: cfg ? cfg.bg : 'rgba(255,255,255,0.08)', color: cfg ? cfg.color : '#fff', border: `1px solid ${cfg ? cfg.border : 'rgba(255,255,255,0.15)'}` }
-                  : { background: 'transparent', color: 'rgba(255,255,255,0.3)', border: '1px solid rgba(255,255,255,0.05)' }
-                }
-              >
-                {f}
-              </button>
-            );
-          })}
-        </div>
+      {selected.size > 0 && (
+        <VendorRdvBulkBar
+          count={selected.size}
+          onClear={() => setSelected(new Set())}
+          onDelete={() => setConfirmDelete(true)}
+          tokens={tokens}
+        />
+      )}
+
+      <div className="rounded-2xl overflow-hidden" style={{ background: tokens.card.bg, border: `1px solid ${tokens.card.border}` }}>
+        <VendorRdvFilters filter={filter} setFilter={setFilter} tokens={tokens} />
 
         {loading ? (
           <div className="flex items-center justify-center py-16">
-            <div className="w-6 h-6 border-2 border-slate-700 border-t-cyan-400 rounded-full animate-spin" />
+            <div className="w-6 h-6 border-2 rounded-full animate-spin" style={{ borderColor: tokens.text.quaternary, borderTopColor: tokens.accent.text }} />
           </div>
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 gap-3">
-            <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.04)' }}>
-              <CalendarDays className="w-5 h-5 text-slate-700" />
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: tokens.surface.hover }}>
+              <CalendarDays className="w-5 h-5" style={{ color: tokens.table.footerText }} />
             </div>
-            <p className="text-slate-600 text-sm">Aucune proposition de RDV</p>
+            <p className="text-sm" style={{ color: tokens.text.quaternary }}>Aucune proposition de RDV</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.02)' }}>
-                  {['Contact', 'Date & Heure', 'Coordonnées', 'Statut', 'Notes', 'Actions'].map(col => (
-                    <th key={col} className="px-5 py-3 text-left text-[10px] font-bold tracking-[0.15em] uppercase text-slate-600">{col}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((rdv, idx) => {
-                  const cfg = statusConfig[rdv.status] ?? statusConfig.pending;
-                  const isPast = rdv.proposed_date < todayStr;
-                  return (
-                    <tr
+          <>
+            {/* Desktop table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr style={{ borderBottom: `1px solid ${tokens.table.headerBorder}`, background: tokens.table.headerBg }}>
+                    <th className="pl-5 pr-1 py-3 w-8">
+                      <CheckBox
+                        checked={filtered.length > 0 && selected.size === filtered.length}
+                        indeterminate={selected.size > 0 && selected.size < filtered.length}
+                        onChange={toggleAll}
+                      />
+                    </th>
+                    {['Contact', 'Date & Heure', 'Coordonnees', 'Motif', 'Statut', 'Actions'].map(col => (
+                      <th key={col} className="px-5 py-3 text-left text-[10px] font-bold tracking-[0.15em] uppercase" style={{ color: tokens.table.headerText }}>{col}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((rdv, idx) => (
+                    <VendorRdvRow
                       key={rdv.id}
-                      className="group transition-all duration-150"
-                      style={{ borderBottom: idx < filtered.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}
-                    >
-                      <td className="px-5 py-3.5">
-                        <div className="flex items-center gap-2.5">
-                          <div
-                            className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
-                            style={{ background: 'linear-gradient(135deg, #22d3ee, #2563eb)' }}
-                          >
-                            {rdv.lead_name.slice(0, 2).toUpperCase()}
+                      rdv={rdv}
+                      idx={idx}
+                      filteredLength={filtered.length}
+                      tokens={tokens}
+                      timezone={timezone}
+                      todayStr={todayStr}
+                      selected={selected.has(rdv.id)}
+                      onToggleSelect={() => toggleSelect(rdv.id)}
+                      onAccept={() => handleAccept(rdv.id)}
+                      onRefuse={() => handleRefuse(rdv.id)}
+                      onEdit={() => setEditRdv(rdv)}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile select-all */}
+            <div className="md:hidden flex items-center gap-2 px-3 py-2" style={{ borderBottom: `1px solid ${tokens.table.rowBorder}` }}>
+              <CheckBox
+                checked={filtered.length > 0 && selected.size === filtered.length}
+                indeterminate={selected.size > 0 && selected.size < filtered.length}
+                onChange={toggleAll}
+              />
+              <span className="text-[11px] font-medium" style={{ color: tokens.text.quaternary }}>Tout ({filtered.length})</span>
+            </div>
+
+            {/* Mobile cards */}
+            <div className="md:hidden divide-y" style={{ borderColor: tokens.table.rowBorder }}>
+              {filtered.map(rdv => {
+                const cfg = statusConfig[rdv.status] ?? statusConfig.pending;
+                const isPending = rdv.status === 'pending';
+                return (
+                  <div key={rdv.id} className="p-3 space-y-2">
+                    <div className="flex items-start gap-2">
+                      <CheckBox checked={selected.has(rdv.id)} onChange={() => toggleSelect(rdv.id)} />
+                      <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setDetailRdv(rdv)}>
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div className="w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-bold flex-shrink-0" style={{ background: 'linear-gradient(135deg, #22d3ee, #2563eb)', color: '#fff' }}>
+                              {rdv.lead_name.slice(0, 2).toUpperCase()}
+                            </div>
+                            <span className="text-sm font-semibold truncate" style={{ color: tokens.table.cellText }}>{rdv.lead_name}</span>
                           </div>
-                          <span className="text-sm font-semibold text-white">{rdv.lead_name}</span>
+                          <span className="inline-flex px-2 py-0.5 rounded-md text-[10px] font-semibold flex-shrink-0" style={{ background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}` }}>
+                            {cfg.label}
+                          </span>
                         </div>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <div>
-                          <p className={`text-sm font-medium ${isPast && rdv.status !== 'done' ? 'text-slate-500' : 'text-white'}`}>
-                            {formatDate(rdv.proposed_date)}
-                          </p>
-                          {rdv.proposed_time && (
-                            <div className="flex items-center gap-1 mt-0.5">
-                              <Clock className="w-3 h-3 text-slate-600" />
-                              <span className="text-xs text-slate-500">{rdv.proposed_time}</span>
-                            </div>
-                          )}
+                        <div className="mt-1.5 flex items-center gap-x-3 text-[11px]" style={{ color: tokens.table.cellTextMuted }}>
+                          <span className="flex items-center gap-1">
+                            <CalendarDays className="w-3 h-3 flex-shrink-0" style={{ color: tokens.table.cellIcon }} />
+                            {formatDate(getRdvLocalDate(rdv, timezone))}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Clock className="w-3 h-3 flex-shrink-0" style={{ color: tokens.table.cellIcon }} />
+                            {getRdvLocalTime(rdv, timezone)}
+                          </span>
                         </div>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <div className="space-y-1">
-                          {rdv.lead_phone && (
-                            <div className="flex items-center gap-1.5">
-                              <Phone className="w-3 h-3 text-slate-600 flex-shrink-0" />
-                              <span className="text-xs text-slate-400">{rdv.lead_phone}</span>
-                            </div>
-                          )}
-                          {rdv.lead_email && (
-                            <div className="flex items-center gap-1.5">
-                              <Mail className="w-3 h-3 text-slate-600 flex-shrink-0" />
-                              <span className="text-xs text-slate-400">{rdv.lead_email}</span>
-                            </div>
-                          )}
-                          {!rdv.lead_phone && !rdv.lead_email && <span className="text-xs text-slate-700">—</span>}
-                        </div>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <select
-                          value={rdv.status}
-                          onChange={e => handleStatusChange(rdv.id, e.target.value)}
-                          className="px-2.5 py-1 rounded-lg text-xs font-semibold focus:outline-none cursor-pointer transition-all"
-                          style={{ background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}`, appearance: 'none' }}
-                        >
-                          {Object.entries(statusConfig).map(([k, v]) => (
-                            <option key={k} value={k} style={{ background: '#0a0f1a', color: v.color }}>{v.label}</option>
-                          ))}
-                        </select>
-                      </td>
-                      <td className="px-5 py-3.5 max-w-[180px]">
-                        <p className="text-xs text-slate-500 truncate">{rdv.notes || '—'}</p>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => setEditRdv(rdv)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105"
-                            style={{ background: 'rgba(96,165,250,0.08)', border: '1px solid rgba(96,165,250,0.15)', color: '#60a5fa' }}
-                          >
-                            <Pencil className="w-3 h-3" />
-                            Modifier
+                        {(rdv.lead_phone || rdv.lead_email) && (
+                          <div className="mt-1 flex items-center gap-x-3 text-[11px]" style={{ color: tokens.table.cellTextMuted }}>
+                            {rdv.lead_phone && (
+                              <span className="flex items-center gap-1">
+                                <Phone className="w-3 h-3 flex-shrink-0" style={{ color: tokens.table.cellIcon }} />
+                                {rdv.lead_phone}
+                              </span>
+                            )}
+                            {rdv.lead_email && (
+                              <span className="flex items-center gap-1 min-w-0">
+                                <Mail className="w-3 h-3 flex-shrink-0" style={{ color: tokens.table.cellIcon }} />
+                                <span className="truncate">{rdv.lead_email}</span>
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-1.5 pl-6">
+                      {isPending && (
+                        <>
+                          <button onClick={() => handleAccept(rdv.id)} className="flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-[11px] font-semibold" style={{ background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.2)', color: '#34d399' }}>
+                            <CheckCircle className="w-3 h-3" />Accepter
                           </button>
-                          <button
-                            onClick={() => handleDelete(rdv.id)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105"
-                            style={{ background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.15)', color: '#f87171' }}
-                          >
-                            <Trash2 className="w-3 h-3" />
-                            Suppr.
+                          <button onClick={() => handleRefuse(rdv.id)} className="flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-[11px] font-semibold" style={{ background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.2)', color: '#f87171' }}>
+                            <XCircle className="w-3 h-3" />Refuser
                           </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                        </>
+                      )}
+                      <button onClick={() => setEditRdv(rdv)} className={`flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-[11px] font-semibold ${!isPending ? 'col-span-2' : ''}`} style={{ background: 'rgba(96,165,250,0.08)', border: '1px solid rgba(96,165,250,0.15)', color: '#60a5fa' }}>
+                        <Pencil className="w-3 h-3" />Modifier
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
         )}
 
         {!loading && filtered.length > 0 && (
-          <div className="px-5 py-3" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-            <p className="text-xs text-slate-700">{filtered.length} proposition{filtered.length !== 1 ? 's' : ''} affichée{filtered.length !== 1 ? 's' : ''}</p>
+          <div className="px-5 py-3" style={{ borderTop: `1px solid ${tokens.table.rowBorder}` }}>
+            <p className="text-xs" style={{ color: tokens.table.footerText }}>{filtered.length} proposition{filtered.length !== 1 ? 's' : ''} affichee{filtered.length !== 1 ? 's' : ''}</p>
           </div>
         )}
       </div>
 
       {editRdv && (
-        <EditModal rdv={editRdv} onClose={() => setEditRdv(null)} onSaved={load} />
+        <RdvEditModal rdv={editRdv} onClose={() => setEditRdv(null)} onSaved={load} />
       )}
+
+      {confirmDelete && (
+        <VendorRdvDeleteModal
+          count={selected.size}
+          deleting={deleting}
+          onConfirm={handleBulkDelete}
+          onCancel={() => setConfirmDelete(false)}
+          tokens={tokens}
+        />
+      )}
+
+      {detailRdv && (() => {
+        const cfg = statusConfig[detailRdv.status] ?? statusConfig.pending;
+        return (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-3"
+            style={{ background: tokens.modal.overlayBg, backdropFilter: 'blur(6px)' }}
+            onClick={e => { if (e.target === e.currentTarget) setDetailRdv(null); }}
+          >
+            <div className="w-full rounded-2xl overflow-hidden" style={{ maxWidth: 'min(28rem, calc(100vw - 24px))', maxHeight: 'calc(100vh - 32px)', background: tokens.modal.bg, border: `1px solid ${tokens.modal.border}`, boxShadow: tokens.modal.shadow }}>
+              <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: `1px solid ${tokens.card.border}` }}>
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-9 h-9 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0" style={{ background: 'linear-gradient(135deg, #22d3ee, #2563eb)', color: '#fff' }}>
+                    {detailRdv.lead_name.slice(0, 2).toUpperCase()}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold truncate" style={{ color: tokens.modal.title }}>{detailRdv.lead_name}</p>
+                    <span className="inline-flex px-2 py-0.5 rounded-md text-[10px] font-semibold mt-0.5" style={{ background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}` }}>{cfg.label}</span>
+                  </div>
+                </div>
+                <button onClick={() => setDetailRdv(null)} className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: tokens.modal.closeBtnBg, color: tokens.modal.closeBtnText }}>
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="px-5 py-4 space-y-3 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 180px)' }}>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-[10px] font-bold tracking-[0.12em] uppercase mb-0.5" style={{ color: tokens.modal.fieldLabel }}>Date</p>
+                    <p className="text-sm font-medium" style={{ color: tokens.modal.fieldValue }}>{formatDate(getRdvLocalDate(detailRdv, timezone))}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold tracking-[0.12em] uppercase mb-0.5" style={{ color: tokens.modal.fieldLabel }}>Heure</p>
+                    <p className="text-sm font-medium" style={{ color: tokens.modal.fieldValue }}>{getRdvLocalTime(detailRdv, timezone)}</p>
+                  </div>
+                </div>
+                {detailRdv.lead_phone && (
+                  <div>
+                    <p className="text-[10px] font-bold tracking-[0.12em] uppercase mb-0.5" style={{ color: tokens.modal.fieldLabel }}>Telephone</p>
+                    <p className="text-sm" style={{ color: tokens.modal.fieldValue }}>{detailRdv.lead_phone}</p>
+                  </div>
+                )}
+                {detailRdv.lead_email && (
+                  <div>
+                    <p className="text-[10px] font-bold tracking-[0.12em] uppercase mb-0.5" style={{ color: tokens.modal.fieldLabel }}>Email</p>
+                    <p className="text-sm" style={{ color: tokens.modal.fieldValue }}>{detailRdv.lead_email}</p>
+                  </div>
+                )}
+                {detailRdv.motif && (
+                  <div>
+                    <p className="text-[10px] font-bold tracking-[0.12em] uppercase mb-0.5" style={{ color: tokens.modal.fieldLabel }}>Motif</p>
+                    <p className="text-sm" style={{ color: tokens.modal.fieldValue }}>{detailRdv.motif}</p>
+                  </div>
+                )}
+                {detailRdv.description && (
+                  <div>
+                    <p className="text-[10px] font-bold tracking-[0.12em] uppercase mb-0.5" style={{ color: tokens.modal.fieldLabel }}>Description</p>
+                    <p className="text-sm whitespace-pre-wrap" style={{ color: tokens.modal.fieldValue }}>{detailRdv.description}</p>
+                  </div>
+                )}
+                {detailRdv.notes && (
+                  <div>
+                    <p className="text-[10px] font-bold tracking-[0.12em] uppercase mb-0.5" style={{ color: tokens.modal.fieldLabel }}>Notes</p>
+                    <p className="text-sm whitespace-pre-wrap" style={{ color: tokens.modal.fieldValue }}>{detailRdv.notes}</p>
+                  </div>
+                )}
+                {detailRdv.created_by_name && (
+                  <div>
+                    <p className="text-[10px] font-bold tracking-[0.12em] uppercase mb-0.5" style={{ color: tokens.modal.fieldLabel }}>Cree par</p>
+                    <p className="text-sm" style={{ color: tokens.modal.fieldValue }}>{detailRdv.created_by_name} ({detailRdv.created_by_role})</p>
+                  </div>
+                )}
+              </div>
+              <div className="px-5 py-3 flex items-center gap-2" style={{ borderTop: `1px solid ${tokens.card.border}` }}>
+                {detailRdv.status === 'pending' && (
+                  <>
+                    <button onClick={() => { handleAccept(detailRdv.id); setDetailRdv(null); }} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.2)', color: '#34d399' }}>
+                      <CheckCircle className="w-3 h-3" />Accepter
+                    </button>
+                    <button onClick={() => { handleRefuse(detailRdv.id); setDetailRdv(null); }} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.2)', color: '#f87171' }}>
+                      <XCircle className="w-3 h-3" />Refuser
+                    </button>
+                  </>
+                )}
+                <button onClick={() => { setEditRdv(detailRdv); setDetailRdv(null); }} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: 'rgba(96,165,250,0.08)', border: '1px solid rgba(96,165,250,0.15)', color: '#60a5fa' }}>
+                  <Pencil className="w-3 h-3" />Modifier
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
