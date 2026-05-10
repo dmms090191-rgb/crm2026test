@@ -1,4 +1,5 @@
 import { normalizePhone, normalizeEmail, capitalizeName } from './phoneNormalizer';
+import { sanitizeTextField } from './csvEncoding';
 
 export const MAX_FILE_SIZE_MB = 10;
 export const MAX_ROWS = 5000;
@@ -121,10 +122,10 @@ export function processRows(
   const _telMap = telMap ?? new Map<string, number>();
 
   return rows.map((raw, index) => {
-    const rawPrenom = mapping.prenom ? raw[mapping.prenom] ?? '' : '';
-    const rawNom = mapping.nom ? raw[mapping.nom] ?? '' : '';
-    const rawEmail = mapping.email ? raw[mapping.email] ?? '' : '';
-    const rawTel = mapping.telephone ? raw[mapping.telephone] ?? '' : '';
+    const rawPrenom = sanitizeTextField(mapping.prenom ? raw[mapping.prenom] ?? '' : '');
+    const rawNom = sanitizeTextField(mapping.nom ? raw[mapping.nom] ?? '' : '');
+    const rawEmail = sanitizeTextField(mapping.email ? raw[mapping.email] ?? '' : '');
+    const rawTel = sanitizeTextField(mapping.telephone ? raw[mapping.telephone] ?? '' : '');
 
     const isEntirelyEmpty = Object.values(raw).every(v => !v || v.trim() === '');
     if (isEntirelyEmpty) {

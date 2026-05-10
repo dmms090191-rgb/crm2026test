@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import {
-  ChevronLeft, ChevronRight, Plus, Clock,
+  ChevronLeft, ChevronRight, Clock,
   Calendar, CalendarDays, LayoutGrid, List,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
@@ -8,6 +8,7 @@ import { useThemeTokens } from '../../hooks/useThemeTokens';
 import type { RdvProposal, ViewMode } from './agendaTypes';
 import { STATUS_CFG, MONTHS } from './agendaTypes';
 import { toIso, getMondayOf, getRdvTimestamp } from './agendaHelpers';
+import AgendaHeader from './AgendaHeader';
 import AddRdvModal from './AgendaAddModal';
 import RdvDetailModal from './AgendaDetailModal';
 import MonthView from './AgendaMonthView';
@@ -159,20 +160,7 @@ export default function AgendaView({ rdvs, onReload, canAdd = true, canDelete, c
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-bold" style={{ color: tokens.text.primary }}>{title}</h2>
-          <p className="text-xs mt-0.5" style={{ color: tokens.text.quaternary }}>{rdvs.length} rendez-vous au total</p>
-        </div>
-        <div className="flex items-center gap-2">
-          {canAdd && (
-            <button onClick={() => openAdd(todayStr)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105"
-              style={{ background: `rgba(${accentRgb},0.08)`, border: `1px solid rgba(${accentRgb},0.18)`, color: accentColor }}>
-              <Plus className="w-3.5 h-3.5" />Nouveau RDV
-            </button>
-          )}
-        </div>
-      </div>
+      <AgendaHeader title={title} totalCount={rdvs.length} canAdd={canAdd} accentColor={accentColor} accentRgb={accentRgb} onAdd={() => openAdd(todayStr)} tokens={tokens} />
 
       <div className="grid grid-cols-1 xl:grid-cols-4 gap-5">
         <div className="xl:col-span-3 rounded-2xl overflow-hidden" style={cardStyle}>

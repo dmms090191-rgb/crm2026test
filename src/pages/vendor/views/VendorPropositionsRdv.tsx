@@ -1,23 +1,15 @@
-import { useState, useEffect, useCallback } from 'react';
-import { CalendarDays, Plus, Clock, Phone, Mail, Pencil, CheckCircle, XCircle, X } from 'lucide-react';
-import { supabase } from '../../../lib/supabase';
+import { CalendarDays, Plus } from 'lucide-react';
 import { useThemeTokens } from '../../../hooks/useThemeTokens';
-import { RdvProposal, statusConfig, filterToStatus, formatDate } from './rdvPropositionsConstants';
+import { statusConfig } from './rdvPropositionsConstants';
 import RdvEditModal from './RdvEditModal';
 import RdvAddForm from './RdvAddForm';
 import CheckBox from '../../admin/views/crm/CheckBox';
-import { useTimezone } from '../../../hooks/useTimezone';
-import { localToUTC, getRdvLocalTime, getRdvLocalDate } from '../../../lib/timezoneUtils';
 import { VendorRdvFilters, VendorRdvRow, VendorRdvBulkBar, VendorRdvDeleteModal } from './propositions-rdv';
+import VendorRdvMobileCard from './propositions-rdv/VendorRdvMobileCard';
+import VendorRdvDetailModal from './propositions-rdv/VendorRdvDetailModal';
+import { useVendorRdvData } from './propositions-rdv/useVendorRdvData';
 
-interface RdvLeadRef {
-  id: string;
-  nom: string;
-  prenom: string;
-  email: string;
-  tel?: string;
-}
-
+interface RdvLeadRef { id: string; nom: string; prenom: string; email: string; tel?: string; }
 interface VendorPropositionsRdvProps {
   vendorDbId?: string | null;
   initialLead?: RdvLeadRef | null;
@@ -25,146 +17,17 @@ interface VendorPropositionsRdvProps {
   onNavigateToLeads?: () => void;
 }
 
-const emptyForm = () => ({
-  proposed_date: new Date().toISOString().split('T')[0],
-  proposed_time: '10:00', motif: '', description: '', notes: '',
-});
-
 export default function VendorPropositionsRdv({ vendorDbId, initialLead, onInitialLeadConsumed, onNavigateToLeads }: VendorPropositionsRdvProps) {
   const tokens = useThemeTokens();
-  const { timezone, userName } = useTimezone();
-  const [rdvs, setRdvs] = useState<RdvProposal[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('Tous');
-  const [editRdv, setEditRdv] = useState<RdvProposal | null>(null);
-  const [showAdd, setShowAdd] = useState(false);
-  const [newForm, setNewForm] = useState(emptyForm());
-  const [pendingLeadId, setPendingLeadId] = useState<string | null>(null);
-  const [pendingLeadName, setPendingLeadName] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [deleting, setDeleting] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  const [detailRdv, setDetailRdv] = useState<RdvProposal | null>(null);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    const { data } = await supabase
-      .from('rdv_proposals')
-      .select('*')
-      .order('proposed_date', { ascending: true })
-      .order('proposed_time', { ascending: true });
-    if (data) setRdvs(data as RdvProposal[]);
-    setLoading(false);
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
-
-  useEffect(() => {
-    if (initialLead) {
-      const fullName = [initialLead.prenom, initialLead.nom].filter(Boolean).join(' ');
-      setPendingLeadName(fullName);
-      setPendingLeadId(initialLead.id);
-      setShowAdd(true);
-      onInitialLeadConsumed?.();
-    }
-  }, [initialLead, onInitialLeadConsumed]);
-
-  const filtered = rdvs.filter(r => {
-    if (filter === 'Tous') return true;
-    return r.status === filterToStatus[filter];
-  });
-
-  const todayStr = new Date().toISOString().split('T')[0];
-
-  const statusCounts = rdvs.reduce<Record<string, number>>((acc, r) => {
-    acc[r.status] = (acc[r.status] || 0) + 1;
-    return acc;
-  }, {});
-
-  async function handleAccept(id: string) {
-    const now = new Date().toISOString();
-    await supabase.from('rdv_proposals').update({ status: 'confirmed', responded_at: now, responded_by: 'vendor' }).eq('id', id);
-    setRdvs(prev => prev.map(r => r.id === id ? { ...r, status: 'confirmed', responded_at: now, responded_by: 'vendor' } : r));
-  }
-
-  async function handleRefuse(id: string) {
-    const now = new Date().toISOString();
-    await supabase.from('rdv_proposals').update({ status: 'cancelled', responded_at: now, responded_by: 'vendor' }).eq('id', id);
-    setRdvs(prev => prev.map(r => r.id === id ? { ...r, status: 'cancelled', responded_at: now, responded_by: 'vendor' } : r));
-  }
-
-  async function handleAdd() {
-    if (!newForm.proposed_date) return;
-    setSaving(true);
-    let leadName = '';
-    let leadEmail = '';
-    let leadPhone = '';
-    if (pendingLeadId) {
-      const { data: lead } = await supabase
-        .from('leads')
-        .select('prenom, nom, email, telephone, data')
-        .eq('id', pendingLeadId)
-        .maybeSingle();
-      if (lead) {
-        const d = (lead.data && typeof lead.data === 'object') ? lead.data as Record<string, string> : {};
-        leadName = [lead.prenom || d.Prenom || d.prenom, lead.nom || d.Nom || d.nom].filter(Boolean).join(' ');
-        leadEmail = lead.email || d.Email || d.email || '';
-        leadPhone = lead.telephone || d.Telephone || d.telephone || '';
-      }
-    }
-    const appointmentUtc = localToUTC(newForm.proposed_date, newForm.proposed_time, timezone);
-    await supabase.from('rdv_proposals').insert({
-      lead_name: leadName,
-      lead_phone: leadPhone,
-      lead_email: leadEmail,
-      proposed_date: newForm.proposed_date,
-      proposed_time: newForm.proposed_time,
-      motif: newForm.motif.trim(),
-      description: newForm.description.trim(),
-      notes: newForm.notes.trim(),
-      status: 'pending',
-      created_by_role: 'vendor',
-      created_by_name: userName,
-      appointment_utc: appointmentUtc,
-      source_timezone: timezone,
-      ...(vendorDbId ? { vendor_id: vendorDbId } : {}),
-      ...(pendingLeadId ? { lead_id: pendingLeadId } : {}),
-    });
-    setSaving(false);
-    setShowAdd(false);
-    setNewForm(emptyForm());
-    setPendingLeadId(null);
-    setPendingLeadName('');
-    load();
-  }
-
-  function toggleSelect(id: string) {
-    setSelected(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-  }
-
-  function toggleAll() {
-    if (selected.size === filtered.length) {
-      setSelected(new Set());
-    } else {
-      setSelected(new Set(filtered.map(r => r.id)));
-    }
-  }
-
-  async function handleBulkDelete() {
-    if (selected.size === 0) return;
-    setDeleting(true);
-    const ids = Array.from(selected);
-    await supabase.from('rdv_proposals').delete().in('id', ids);
-    setSelected(new Set());
-    setConfirmDelete(false);
-    setDeleting(false);
-    load();
-  }
+  const {
+    rdvs, loading, filter, setFilter,
+    editRdv, setEditRdv, showAdd, setShowAdd, newForm, setNewForm,
+    pendingLeadName, setPendingLeadId, setPendingLeadName,
+    saving, selected, setSelected, deleting, confirmDelete, setConfirmDelete,
+    detailRdv, setDetailRdv, filtered, todayStr, statusCounts, timezone,
+    handleAccept, handleRefuse, handleAdd, handleBulkDelete,
+    toggleSelect, toggleAll, load,
+  } = useVendorRdvData(vendorDbId, initialLead, onInitialLeadConsumed);
 
   return (
     <div className="space-y-6">
@@ -230,7 +93,6 @@ export default function VendorPropositionsRdv({ vendorDbId, initialLead, onIniti
           </div>
         ) : (
           <>
-            {/* Desktop table */}
             <div className="hidden md:block overflow-x-auto">
               <table className="w-full">
                 <thead>
@@ -268,7 +130,6 @@ export default function VendorPropositionsRdv({ vendorDbId, initialLead, onIniti
               </table>
             </div>
 
-            {/* Mobile select-all */}
             <div className="md:hidden flex items-center gap-2 px-3 py-2" style={{ borderBottom: `1px solid ${tokens.table.rowBorder}` }}>
               <CheckBox
                 checked={filtered.length > 0 && selected.size === filtered.length}
@@ -278,73 +139,20 @@ export default function VendorPropositionsRdv({ vendorDbId, initialLead, onIniti
               <span className="text-[11px] font-medium" style={{ color: tokens.text.quaternary }}>Tout ({filtered.length})</span>
             </div>
 
-            {/* Mobile cards */}
             <div className="md:hidden divide-y" style={{ borderColor: tokens.table.rowBorder }}>
-              {filtered.map(rdv => {
-                const cfg = statusConfig[rdv.status] ?? statusConfig.pending;
-                const isPending = rdv.status === 'pending';
-                return (
-                  <div key={rdv.id} className="p-3 space-y-2">
-                    <div className="flex items-start gap-2">
-                      <CheckBox checked={selected.has(rdv.id)} onChange={() => toggleSelect(rdv.id)} />
-                      <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setDetailRdv(rdv)}>
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <div className="w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-bold flex-shrink-0" style={{ background: 'linear-gradient(135deg, #22d3ee, #2563eb)', color: '#fff' }}>
-                              {rdv.lead_name.slice(0, 2).toUpperCase()}
-                            </div>
-                            <span className="text-sm font-semibold truncate" style={{ color: tokens.table.cellText }}>{rdv.lead_name}</span>
-                          </div>
-                          <span className="inline-flex px-2 py-0.5 rounded-md text-[10px] font-semibold flex-shrink-0" style={{ background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}` }}>
-                            {cfg.label}
-                          </span>
-                        </div>
-                        <div className="mt-1.5 flex items-center gap-x-3 text-[11px]" style={{ color: tokens.table.cellTextMuted }}>
-                          <span className="flex items-center gap-1">
-                            <CalendarDays className="w-3 h-3 flex-shrink-0" style={{ color: tokens.table.cellIcon }} />
-                            {formatDate(getRdvLocalDate(rdv, timezone))}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Clock className="w-3 h-3 flex-shrink-0" style={{ color: tokens.table.cellIcon }} />
-                            {getRdvLocalTime(rdv, timezone)}
-                          </span>
-                        </div>
-                        {(rdv.lead_phone || rdv.lead_email) && (
-                          <div className="mt-1 flex items-center gap-x-3 text-[11px]" style={{ color: tokens.table.cellTextMuted }}>
-                            {rdv.lead_phone && (
-                              <span className="flex items-center gap-1">
-                                <Phone className="w-3 h-3 flex-shrink-0" style={{ color: tokens.table.cellIcon }} />
-                                {rdv.lead_phone}
-                              </span>
-                            )}
-                            {rdv.lead_email && (
-                              <span className="flex items-center gap-1 min-w-0">
-                                <Mail className="w-3 h-3 flex-shrink-0" style={{ color: tokens.table.cellIcon }} />
-                                <span className="truncate">{rdv.lead_email}</span>
-                              </span>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-1.5 pl-6">
-                      {isPending && (
-                        <>
-                          <button onClick={() => handleAccept(rdv.id)} className="flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-[11px] font-semibold" style={{ background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.2)', color: '#34d399' }}>
-                            <CheckCircle className="w-3 h-3" />Accepter
-                          </button>
-                          <button onClick={() => handleRefuse(rdv.id)} className="flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-[11px] font-semibold" style={{ background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.2)', color: '#f87171' }}>
-                            <XCircle className="w-3 h-3" />Refuser
-                          </button>
-                        </>
-                      )}
-                      <button onClick={() => setEditRdv(rdv)} className={`flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-[11px] font-semibold ${!isPending ? 'col-span-2' : ''}`} style={{ background: 'rgba(96,165,250,0.08)', border: '1px solid rgba(96,165,250,0.15)', color: '#60a5fa' }}>
-                        <Pencil className="w-3 h-3" />Modifier
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
+              {filtered.map(rdv => (
+                <VendorRdvMobileCard
+                  key={rdv.id}
+                  rdv={rdv}
+                  timezone={timezone}
+                  selected={selected.has(rdv.id)}
+                  onToggleSelect={() => toggleSelect(rdv.id)}
+                  onAccept={() => handleAccept(rdv.id)}
+                  onRefuse={() => handleRefuse(rdv.id)}
+                  onEdit={() => setEditRdv(rdv)}
+                  onDetail={() => setDetailRdv(rdv)}
+                />
+              ))}
             </div>
           </>
         )}
@@ -370,96 +178,16 @@ export default function VendorPropositionsRdv({ vendorDbId, initialLead, onIniti
         />
       )}
 
-      {detailRdv && (() => {
-        const cfg = statusConfig[detailRdv.status] ?? statusConfig.pending;
-        return (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-3"
-            style={{ background: tokens.modal.overlayBg, backdropFilter: 'blur(6px)' }}
-            onClick={e => { if (e.target === e.currentTarget) setDetailRdv(null); }}
-          >
-            <div className="w-full rounded-2xl overflow-hidden" style={{ maxWidth: 'min(28rem, calc(100vw - 24px))', maxHeight: 'calc(100vh - 32px)', background: tokens.modal.bg, border: `1px solid ${tokens.modal.border}`, boxShadow: tokens.modal.shadow }}>
-              <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: `1px solid ${tokens.card.border}` }}>
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="w-9 h-9 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0" style={{ background: 'linear-gradient(135deg, #22d3ee, #2563eb)', color: '#fff' }}>
-                    {detailRdv.lead_name.slice(0, 2).toUpperCase()}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold truncate" style={{ color: tokens.modal.title }}>{detailRdv.lead_name}</p>
-                    <span className="inline-flex px-2 py-0.5 rounded-md text-[10px] font-semibold mt-0.5" style={{ background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}` }}>{cfg.label}</span>
-                  </div>
-                </div>
-                <button onClick={() => setDetailRdv(null)} className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: tokens.modal.closeBtnBg, color: tokens.modal.closeBtnText }}>
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-              <div className="px-5 py-4 space-y-3 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 180px)' }}>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <p className="text-[10px] font-bold tracking-[0.12em] uppercase mb-0.5" style={{ color: tokens.modal.fieldLabel }}>Date</p>
-                    <p className="text-sm font-medium" style={{ color: tokens.modal.fieldValue }}>{formatDate(getRdvLocalDate(detailRdv, timezone))}</p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-bold tracking-[0.12em] uppercase mb-0.5" style={{ color: tokens.modal.fieldLabel }}>Heure</p>
-                    <p className="text-sm font-medium" style={{ color: tokens.modal.fieldValue }}>{getRdvLocalTime(detailRdv, timezone)}</p>
-                  </div>
-                </div>
-                {detailRdv.lead_phone && (
-                  <div>
-                    <p className="text-[10px] font-bold tracking-[0.12em] uppercase mb-0.5" style={{ color: tokens.modal.fieldLabel }}>Telephone</p>
-                    <p className="text-sm" style={{ color: tokens.modal.fieldValue }}>{detailRdv.lead_phone}</p>
-                  </div>
-                )}
-                {detailRdv.lead_email && (
-                  <div>
-                    <p className="text-[10px] font-bold tracking-[0.12em] uppercase mb-0.5" style={{ color: tokens.modal.fieldLabel }}>Email</p>
-                    <p className="text-sm" style={{ color: tokens.modal.fieldValue }}>{detailRdv.lead_email}</p>
-                  </div>
-                )}
-                {detailRdv.motif && (
-                  <div>
-                    <p className="text-[10px] font-bold tracking-[0.12em] uppercase mb-0.5" style={{ color: tokens.modal.fieldLabel }}>Motif</p>
-                    <p className="text-sm" style={{ color: tokens.modal.fieldValue }}>{detailRdv.motif}</p>
-                  </div>
-                )}
-                {detailRdv.description && (
-                  <div>
-                    <p className="text-[10px] font-bold tracking-[0.12em] uppercase mb-0.5" style={{ color: tokens.modal.fieldLabel }}>Description</p>
-                    <p className="text-sm whitespace-pre-wrap" style={{ color: tokens.modal.fieldValue }}>{detailRdv.description}</p>
-                  </div>
-                )}
-                {detailRdv.notes && (
-                  <div>
-                    <p className="text-[10px] font-bold tracking-[0.12em] uppercase mb-0.5" style={{ color: tokens.modal.fieldLabel }}>Notes</p>
-                    <p className="text-sm whitespace-pre-wrap" style={{ color: tokens.modal.fieldValue }}>{detailRdv.notes}</p>
-                  </div>
-                )}
-                {detailRdv.created_by_name && (
-                  <div>
-                    <p className="text-[10px] font-bold tracking-[0.12em] uppercase mb-0.5" style={{ color: tokens.modal.fieldLabel }}>Cree par</p>
-                    <p className="text-sm" style={{ color: tokens.modal.fieldValue }}>{detailRdv.created_by_name} ({detailRdv.created_by_role})</p>
-                  </div>
-                )}
-              </div>
-              <div className="px-5 py-3 flex items-center gap-2" style={{ borderTop: `1px solid ${tokens.card.border}` }}>
-                {detailRdv.status === 'pending' && (
-                  <>
-                    <button onClick={() => { handleAccept(detailRdv.id); setDetailRdv(null); }} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.2)', color: '#34d399' }}>
-                      <CheckCircle className="w-3 h-3" />Accepter
-                    </button>
-                    <button onClick={() => { handleRefuse(detailRdv.id); setDetailRdv(null); }} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.2)', color: '#f87171' }}>
-                      <XCircle className="w-3 h-3" />Refuser
-                    </button>
-                  </>
-                )}
-                <button onClick={() => { setEditRdv(detailRdv); setDetailRdv(null); }} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: 'rgba(96,165,250,0.08)', border: '1px solid rgba(96,165,250,0.15)', color: '#60a5fa' }}>
-                  <Pencil className="w-3 h-3" />Modifier
-                </button>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
+      {detailRdv && (
+        <VendorRdvDetailModal
+          rdv={detailRdv}
+          timezone={timezone}
+          onClose={() => setDetailRdv(null)}
+          onAccept={() => { handleAccept(detailRdv.id); setDetailRdv(null); }}
+          onRefuse={() => { handleRefuse(detailRdv.id); setDetailRdv(null); }}
+          onEdit={() => { setEditRdv(detailRdv); setDetailRdv(null); }}
+        />
+      )}
     </div>
   );
 }

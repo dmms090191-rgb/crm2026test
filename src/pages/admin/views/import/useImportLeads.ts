@@ -6,6 +6,7 @@ import {
   MAX_FILE_SIZE_MB, MAX_ROWS, BATCH_SIZE,
   type ProcessedRow, type ColumnMapping,
 } from '../../../../lib/csvImportPipeline';
+import { decodeCsvFile } from '../../../../lib/csvEncoding';
 import type { ImportMode } from './ImportModeSelector';
 import type { ImportRecord, Phase, ImportResultState } from './importLeadsTypes';
 
@@ -57,7 +58,7 @@ export function useImportLeads(activeTab: 'import' | 'history') {
     setImportResult(null);
   };
 
-  const handleFile = (f: File) => {
+  const handleFile = async (f: File) => {
     if (!f.name.endsWith('.csv')) { setParseError('Veuillez selectionner un fichier .csv'); return; }
     if (f.size > MAX_FILE_SIZE_MB * 1024 * 1024) { setParseError(`Le fichier depasse la limite de ${MAX_FILE_SIZE_MB} Mo.`); return; }
     setParseError('');
@@ -65,52 +66,48 @@ export function useImportLeads(activeTab: 'import' | 'history') {
     setPhase('analyzing');
     setAnalyzeProgress(0);
 
-    const reader = new FileReader();
-    reader.onload = async e => {
-      const text = e.target?.result as string;
-      const parsed = parseCSVText(text);
+    const text = await decodeCsvFile(f);
+    const parsed = parseCSVText(text);
 
-      if (parsed.columns.length === 0) { setParseError('Le fichier CSV est vide ou invalide.'); setPhase('upload'); return; }
-      if (parsed.rows.length > MAX_ROWS) { setParseError(`Le fichier contient ${parsed.rows.length} lignes, la limite est de ${MAX_ROWS} lignes par import.`); setPhase('upload'); return; }
+    if (parsed.columns.length === 0) { setParseError('Le fichier CSV est vide ou invalide.'); setPhase('upload'); return; }
+    if (parsed.rows.length > MAX_ROWS) { setParseError(`Le fichier contient ${parsed.rows.length} lignes, la limite est de ${MAX_ROWS} lignes par import.`); setPhase('upload'); return; }
 
-      const rawMapping = detectColumnMapping(parsed.columns);
-      const detectedMapping = refineTelephoneMapping(rawMapping, parsed.rows);
-      setAllColumns(parsed.columns);
-      setMapping(detectedMapping);
+    const rawMapping = detectColumnMapping(parsed.columns);
+    const detectedMapping = refineTelephoneMapping(rawMapping, parsed.rows);
+    setAllColumns(parsed.columns);
+    setMapping(detectedMapping);
 
-      const allRows: ProcessedRow[] = [];
-      const total = parsed.rows.length;
-      const emailMap = new Map<string, number>();
-      const telMap = new Map<string, number>();
+    const allRows: ProcessedRow[] = [];
+    const total = parsed.rows.length;
+    const emailMap = new Map<string, number>();
+    const telMap = new Map<string, number>();
 
-      for (let i = 0; i < total; i += BATCH_SIZE) {
-        const batch = parsed.rows.slice(i, Math.min(i + BATCH_SIZE, total));
-        const processed = processRows(batch, detectedMapping, emailMap, telMap);
-        processed.forEach((r, j) => { r.index = i + j; });
-        allRows.push(...processed);
-        setAnalyzeProgress(Math.round(((i + batch.length) / total) * 70));
-        await new Promise(resolve => setTimeout(resolve, 0));
-      }
+    for (let i = 0; i < total; i += BATCH_SIZE) {
+      const batch = parsed.rows.slice(i, Math.min(i + BATCH_SIZE, total));
+      const processed = processRows(batch, detectedMapping, emailMap, telMap);
+      processed.forEach((r, j) => { r.index = i + j; });
+      allRows.push(...processed);
+      setAnalyzeProgress(Math.round(((i + batch.length) / total) * 70));
+      await new Promise(resolve => setTimeout(resolve, 0));
+    }
 
-      const validEmails = allRows.filter(r => r.status === 'valid' && r.email).map(r => r.email as string);
-      const validTels = allRows.filter(r => r.status === 'valid' && r.telephone).map(r => r.telephone as string);
-      let finalRows = allRows;
+    const validEmails = allRows.filter(r => r.status === 'valid' && r.email).map(r => r.email as string);
+    const validTels = allRows.filter(r => r.status === 'valid' && r.telephone).map(r => r.telephone as string);
+    let finalRows = allRows;
 
-      if (validEmails.length > 0 || validTels.length > 0) {
-        setAnalyzeProgress(80);
-        const { data: matches } = await supabase.rpc('find_duplicate_leads', {
-          p_emails: validEmails.length > 0 ? validEmails : ['__no_match__'],
-          p_telephones: validTels.length > 0 ? validTels : ['__no_match__'],
-        });
-        if (matches && matches.length > 0) finalRows = applyDuplicateMatches(allRows, matches);
-      }
+    if (validEmails.length > 0 || validTels.length > 0) {
+      setAnalyzeProgress(80);
+      const { data: matches } = await supabase.rpc('find_duplicate_leads', {
+        p_emails: validEmails.length > 0 ? validEmails : ['__no_match__'],
+        p_telephones: validTels.length > 0 ? validTels : ['__no_match__'],
+      });
+      if (matches && matches.length > 0) finalRows = applyDuplicateMatches(allRows, matches);
+    }
 
-      setAnalyzeProgress(100);
-      setProcessedRows(finalRows);
-      await new Promise(resolve => setTimeout(resolve, 200));
-      setPhase('preview');
-    };
-    reader.readAsText(f, 'utf-8');
+    setAnalyzeProgress(100);
+    setProcessedRows(finalRows);
+    await new Promise(resolve => setTimeout(resolve, 200));
+    setPhase('preview');
   };
 
   const handleDrop = (e: React.DragEvent) => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files[0]; if (f) handleFile(f); };

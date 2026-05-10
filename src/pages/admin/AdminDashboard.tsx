@@ -27,6 +27,7 @@ import { useUnreadClientMessages } from '../../hooks/useUnreadClientMessages';
 import { useUnreadVendorMessages } from '../../hooks/useUnreadVendorMessages';
 import { useAgendaNotifications } from '../../hooks/useAgendaNotifications';
 import { useAgendaEquipeNotifications } from '../../hooks/useAgendaEquipeNotifications';
+import { BREADCRUMB_LABELS } from './adminDashboardConstants';
 import type { VendorNotifEntry } from './TopBar';
 
 interface AdminDashboardProps {
@@ -213,26 +214,7 @@ export default function AdminDashboard({ onLogout, onConnectAsVendor, onConnectA
     }
   };
 
-  const getBreadcrumb = () => {
-    const labels: Record<ActiveView, string> = {
-      'vue-ensemble': "Vue d'ensemble",
-      'info-admin': 'Info admin',
-      'inscription': 'Inscription',
-      'import-leads': 'Import de leads',
-      'ajouter-leads': 'Ajouter leads',
-      'crm': 'Crm',
-      'ajouter-vendeur': 'Ajouter vendeur',
-      'liste-vendeurs': 'Liste vendeurs',
-      'chat-client': 'Chat Client',
-      'chat-vendeur': 'Chat Vendeur',
-      'agenda': 'Agenda perso',
-      'agenda-equipe': 'Agenda équipe',
-      'propositions-rdv': 'Propositions RDV',
-      'statuts': 'Statuts',
-      'documentation-crm': 'Documentation CRM',
-    };
-    return labels[activeView];
-  };
+  const getBreadcrumb = () => BREADCRUMB_LABELS[activeView];
 
   return (
     <div className="flex h-[100dvh] overflow-hidden transition-colors duration-300" style={{ background: t.main.bg }}>

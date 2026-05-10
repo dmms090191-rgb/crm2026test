@@ -42,14 +42,8 @@ export function useWorkMode(storageKey: string) {
     const s = loadState(storageKey);
     return s ? s.activeId : null;
   });
-  const historyRef = useRef<string[]>(() => {
-    const s = loadState(storageKey);
-    return s ? s.history.slice(0, MAX_HISTORY) : [];
-  });
-  const indexRef = useRef<number>(() => {
-    const s = loadState(storageKey);
-    return s ? Math.min(s.index, (s.history?.length ?? 1) - 1) : -1;
-  });
+  const historyRef = useRef<string[]>([]);
+  const indexRef = useRef<number>(-1);
   const keyRef = useRef(storageKey);
 
   // Initialize refs properly (useRef with function initializer doesn't call the fn)

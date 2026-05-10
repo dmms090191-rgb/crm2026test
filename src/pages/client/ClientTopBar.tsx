@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { createPortal } from 'react-dom';
-import { MessageCircle, CalendarCheck, CalendarClock, ChevronRight, ChevronDown, Sun, Moon, Menu, Bell } from 'lucide-react';
+import { MessageCircle, CalendarCheck, CalendarClock, ChevronRight, ChevronDown, Sun, Moon, Menu } from 'lucide-react';
 import { useTheme, type Theme } from '../../contexts/ThemeContext';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
 import { useTimezone } from '../../hooks/useTimezone';
@@ -18,6 +17,7 @@ import {
   ClientAgendaNotifItem,
   PropositionNotifItem,
 } from './components/topbar';
+import ClientMobileBellMenu from './components/topbar/ClientMobileBellMenu';
 
 export interface PropositionNotifEntry {
   id: string;
@@ -130,114 +130,24 @@ export default function ClientTopBar({ breadcrumb, onMobileMenuToggle, clientNam
       </div>
 
       <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
-        {/* Mobile bell button */}
-        <div className="relative md:hidden" ref={mobileNotifRef}>
-          <button
-            onClick={() => { setMobileNotifOpen(prev => !prev); setMobileNotifCategory(null); }}
-            className="relative p-2 rounded-lg transition-colors"
-            style={{ color: t.topbar.notifIcon }}
-          >
-            <Bell className="w-5 h-5" />
-            {totalNotifCount > 0 && (
-              <span
-                className="absolute top-1 right-1 w-2.5 h-2.5 rounded-full"
-                style={{
-                  background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
-                  boxShadow: '0 0 6px rgba(239,68,68,0.4)',
-                }}
-              />
-            )}
-          </button>
-          {mobileNotifOpen && createPortal(
-            <div
-              ref={mobileNotifPanelRef}
-              className="fixed right-3 top-[3.75rem] w-[calc(100vw-24px)] max-w-72 rounded-xl overflow-hidden"
-              style={{
-                zIndex: 99999,
-                background: t.dropdown.bg,
-                border: `1px solid ${t.dropdown.border}`,
-                boxShadow: `${t.dropdown.shadow}, 0 25px 50px -12px rgba(0,0,0,0.5)`,
-              }}
-            >
-              {!mobileNotifCategory ? (
-                <>
-                  <div className="px-3 py-2 border-b" style={{ borderColor: t.dropdown.border }}>
-                    <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: t.topbar.notifIcon }}>
-                      Notifications
-                    </p>
-                  </div>
-                  {([
-                    { key: 'messages', icon: <MessageCircle className="w-4 h-4" />, label: 'Messages', count: unreadMessageCount },
-                    { key: 'agenda', icon: <CalendarCheck className="w-4 h-4" />, label: 'Rendez-vous', count: agendaCount },
-                    { key: 'propositions', icon: <CalendarClock className="w-4 h-4" />, label: 'Propositions RDV', count: propositionsCount },
-                  ] as const).map((item) => (
-                    <button
-                      key={item.key}
-                      type="button"
-                      className="flex items-center gap-3 w-full px-3 py-2.5 text-left transition-colors hover:bg-black/[0.04] dark:hover:bg-white/[0.06]"
-                      onClick={() => setMobileNotifCategory(item.key)}
-                    >
-                      <span style={{ color: t.topbar.notifIcon }}>{item.icon}</span>
-                      <span className="text-sm flex-1" style={{ color: t.dropdown.itemText }}>{item.label}</span>
-                      {item.count > 0 && (
-                        <span
-                          className="flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-bold text-white"
-                          style={{
-                            background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
-                            boxShadow: '0 0 6px rgba(239,68,68,0.4)',
-                          }}
-                        >
-                          {item.count > 99 ? '99+' : item.count}
-                        </span>
-                      )}
-                    </button>
-                  ))}
-                </>
-              ) : (
-                <>
-                  <div className="px-3 py-2 border-b flex items-center gap-2" style={{ borderColor: t.dropdown.border }}>
-                    <button onClick={() => setMobileNotifCategory(null)} className="text-xs" style={{ color: t.topbar.notifIcon }}>
-                      <ChevronRight className="w-3.5 h-3.5 rotate-180" />
-                    </button>
-                    <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: t.topbar.notifIcon }}>
-                      {mobileNotifCategory === 'messages' && 'Messages'}
-                      {mobileNotifCategory === 'agenda' && 'Rendez-vous'}
-                      {mobileNotifCategory === 'propositions' && 'Propositions RDV'}
-                    </p>
-                  </div>
-                  <div className="max-h-64 overflow-y-auto">
-                    {mobileNotifCategory === 'messages' && (
-                      unreadMessageCount === 0 ? (
-                        <ClientDropdownEmpty text="Aucun nouveau message" tokens={t} />
-                      ) : (
-                        <NotifRow count={unreadMessageCount} latestAt={unreadLatestAt} tokens={t.dropdown} onClick={() => { handleNotifItemClick(); setMobileNotifOpen(false); setMobileNotifCategory(null); }} />
-                      )
-                    )}
-                    {mobileNotifCategory === 'agenda' && (
-                      agendaEntries.length === 0 ? (
-                        <ClientDropdownEmpty text="Aucun rendez-vous imminent" tokens={t} />
-                      ) : (
-                        agendaEntries.map(entry => (
-                          <ClientAgendaNotifItem key={entry.rdvId} entry={entry} tokens={t.dropdown} onClick={() => { onAgendaEntryClick?.(entry.rdvId); setMobileNotifOpen(false); setMobileNotifCategory(null); }} />
-                        ))
-                      )
-                    )}
-                    {mobileNotifCategory === 'propositions' && (
-                      propositionsEntries.length === 0 ? (
-                        <ClientDropdownEmpty text="Aucune nouvelle proposition" tokens={t} />
-                      ) : (
-                        propositionsEntries.map(entry => (
-                          <PropositionNotifItem key={entry.id} entry={entry} tokens={t.dropdown} onClick={() => { setMobileNotifOpen(false); setMobileNotifCategory(null); onPropositionEntryClick?.(); }} />
-                        ))
-                      )
-                    )}
-                  </div>
-                </>
-              )}
-            </div>,
-            document.body
-          )}
-        </div>
+        <ClientMobileBellMenu
+          open={mobileNotifOpen}
+          setOpen={setMobileNotifOpen}
+          category={mobileNotifCategory}
+          setCategory={setMobileNotifCategory}
+          totalNotifCount={totalNotifCount}
+          unreadMessageCount={unreadMessageCount}
+          unreadLatestAt={unreadLatestAt}
+          onMessageNotifClick={handleNotifItemClick}
+          agendaCount={agendaCount}
+          agendaEntries={agendaEntries}
+          onAgendaEntryClick={onAgendaEntryClick}
+          propositionsCount={propositionsCount}
+          propositionsEntries={propositionsEntries}
+          onPropositionEntryClick={onPropositionEntryClick}
+          tokens={t}
+          containerRef={mobileNotifRef}
+        />
 
         {/* Desktop notification pill */}
         <div
