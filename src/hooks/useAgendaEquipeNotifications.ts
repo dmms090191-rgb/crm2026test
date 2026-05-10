@@ -6,6 +6,7 @@ export interface AgendaEquipeNotifEntry {
   leadName: string;
   vendorName: string;
   appointmentUtc: string;
+  type?: 'starting' | 'untreated';
 }
 
 const STORAGE_PREFIX = 'crm_seen_agenda_equipe_notifications_admin_';
@@ -44,6 +45,7 @@ interface RdvRow {
   appointment_utc?: string | null;
   vendor_id: string;
   status: string;
+  treated_at?: string | null;
 }
 
 interface VendorRow {
@@ -72,14 +74,12 @@ export function useAgendaEquipeNotifications(userId: string | null) {
     for (const rdv of rdvsRef.current) {
       const ts = getRdvTimestamp(rdv);
       const diff = now - ts;
+      const vendorName = vendorMapRef.current.get(rdv.vendor_id) || 'Admin';
       if (diff >= -60_000 && diff <= 60_000 && !seen[rdv.id]) {
-        const vendorName = vendorMapRef.current.get(rdv.vendor_id) || 'Admin';
-        active.push({
-          rdvId: rdv.id,
-          leadName: rdv.lead_name,
-          vendorName,
-          appointmentUtc: new Date(ts).toISOString(),
-        });
+        active.push({ rdvId: rdv.id, leadName: rdv.lead_name, vendorName, appointmentUtc: new Date(ts).toISOString(), type: 'starting' });
+      }
+      if (diff > 60_000 && !rdv.treated_at && !seen[`untreated_${rdv.id}`]) {
+        active.push({ rdvId: rdv.id, leadName: rdv.lead_name, vendorName, appointmentUtc: new Date(ts).toISOString(), type: 'untreated' });
       }
     }
 
@@ -112,7 +112,7 @@ export function useAgendaEquipeNotifications(userId: string | null) {
     const [rdvRes, vendorRes] = await Promise.all([
       supabase
         .from('rdv_proposals')
-        .select('id, lead_name, proposed_date, proposed_time, appointment_utc, vendor_id, status')
+        .select('id, lead_name, proposed_date, proposed_time, appointment_utc, vendor_id, status, treated_at')
         .eq('status', 'confirmed')
         .not('vendor_id', 'is', null),
       supabase
@@ -152,13 +152,14 @@ export function useAgendaEquipeNotifications(userId: string | null) {
     return () => { if (timerRef.current) clearTimeout(timerRef.current); };
   }, []);
 
-  const markAsSeen = useCallback((rdvId: string) => {
+  const markAsSeen = useCallback((rdvId: string, type?: 'starting' | 'untreated') => {
     if (!userId) return;
     const seen = getSeenIds(userId);
-    seen[rdvId] = Date.now();
+    const key = type === 'untreated' ? `untreated_${rdvId}` : rdvId;
+    seen[key] = Date.now();
     setSeenIds(userId, seen);
     setNotifications(prev => {
-      const next = prev.filter(n => n.rdvId !== rdvId);
+      const next = prev.filter(n => !(n.rdvId === rdvId && n.type === (type ?? 'starting')));
       setCount(next.length);
       return next;
     });

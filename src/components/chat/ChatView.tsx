@@ -91,7 +91,7 @@ export default function MessagingPanel({
   const showSidebar = contacts.length >= 1;
 
   return (
-    <div className={`flex gap-0 overflow-hidden rounded-2xl md:h-full ${mobileConvoOpen ? 'h-[calc(100dvh-100px)] md:h-full' : 'h-[calc(100dvh-180px)] md:h-full'}`} style={{ border: `1px solid ${tokens.chat.border}`, minHeight: 0 }}>
+    <div className="flex gap-0 overflow-hidden rounded-2xl h-full" style={{ border: `1px solid ${tokens.chat.border}`, minHeight: 0 }}>
       {showSidebar && (
         <ContactSidebar
           contacts={contacts}

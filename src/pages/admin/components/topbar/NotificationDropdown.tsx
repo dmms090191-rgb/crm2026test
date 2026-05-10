@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CalendarDays, CalendarClock, Users } from 'lucide-react';
+import { CalendarDays, CalendarClock, Users, AlertCircle } from 'lucide-react';
 import type { ThemeTokens } from '../../../../lib/themeTokensTypes';
 import type { ClientNotifEntry, VendorNotifEntry, ConfirmedProposalEntry } from '../../TopBar';
 import type { AgendaNotifEntry } from '../../../../hooks/useAgendaNotifications';
@@ -122,6 +122,7 @@ export function AgendaNotifItem({
   onClick: () => void;
 }) {
   const [hovered, setHovered] = useState(false);
+  const isUntreated = entry.type === 'untreated';
 
   return (
     <button
@@ -134,23 +135,31 @@ export function AgendaNotifItem({
       <div
         className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
         style={{
-          background: 'linear-gradient(135deg, #22d3ee 0%, #0891b2 100%)',
-          boxShadow: '0 0 8px rgba(34,211,238,0.3)',
+          background: isUntreated
+            ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)'
+            : 'linear-gradient(135deg, #22d3ee 0%, #0891b2 100%)',
+          boxShadow: isUntreated
+            ? '0 0 8px rgba(239,68,68,0.3)'
+            : '0 0 8px rgba(34,211,238,0.3)',
         }}
       >
-        <CalendarDays className="w-3.5 h-3.5 text-white" />
+        {isUntreated ? <AlertCircle className="w-3.5 h-3.5 text-white" /> : <CalendarDays className="w-3.5 h-3.5 text-white" />}
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-[12px] font-medium truncate" style={{ color: tokens.itemTextHover }}>
-          Votre RDV avec <span style={{ color: '#22d3ee' }}>{entry.leadName || 'un client'}</span> commence maintenant
+          {isUntreated ? (
+            <>Le rendez-vous avec <span style={{ color: '#ef4444' }}>{entry.leadName || 'un client'}</span> n'a pas ete traite</>
+          ) : (
+            <>Votre RDV avec <span style={{ color: '#22d3ee' }}>{entry.leadName || 'un client'}</span> commence maintenant</>
+          )}
         </p>
         <p className="text-[10px] mt-0.5" style={{ color: tokens.itemText }}>
           {formatRelativeTime(entry.appointmentUtc)}
         </p>
       </div>
       <div
-        className="w-2 h-2 rounded-full flex-shrink-0 animate-pulse"
-        style={{ background: '#22d3ee', boxShadow: '0 0 6px rgba(34,211,238,0.6)' }}
+        className={`w-2 h-2 rounded-full flex-shrink-0 ${isUntreated ? '' : 'animate-pulse'}`}
+        style={{ background: isUntreated ? '#ef4444' : '#22d3ee', boxShadow: isUntreated ? '0 0 6px rgba(239,68,68,0.5)' : '0 0 6px rgba(34,211,238,0.6)' }}
       />
     </button>
   );
@@ -210,6 +219,7 @@ export function AgendaEquipeNotifItem({
   onClick: () => void;
 }) {
   const [hovered, setHovered] = useState(false);
+  const isUntreated = entry.type === 'untreated';
 
   return (
     <button
@@ -222,23 +232,31 @@ export function AgendaEquipeNotifItem({
       <div
         className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
         style={{
-          background: 'linear-gradient(135deg, #06b6d4 0%, #0e7490 100%)',
-          boxShadow: '0 0 8px rgba(6,182,212,0.3)',
+          background: isUntreated
+            ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)'
+            : 'linear-gradient(135deg, #06b6d4 0%, #0e7490 100%)',
+          boxShadow: isUntreated
+            ? '0 0 8px rgba(239,68,68,0.3)'
+            : '0 0 8px rgba(6,182,212,0.3)',
         }}
       >
-        <Users className="w-3.5 h-3.5 text-white" />
+        {isUntreated ? <AlertCircle className="w-3.5 h-3.5 text-white" /> : <Users className="w-3.5 h-3.5 text-white" />}
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-[12px] font-medium" style={{ color: tokens.itemTextHover }}>
-          Le rendez-vous de <span style={{ color: '#22d3ee' }}>{entry.leadName || 'un client'}</span> avec <span style={{ color: '#22d3ee' }}>{entry.vendorName}</span> commence maintenant
+          {isUntreated ? (
+            <>Le rendez-vous avec <span style={{ color: '#ef4444' }}>{entry.leadName || 'un client'}</span> ({entry.vendorName}) n'a pas ete traite</>
+          ) : (
+            <>Le rendez-vous de <span style={{ color: '#22d3ee' }}>{entry.leadName || 'un client'}</span> avec <span style={{ color: '#22d3ee' }}>{entry.vendorName}</span> commence maintenant</>
+          )}
         </p>
         <p className="text-[10px] mt-0.5" style={{ color: tokens.itemText }}>
           {formatRelativeTime(entry.appointmentUtc)}
         </p>
       </div>
       <div
-        className="w-2 h-2 rounded-full flex-shrink-0 animate-pulse"
-        style={{ background: '#06b6d4', boxShadow: '0 0 6px rgba(6,182,212,0.6)' }}
+        className={`w-2 h-2 rounded-full flex-shrink-0 ${isUntreated ? '' : 'animate-pulse'}`}
+        style={{ background: isUntreated ? '#ef4444' : '#06b6d4', boxShadow: isUntreated ? '0 0 6px rgba(239,68,68,0.5)' : '0 0 6px rgba(6,182,212,0.6)' }}
       />
     </button>
   );

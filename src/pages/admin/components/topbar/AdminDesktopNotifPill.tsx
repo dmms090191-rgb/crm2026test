@@ -29,10 +29,10 @@ interface Props {
   onVendorEntryClick?: (entry: VendorNotifEntry) => void;
   agendaPersoCount: number;
   agendaPersoEntries: AgendaNotifEntry[];
-  onAgendaPersoEntryClick?: (rdvId: string) => void;
+  onAgendaPersoEntryClick?: (rdvId: string, type?: 'starting' | 'untreated') => void;
   agendaEquipeCount: number;
   agendaEquipeEntries: AgendaEquipeNotifEntry[];
-  onAgendaEquipeEntryClick?: (rdvId: string) => void;
+  onAgendaEquipeEntryClick?: (rdvId: string, type?: 'starting' | 'untreated') => void;
   propositionsCount: number;
   propositionsEntries: ConfirmedProposalEntry[];
   onPropositionEntryClick?: (proposalId: string) => void;
@@ -149,10 +149,10 @@ export default function AdminDesktopNotifPill({
               ) : (
                 agendaPersoEntries.map(entry => (
                   <AgendaNotifItem
-                    key={entry.rdvId}
+                    key={`${entry.rdvId}-${entry.type}`}
                     entry={entry}
                     tokens={t.dropdown}
-                    onClick={() => { onAgendaPersoEntryClick?.(entry.rdvId); setAgendaDropdownOpen(false); }}
+                    onClick={() => { onAgendaPersoEntryClick?.(entry.rdvId, entry.type); setAgendaDropdownOpen(false); }}
                   />
                 ))
               )}
@@ -183,10 +183,10 @@ export default function AdminDesktopNotifPill({
               ) : (
                 agendaEquipeEntries.map(entry => (
                   <AgendaEquipeNotifItem
-                    key={entry.rdvId}
+                    key={`${entry.rdvId}-${entry.type}`}
                     entry={entry}
                     tokens={t.dropdown}
-                    onClick={() => { onAgendaEquipeEntryClick?.(entry.rdvId); setEquipeDropdownOpen(false); }}
+                    onClick={() => { onAgendaEquipeEntryClick?.(entry.rdvId, entry.type); setEquipeDropdownOpen(false); }}
                   />
                 ))
               )}

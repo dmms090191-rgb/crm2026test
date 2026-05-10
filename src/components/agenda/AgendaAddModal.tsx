@@ -33,9 +33,13 @@ export default function AddRdvModal({ defaultDate, onClose, onSaved }: AddRdvMod
       setError('La date est obligatoire.');
       return;
     }
+    const appointmentUtc = localToUTC(form.proposed_date, form.proposed_time, timezone);
+    if (new Date(appointmentUtc).getTime() <= Date.now()) {
+      setError('Impossible de proposer un rendez-vous dans le passe. Veuillez choisir une date et une heure futures.');
+      return;
+    }
     setSaving(true);
     setError('');
-    const appointmentUtc = localToUTC(form.proposed_date, form.proposed_time, timezone);
     const { error: err } = await supabase.from('rdv_proposals').insert({
       lead_name: '',
       lead_phone: '',

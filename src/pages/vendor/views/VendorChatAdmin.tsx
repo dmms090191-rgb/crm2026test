@@ -118,7 +118,7 @@ export default function VendorChatAdmin({ vendorName, vendorDbId, vendorAuthId, 
   }, []);
 
   return (
-    <div className="flex flex-col h-full space-y-2 md:space-y-4" style={{ minHeight: 0 }}>
+    <div className="flex flex-col flex-1 space-y-2 md:space-y-4" style={{ minHeight: 0 }}>
       <div className="flex items-center justify-between flex-shrink-0">
         <div>
           <h2 className="text-base md:text-xl font-bold" style={{ color: tokens.heading.primary }}>Chat Admin</h2>
@@ -132,7 +132,7 @@ export default function VendorChatAdmin({ vendorName, vendorDbId, vendorAuthId, 
         </div>
       </div>
 
-      <div className="flex-1" style={{ minHeight: 0 }}>
+      <div className="flex-1 overflow-hidden" style={{ minHeight: 0 }}>
         <MessagingPanel
           contacts={[ADMIN_CONTACT]}
           selectedContactId={selectedId}

@@ -20,7 +20,7 @@ interface Props {
   onClientEntryClick?: (entry: VendorClientNotifEntry) => void;
   agendaCount: number;
   agendaEntries: AgendaNotifEntry[];
-  onAgendaEntryClick?: (rdvId: string) => void;
+  onAgendaEntryClick?: (rdvId: string, type?: 'starting' | 'untreated') => void;
   propositionsCount: number;
   propositionsEntries: ConfirmedProposalEntry[];
   onPropositionEntryClick?: (proposalId: string) => void;
@@ -137,7 +137,7 @@ export default function VendorMobileBellMenu({
                     <VendorDropdownEmpty text="Aucun rendez-vous imminent" tokens={tokens} />
                   ) : (
                     agendaEntries.map(entry => (
-                      <VendorAgendaNotifItem key={entry.rdvId} entry={entry} tokens={tokens.dropdown} onClick={() => { onAgendaEntryClick?.(entry.rdvId); setOpen(false); setCategory(null); }} />
+                      <VendorAgendaNotifItem key={`${entry.rdvId}-${entry.type}`} entry={entry} tokens={tokens.dropdown} onClick={() => { onAgendaEntryClick?.(entry.rdvId, entry.type); setOpen(false); setCategory(null); }} />
                     ))
                   )
                 )}

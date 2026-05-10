@@ -23,7 +23,7 @@ export default function VendorPropositionsRdv({ vendorDbId, initialLead, onIniti
     rdvs, loading, filter, setFilter,
     editRdv, setEditRdv, showAdd, setShowAdd, newForm, setNewForm,
     pendingLeadName, setPendingLeadId, setPendingLeadName,
-    saving, selected, setSelected, deleting, confirmDelete, setConfirmDelete,
+    saving, addError, selected, setSelected, deleting, confirmDelete, setConfirmDelete,
     detailRdv, setDetailRdv, filtered, todayStr, statusCounts, timezone,
     handleAccept, handleRefuse, handleAdd, handleBulkDelete,
     toggleSelect, toggleAll, load,
@@ -65,6 +65,7 @@ export default function VendorPropositionsRdv({ vendorDbId, initialLead, onIniti
           onCancel={() => { setShowAdd(false); setPendingLeadId(null); setPendingLeadName(''); }}
           onPickContact={onNavigateToLeads}
           saving={saving}
+          error={addError}
         />
       )}
 

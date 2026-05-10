@@ -21,10 +21,10 @@ interface Props {
   onVendorEntryClick?: (entry: VendorNotifEntry) => void;
   agendaPersoCount: number;
   agendaPersoEntries: AgendaNotifEntry[];
-  onAgendaPersoEntryClick?: (rdvId: string) => void;
+  onAgendaPersoEntryClick?: (rdvId: string, type?: 'starting' | 'untreated') => void;
   agendaEquipeCount: number;
   agendaEquipeEntries: AgendaEquipeNotifEntry[];
-  onAgendaEquipeEntryClick?: (rdvId: string) => void;
+  onAgendaEquipeEntryClick?: (rdvId: string, type?: 'starting' | 'untreated') => void;
   propositionsCount: number;
   propositionsEntries: ConfirmedProposalEntry[];
   onPropositionEntryClick?: (proposalId: string) => void;
@@ -148,7 +148,7 @@ export default function AdminMobileBellMenu({
                     <DropdownEmpty text="Aucun rendez-vous imminent" tokens={t} />
                   ) : (
                     agendaPersoEntries.map(entry => (
-                      <AgendaNotifItem key={entry.rdvId} entry={entry} tokens={t.dropdown} onClick={() => { onAgendaPersoEntryClick?.(entry.rdvId); setOpen(false); setCategory(null); }} />
+                      <AgendaNotifItem key={`${entry.rdvId}-${entry.type}`} entry={entry} tokens={t.dropdown} onClick={() => { onAgendaPersoEntryClick?.(entry.rdvId, entry.type); setOpen(false); setCategory(null); }} />
                     ))
                   )
                 )}
@@ -157,7 +157,7 @@ export default function AdminMobileBellMenu({
                     <DropdownEmpty text="Aucun rendez-vous d'equipe imminent" tokens={t} />
                   ) : (
                     agendaEquipeEntries.map(entry => (
-                      <AgendaEquipeNotifItem key={entry.rdvId} entry={entry} tokens={t.dropdown} onClick={() => { onAgendaEquipeEntryClick?.(entry.rdvId); setOpen(false); setCategory(null); }} />
+                      <AgendaEquipeNotifItem key={`${entry.rdvId}-${entry.type}`} entry={entry} tokens={t.dropdown} onClick={() => { onAgendaEquipeEntryClick?.(entry.rdvId, entry.type); setOpen(false); setCategory(null); }} />
                     ))
                   )
                 )}

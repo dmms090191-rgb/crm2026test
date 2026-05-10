@@ -162,13 +162,13 @@ export default function AdminDashboard({ onLogout, onConnectAsVendor, onConnectA
     markVendorRead(vendorId);
   }, [markVendorRead]);
 
-  const handleAgendaPersoClick = useCallback((rdvId: string) => {
-    markAgendaSeen(rdvId);
+  const handleAgendaPersoClick = useCallback((rdvId: string, type?: 'starting' | 'untreated') => {
+    markAgendaSeen(rdvId, type);
     setActiveView('agenda');
   }, [markAgendaSeen]);
 
-  const handleAgendaEquipeClick = useCallback((rdvId: string) => {
-    markAgendaEquipeSeen(rdvId);
+  const handleAgendaEquipeClick = useCallback((rdvId: string, type?: 'starting' | 'untreated') => {
+    markAgendaEquipeSeen(rdvId, type);
     setActiveView('agenda-equipe');
   }, [markAgendaEquipeSeen]);
 

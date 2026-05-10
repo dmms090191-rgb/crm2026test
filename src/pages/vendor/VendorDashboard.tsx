@@ -136,8 +136,8 @@ export default function VendorDashboard({ onLogout, impersonatedVendor, onBackTo
     setActiveView('chat-admin');
   }, []);
 
-  const handleAgendaNotifClick = useCallback((rdvId: string) => {
-    markAgendaSeen(rdvId);
+  const handleAgendaNotifClick = useCallback((rdvId: string, type?: 'starting' | 'untreated') => {
+    markAgendaSeen(rdvId, type);
     setActiveView('agenda');
   }, [markAgendaSeen]);
 

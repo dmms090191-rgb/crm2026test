@@ -1,4 +1,4 @@
-import { Check, User, UserPlus } from 'lucide-react';
+import { Check, User, UserPlus, AlertCircle } from 'lucide-react';
 import { useThemeTokens } from '../../../hooks/useThemeTokens';
 
 interface RdvAddFormProps {
@@ -15,9 +15,10 @@ interface RdvAddFormProps {
   onCancel: () => void;
   onPickContact?: () => void;
   saving: boolean;
+  error?: string;
 }
 
-export default function RdvAddForm({ form, leadName, onChange, onSubmit, onCancel, onPickContact, saving }: RdvAddFormProps) {
+export default function RdvAddForm({ form, leadName, onChange, onSubmit, onCancel, onPickContact, saving, error }: RdvAddFormProps) {
   const tokens = useThemeTokens();
 
   const inputCls = 'w-full px-3 py-2 rounded-lg text-sm outline-none focus:ring-1 transition-all';
@@ -29,6 +30,12 @@ export default function RdvAddForm({ form, leadName, onChange, onSubmit, onCance
       style={{ background: tokens.accent.bg, border: `1px solid ${tokens.accent.border}` }}
     >
       <p className="text-sm font-semibold" style={{ color: tokens.text.primary }}>Nouvelle proposition de rendez-vous</p>
+      {error && (
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444' }}>
+          <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+          {error}
+        </div>
+      )}
       {leadName ? (
         <div className="flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg" style={{ background: tokens.surface.secondary, border: `1px solid ${tokens.surface.border}` }}>
           <div className="flex items-center gap-2">

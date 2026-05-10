@@ -176,7 +176,7 @@ export default function ChatClient({ initialLead, onMessageSent, onClientViewed,
   const selectedContact = contacts.find(c => c.id === selectedId);
 
   return (
-    <div className="flex flex-col h-full space-y-2 md:space-y-4" style={{ minHeight: 0 }}>
+    <div className="flex flex-col flex-1 space-y-2 md:space-y-4" style={{ minHeight: 0 }}>
       <div className="flex items-center justify-between flex-shrink-0">
         <div>
           <h2 className="text-base md:text-xl font-bold" style={{ color: tokens.text.primary }}>Chat Client</h2>
@@ -192,7 +192,7 @@ export default function ChatClient({ initialLead, onMessageSent, onClientViewed,
         </div>
       </div>
 
-      <div className="flex-1" style={{ minHeight: 0 }}>
+      <div className="flex-1 overflow-hidden" style={{ minHeight: 0 }}>
         <MessagingPanel
           contacts={contacts}
           selectedContactId={selectedId}

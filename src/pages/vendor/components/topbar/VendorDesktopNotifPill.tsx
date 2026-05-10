@@ -25,7 +25,7 @@ interface Props {
   onClientEntryClick?: (entry: VendorClientNotifEntry) => void;
   agendaCount: number;
   agendaEntries: AgendaNotifEntry[];
-  onAgendaEntryClick?: (rdvId: string) => void;
+  onAgendaEntryClick?: (rdvId: string, type?: 'starting' | 'untreated') => void;
   propositionsCount: number;
   propositionsEntries: ConfirmedProposalEntry[];
   onPropositionEntryClick?: (proposalId: string) => void;
@@ -111,11 +111,11 @@ export default function VendorDesktopNotifPill({
               ) : (
                 agendaEntries.map(entry => (
                   <VendorAgendaNotifItem
-                    key={entry.rdvId}
+                    key={`${entry.rdvId}-${entry.type}`}
                     entry={entry}
                     tokens={tokens.dropdown}
                     onClick={() => {
-                      onAgendaEntryClick?.(entry.rdvId);
+                      onAgendaEntryClick?.(entry.rdvId, entry.type);
                       setAgendaDropdownOpen(false);
                     }}
                   />

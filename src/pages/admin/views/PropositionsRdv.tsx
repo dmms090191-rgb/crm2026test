@@ -19,7 +19,7 @@ export default function PropositionsRdv({ initialLead, onInitialLeadConsumed, on
     rdvs, vendors, loading, filter, setFilter, vendorFilter, setVendorFilter,
     editRdv, setEditRdv, showAdd, setShowAdd, newForm, setNewForm,
     pendingLeadName, setPendingLeadId, setPendingLeadName,
-    saving, selected, setSelected, deleting, confirmDelete, setConfirmDelete,
+    saving, addError, selected, setSelected, deleting, confirmDelete, setConfirmDelete,
     detailRdv, setDetailRdv, filtered, todayStr, statusCounts, timezone,
     handleAccept, handleRefuse, handleAdd, handleBulkDelete,
     vendorName, toggleSelect, toggleAll, load,
@@ -63,6 +63,7 @@ export default function PropositionsRdv({ initialLead, onInitialLeadConsumed, on
           onCancel={() => { setShowAdd(false); setPendingLeadId(null); setPendingLeadName(''); }}
           onPickContact={onNavigateToCrm}
           saving={saving}
+          error={addError}
         />
       )}
 

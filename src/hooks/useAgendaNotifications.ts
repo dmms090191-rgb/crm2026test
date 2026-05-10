@@ -5,6 +5,7 @@ export interface AgendaNotifEntry {
   rdvId: string;
   leadName: string;
   appointmentUtc: string;
+  type?: 'starting' | 'untreated';
 }
 
 type Role = 'admin' | 'vendor' | 'client';
@@ -44,6 +45,7 @@ interface RdvRow {
   vendor_id?: string | null;
   lead_email?: string;
   status: string;
+  treated_at?: string | null;
 }
 
 export function useAgendaNotifications(role: Role, userId: string | null) {
@@ -66,7 +68,10 @@ export function useAgendaNotifications(role: Role, userId: string | null) {
       const ts = getRdvTimestamp(rdv);
       const diff = now - ts;
       if (diff >= -60_000 && diff <= 60_000 && !seen[rdv.id]) {
-        active.push({ rdvId: rdv.id, leadName: rdv.lead_name, appointmentUtc: new Date(ts).toISOString() });
+        active.push({ rdvId: rdv.id, leadName: rdv.lead_name, appointmentUtc: new Date(ts).toISOString(), type: 'starting' });
+      }
+      if (role !== 'client' && diff > 60_000 && !rdv.treated_at && !seen[`untreated_${rdv.id}`]) {
+        active.push({ rdvId: rdv.id, leadName: rdv.lead_name, appointmentUtc: new Date(ts).toISOString(), type: 'untreated' });
       }
     }
 
@@ -112,7 +117,7 @@ export function useAgendaNotifications(role: Role, userId: string | null) {
 
       const { data: byEmail } = await supabase
         .from('rdv_proposals')
-        .select('id, lead_name, proposed_date, proposed_time, appointment_utc, vendor_id, lead_email, status')
+        .select('id, lead_name, proposed_date, proposed_time, appointment_utc, vendor_id, lead_email, status, treated_at')
         .eq('status', 'confirmed')
         .eq('lead_email', userId);
 
@@ -120,7 +125,7 @@ export function useAgendaNotifications(role: Role, userId: string | null) {
       if (leadIds.length > 0) {
         const { data: byLeadId } = await supabase
           .from('rdv_proposals')
-          .select('id, lead_name, proposed_date, proposed_time, appointment_utc, vendor_id, lead_email, status')
+          .select('id, lead_name, proposed_date, proposed_time, appointment_utc, vendor_id, lead_email, status, treated_at')
           .eq('status', 'confirmed')
           .in('lead_id', leadIds);
         if (byLeadId) {
@@ -134,7 +139,7 @@ export function useAgendaNotifications(role: Role, userId: string | null) {
     } else {
       let query = supabase
         .from('rdv_proposals')
-        .select('id, lead_name, proposed_date, proposed_time, appointment_utc, vendor_id, lead_email, status')
+        .select('id, lead_name, proposed_date, proposed_time, appointment_utc, vendor_id, lead_email, status, treated_at')
         .eq('status', 'confirmed');
 
       if (role === 'admin') {
@@ -169,13 +174,14 @@ export function useAgendaNotifications(role: Role, userId: string | null) {
     return () => { if (timerRef.current) clearTimeout(timerRef.current); };
   }, []);
 
-  const markAsSeen = useCallback((rdvId: string) => {
+  const markAsSeen = useCallback((rdvId: string, type?: 'starting' | 'untreated') => {
     if (!userId) return;
     const seen = getSeenIds(role, userId);
-    seen[rdvId] = Date.now();
+    const key = type === 'untreated' ? `untreated_${rdvId}` : rdvId;
+    seen[key] = Date.now();
     setSeenIds(role, userId, seen);
     setNotifications(prev => {
-      const next = prev.filter(n => n.rdvId !== rdvId);
+      const next = prev.filter(n => !(n.rdvId === rdvId && n.type === (type ?? 'starting')));
       setCount(next.length);
       return next;
     });

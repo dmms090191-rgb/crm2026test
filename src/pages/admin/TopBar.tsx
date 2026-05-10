@@ -47,10 +47,10 @@ interface TopBarProps {
   onVendorEntryClick?: (entry: VendorNotifEntry) => void;
   agendaPersoCount?: number;
   agendaPersoEntries?: AgendaNotifEntry[];
-  onAgendaPersoEntryClick?: (rdvId: string) => void;
+  onAgendaPersoEntryClick?: (rdvId: string, type?: 'starting' | 'untreated') => void;
   agendaEquipeCount?: number;
   agendaEquipeEntries?: AgendaEquipeNotifEntry[];
-  onAgendaEquipeEntryClick?: (rdvId: string) => void;
+  onAgendaEquipeEntryClick?: (rdvId: string, type?: 'starting' | 'untreated') => void;
   propositionsCount?: number;
   propositionsEntries?: ConfirmedProposalEntry[];
   onPropositionEntryClick?: (proposalId: string) => void;

@@ -40,7 +40,7 @@ interface VendorTopBarProps {
   onClientEntryClick?: (entry: VendorClientNotifEntry) => void;
   agendaCount?: number;
   agendaEntries?: AgendaNotifEntry[];
-  onAgendaEntryClick?: (rdvId: string) => void;
+  onAgendaEntryClick?: (rdvId: string, type?: 'starting' | 'untreated') => void;
   propositionsCount?: number;
   propositionsEntries?: ConfirmedProposalEntry[];
   onPropositionEntryClick?: (proposalId: string) => void;

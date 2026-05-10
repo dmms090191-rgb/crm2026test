@@ -25,6 +25,7 @@ export function useAdminRdvData(initialLead?: RdvLeadRef | null, onInitialLeadCo
   const [pendingLeadId, setPendingLeadId] = useState<string | null>(null);
   const [pendingLeadName, setPendingLeadName] = useState('');
   const [saving, setSaving] = useState(false);
+  const [addError, setAddError] = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -75,6 +76,12 @@ export function useAdminRdvData(initialLead?: RdvLeadRef | null, onInitialLeadCo
 
   async function handleAdd() {
     if (!newForm.proposed_date) return;
+    const appointmentCheck = new Date(localToUTC(newForm.proposed_date, newForm.proposed_time, timezone));
+    if (appointmentCheck.getTime() <= Date.now()) {
+      setAddError('Impossible de proposer un rendez-vous dans le passe. Veuillez choisir une date et une heure futures.');
+      return;
+    }
+    setAddError('');
     setSaving(true);
     let leadName = '';
     let leadEmail = '';
@@ -147,7 +154,7 @@ export function useAdminRdvData(initialLead?: RdvLeadRef | null, onInitialLeadCo
     rdvs, vendors, loading, filter, setFilter, vendorFilter, setVendorFilter,
     editRdv, setEditRdv, showAdd, setShowAdd, newForm, setNewForm,
     pendingLeadId, setPendingLeadId, pendingLeadName, setPendingLeadName,
-    saving, selected, setSelected, deleting, confirmDelete, setConfirmDelete,
+    saving, addError, selected, setSelected, deleting, confirmDelete, setConfirmDelete,
     detailRdv, setDetailRdv, filtered, todayStr, statusCounts, timezone,
     handleAccept, handleRefuse, handleAdd, handleBulkDelete,
     vendorName, toggleSelect, toggleAll, load,
