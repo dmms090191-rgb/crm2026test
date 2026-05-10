@@ -222,7 +222,7 @@ export default function VendorDashboard({ onLogout, impersonatedVendor, onBackTo
           onPropositionEntryClick={handleProposalEntryClick}
         />
         <main
-          className={`flex-1 flex flex-col md:p-6 ${(activeView === 'chat-admin' || activeView === 'chat-client') ? 'p-2 sm:p-3 overflow-hidden' : 'p-3 sm:p-4 overflow-auto'}`}
+          className={`flex-1 flex flex-col md:p-6 mobile-main-scroll ${(activeView === 'chat-admin' || activeView === 'chat-client') ? 'p-2 sm:p-3 overflow-hidden' : 'p-3 sm:p-4 overflow-auto'}`}
           style={{ minHeight: 0 }}
         >
           {renderView()}

@@ -277,7 +277,7 @@ export default function AdminDashboard({ onLogout, onConnectAsVendor, onConnectA
           onPropositionEntryClick={handleProposalEntryClick}
         />
         <main
-          className={`flex-1 flex flex-col md:p-6 ${(activeView === 'chat-client' || activeView === 'chat-vendeur') ? 'p-2 sm:p-3' : 'p-3 sm:p-4'}`}
+          className={`flex-1 flex flex-col md:p-6 mobile-main-scroll ${(activeView === 'chat-client' || activeView === 'chat-vendeur') ? 'p-2 sm:p-3' : 'p-3 sm:p-4'}`}
           style={{
             minHeight: 0,
             overflow: (activeView === 'chat-client' || activeView === 'chat-vendeur') ? 'hidden' : 'auto',

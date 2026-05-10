@@ -235,7 +235,7 @@ export default function ClientDashboard({ onLogout, impersonatedClient, onBackTo
           onPropositionEntryClick={handleProposalNotifClick}
         />
         <main
-          className={`flex-1 flex flex-col md:p-6 ${activeView === 'messagerie' ? 'p-2 sm:p-3 overflow-hidden' : 'p-3 sm:p-4 overflow-auto'}`}
+          className={`flex-1 flex flex-col md:p-6 mobile-main-scroll ${activeView === 'messagerie' ? 'p-2 sm:p-3 overflow-hidden' : 'p-3 sm:p-4 overflow-auto'}`}
           style={{ minHeight: 0 }}
         >
           {renderView()}
