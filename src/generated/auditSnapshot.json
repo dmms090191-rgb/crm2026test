@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-10T18:29:03.930Z",
+  "generatedAt": "2026-05-10T18:42:29.470Z",
   "anyCount": 0,
   "anyOccurrences": [],
   "unusedImportCount": 0,
@@ -67,8 +67,21 @@
       "overflow": 347
     }
   ],
-  "tscErrorCount": 0,
-  "tscErrors": [],
+  "tscErrorCount": 2,
+  "tscErrors": [
+    {
+      "file": "src/hooks/useWorkMode.ts",
+      "line": 45,
+      "code": "TS2769",
+      "message": "No overload matches this call."
+    },
+    {
+      "file": "src/hooks/useWorkMode.ts",
+      "line": 49,
+      "code": "TS2769",
+      "message": "No overload matches this call."
+    }
+  ],
   "eslintErrorCount": 0,
   "eslintWarningCount": 0,
   "eslintIssues": [],

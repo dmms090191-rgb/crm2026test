@@ -235,7 +235,7 @@ export default function AdminDashboard({ onLogout, onConnectAsVendor, onConnectA
   };
 
   return (
-    <div className="flex h-screen overflow-hidden transition-colors duration-300" style={{ background: t.main.bg }}>
+    <div className="flex h-[100dvh] overflow-hidden transition-colors duration-300" style={{ background: t.main.bg }}>
       {mobileOpen && (
         <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setMobileOpen(false)} />
       )}
