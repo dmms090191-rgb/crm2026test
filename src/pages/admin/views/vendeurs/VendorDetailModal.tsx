@@ -81,7 +81,7 @@ export default function VendorDetailModal({ vendor, onClose, onUpdate }: { vendo
           ))}
         </div>
 
-        <div className="px-6 py-5 h-72 overflow-y-auto">
+        <div className="px-6 py-5 min-h-0 max-h-72 overflow-y-auto">
           {tab === 'informations' && (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-3">

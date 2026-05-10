@@ -61,7 +61,7 @@ export default function RegisterModal({ isOpen, onClose, onBackToLogin }: Regist
 
   return (
     <div className="fixed inset-0 backdrop-blur-sm flex items-center justify-center z-[60] p-3 sm:p-4" style={{ backgroundColor: tokens.modal.overlayBg }}>
-      <div className="rounded-2xl sm:rounded-3xl p-5 sm:p-8 w-full max-w-md relative shadow-2xl overflow-hidden max-h-[calc(100vh-24px)] overflow-y-auto" style={{ background: tokens.modal.bg, borderColor: tokens.modal.border, borderWidth: '1px', borderStyle: 'solid' }}>
+      <div className="rounded-2xl sm:rounded-3xl p-5 sm:p-8 w-full max-w-md relative shadow-2xl overflow-x-hidden overflow-y-auto max-h-[calc(100vh-24px)]" style={{ background: tokens.modal.bg, borderColor: tokens.modal.border, borderWidth: '1px', borderStyle: 'solid' }}>
         <button
           onClick={onBackToLogin}
           className="absolute top-4 left-4 sm:top-6 sm:left-6 flex items-center gap-1.5 sm:gap-2 transition-colors text-xs sm:text-sm font-medium"
