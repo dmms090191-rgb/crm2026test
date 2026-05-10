@@ -4,6 +4,7 @@ import { supabase } from '../../../lib/supabase';
 import MessagingPanel, { ChatMessage, ChatContact } from '../../../components/chat/ChatView';
 import type { VendorChatLead } from '../VendorDashboard';
 import { useThemeTokens } from '../../../hooks/useThemeTokens';
+import { peekChatReturnContext } from '../../../lib/connectReturnContext';
 
 interface LeadRow {
   id: string;
@@ -16,10 +17,12 @@ interface VendorChatClientProps {
   vendorDbId: string | null;
   initialLead?: VendorChatLead | null;
   onClientViewed?: (clientAuthId: string) => void;
+  onReturnToLeads?: () => void;
 }
 
-export default function VendorChatClient({ vendorName, vendorDbId, initialLead, onClientViewed }: VendorChatClientProps) {
+export default function VendorChatClient({ vendorName, vendorDbId, initialLead, onClientViewed, onReturnToLeads }: VendorChatClientProps) {
   const tokens = useThemeTokens();
+  const chatReturnCtx = onReturnToLeads ? peekChatReturnContext() : null;
   const [leads, setLeads] = useState<LeadRow[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(initialLead?.id ?? null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -175,6 +178,8 @@ export default function VendorChatClient({ vendorName, vendorDbId, initialLead, 
           onDeleteMessage={handleDelete}
           loading={loading}
           contactLoading={contactLoading}
+          returnContactId={chatReturnCtx?.leadId ?? null}
+          onReturnClick={onReturnToLeads}
         />
       </div>
     </div>

@@ -1,4 +1,4 @@
-import { Search } from 'lucide-react';
+import { Search, CornerUpLeft } from 'lucide-react';
 import type { ChatContact } from './chatTypes';
 
 interface ContactSidebarProps {
@@ -13,6 +13,8 @@ interface ContactSidebarProps {
   tokens: ReturnType<typeof import('../../lib/themeTokens').getThemeTokens>;
   className?: string;
   currentRole?: string;
+  returnContactId?: string | null;
+  onReturnClick?: () => void;
 }
 
 function formatShortTime(iso: string) {
@@ -38,6 +40,8 @@ export default function ContactSidebar({
   tokens,
   className = '',
   currentRole,
+  returnContactId,
+  onReturnClick,
 }: ContactSidebarProps) {
   const filtered = contacts.filter(c =>
     c.displayName.toLowerCase().includes(search.toLowerCase()) ||
@@ -72,7 +76,7 @@ export default function ContactSidebar({
         </div>
       </div>
 
-      <div className="md:flex-1 overflow-y-auto px-2 pb-2">
+      <div className="flex-1 overflow-y-auto px-2 pb-2">
         {contactLoading ? (
           <div className="flex items-center justify-center h-20">
             <div className="w-5 h-5 border-2 rounded-full animate-spin" style={{ borderColor: tokens.surface.border, borderTopColor: accentColor }} />
@@ -87,51 +91,65 @@ export default function ContactSidebar({
             const lastMsgDisplay = hasLastMsg
               ? `${lastMsgPrefix}${contact.lastMessage}`
               : 'Aucun message';
+            const showReturn = returnContactId === contact.id && !!onReturnClick;
 
             return (
-              <button
-                key={contact.id}
-                onClick={() => onSelectContact(contact.id)}
-                className="w-full flex items-center gap-2.5 px-2.5 py-2.5 rounded-xl mb-0.5 text-left transition-all"
-                style={isActive ? {
-                  background: `rgba(${accentRgb},0.1)`,
-                  border: `1px solid rgba(${accentRgb},0.2)`,
-                } : {
-                  background: 'transparent',
-                  border: '1px solid transparent',
-                }}
-              >
-                <div
-                  className="w-9 h-9 md:w-8 md:h-8 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0"
-                  style={{
-                    background: isActive ? `rgba(${accentRgb},0.8)` : tokens.chat.messageBubbleOther,
-                    boxShadow: isActive ? `0 0 8px rgba(${accentRgb},0.3)` : 'none',
-                    color: '#ffffff',
+              <div key={contact.id} className="relative mb-0.5">
+                <button
+                  onClick={() => onSelectContact(contact.id)}
+                  className="w-full flex items-center gap-2.5 px-2.5 py-2.5 rounded-xl text-left transition-all"
+                  style={isActive ? {
+                    background: `rgba(${accentRgb},0.1)`,
+                    border: `1px solid rgba(${accentRgb},0.2)`,
+                  } : {
+                    background: 'transparent',
+                    border: '1px solid transparent',
                   }}
                 >
-                  {contact.initial}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between gap-1">
-                    <p className="text-sm md:text-xs font-semibold truncate" style={{ color: isActive ? tokens.text.primary : tokens.chat.listItemText }}>
-                      {contact.displayName}
+                  <div
+                    className="w-9 h-9 md:w-8 md:h-8 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0"
+                    style={{
+                      background: isActive ? `rgba(${accentRgb},0.8)` : tokens.chat.messageBubbleOther,
+                      boxShadow: isActive ? `0 0 8px rgba(${accentRgb},0.3)` : 'none',
+                      color: '#ffffff',
+                    }}
+                  >
+                    {contact.initial}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-1">
+                      <p className="text-sm md:text-xs font-semibold truncate" style={{ color: isActive ? tokens.text.primary : tokens.chat.listItemText }}>
+                        {contact.displayName}
+                      </p>
+                      {contact.lastMessageAt && (
+                        <span className="text-[10px] flex-shrink-0 md:hidden" style={{ color: tokens.chat.listItemSub }}>
+                          {formatShortTime(contact.lastMessageAt)}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[11px] truncate md:hidden" style={{ color: tokens.chat.listItemSub }}>
+                      {lastMsgDisplay}
                     </p>
-                    {contact.lastMessageAt && (
-                      <span className="text-[10px] flex-shrink-0 md:hidden" style={{ color: tokens.chat.listItemSub }}>
-                        {formatShortTime(contact.lastMessageAt)}
-                      </span>
+                    {contact.subtitle && (
+                      <p className="text-[10px] truncate hidden md:block" style={{ color: tokens.chat.listItemSub }}>{contact.subtitle}</p>
                     )}
                   </div>
-                  {/* Mobile: show last message */}
-                  <p className="text-[11px] truncate md:hidden" style={{ color: tokens.chat.listItemSub }}>
-                    {lastMsgDisplay}
-                  </p>
-                  {/* Desktop: show subtitle (email) as before */}
-                  {contact.subtitle && (
-                    <p className="text-[10px] truncate hidden md:block" style={{ color: tokens.chat.listItemSub }}>{contact.subtitle}</p>
-                  )}
-                </div>
-              </button>
+                </button>
+                {showReturn && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onReturnClick!(); }}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full flex items-center justify-center transition-all hover:scale-110"
+                    style={{
+                      background: tokens.surface.secondary,
+                      border: `1px solid ${tokens.surface.borderLight}`,
+                      boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
+                    }}
+                    title="Retour"
+                  >
+                    <CornerUpLeft className="w-3 h-3" style={{ color: tokens.text.secondary }} />
+                  </button>
+                )}
+              </div>
             );
           })
         )}

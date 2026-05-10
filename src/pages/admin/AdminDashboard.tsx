@@ -21,7 +21,7 @@ const ImportLeads = lazy(() => import('./views/ImportLeads'));
 const importDocumentationCrm = () => import('./views/DocumentationCrm');
 const DocumentationCrm = lazy(importDocumentationCrm);
 import { supabase } from '../../lib/supabase';
-import { saveConnectReturnContext, consumeConnectReturnContext } from '../../lib/connectReturnContext';
+import { saveConnectReturnContext, consumeConnectReturnContext, saveChatReturnContext, consumeChatReturnContext } from '../../lib/connectReturnContext';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
 import { useUnreadClientMessages } from '../../hooks/useUnreadClientMessages';
 import { useUnreadVendorMessages } from '../../hooks/useUnreadVendorMessages';
@@ -86,14 +86,20 @@ export default function AdminDashboard({ onLogout, onConnectAsVendor, onConnectA
     const { leadId, vendorId, scrollY } = pendingScrollRef.current;
     pendingScrollRef.current = null;
     const targetId = leadId || vendorId;
-    const timeout = setTimeout(() => {
-      if (targetId) {
-        const el = document.querySelector(`[data-row-id="${targetId}"]`);
-        if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
-      }
-      window.scrollTo({ top: scrollY, behavior: 'smooth' });
-    }, 300);
-    return () => clearTimeout(timeout);
+    if (!targetId) { window.scrollTo({ top: scrollY, behavior: 'smooth' }); return; }
+    let n = 0;
+    const poll = () => {
+      const el = document.querySelector(`[data-row-id="${targetId}"]`);
+      if (!el) { if (++n < 30) setTimeout(poll, 150); return; }
+      requestAnimationFrame(() => {
+        const main = el.closest('main');
+        if (main) { const r = el.getBoundingClientRect(), m = main.getBoundingClientRect(); main.scrollTo({ top: Math.max(0, r.top - m.top + main.scrollTop - main.clientHeight / 2 + r.height / 2), behavior: 'smooth' }); }
+        else el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.classList.add('scroll-highlight'); setTimeout(() => el.classList.remove('scroll-highlight'), 2000);
+      });
+    };
+    const t = setTimeout(poll, 200);
+    return () => clearTimeout(t);
   }, [activeView]);
 
   useEffect(() => {
@@ -178,19 +184,18 @@ export default function AdminDashboard({ onLogout, onConnectAsVendor, onConnectA
   }, []);
 
   const handleNavigate = useCallback((view: ActiveView, options?: { docTab?: string }) => {
-    if (activeView === 'chat-client' && !chatClientMessageSent) {
-      setChatLead(null);
-    }
-    if (activeView === 'chat-vendeur' && !chatVendorMessageSent) {
-      setChatVendor(null);
-    }
-    if (view === 'documentation-crm' && options?.docTab) {
-      setDocInitialTab(options.docTab);
-    } else {
-      setDocInitialTab(undefined);
-    }
+    if (activeView === 'chat-client' && !chatClientMessageSent) setChatLead(null);
+    if (activeView === 'chat-vendeur' && !chatVendorMessageSent) setChatVendor(null);
+    if (view === 'chat-client') sessionStorage.removeItem('crm_chat_return_context');
+    setDocInitialTab(view === 'documentation-crm' && options?.docTab ? options.docTab : undefined);
     setActiveView(view);
   }, [activeView, chatClientMessageSent, chatVendorMessageSent]);
+
+  const handleReturnToCrm = useCallback(() => {
+    const ctx = consumeChatReturnContext();
+    setChatLead(null); setActiveView('crm');
+    if (ctx) pendingScrollRef.current = { leadId: ctx.leadId, scrollY: 0 };
+  }, []);
 
   const lazyFallback = <div className="flex items-center justify-center py-12"><div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" /></div>;
 
@@ -200,7 +205,7 @@ export default function AdminDashboard({ onLogout, onConnectAsVendor, onConnectA
       case 'inscription': return <Suspense fallback={lazyFallback}><Inscription /></Suspense>;
       case 'import-leads': return <Suspense fallback={lazyFallback}><ImportLeads onNavigateToCrm={() => handleNavigate('crm')} /></Suspense>;
       case 'ajouter-leads': return <Suspense fallback={lazyFallback}><AjouterLeads /></Suspense>;
-      case 'crm': return <Suspense fallback={lazyFallback}><Crm onConnectAsClient={(client) => { saveConnectReturnContext({ fromRole: 'admin', fromTab: 'crm', leadId: client.id, scrollY: window.scrollY }); onConnectAsClient?.(client); }} onOpenChat={(lead) => { setChatLead(lead); setChatClientMessageSent(false); setActiveView('chat-client'); }} onOpenRdv={(lead) => { setRdvLead(lead); setActiveView('propositions-rdv'); }} /></Suspense>;
+      case 'crm': return <Suspense fallback={lazyFallback}><Crm onConnectAsClient={(client) => { saveConnectReturnContext({ fromRole: 'admin', fromTab: 'crm', leadId: client.id, scrollY: window.scrollY }); onConnectAsClient?.(client); }} onOpenChat={(lead) => { saveChatReturnContext(lead.id, [lead.prenom, lead.nom].filter(Boolean).join(' ') || lead.email); setChatLead(lead); setChatClientMessageSent(false); setActiveView('chat-client'); }} onOpenRdv={(lead) => { setRdvLead(lead); setActiveView('propositions-rdv'); }} /></Suspense>;
       case 'ajouter-vendeur': return <Suspense fallback={lazyFallback}><AjouterVendeur /></Suspense>;
       case 'liste-vendeurs': return <Suspense fallback={lazyFallback}><ListeVendeurs onConnectAsVendor={(vendor) => { saveConnectReturnContext({ fromRole: 'admin', fromTab: 'liste-vendeurs', vendorId: vendor.id, scrollY: window.scrollY }); onConnectAsVendor?.(vendor); }} onOpenChat={(vendor) => { setChatVendor(vendor); setChatVendorMessageSent(false); setActiveView('chat-vendeur'); }} /></Suspense>;
       case 'chat-client': return null;
@@ -271,7 +276,7 @@ export default function AdminDashboard({ onLogout, onConnectAsVendor, onConnectA
           {activeView === 'chat-client' && (
             <Suspense fallback={lazyFallback}>
               <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
-                <ChatClient initialLead={chatLead} onMessageSent={() => setChatClientMessageSent(true)} onClientViewed={markClientRead} />
+                <ChatClient initialLead={chatLead} onMessageSent={() => setChatClientMessageSent(true)} onClientViewed={markClientRead} onReturnToCrm={handleReturnToCrm} />
               </div>
             </Suspense>
           )}

@@ -8,7 +8,7 @@ import VendorChatClient from './views/VendorChatClient';
 import VendorAgenda from './views/VendorAgenda';
 import VendorPropositionsRdv from './views/VendorPropositionsRdv';
 import { supabase } from '../../lib/supabase';
-import { saveConnectReturnContext, consumeConnectReturnContext } from '../../lib/connectReturnContext';
+import { saveConnectReturnContext, consumeConnectReturnContext, saveChatReturnContext, consumeChatReturnContext } from '../../lib/connectReturnContext';
 import type { ImpersonatedClientInfo } from '../client/ClientDashboard';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
 import { useUnreadVendorAdminMessages } from '../../hooks/useUnreadVendorAdminMessages';
@@ -67,14 +67,20 @@ export default function VendorDashboard({ onLogout, impersonatedVendor, onBackTo
     if (!pendingScrollRef.current) return;
     const { leadId, scrollY } = pendingScrollRef.current;
     pendingScrollRef.current = null;
-    const timeout = setTimeout(() => {
-      if (leadId) {
-        const el = document.querySelector(`[data-row-id="${leadId}"]`);
-        if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
-      }
-      window.scrollTo({ top: scrollY, behavior: 'smooth' });
-    }, 300);
-    return () => clearTimeout(timeout);
+    if (!leadId) { window.scrollTo({ top: scrollY, behavior: 'smooth' }); return; }
+    let n = 0;
+    const poll = () => {
+      const el = document.querySelector(`[data-row-id="${leadId}"]`);
+      if (!el) { if (++n < 30) setTimeout(poll, 150); return; }
+      requestAnimationFrame(() => {
+        const main = el.closest('main');
+        if (main) { const r = el.getBoundingClientRect(), m = main.getBoundingClientRect(); main.scrollTo({ top: Math.max(0, r.top - m.top + main.scrollTop - main.clientHeight / 2 + r.height / 2), behavior: 'smooth' }); }
+        else el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.classList.add('scroll-highlight'); setTimeout(() => el.classList.remove('scroll-highlight'), 2000);
+      });
+    };
+    const t = setTimeout(poll, 200);
+    return () => clearTimeout(t);
   }, [activeView]);
 
   useEffect(() => {
@@ -156,6 +162,12 @@ export default function VendorDashboard({ onLogout, impersonatedVendor, onBackTo
     markClientRead(clientAuthId);
   }, [markClientRead]);
 
+  const handleReturnToLeads = useCallback(() => {
+    const ctx = consumeChatReturnContext();
+    setChatLead(null); setActiveView('leads');
+    if (ctx) pendingScrollRef.current = { leadId: ctx.leadId, scrollY: 0 };
+  }, []);
+
   const getBreadcrumb = useCallback(() => {
     const labels: Record<VendorActiveView, string> = {
       'vue-ensemble': "Vue d'ensemble",
@@ -171,9 +183,9 @@ export default function VendorDashboard({ onLogout, impersonatedVendor, onBackTo
   const renderView = () => {
     switch (activeView) {
       case 'vue-ensemble': return <VendorVueEnsemble vendorId={vendorDbId} />;
-      case 'leads': return <VendorLeads vendorId={vendorDbId} onOpenChat={(lead) => { setChatLead(lead); setActiveView('chat-client'); }} onConnectAsClient={(client) => { saveConnectReturnContext({ fromRole: 'vendor', fromTab: 'leads', leadId: client.id, scrollY: window.scrollY }); onConnectAsClient?.(client); }} onOpenRdv={(lead) => { setRdvLead(lead); setActiveView('propositions-rdv'); }} />;
+      case 'leads': return <VendorLeads vendorId={vendorDbId} onOpenChat={(lead) => { saveChatReturnContext(lead.id, [lead.prenom, lead.nom].filter(Boolean).join(' ') || lead.email); setChatLead(lead); setActiveView('chat-client'); }} onConnectAsClient={(client) => { saveConnectReturnContext({ fromRole: 'vendor', fromTab: 'leads', leadId: client.id, scrollY: window.scrollY }); onConnectAsClient?.(client); }} onOpenRdv={(lead) => { setRdvLead(lead); setActiveView('propositions-rdv'); }} />;
       case 'chat-admin': return <VendorChatAdmin vendorName={vendorName} vendorDbId={vendorDbId} vendorAuthId={impersonatedVendor?.auth_user_id ?? undefined} onAdminMessageViewed={markAdminRead} />;
-      case 'chat-client': return <VendorChatClient vendorName={vendorName} vendorDbId={vendorDbId} initialLead={chatLead} onClientViewed={handleClientViewed} />;
+      case 'chat-client': return <VendorChatClient vendorName={vendorName} vendorDbId={vendorDbId} initialLead={chatLead} onClientViewed={handleClientViewed} onReturnToLeads={handleReturnToLeads} />;
       case 'agenda': return <VendorAgenda vendorId={vendorDbId} />;
       case 'propositions-rdv': return <VendorPropositionsRdv vendorDbId={vendorDbId} initialLead={rdvLead} onInitialLeadConsumed={() => setRdvLead(null)} onNavigateToLeads={() => setActiveView('leads')} />;
       default: return <VendorVueEnsemble vendorId={vendorDbId} />;
@@ -195,7 +207,7 @@ export default function VendorDashboard({ onLogout, impersonatedVendor, onBackTo
       >
         <VendorSidebar
           activeView={activeView}
-          onNavigate={(view) => { setActiveView(view); setMobileOpen(false); }}
+          onNavigate={(view) => { if (view === 'chat-client') sessionStorage.removeItem('crm_chat_return_context'); setActiveView(view); setMobileOpen(false); }}
           collapsed={mobileOpen ? false : sidebarCollapsed}
           onCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
           onLogout={onLogout}

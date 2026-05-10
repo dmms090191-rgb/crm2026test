@@ -143,6 +143,7 @@ export default function TopBar({ breadcrumb, onMobileMenuToggle, adminName = 'Ad
           onPropositionEntryClick={onPropositionEntryClick}
           tokens={t}
           containerRef={mobileNotifRef}
+          panelRef={mobileNotifPanelRef}
         />
 
         <AdminDesktopNotifPill

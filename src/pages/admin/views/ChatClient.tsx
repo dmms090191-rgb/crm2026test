@@ -4,6 +4,7 @@ import { supabase } from '../../../lib/supabase';
 import MessagingPanel, { ChatMessage, ChatContact } from '../../../components/chat/ChatView';
 import type { ChatLead } from './Crm';
 import { useThemeTokens } from '../../../hooks/useThemeTokens';
+import { peekChatReturnContext } from '../../../lib/connectReturnContext';
 
 interface LeadRow {
   id: string;
@@ -15,10 +16,12 @@ interface ChatClientProps {
   initialLead?: ChatLead | null;
   onMessageSent?: () => void;
   onClientViewed?: (clientAuthId: string) => void;
+  onReturnToCrm?: () => void;
 }
 
-export default function ChatClient({ initialLead, onMessageSent, onClientViewed }: ChatClientProps) {
+export default function ChatClient({ initialLead, onMessageSent, onClientViewed, onReturnToCrm }: ChatClientProps) {
   const tokens = useThemeTokens();
+  const chatReturnCtx = onReturnToCrm ? peekChatReturnContext() : null;
 
   const [leads, setLeads] = useState<LeadRow[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -205,6 +208,8 @@ export default function ChatClient({ initialLead, onMessageSent, onClientViewed 
           onResetChat={handleReset}
           loading={loading}
           contactLoading={contactLoading}
+          returnContactId={chatReturnCtx?.leadId ?? null}
+          onReturnClick={onReturnToCrm}
         />
       </div>
     </div>

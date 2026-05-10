@@ -48,7 +48,7 @@ export default function VendorLeadMobileCard({
   const isWorkActive = workModeEnabled && workModeActiveId === lead.id;
 
   return (
-    <div ref={cardRef} className="px-3 py-3" style={{ borderColor: tokens.table.rowBorder, background: isSelected ? tokens.table.rowSelected : isWorkActive ? 'rgba(249,115,22,0.04)' : 'transparent' }}>
+    <div ref={cardRef} data-row-id={lead.id} className="px-3 py-3" style={{ borderColor: tokens.table.rowBorder, background: isSelected ? tokens.table.rowSelected : isWorkActive ? 'rgba(249,115,22,0.04)' : 'transparent' }}>
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
           {workModeEnabled ? (

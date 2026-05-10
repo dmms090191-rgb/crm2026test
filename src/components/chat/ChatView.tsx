@@ -24,6 +24,8 @@ export default function MessagingPanel({
   onResetChat,
   loading,
   contactLoading,
+  returnContactId,
+  onReturnClick,
 }: MessagingPanelProps) {
   const tokens = useThemeTokens();
   const { timezone } = useTimezone();
@@ -103,6 +105,8 @@ export default function MessagingPanel({
           tokens={tokens}
           className={`w-full md:w-64 flex-shrink-0 ${mobileConvoOpen ? 'hidden md:flex' : 'flex'}`}
           currentRole={currentRole}
+          returnContactId={returnContactId}
+          onReturnClick={onReturnClick}
         />
       )}
 

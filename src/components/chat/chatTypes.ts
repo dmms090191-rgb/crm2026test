@@ -42,6 +42,8 @@ export interface MessagingPanelProps {
   onResetChat?: () => Promise<void>;
   loading: boolean;
   contactLoading?: boolean;
+  returnContactId?: string | null;
+  onReturnClick?: () => void;
 }
 
 export const SENDER_STYLES: Record<string, { gradient: string; glow: string; bubbleGradient: string; bubbleSolid: (tokens: ReturnType<typeof getThemeTokens>) => React.CSSProperties }> = {

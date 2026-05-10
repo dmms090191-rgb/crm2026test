@@ -177,6 +177,7 @@ export default function AgendaView({ rdvs, onReload, canAdd = true, canDelete, c
               </button>
             </div>
             <h3 className="hidden md:block text-sm font-semibold capitalize" style={{ color: tokens.text.primary }}>{navTitle()}</h3>
+            <h3 className="md:hidden text-[11px] font-semibold capitalize flex-1 text-center" style={{ color: tokens.text.primary }}>{navTitle()}</h3>
             {/* Desktop: button group */}
             <div className="hidden md:flex items-center gap-1 p-0.5 rounded-xl" style={{ background: tokens.surface.secondary, border: `1px solid ${tokens.surface.border}` }}>
               {([
