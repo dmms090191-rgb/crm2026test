@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { MessageSquare } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import MessagingPanel, { ChatMessage, ChatContact } from '../../../components/chat/ChatView';
@@ -9,16 +9,17 @@ interface VendorChatAdminProps {
   vendorDbId?: string | null;
   vendorAuthId?: string;
   onAdminMessageViewed?: () => void;
+  isAdmin?: boolean;
 }
 
-const ADMIN_CONTACT: ChatContact = {
+const ADMIN_CONTACT_BASE = {
   id: 'admin',
   displayName: 'Administrateur',
   subtitle: 'Votre responsable',
   initial: 'A',
 };
 
-export default function VendorChatAdmin({ vendorName, vendorDbId, vendorAuthId, onAdminMessageViewed }: VendorChatAdminProps) {
+export default function VendorChatAdmin({ vendorName, vendorDbId, vendorAuthId, onAdminMessageViewed, isAdmin }: VendorChatAdminProps) {
   const tokens = useThemeTokens();
   const [userId, setUserId] = useState<string | null>(vendorAuthId ?? null);
   const [vendorId, setVendorId] = useState<string | null>(vendorDbId ?? null);
@@ -53,7 +54,7 @@ export default function VendorChatAdmin({ vendorName, vendorDbId, vendorAuthId, 
       } else {
         query = query.eq('vendor_auth_id', userId!);
       }
-      const { data } = await query.order('created_at', { ascending: true });
+      const { data } = await query.or('deleted.is.null,deleted.eq.false').order('created_at', { ascending: true });
       setMessages((data ?? []) as ChatMessage[]);
     } finally {
       if (showLoader) setLoading(false);
@@ -117,6 +118,20 @@ export default function VendorChatAdmin({ vendorName, vendorDbId, vendorAuthId, 
     setMessages(prev => prev.map(m => m.id === id ? { ...m, deleted: true } : m));
   }, []);
 
+  const lastMsg = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (!messages[i].deleted) return messages[i];
+    }
+    return null;
+  }, [messages]);
+
+  const adminContact: ChatContact = useMemo(() => ({
+    ...ADMIN_CONTACT_BASE,
+    lastMessage: lastMsg?.content || undefined,
+    lastMessageAt: lastMsg?.created_at || undefined,
+    lastMessageSender: lastMsg?.sender || undefined,
+  }), [lastMsg]);
+
   return (
     <div className="flex flex-col flex-1 space-y-2 md:space-y-4" style={{ minHeight: 0 }}>
       <div className="flex items-center justify-between flex-shrink-0">
@@ -134,7 +149,7 @@ export default function VendorChatAdmin({ vendorName, vendorDbId, vendorAuthId, 
 
       <div className="flex-1 overflow-hidden" style={{ minHeight: 0 }}>
         <MessagingPanel
-          contacts={[ADMIN_CONTACT]}
+          contacts={[adminContact]}
           selectedContactId={selectedId}
           onSelectContact={setSelectedId}
           messages={messages}
@@ -145,6 +160,7 @@ export default function VendorChatAdmin({ vendorName, vendorDbId, vendorAuthId, 
           accentRgb="34,211,238"
           onSendMessage={handleSend}
           onDeleteMessage={handleDelete}
+          isAdmin={isAdmin}
           loading={loading}
         />
       </div>

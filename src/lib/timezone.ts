@@ -98,6 +98,25 @@ export function getTzCountryLabel(tz: string): string {
   return tz.split('/').pop()?.replace(/_/g, ' ') ?? tz;
 }
 
+export function getTzCountryCode(tz: string): string {
+  const tzData = allTimezones[tz as keyof typeof allTimezones];
+  if (tzData && tzData.countries && tzData.countries.length > 0) {
+    return tzData.countries[0];
+  }
+  const entry = searchIndex.find(e => e.timezone === tz);
+  if (entry?.country) return entry.country.slice(0, 2).toUpperCase();
+  return 'TZ';
+}
+
+export function formatTodayInTz(tz: string): string {
+  return new Date().toLocaleDateString('fr-FR', {
+    timeZone: tz,
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+}
+
 export function formatMessageTime(iso: string, tz: string): string {
   let s = iso.replace(' ', 'T');
   if (/[+-]\d{2}$/.test(s)) s += ':00';

@@ -116,7 +116,7 @@ export function useVendorLeadsData(vendorId: string | null) {
   const toggleOne = (id: string) => { setSelected(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; }); };
 
   return {
-    leads, statutDefs, loading, filtered, selected,
+    leads, statutDefs, loading, filtered, selected, setSelected,
     allChecked, someChecked, toggleAll, toggleOne,
     filterEmail, setFilterEmail, filterTel, setFilterTel,
     filterPrenom, setFilterPrenom, filterNom, setFilterNom,

@@ -5,6 +5,7 @@ import { ClientDropdownEmpty, NotifRow, ClientAgendaNotifItem, PropositionNotifI
 import type { PropositionNotifEntry } from '../../ClientTopBar';
 import type { AgendaNotifEntry } from '../../../../hooks/useAgendaNotifications';
 import type { ThemeTokens } from '../../../../lib/themeTokensTypes';
+import { formatTodayInTz } from '../../../../lib/timezone';
 
 interface Props {
   open: boolean;
@@ -20,9 +21,11 @@ interface Props {
   onAgendaEntryClick?: (rdvId: string) => void;
   propositionsCount: number;
   propositionsEntries: PropositionNotifEntry[];
-  onPropositionEntryClick?: () => void;
+  onPropositionEntryClick?: (proposalId: string) => void;
+  timezone: string;
   tokens: ThemeTokens;
   containerRef: React.RefObject<HTMLDivElement>;
+  panelRef?: React.RefObject<HTMLDivElement>;
 }
 
 export default function ClientMobileBellMenu({
@@ -30,9 +33,10 @@ export default function ClientMobileBellMenu({
   unreadMessageCount, unreadLatestAt, onMessageNotifClick,
   agendaCount, agendaEntries, onAgendaEntryClick,
   propositionsCount, propositionsEntries, onPropositionEntryClick,
-  tokens: t, containerRef,
+  timezone, tokens: t, containerRef, panelRef: externalPanelRef,
 }: Props) {
-  const panelRef = useRef<HTMLDivElement>(null);
+  const internalPanelRef = useRef<HTMLDivElement>(null);
+  const panelRef = externalPanelRef ?? internalPanelRef;
 
   return (
     <div className="relative md:hidden" ref={containerRef}>
@@ -68,6 +72,9 @@ export default function ClientMobileBellMenu({
               <div className="px-3 py-2 border-b" style={{ borderColor: t.dropdown.border }}>
                 <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: t.topbar.notifIcon }}>
                   Notifications
+                </p>
+                <p className="text-[11px] mt-0.5 capitalize" style={{ color: t.dropdown.itemText }}>
+                  {formatTodayInTz(timezone)}
                 </p>
               </div>
               {([
@@ -131,7 +138,7 @@ export default function ClientMobileBellMenu({
                     <ClientDropdownEmpty text="Aucune nouvelle proposition" tokens={t} />
                   ) : (
                     propositionsEntries.map(entry => (
-                      <PropositionNotifItem key={entry.id} entry={entry} tokens={t.dropdown} onClick={() => { setOpen(false); setCategory(null); onPropositionEntryClick?.(); }} />
+                      <PropositionNotifItem key={entry.id} entry={entry} tokens={t.dropdown} onClick={() => { setOpen(false); setCategory(null); onPropositionEntryClick?.(entry.id); }} />
                     ))
                   )
                 )}

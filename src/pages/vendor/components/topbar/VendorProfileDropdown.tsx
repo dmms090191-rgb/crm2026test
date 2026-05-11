@@ -43,7 +43,7 @@ export default function VendorProfileDropdown({ vendorName, theme, setTheme, tok
             boxShadow: '0 0 16px rgba(14,165,233,0.35)',
           }}
         >
-          {vendorName.charAt(0).toUpperCase()}
+          {vendorName.split(' ').map(w => w.charAt(0)).join('').toUpperCase().slice(0, 2) || 'V'}
         </div>
         <div className="hidden lg:block text-left">
           <p className="text-xs font-semibold leading-tight" style={{ color: tokens.topbar.profileName }}>{vendorName}</p>

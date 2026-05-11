@@ -25,6 +25,7 @@ interface Props {
   onOpenChat?: (ref: { id: string; nom: string; prenom: string; email: string; tel: string }) => void;
   onOpenRdv?: (ref: { id: string; nom: string; prenom: string; email: string; tel: string }) => void;
   onConnectAsClient?: (ref: { id: string; nom: string; prenom: string; email: string }) => void;
+  selectMode?: boolean;
   cardRef: (el: HTMLDivElement | null) => void;
 }
 
@@ -32,7 +33,7 @@ export default function VendorLeadMobileCard({
   lead, index, statutDefs, isSelected, workModeEnabled, workModeActiveId,
   workHistoryLength, workHistoryPosition, canUndo, canRedo,
   onWorkSelect, onWorkUndo, onWorkRedo, onToggle, onStatutChange,
-  onToggleActif, onDetail, onOpenChat, onOpenRdv, onConnectAsClient, cardRef,
+  onToggleActif, onDetail, onOpenChat, onOpenRdv, onConnectAsClient, selectMode, cardRef,
 }: Props) {
   const tokens = useThemeTokens();
   const nom = lead.data['Nom'] ?? '';
@@ -71,9 +72,9 @@ export default function VendorLeadMobileCard({
                 </div>
               )}
             </>
-          ) : (
+          ) : selectMode ? (
             <CheckBox checked={isSelected} onChange={() => onToggle(lead.id)} />
-          )}
+          ) : null}
         </div>
         <span className="text-[10px] tabular-nums font-medium" style={{ color: tokens.table.indexText }}>#{index + 1}</span>
       </div>

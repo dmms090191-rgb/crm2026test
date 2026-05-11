@@ -6,6 +6,7 @@ import type { ClientNotifEntry, VendorNotifEntry, ConfirmedProposalEntry } from 
 import type { AgendaNotifEntry } from '../../../../hooks/useAgendaNotifications';
 import type { AgendaEquipeNotifEntry } from '../../../../hooks/useAgendaEquipeNotifications';
 import type { ThemeTokens } from '../../../../lib/themeTokensTypes';
+import { formatTodayInTz } from '../../../../lib/timezone';
 
 interface Props {
   open: boolean;
@@ -28,6 +29,7 @@ interface Props {
   propositionsCount: number;
   propositionsEntries: ConfirmedProposalEntry[];
   onPropositionEntryClick?: (proposalId: string) => void;
+  timezone: string;
   tokens: ThemeTokens;
   containerRef: React.RefObject<HTMLDivElement>;
   panelRef?: React.RefObject<HTMLDivElement>;
@@ -40,7 +42,7 @@ export default function AdminMobileBellMenu({
   agendaPersoCount, agendaPersoEntries, onAgendaPersoEntryClick,
   agendaEquipeCount, agendaEquipeEntries, onAgendaEquipeEntryClick,
   propositionsCount, propositionsEntries, onPropositionEntryClick,
-  tokens: t, containerRef, panelRef: externalPanelRef,
+  timezone, tokens: t, containerRef, panelRef: externalPanelRef,
 }: Props) {
   const internalPanelRef = useRef<HTMLDivElement>(null);
   const panelRef = externalPanelRef ?? internalPanelRef;
@@ -79,6 +81,9 @@ export default function AdminMobileBellMenu({
               <div className="px-3 py-2 border-b" style={{ borderColor: t.dropdown.border }}>
                 <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: t.topbar.notifIcon }}>
                   Notifications
+                </p>
+                <p className="text-[11px] mt-0.5 capitalize" style={{ color: t.dropdown.itemText }}>
+                  {formatTodayInTz(timezone)}
                 </p>
               </div>
               {([

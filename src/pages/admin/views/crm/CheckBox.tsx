@@ -16,8 +16,8 @@ export default function CheckBox({ checked, indeterminate, onChange }: CheckBoxP
       style={{
         width: 16,
         height: 16,
-        background: checked || indeterminate ? tokens.danger.bg : 'rgba(255,255,255,0.05)',
-        border: checked || indeterminate ? `1px solid ${tokens.danger.border}` : '1px solid rgba(255,255,255,0.12)',
+        background: checked || indeterminate ? tokens.danger.bg : tokens.input.bg,
+        border: checked || indeterminate ? `1px solid ${tokens.danger.border}` : `1px solid ${tokens.input.border}`,
       }}
     >
       {checked && (

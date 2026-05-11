@@ -18,9 +18,10 @@ interface VendorChatClientProps {
   initialLead?: VendorChatLead | null;
   onClientViewed?: (clientAuthId: string) => void;
   onReturnToLeads?: () => void;
+  isAdmin?: boolean;
 }
 
-export default function VendorChatClient({ vendorName, vendorDbId, initialLead, onClientViewed, onReturnToLeads }: VendorChatClientProps) {
+export default function VendorChatClient({ vendorName, vendorDbId, initialLead, onClientViewed, onReturnToLeads, isAdmin }: VendorChatClientProps) {
   const tokens = useThemeTokens();
   const chatReturnCtx = onReturnToLeads ? peekChatReturnContext() : null;
   const [leads, setLeads] = useState<LeadRow[]>([]);
@@ -40,25 +41,36 @@ export default function VendorChatClient({ vendorName, vendorDbId, initialLead, 
         .eq('vendor_id', vendorDbId)
         .eq('actif', true)
         .order('imported_at', { ascending: false });
-      const loadedLeads = (data ?? []) as LeadRow[];
-      setLeads(loadedLeads);
-      setContactLoading(false);
+      const allLeads = (data ?? []) as LeadRow[];
 
-      const authIds = loadedLeads.map(l => l.data['AuthId'] ?? l.data['auth_id'] ?? l.id);
+      const authIds = allLeads.map(l => l.data['AuthId'] ?? l.data['auth_id'] ?? l.id);
+      let authIdsWithMessages: string[] = [];
+      const map: Record<string, { content: string; created_at: string; sender: string }> = {};
+
       if (authIds.length > 0) {
-        const { data: lastMsgs } = await supabase
+        const { data: msgData } = await supabase
           .from('client_messages')
           .select('client_auth_id, content, created_at, sender')
           .in('client_auth_id', authIds)
+          .or('deleted.is.null,deleted.eq.false')
           .order('created_at', { ascending: false });
-        const map: Record<string, { content: string; created_at: string; sender: string }> = {};
-        (lastMsgs ?? []).forEach((m: { client_auth_id: string; content: string; created_at: string; sender: string }) => {
+        (msgData ?? []).forEach((m: { client_auth_id: string; content: string; created_at: string; sender: string }) => {
           if (!map[m.client_auth_id]) map[m.client_auth_id] = m;
         });
-        setLastMessages(map);
+        authIdsWithMessages = Object.keys(map);
       }
+
+      const filtered = allLeads.filter(l => {
+        if (initialLead && l.id === initialLead.id) return true;
+        const authId = l.data['AuthId'] ?? l.data['auth_id'] ?? l.id;
+        return authIdsWithMessages.includes(authId);
+      });
+
+      setLeads(filtered);
+      setLastMessages(map);
+      setContactLoading(false);
     })();
-  }, [vendorDbId]);
+  }, [vendorDbId, initialLead]);
 
   useEffect(() => {
     if (initialLead) setSelectedId(initialLead.id);
@@ -81,6 +93,7 @@ export default function VendorChatClient({ vendorName, vendorDbId, initialLead, 
         .from('client_messages')
         .select('*')
         .eq('client_auth_id', clientAuthId)
+        .or('deleted.is.null,deleted.eq.false')
         .order('created_at', { ascending: true });
       setMessages((data ?? []) as ChatMessage[]);
     } finally {
@@ -124,6 +137,7 @@ export default function VendorChatClient({ vendorName, vendorDbId, initialLead, 
     await supabase.from('client_messages').update({ deleted: true }).eq('id', id);
     setMessages(prev => prev.map(m => m.id === id ? { ...m, deleted: true } : m));
   }, []);
+
 
   const contacts: ChatContact[] = leads.map(l => {
     const nom = l.data['Nom'] ?? l.data['nom'] ?? '';
@@ -176,6 +190,7 @@ export default function VendorChatClient({ vendorName, vendorDbId, initialLead, 
           accentRgb="52,211,153"
           onSendMessage={handleSend}
           onDeleteMessage={handleDelete}
+          isAdmin={isAdmin}
           loading={loading}
           contactLoading={contactLoading}
           returnContactId={chatReturnCtx?.leadId ?? null}

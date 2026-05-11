@@ -13,6 +13,8 @@ export interface ChatMessage {
   vendor_auth_id?: string;
   client_auth_id?: string;
   vendor_id?: string;
+  _pending?: boolean;
+  _failed?: boolean;
 }
 
 export type UserRole = 'admin' | 'vendor' | 'client';
@@ -40,10 +42,18 @@ export interface MessagingPanelProps {
   onSendMessage: (content: string, file?: { url: string; name: string; type: string }) => Promise<void>;
   onDeleteMessage: (id: string) => Promise<void>;
   onResetChat?: () => Promise<void>;
+  isAdmin?: boolean;
   loading: boolean;
   contactLoading?: boolean;
   returnContactId?: string | null;
   onReturnClick?: () => void;
+  sidebarSelectable?: boolean;
+  sidebarSelectMode?: boolean;
+  onSidebarToggleSelectMode?: () => void;
+  sidebarSelectedIds?: Set<string>;
+  onSidebarToggleSelect?: (id: string) => void;
+  onSidebarSelectAll?: (all: boolean) => void;
+  onSidebarDeleteSelected?: () => void;
 }
 
 export const SENDER_STYLES: Record<string, { gradient: string; glow: string; bubbleGradient: string; bubbleSolid: (tokens: ReturnType<typeof getThemeTokens>) => React.CSSProperties }> = {

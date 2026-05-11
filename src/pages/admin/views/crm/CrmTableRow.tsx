@@ -20,6 +20,7 @@ interface Props {
   onConnectAsClient?: (client: ImpersonatedClient) => void;
   onOpenChat?: (lead: ChatLead) => void;
   onOpenRdv?: (lead: ChatLead) => void;
+  selectMode?: boolean;
   workModeEnabled?: boolean;
   isWorkActive?: boolean;
   onWorkSelect?: (id: string) => void;
@@ -31,7 +32,7 @@ interface Props {
   workHistoryLength?: number;
 }
 
-const CrmTableRow = forwardRef<HTMLTableRowElement, Props>(function CrmTableRow({ lead, index, isSelected, statutDefs, vendors, tokens, colSep, onToggle, onStatutChange, onToggleActif, onDetail, onConnectAsClient, onOpenChat, onOpenRdv, workModeEnabled, isWorkActive, onWorkSelect, onWorkUndo, onWorkRedo, canWorkUndo, canWorkRedo, workHistoryPosition, workHistoryLength }, ref) {
+const CrmTableRow = forwardRef<HTMLTableRowElement, Props>(function CrmTableRow({ lead, index, isSelected, statutDefs, vendors, tokens, colSep, onToggle, onStatutChange, onToggleActif, onDetail, onConnectAsClient, onOpenChat, onOpenRdv, selectMode, workModeEnabled, isWorkActive, onWorkSelect, onWorkUndo, onWorkRedo, canWorkUndo, canWorkRedo, workHistoryPosition, workHistoryLength }, ref) {
   const nom = lead.data['Nom'] ?? '';
   const prenom = lead.data['Prenom'] ?? '';
   const email = lead.data['Email'] ?? '';
@@ -55,47 +56,49 @@ const CrmTableRow = forwardRef<HTMLTableRowElement, Props>(function CrmTableRow(
       onMouseEnter={e => { if (!isSelected && !isWorkActive) e.currentTarget.style.background = tokens.table.rowHover; }}
       onMouseLeave={e => { e.currentTarget.style.background = workModeEnabled && isWorkActive ? 'rgba(249,115,22,0.04)' : isSelected ? tokens.table.rowSelected : 'transparent'; }}
     >
-      <td className="px-3 py-3.5 w-28" style={colSep}>
-        {workModeEnabled ? (
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => onWorkSelect?.(lead.id)}
-              className="w-5 h-5 rounded-md flex items-center justify-center transition-all flex-shrink-0"
-              style={isWorkActive
-                ? { background: 'rgba(249,115,22,0.15)', border: '1px solid rgba(249,115,22,0.4)' }
-                : { background: tokens.input.bg, border: `1px solid ${tokens.input.border}` }
-              }
-            >
-              {isWorkActive && <CheckCircle2 className="w-3.5 h-3.5" style={{ color: '#f97316' }} />}
-            </button>
-            {isWorkActive && (workHistoryLength ?? 0) > 0 && (
-              <div className="flex items-center gap-0.5 ml-1">
-                <button
-                  onClick={onWorkUndo}
-                  disabled={!canWorkUndo}
-                  className="w-5 h-5 rounded flex items-center justify-center disabled:opacity-30"
-                  style={{ color: '#f97316' }}
-                >
-                  <Undo2 className="w-3 h-3" />
-                </button>
-                <span className="text-[9px] font-semibold tabular-nums" style={{ color: '#f97316' }}>
-                  {workHistoryPosition}/{workHistoryLength}
-                </span>
-                <button
-                  onClick={onWorkRedo}
-                  disabled={!canWorkRedo}
-                  className="w-5 h-5 rounded flex items-center justify-center disabled:opacity-30"
-                  style={{ color: '#f97316' }}
-                >
-                  <Redo2 className="w-3 h-3" />
-                </button>
-              </div>
-            )}
-          </div>
-        ) : (
-          <CheckBox checked={isSelected} onChange={() => onToggle(lead.id)} />
-        )}
-      </td>
+      {(selectMode || workModeEnabled) && (
+        <td className="px-2 py-3.5 w-11" style={colSep}>
+          {workModeEnabled ? (
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => onWorkSelect?.(lead.id)}
+                className="w-5 h-5 rounded-md flex items-center justify-center transition-all flex-shrink-0"
+                style={isWorkActive
+                  ? { background: 'rgba(249,115,22,0.15)', border: '1px solid rgba(249,115,22,0.4)' }
+                  : { background: tokens.input.bg, border: `1px solid ${tokens.input.border}` }
+                }
+              >
+                {isWorkActive && <CheckCircle2 className="w-3.5 h-3.5" style={{ color: '#f97316' }} />}
+              </button>
+              {isWorkActive && (workHistoryLength ?? 0) > 0 && (
+                <div className="flex items-center gap-0.5 ml-1">
+                  <button
+                    onClick={onWorkUndo}
+                    disabled={!canWorkUndo}
+                    className="w-5 h-5 rounded flex items-center justify-center disabled:opacity-30"
+                    style={{ color: '#f97316' }}
+                  >
+                    <Undo2 className="w-3 h-3" />
+                  </button>
+                  <span className="text-[9px] font-semibold tabular-nums" style={{ color: '#f97316' }}>
+                    {workHistoryPosition}/{workHistoryLength}
+                  </span>
+                  <button
+                    onClick={onWorkRedo}
+                    disabled={!canWorkRedo}
+                    className="w-5 h-5 rounded flex items-center justify-center disabled:opacity-30"
+                    style={{ color: '#f97316' }}
+                  >
+                    <Redo2 className="w-3 h-3" />
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <CheckBox checked={isSelected} onChange={() => onToggle(lead.id)} />
+          )}
+        </td>
+      )}
       <td className="px-5 py-3.5 text-xs tabular-nums" style={{ ...colSep, color: tokens.table.indexText }}>{index + 1}</td>
       <td className="px-5 py-3.5" style={colSep}>
         <div className="flex items-center gap-2.5">

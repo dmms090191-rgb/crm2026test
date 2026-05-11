@@ -1,3 +1,4 @@
+import { useState, useCallback } from 'react';
 import { Users, Phone, Mail, ChevronDown, Filter, SlidersHorizontal } from 'lucide-react';
 import { useThemeTokens } from '../../../hooks/useThemeTokens';
 import DualScrollWrapper from '../../../components/DualScrollWrapper';
@@ -14,6 +15,14 @@ export default function VendorLeads({ vendorId, onOpenChat, onConnectAsClient, o
   const tokens = useThemeTokens();
   const d = useVendorLeadsData(vendorId);
   const colSep = { borderRight: `1px solid ${tokens.table.colSep}` };
+
+  const [selectMode, setSelectMode] = useState(false);
+  const handleToggleSelectMode = useCallback(() => {
+    setSelectMode(prev => {
+      if (prev) d.setSelected(new Set());
+      return !prev;
+    });
+  }, [d]);
 
   return (
     <div className="space-y-5">
@@ -157,6 +166,7 @@ export default function VendorLeads({ vendorId, onOpenChat, onConnectAsClient, o
             <div className="hidden md:block">
               <VendorLeadWorkModeBar
                 allChecked={d.allChecked} someChecked={d.someChecked} toggleAll={d.toggleAll}
+                selectMode={selectMode} onToggleSelectMode={handleToggleSelectMode}
                 workModeEnabled={d.workMode.enabled} onWorkModeToggle={() => d.workMode.enabled ? d.workMode.deactivate() : d.workMode.activate()}
                 onUndo={d.workMode.undo} onRedo={d.workMode.redo} canUndo={d.workMode.canUndo} canRedo={d.workMode.canRedo}
                 historyPosition={d.workMode.historyPosition} historyLength={d.workMode.historyLength}
@@ -167,15 +177,15 @@ export default function VendorLeads({ vendorId, onOpenChat, onConnectAsClient, o
                 <table className="w-full" style={{ borderCollapse: 'collapse', minWidth: 'max-content' }}>
                   <thead>
                     <tr style={{ borderBottom: `1px solid ${tokens.table.headerBorder}`, background: tokens.table.headerBg }}>
-                      <th className="px-3 py-3 w-28" style={colSep}></th>
+                      {(selectMode || d.workMode.enabled) && <th className="px-2 py-3 w-11" style={colSep}></th>}
                       <th className="text-left px-5 py-3 text-[10px] font-bold tracking-[0.12em] uppercase w-12" style={{ color: tokens.table.headerText, ...colSep }}>#</th>
                       <th className="text-left px-5 py-3 text-[10px] font-bold tracking-[0.12em] uppercase" style={{ color: tokens.table.headerText, ...colSep }}>Nom</th>
                       <th className="text-left px-5 py-3 text-[10px] font-bold tracking-[0.12em] uppercase" style={{ color: tokens.table.headerText, ...colSep }}>Prenom</th>
                       <th className="text-left px-5 py-3 text-[10px] font-bold tracking-[0.12em] uppercase" style={{ color: tokens.table.headerText, ...colSep }}>Email</th>
                       <th className="text-left px-5 py-3 text-[10px] font-bold tracking-[0.12em] uppercase" style={{ color: tokens.table.headerText, ...colSep }}>Telephone</th>
                       <th className="text-left px-5 py-3 text-[10px] font-bold tracking-[0.12em] uppercase" style={{ color: tokens.table.headerText, ...colSep }}>Statut</th>
-                      <th className="text-left px-5 py-3 text-[10px] font-bold tracking-[0.12em] uppercase" style={{ color: tokens.table.headerText, ...colSep }}>Acces</th>
-                      <th className="text-left px-5 py-3 text-[10px] font-bold tracking-[0.12em] uppercase" style={{ color: tokens.table.headerText }}>Actions</th>
+                      <th className="text-left px-5 py-3 text-[10px] font-bold tracking-[0.12em] uppercase" style={{ color: tokens.table.headerText, ...colSep }}>Actions</th>
+                      <th className="text-left px-5 py-3 text-[10px] font-bold tracking-[0.12em] uppercase" style={{ color: tokens.table.headerText }}>Acces</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -184,6 +194,7 @@ export default function VendorLeads({ vendorId, onOpenChat, onConnectAsClient, o
                         key={lead.id}
                         ref={el => { if (el) d.rowRefsMap.current.set(lead.id, el); else d.rowRefsMap.current.delete(lead.id); }}
                         lead={lead} index={i} statutDefs={d.statutDefs} isSelected={d.selected.has(lead.id)} colSep={colSep}
+                        selectMode={selectMode}
                         workModeEnabled={d.workMode.enabled} isWorkActive={d.workMode.activeId === lead.id}
                         workHistoryLength={d.workMode.historyLength} workHistoryPosition={d.workMode.historyPosition}
                         canUndo={d.workMode.canUndo} canRedo={d.workMode.canRedo}
@@ -202,6 +213,7 @@ export default function VendorLeads({ vendorId, onOpenChat, onConnectAsClient, o
             <div className="md:hidden">
               <VendorLeadWorkModeBar
                 allChecked={d.allChecked} someChecked={d.someChecked} toggleAll={d.toggleAll}
+                selectMode={selectMode} onToggleSelectMode={handleToggleSelectMode}
                 workModeEnabled={d.workMode.enabled} onWorkModeToggle={() => d.workMode.enabled ? d.workMode.deactivate() : d.workMode.activate()}
                 onUndo={d.workMode.undo} onRedo={d.workMode.redo} canUndo={d.workMode.canUndo} canRedo={d.workMode.canRedo}
                 historyPosition={d.workMode.historyPosition} historyLength={d.workMode.historyLength}
@@ -213,6 +225,7 @@ export default function VendorLeads({ vendorId, onOpenChat, onConnectAsClient, o
                   <VendorLeadMobileCard
                     key={lead.id}
                     lead={lead} index={i} statutDefs={d.statutDefs} isSelected={d.selected.has(lead.id)}
+                    selectMode={selectMode}
                     workModeEnabled={d.workMode.enabled} workModeActiveId={d.workMode.activeId}
                     workHistoryLength={d.workMode.historyLength} workHistoryPosition={d.workMode.historyPosition}
                     canUndo={d.workMode.canUndo} canRedo={d.workMode.canRedo}

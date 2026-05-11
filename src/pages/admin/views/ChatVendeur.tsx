@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { MessageSquare } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import MessagingPanel, { ChatMessage, ChatContact } from '../../../components/chat/ChatView';
@@ -29,7 +29,7 @@ export default function ChatVendeur({ initialVendor, onMessageSent, onVendorView
       try {
         const [{ data: vendorData }, { data: msgData }] = await Promise.all([
           supabase.from('vendors').select('id,first_name,last_name,email,auth_user_id,password,phone,created_at').order('last_name'),
-          supabase.from('vendor_admin_messages').select('vendor_id').not('vendor_id', 'is', null),
+          supabase.from('vendor_admin_messages').select('vendor_id').not('vendor_id', 'is', null).or('deleted.is.null,deleted.eq.false'),
         ]);
         if (cancelled) return;
         if (vendorData) setAllVendors(vendorData as Vendor[]);
@@ -41,6 +41,7 @@ export default function ChatVendeur({ initialVendor, onMessageSent, onVendorView
             .from('vendor_admin_messages')
             .select('vendor_id, content, created_at, sender')
             .in('vendor_id', vendorIdsWithMsgs)
+            .or('deleted.is.null,deleted.eq.false')
             .order('created_at', { ascending: false });
           const map: Record<string, { content: string; created_at: string; sender: string }> = {};
           (lastMsgs ?? []).forEach((m: { vendor_id: string; content: string; created_at: string; sender: string }) => {
@@ -90,6 +91,7 @@ export default function ChatVendeur({ initialVendor, onMessageSent, onVendorView
         .from('vendor_admin_messages')
         .select('*')
         .eq('vendor_id', selectedVendorId)
+        .or('deleted.is.null,deleted.eq.false')
         .order('created_at', { ascending: true });
       setMessages((data ?? []) as ChatMessage[]);
     } finally {
@@ -136,6 +138,7 @@ export default function ChatVendeur({ initialVendor, onMessageSent, onVendorView
     setMessages(prev => prev.map(m => m.id === id ? { ...m, deleted: true } : m));
   }, []);
 
+
   const handleReset = useCallback(async () => {
     if (!selectedVendorId) return;
     await supabase.from('vendor_admin_messages').delete().eq('vendor_id', selectedVendorId);
@@ -154,6 +157,56 @@ export default function ChatVendeur({ initialVendor, onMessageSent, onVendorView
     return withMsgs;
   })();
 
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedConvos, setSelectedConvos] = useState<Set<string>>(new Set());
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const handleToggleSelectMode = useCallback(() => {
+    setSelectMode(prev => {
+      if (prev) setSelectedConvos(new Set());
+      return !prev;
+    });
+  }, []);
+
+  const handleToggleConvo = useCallback((id: string) => {
+    setSelectedConvos(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const handleSelectAll = useCallback((all: boolean) => {
+    if (all) {
+      const allIds = vendorsForContacts.map(v => v.id);
+      setSelectedConvos(new Set(allIds));
+    } else {
+      setSelectedConvos(new Set());
+    }
+  }, [vendorsForContacts]);
+
+  const handleDeleteConvos = useCallback(() => { setConfirmDelete(true); }, []);
+
+  const handleConfirmDeleteConvos = useCallback(async () => {
+    const ids = [...selectedConvos];
+    await Promise.all(ids.map(vendorId =>
+      supabase.from('vendor_admin_messages').update({ deleted: true }).eq('vendor_id', vendorId)
+    ));
+    if (selectedVendorId && ids.includes(selectedVendorId)) {
+      setMessages([]);
+      setSelectedVendorId(null);
+    }
+    setVendorsWithMessages(prev => prev.filter(id => !ids.includes(id)));
+    setLastMessages(prev => {
+      const next = { ...prev };
+      ids.forEach(id => delete next[id]);
+      return next;
+    });
+    setSelectedConvos(new Set());
+    setSelectMode(false);
+    setConfirmDelete(false);
+  }, [selectedConvos, selectedVendorId]);
+
   const contacts: ChatContact[] = vendorsForContacts.map(v => {
     const lastMsg = lastMessages[v.id];
     return {
@@ -166,6 +219,8 @@ export default function ChatVendeur({ initialVendor, onMessageSent, onVendorView
       lastMessageSender: lastMsg?.sender || undefined,
     };
   });
+
+  const selectedConvoIds = useMemo(() => selectedConvos, [selectedConvos]);
 
   return (
     <div className="flex flex-col flex-1 space-y-2 md:space-y-4" style={{ minHeight: 0 }}>
@@ -196,10 +251,35 @@ export default function ChatVendeur({ initialVendor, onMessageSent, onVendorView
           onSendMessage={handleSend}
           onDeleteMessage={handleDelete}
           onResetChat={handleReset}
+          isAdmin={true}
           loading={loading}
           contactLoading={contactLoading}
+          sidebarSelectable={true}
+          sidebarSelectMode={selectMode}
+          onSidebarToggleSelectMode={handleToggleSelectMode}
+          sidebarSelectedIds={selectedConvoIds}
+          onSidebarToggleSelect={handleToggleConvo}
+          onSidebarSelectAll={handleSelectAll}
+          onSidebarDeleteSelected={handleDeleteConvos}
         />
       </div>
+
+      {confirmDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.5)' }}>
+          <div className="rounded-2xl p-6 max-w-sm w-full mx-4 space-y-4" style={{ background: tokens.surface.primary, border: `1px solid ${tokens.surface.border}` }}>
+            <p className="text-sm font-semibold" style={{ color: tokens.text.primary }}>
+              {selectedConvos.size > 1 ? 'Voulez-vous vraiment supprimer ces conversations ?' : 'Voulez-vous vraiment supprimer cette conversation ?'}
+            </p>
+            <p className="text-xs" style={{ color: tokens.text.tertiary }}>
+              Les messages seront masques des deux cotes (admin et vendeur).
+            </p>
+            <div className="flex items-center gap-3 justify-end">
+              <button onClick={() => setConfirmDelete(false)} className="px-4 py-2 rounded-lg text-xs font-semibold" style={{ background: tokens.surface.hover, color: tokens.text.secondary }}>Annuler</button>
+              <button onClick={handleConfirmDeleteConvos} className="px-4 py-2 rounded-lg text-xs font-semibold text-white" style={{ background: '#ef4444' }}>Supprimer</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

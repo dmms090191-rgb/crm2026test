@@ -26,6 +26,7 @@ interface Props {
   onOpenChat?: (lead: ChatLead) => void;
   onOpenRdv?: (lead: ChatLead) => void;
   onConnectAsClient?: (client: ImpersonatedClient) => void;
+  selectMode?: boolean;
   cardRef: (el: HTMLDivElement | null) => void;
 }
 
@@ -33,7 +34,7 @@ export default function CrmMobileLeadCard({
   lead, index, statutDefs, vendors, isSelected, workModeEnabled, workModeActiveId,
   workHistoryLength, workHistoryPosition, canUndo, canRedo,
   onWorkSelect, onWorkUndo, onWorkRedo, onToggle, onStatutChange,
-  onToggleActif, onDetail, onOpenChat, onOpenRdv, onConnectAsClient, cardRef,
+  onToggleActif, onDetail, onOpenChat, onOpenRdv, onConnectAsClient, selectMode, cardRef,
 }: Props) {
   const tokens = useThemeTokens();
   const nom = lead.data['Nom'] ?? '';
@@ -73,9 +74,9 @@ export default function CrmMobileLeadCard({
                 </div>
               )}
             </>
-          ) : (
+          ) : selectMode ? (
             <CheckBox checked={isSelected} onChange={() => onToggle(lead.id)} />
-          )}
+          ) : null}
         </div>
         <span className="text-[10px] tabular-nums font-medium" style={{ color: tokens.table.indexText }}>#{index + 1}</span>
       </div>

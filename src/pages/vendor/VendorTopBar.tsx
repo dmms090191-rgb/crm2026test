@@ -49,7 +49,7 @@ interface VendorTopBarProps {
 export default function VendorTopBar({ breadcrumb, onMobileMenuToggle, vendorName = 'Vendeur', isImpersonating, onBackToAdmin, unreadAdminCount = 0, unreadAdminLatestAt, onAdminNotifClick, unreadClientCount = 0, unreadClientEntries = [], onClientEntryClick, agendaCount = 0, agendaEntries = [], onAgendaEntryClick, propositionsCount = 0, propositionsEntries = [], onPropositionEntryClick }: VendorTopBarProps) {
   const { theme, setTheme } = useTheme();
   const tokens = useThemeTokens();
-  const { timezone, tzLabel, setTimezone } = useTimezone();
+  const { timezone, tzLabel, tzCode, setTimezone } = useTimezone();
   const [tzModalOpen, setTzModalOpen] = useState(false);
   const [adminDropdownOpen, setAdminDropdownOpen] = useState(false);
   const [clientDropdownOpen, setClientDropdownOpen] = useState(false);
@@ -169,6 +169,7 @@ export default function VendorTopBar({ breadcrumb, onMobileMenuToggle, vendorNam
           propositionsCount={propositionsCount}
           propositionsEntries={propositionsEntries}
           onPropositionEntryClick={onPropositionEntryClick}
+          timezone={timezone}
           tokens={tokens}
           containerRef={mobileNotifRef}
         />
@@ -202,7 +203,7 @@ export default function VendorTopBar({ breadcrumb, onMobileMenuToggle, vendorNam
           badgeColors={badgeColors}
         />
 
-        <VendorClockButton tzLabel={tzLabel} clock={clock} onClick={() => setTzModalOpen(true)} />
+        <VendorClockButton tzLabel={tzLabel} tzCode={tzCode} clock={clock} onClick={() => setTzModalOpen(true)} />
 
         <VendorProfileDropdown
           vendorName={vendorName}

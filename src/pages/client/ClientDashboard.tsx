@@ -37,8 +37,8 @@ export default function ClientDashboard({ onLogout, impersonatedClient, onBackTo
   const [clientAuthId, setClientAuthId] = useState('');
   const { unreadCount: unreadMsgCount, latestAt: unreadLatestAt, markAsRead: markMsgRead } = useUnreadAdminMessages(clientAuthId);
   const { notifications: agendaNotifs, count: agendaCount, markAsSeen: markAgendaSeen } = useAgendaNotifications('client', clientEmail || null);
-  const [unseenProposals, setUnseenProposals] = useState<{ id: string; created_at: string }[]>([]);
-  const unseenProposalsRef = useRef<{ id: string; created_at: string }[]>([]);
+  const [unseenProposals, setUnseenProposals] = useState<{ id: string; lead_name: string; created_at: string }[]>([]);
+  const unseenProposalsRef = useRef<{ id: string; lead_name: string; created_at: string }[]>([]);
 
   useEffect(() => {
     if (impersonatedClient) {
@@ -87,7 +87,7 @@ export default function ClientDashboard({ onLogout, impersonatedClient, onBackTo
       const leadIds = leads.map(l => l.id);
       const { data: proposals } = await supabase
         .from('rdv_proposals')
-        .select('id, vendor_id, lead_id, created_at')
+        .select('id, vendor_id, lead_id, lead_name, created_at')
         .in('lead_id', leadIds)
         .eq('seen_by_client', false)
         .eq('status', 'pending');
@@ -103,7 +103,7 @@ export default function ClientDashboard({ onLogout, impersonatedClient, onBackTo
         if (!leadVendorId) return !p.vendor_id;
         return p.vendor_id === leadVendorId;
       });
-      const entries = valid.map(p => ({ id: p.id, created_at: p.created_at }));
+      const entries = valid.map(p => ({ id: p.id, lead_name: p.lead_name || '', created_at: p.created_at }));
       setUnseenProposals(entries);
       unseenProposalsRef.current = entries;
     };
@@ -123,25 +123,23 @@ export default function ClientDashboard({ onLogout, impersonatedClient, onBackTo
 
   const handleMsgNotifClick = useCallback(() => {
     setActiveView('messagerie');
-  }, []);
+    markMsgRead();
+  }, [markMsgRead]);
 
   const handleAgendaNotifClick = useCallback((rdvId: string) => {
     markAgendaSeen(rdvId);
     setActiveView('agenda');
   }, [markAgendaSeen]);
 
-  const handleProposalNotifClick = useCallback(() => {
-    const ids = unseenProposalsRef.current.map(p => p.id);
-    if (ids.length > 0) {
-      supabase
-        .from('rdv_proposals')
-        .update({ seen_by_client: true })
-        .in('id', ids)
-        .then(() => {
-          setUnseenProposals([]);
-          unseenProposalsRef.current = [];
-        });
-    }
+  const handleProposalNotifClick = useCallback((proposalId: string) => {
+    supabase
+      .from('rdv_proposals')
+      .update({ seen_by_client: true })
+      .eq('id', proposalId)
+      .then(() => {
+        setUnseenProposals(prev => prev.filter(p => p.id !== proposalId));
+        unseenProposalsRef.current = unseenProposalsRef.current.filter(p => p.id !== proposalId);
+      });
     setActiveView('propositions-rdv');
   }, []);
 
@@ -173,7 +171,7 @@ export default function ClientDashboard({ onLogout, impersonatedClient, onBackTo
     if (!clientAuthId && activeView !== 'vue-ensemble') return null;
     switch (activeView) {
       case 'vue-ensemble': return <ClientVueEnsemble clientName={clientName} />;
-      case 'messagerie': return <ClientMessagerie clientName={clientName} clientAuthId={clientAuthId} />;
+      case 'messagerie': return <ClientMessagerie clientName={clientName} clientAuthId={clientAuthId} isAdmin={!!impersonatedClient} />;
       case 'agenda': return <ClientAgenda clientEmail={clientEmail} />;
       case 'propositions-rdv': return <ClientPropositionsRdv clientEmail={clientEmail} onMount={markProposalsSeen} />;
       default: return <ClientVueEnsemble clientName={clientName} />;

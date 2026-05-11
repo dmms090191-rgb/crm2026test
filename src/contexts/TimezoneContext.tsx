@@ -1,12 +1,13 @@
 import { createContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import { supabase } from '../lib/supabase';
-import { getUserTimezone, setUserTimezone, getTzCountryLabel } from '../lib/timezone';
+import { getUserTimezone, setUserTimezone, getTzCountryLabel, getTzCountryCode } from '../lib/timezone';
 
 type PanelRole = 'admin' | 'vendor' | 'client';
 
 export interface TimezoneContextValue {
   timezone: string;
   tzLabel: string;
+  tzCode: string;
   setTimezone: (tz: string) => void;
   userRole: PanelRole;
   userName: string;
@@ -91,9 +92,10 @@ export function TimezoneProvider({ children, panelRole }: TimezoneProviderProps)
   }, [panelRole, userId]);
 
   const tzLabel = getTzCountryLabel(timezone);
+  const tzCode = getTzCountryCode(timezone);
 
   return (
-    <TimezoneContext.Provider value={{ timezone, tzLabel, setTimezone, userRole: panelRole, userName }}>
+    <TimezoneContext.Provider value={{ timezone, tzLabel, tzCode, setTimezone, userRole: panelRole, userName }}>
       {children}
     </TimezoneContext.Provider>
   );

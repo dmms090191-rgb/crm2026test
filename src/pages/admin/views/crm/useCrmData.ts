@@ -188,7 +188,7 @@ export function useCrmData() {
   };
 
   return {
-    leads, statutDefs, vendors, loading, filtered, selected, deleting,
+    leads, statutDefs, vendors, loading, filtered, selected, setSelected, deleting,
     allChecked, someChecked, toggleAll, toggleOne,
     filterVendor, setFilterVendor,
     filterEmail, setFilterEmail, filterTel, setFilterTel,

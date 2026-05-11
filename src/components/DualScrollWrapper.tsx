@@ -47,7 +47,7 @@ export default function DualScrollWrapper({ children, deps = [] }: DualScrollWra
       <div
         ref={topScrollRef}
         onScroll={handleTopScroll}
-        className="dual-scroll-top md:!hidden"
+        className="dual-scroll-top"
       >
         <div ref={topInnerRef} className="dual-scroll-top-inner" />
       </div>

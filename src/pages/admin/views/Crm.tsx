@@ -1,3 +1,4 @@
+import { useState, useCallback } from 'react';
 import { Users } from 'lucide-react';
 import { useThemeTokens } from '../../../hooks/useThemeTokens';
 import type { ImpersonatedClient, ChatLead } from './crm/types';
@@ -24,11 +25,19 @@ export default function Crm({ onConnectAsClient, onOpenChat, onOpenRdv }: CrmPro
   const colSep = { borderRight: `1px solid ${tokens.table.colSep}` };
   const cardStyle = { background: tokens.card.bg, border: tokens.card.border };
 
+  const [selectMode, setSelectMode] = useState(false);
+  const handleToggleSelectMode = useCallback(() => {
+    setSelectMode(prev => {
+      if (prev) d.setSelected(new Set());
+      return !prev;
+    });
+  }, [d]);
+
   return (
     <div className="space-y-5">
       <CrmActionBar
         totalLeads={d.leads.length}
-        selectedCount={d.selected.size}
+        selectedCount={selectMode ? d.selected.size : 0}
         deleting={d.deleting}
         tokens={tokens}
         onTransfer={() => d.setShowTransfer(true)}
@@ -65,20 +74,21 @@ export default function Crm({ onConnectAsClient, onOpenChat, onOpenRdv }: CrmPro
             <div className="hidden md:block">
               <CrmWorkModeBar
                 allChecked={d.allChecked} someChecked={d.someChecked} toggleAll={d.toggleAll}
+                selectMode={selectMode} onToggleSelectMode={handleToggleSelectMode}
                 workModeEnabled={d.workMode.enabled} onWorkModeToggle={() => d.workMode.enabled ? d.workMode.deactivate() : d.workMode.activate()}
                 onUndo={d.workMode.undo} onRedo={d.workMode.redo} canUndo={d.workMode.canUndo} canRedo={d.workMode.canRedo}
                 historyPosition={d.workMode.historyPosition} historyLength={d.workMode.historyLength}
                 onLocate={() => { if (d.workMode.activeId) d.rowRefsMap.current.get(d.workMode.activeId)?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }}
                 canLocate={!!d.workMode.activeId && d.filtered.some(l => l.id === d.workMode.activeId)}
               />
-              <div ref={d.topScrollRef} onScroll={d.handleTopScroll} className="dual-scroll-top md:!hidden">
+              <div ref={d.topScrollRef} onScroll={d.handleTopScroll} className="dual-scroll-top">
                 <div ref={d.topInnerRef} className="dual-scroll-top-inner" />
               </div>
               <div ref={d.bottomScrollRef} onScroll={d.handleBottomScroll} className="overflow-x-auto">
                 <table className="w-full" style={{ borderCollapse: 'collapse' }}>
                   <thead>
                     <tr style={{ borderBottom: tokens.table.headerBorder, background: tokens.table.headerBg }}>
-                      <th className="px-3 py-3 w-28" style={colSep}></th>
+                      {(selectMode || d.workMode.enabled) && <th className="px-2 py-3 w-11" style={colSep}></th>}
                       <th className="text-left px-5 py-3 text-[10px] font-bold tracking-[0.12em] uppercase w-12" style={{ ...colSep, color: tokens.table.headerText }}>#</th>
                       <th className="text-left px-5 py-3 text-[10px] font-bold tracking-[0.12em] uppercase" style={{ ...colSep, color: tokens.table.headerText }}>Nom</th>
                       <th className="text-left px-5 py-3 text-[10px] font-bold tracking-[0.12em] uppercase" style={{ ...colSep, color: tokens.table.headerText }}>Prenom</th>
@@ -100,6 +110,7 @@ export default function Crm({ onConnectAsClient, onOpenChat, onOpenRdv }: CrmPro
                         onToggle={d.toggleOne} onStatutChange={d.handleStatut} onToggleActif={d.handleToggleActif}
                         onDetail={(l, idx) => d.setDetailLead({ lead: l, index: idx })}
                         onConnectAsClient={onConnectAsClient} onOpenChat={onOpenChat} onOpenRdv={onOpenRdv}
+                        selectMode={selectMode}
                         workModeEnabled={d.workMode.enabled} isWorkActive={d.workMode.activeId === lead.id}
                         onWorkSelect={d.workMode.select} onWorkUndo={d.workMode.undo} onWorkRedo={d.workMode.redo}
                         canWorkUndo={d.workMode.canUndo} canWorkRedo={d.workMode.canRedo}
@@ -115,6 +126,7 @@ export default function Crm({ onConnectAsClient, onOpenChat, onOpenRdv }: CrmPro
             <div className="md:hidden">
               <CrmWorkModeBar
                 allChecked={d.allChecked} someChecked={d.someChecked} toggleAll={d.toggleAll}
+                selectMode={selectMode} onToggleSelectMode={handleToggleSelectMode}
                 workModeEnabled={d.workMode.enabled} onWorkModeToggle={() => d.workMode.enabled ? d.workMode.deactivate() : d.workMode.activate()}
                 onUndo={d.workMode.undo} onRedo={d.workMode.redo} canUndo={d.workMode.canUndo} canRedo={d.workMode.canRedo}
                 historyPosition={d.workMode.historyPosition} historyLength={d.workMode.historyLength}
@@ -134,6 +146,7 @@ export default function Crm({ onConnectAsClient, onOpenChat, onOpenRdv }: CrmPro
                     onToggle={d.toggleOne} onStatutChange={d.handleStatut} onToggleActif={d.handleToggleActif}
                     onDetail={(l, idx) => d.setDetailLead({ lead: l, index: idx })}
                     onOpenChat={onOpenChat} onOpenRdv={onOpenRdv} onConnectAsClient={onConnectAsClient}
+                    selectMode={selectMode}
                     cardRef={el => { if (el) d.cardRefsMap.current.set(lead.id, el); else d.cardRefsMap.current.delete(lead.id); }}
                   />
                 ))}

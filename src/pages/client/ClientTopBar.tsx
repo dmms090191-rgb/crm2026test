@@ -21,6 +21,7 @@ import ClientMobileBellMenu from './components/topbar/ClientMobileBellMenu';
 
 export interface PropositionNotifEntry {
   id: string;
+  lead_name: string;
   created_at: string;
 }
 
@@ -36,7 +37,7 @@ interface ClientTopBarProps {
   onAgendaEntryClick?: (rdvId: string) => void;
   propositionsCount?: number;
   propositionsEntries?: PropositionNotifEntry[];
-  onPropositionEntryClick?: () => void;
+  onPropositionEntryClick?: (proposalId: string) => void;
 }
 
 const themeOptions: { value: Theme; label: string; icon: React.ReactNode }[] = [
@@ -47,7 +48,7 @@ const themeOptions: { value: Theme; label: string; icon: React.ReactNode }[] = [
 export default function ClientTopBar({ breadcrumb, onMobileMenuToggle, clientName = 'Client', unreadMessageCount = 0, unreadLatestAt, onMessageNotifClick, agendaCount = 0, agendaEntries = [], onAgendaEntryClick, propositionsCount = 0, propositionsEntries = [], onPropositionEntryClick }: ClientTopBarProps) {
   const { theme, setTheme } = useTheme();
   const t = useThemeTokens();
-  const { timezone, tzLabel, setTimezone } = useTimezone();
+  const { timezone, tzLabel, tzCode, setTimezone } = useTimezone();
   const [tzModalOpen, setTzModalOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [msgDropdownOpen, setMsgDropdownOpen] = useState(false);
@@ -145,8 +146,10 @@ export default function ClientTopBar({ breadcrumb, onMobileMenuToggle, clientNam
           propositionsCount={propositionsCount}
           propositionsEntries={propositionsEntries}
           onPropositionEntryClick={onPropositionEntryClick}
+          timezone={timezone}
           tokens={t}
           containerRef={mobileNotifRef}
+          panelRef={mobileNotifPanelRef}
         />
 
         {/* Desktop notification pill */}
@@ -215,7 +218,7 @@ export default function ClientTopBar({ breadcrumb, onMobileMenuToggle, clientNam
                         tokens={t.dropdown}
                         onClick={() => {
                           setProposDropdownOpen(false);
-                          onPropositionEntryClick?.();
+                          onPropositionEntryClick?.(entry.id);
                         }}
                       />
                     ))
@@ -226,7 +229,7 @@ export default function ClientTopBar({ breadcrumb, onMobileMenuToggle, clientNam
           </div>
         </div>
 
-        <ClientClockButton tzLabel={tzLabel} clock={clock} onClick={() => setTzModalOpen(true)} />
+        <ClientClockButton tzLabel={tzLabel} tzCode={tzCode} clock={clock} onClick={() => setTzModalOpen(true)} />
 
         <div
           className="relative ml-2 pl-4"

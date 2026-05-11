@@ -184,8 +184,8 @@ export default function VendorDashboard({ onLogout, impersonatedVendor, onBackTo
     switch (activeView) {
       case 'vue-ensemble': return <VendorVueEnsemble vendorId={vendorDbId} />;
       case 'leads': return <VendorLeads vendorId={vendorDbId} onOpenChat={(lead) => { saveChatReturnContext(lead.id, [lead.prenom, lead.nom].filter(Boolean).join(' ') || lead.email); setChatLead(lead); setActiveView('chat-client'); }} onConnectAsClient={(client) => { saveConnectReturnContext({ fromRole: 'vendor', fromTab: 'leads', leadId: client.id, scrollY: window.scrollY }); onConnectAsClient?.(client); }} onOpenRdv={(lead) => { setRdvLead(lead); setActiveView('propositions-rdv'); }} />;
-      case 'chat-admin': return <VendorChatAdmin vendorName={vendorName} vendorDbId={vendorDbId} vendorAuthId={impersonatedVendor?.auth_user_id ?? undefined} onAdminMessageViewed={markAdminRead} />;
-      case 'chat-client': return <VendorChatClient vendorName={vendorName} vendorDbId={vendorDbId} initialLead={chatLead} onClientViewed={handleClientViewed} onReturnToLeads={handleReturnToLeads} />;
+      case 'chat-admin': return <VendorChatAdmin vendorName={vendorName} vendorDbId={vendorDbId} vendorAuthId={impersonatedVendor?.auth_user_id ?? undefined} onAdminMessageViewed={markAdminRead} isAdmin={!!impersonatedVendor} />;
+      case 'chat-client': return <VendorChatClient vendorName={vendorName} vendorDbId={vendorDbId} initialLead={chatLead} onClientViewed={handleClientViewed} onReturnToLeads={handleReturnToLeads} isAdmin={!!impersonatedVendor} />;
       case 'agenda': return <VendorAgenda vendorId={vendorDbId} />;
       case 'propositions-rdv': return <VendorPropositionsRdv vendorDbId={vendorDbId} initialLead={rdvLead} onInitialLeadConsumed={() => setRdvLead(null)} onNavigateToLeads={() => setActiveView('leads')} />;
       default: return <VendorVueEnsemble vendorId={vendorDbId} />;
@@ -199,7 +199,7 @@ export default function VendorDashboard({ onLogout, impersonatedVendor, onBackTo
       )}
       <div
         className={`
-          fixed inset-y-0 left-0 z-50 w-[min(300px,calc(100vw-24px))]
+          fixed inset-y-0 left-0 z-50 w-[min(280px,calc(100vw-64px))]
           md:relative md:z-auto md:w-auto
           transition-transform duration-300 md:transition-none md:translate-x-0
           ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}

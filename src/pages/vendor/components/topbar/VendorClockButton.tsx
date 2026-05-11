@@ -2,11 +2,12 @@ import { Clock } from 'lucide-react';
 
 interface VendorClockButtonProps {
   tzLabel: string;
+  tzCode?: string;
   clock: string;
   onClick: () => void;
 }
 
-export default function VendorClockButton({ tzLabel, clock, onClick }: VendorClockButtonProps) {
+export default function VendorClockButton({ tzLabel, tzCode, clock, onClick }: VendorClockButtonProps) {
   return (
     <button
       onClick={onClick}
@@ -20,6 +21,7 @@ export default function VendorClockButton({ tzLabel, clock, onClick }: VendorClo
     >
       <Clock className="w-3.5 h-3.5" style={{ color: '#22d3ee' }} />
       <span className="text-xs font-medium hidden sm:block" style={{ color: '#94a3b8' }}>{tzLabel}</span>
+      {tzCode && <span className="text-xs font-medium sm:hidden" style={{ color: '#94a3b8' }}>{tzCode}</span>}
       <span className="text-xs font-semibold font-mono" style={{ color: '#22d3ee' }}>{clock}</span>
     </button>
   );

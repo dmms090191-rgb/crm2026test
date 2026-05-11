@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { MessageCircle } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import MessagingPanel, { ChatMessage, ChatContact } from '../../../components/chat/ChatView';
@@ -39,10 +39,10 @@ export default function ChatClient({ initialLead, onMessageSent, onClientViewed,
       const { data: msgData } = await supabase
         .from('client_messages')
         .select('client_auth_id')
-        .not('client_auth_id', 'is', null);
+        .not('client_auth_id', 'is', null)
+        .or('deleted.is.null,deleted.eq.false');
 
       const authIds = [...new Set((msgData ?? []).map((m: { client_auth_id: string }) => m.client_auth_id))];
-
       const { data } = await supabase
         .from('leads')
         .select('id,data,vendor_id')
@@ -50,7 +50,6 @@ export default function ChatClient({ initialLead, onMessageSent, onClientViewed,
         .order('imported_at', { ascending: false });
 
       const allLeads = (data ?? []) as LeadRow[];
-
       const filtered = allLeads.filter(l => {
         if (l.vendor_id) return false;
         if (initialLead && l.id === initialLead.id) return true;
@@ -67,6 +66,7 @@ export default function ChatClient({ initialLead, onMessageSent, onClientViewed,
           .from('client_messages')
           .select('client_auth_id, content, created_at, sender')
           .in('client_auth_id', filteredAuthIds)
+          .or('deleted.is.null,deleted.eq.false')
           .order('created_at', { ascending: false });
         const map: Record<string, { content: string; created_at: string; sender: string }> = {};
         (lastMsgs ?? []).forEach((m: { client_auth_id: string; content: string; created_at: string; sender: string }) => {
@@ -99,6 +99,7 @@ export default function ChatClient({ initialLead, onMessageSent, onClientViewed,
         .from('client_messages')
         .select('*')
         .eq('client_auth_id', clientAuthId)
+        .or('deleted.is.null,deleted.eq.false')
         .order('created_at', { ascending: true });
       setMessages((data ?? []) as ChatMessage[]);
     } finally {
@@ -154,6 +155,62 @@ export default function ChatClient({ initialLead, onMessageSent, onClientViewed,
     setMessages([]);
   }, [clientAuthId]);
 
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedConvos, setSelectedConvos] = useState<Set<string>>(new Set());
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const handleToggleSelectMode = useCallback(() => {
+    setSelectMode(prev => {
+      if (prev) setSelectedConvos(new Set());
+      return !prev;
+    });
+  }, []);
+
+  const handleToggleConvo = useCallback((id: string) => {
+    setSelectedConvos(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const handleSelectAll = useCallback((all: boolean) => {
+    if (all) {
+      const allIds = leads.map(l => l.id);
+      setSelectedConvos(new Set(allIds));
+    } else {
+      setSelectedConvos(new Set());
+    }
+  }, [leads]);
+
+  const handleDeleteConvos = useCallback(() => { setConfirmDelete(true); }, []);
+
+  const handleConfirmDeleteConvos = useCallback(async () => {
+    const ids = [...selectedConvos];
+    const authIdsToDelete = ids.map(id => {
+      const lead = leads.find(l => l.id === id);
+      return lead ? (lead.data['AuthId'] ?? lead.data['auth_id'] ?? lead.id) : id;
+    });
+    await Promise.all(authIdsToDelete.map(authId =>
+      supabase.from('client_messages').update({ deleted: true }).eq('client_auth_id', authId)
+    ));
+    if (selectedId && ids.includes(selectedId)) {
+      setMessages([]);
+      setSelectedId(null);
+    }
+    setLeads(prev => prev.filter(l => !ids.includes(l.id)));
+    setLastMessages(prev => {
+      const next = { ...prev };
+      authIdsToDelete.forEach(authId => delete next[authId]);
+      return next;
+    });
+    setSelectedConvos(new Set());
+    setSelectMode(false);
+    setConfirmDelete(false);
+  }, [selectedConvos, selectedId, leads]);
+
+  const selectedConvoIds = useMemo(() => selectedConvos, [selectedConvos]);
+
   const contacts: ChatContact[] = leads.map(l => {
     const nom = l.data['Nom'] ?? l.data['nom'] ?? '';
     const prenom = l.data['Prenom'] ?? l.data['prenom'] ?? '';
@@ -206,12 +263,37 @@ export default function ChatClient({ initialLead, onMessageSent, onClientViewed,
           onSendMessage={handleSend}
           onDeleteMessage={handleDelete}
           onResetChat={handleReset}
+          isAdmin={true}
           loading={loading}
           contactLoading={contactLoading}
           returnContactId={chatReturnCtx?.leadId ?? null}
           onReturnClick={onReturnToCrm}
+          sidebarSelectable={true}
+          sidebarSelectMode={selectMode}
+          onSidebarToggleSelectMode={handleToggleSelectMode}
+          sidebarSelectedIds={selectedConvoIds}
+          onSidebarToggleSelect={handleToggleConvo}
+          onSidebarSelectAll={handleSelectAll}
+          onSidebarDeleteSelected={handleDeleteConvos}
         />
       </div>
+
+      {confirmDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.5)' }}>
+          <div className="rounded-2xl p-6 max-w-sm w-full mx-4 space-y-4" style={{ background: tokens.surface.primary, border: `1px solid ${tokens.surface.border}` }}>
+            <p className="text-sm font-semibold" style={{ color: tokens.text.primary }}>
+              {selectedConvos.size > 1 ? 'Voulez-vous vraiment supprimer ces conversations ?' : 'Voulez-vous vraiment supprimer cette conversation ?'}
+            </p>
+            <p className="text-xs" style={{ color: tokens.text.tertiary }}>
+              Les messages seront masques des deux cotes (admin et client).
+            </p>
+            <div className="flex items-center gap-3 justify-end">
+              <button onClick={() => setConfirmDelete(false)} className="px-4 py-2 rounded-lg text-xs font-semibold" style={{ background: tokens.surface.hover, color: tokens.text.secondary }}>Annuler</button>
+              <button onClick={handleConfirmDeleteConvos} className="px-4 py-2 rounded-lg text-xs font-semibold text-white" style={{ background: '#ef4444' }}>Supprimer</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

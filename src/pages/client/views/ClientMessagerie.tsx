@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { MessageCircle } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import MessagingPanel, { ChatMessage, ChatContact } from '../../../components/chat/ChatView';
@@ -7,6 +7,7 @@ import { useThemeTokens } from '../../../hooks/useThemeTokens';
 interface ClientMessagerieProps {
   clientName: string;
   clientAuthId: string;
+  isAdmin?: boolean;
 }
 
 interface VendorRow {
@@ -18,7 +19,7 @@ interface VendorRow {
 
 const ADMIN_CONTACT_ID = '__admin__';
 
-export default function ClientMessagerie({ clientName, clientAuthId }: ClientMessagerieProps) {
+export default function ClientMessagerie({ clientName, clientAuthId, isAdmin }: ClientMessagerieProps) {
   const tokens = useThemeTokens();
   const [vendor, setVendor] = useState<VendorRow | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -58,6 +59,7 @@ export default function ClientMessagerie({ clientName, clientAuthId }: ClientMes
         .from('client_messages')
         .select('*')
         .eq('client_auth_id', clientAuthId)
+        .or('deleted.is.null,deleted.eq.false')
         .order('created_at', { ascending: true });
       setMessages((data ?? []) as ChatMessage[]);
     } finally {
@@ -97,8 +99,19 @@ export default function ClientMessagerie({ clientName, clientAuthId }: ClientMes
     }
   }, [clientAuthId, leadVendorId]);
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleDelete = useCallback(async (_id: string) => {}, []);
+  const handleDelete = useCallback(async (id: string) => {
+    if (!isAdmin) return;
+    await supabase.from('client_messages').update({ deleted: true }).eq('id', id);
+    setMessages(prev => prev.map(m => m.id === id ? { ...m, deleted: true } : m));
+  }, [isAdmin]);
+
+
+  const lastMsg = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (!messages[i].deleted) return messages[i];
+    }
+    return null;
+  }, [messages]);
 
   const contacts: ChatContact[] = vendor
     ? [{
@@ -106,12 +119,18 @@ export default function ClientMessagerie({ clientName, clientAuthId }: ClientMes
         displayName: [vendor.first_name, vendor.last_name].filter(Boolean).join(' ') || vendor.email,
         subtitle: 'Votre conseiller',
         initial: (vendor.first_name || vendor.email || 'C').charAt(0).toUpperCase(),
+        lastMessage: lastMsg?.content || undefined,
+        lastMessageAt: lastMsg?.created_at || undefined,
+        lastMessageSender: lastMsg?.sender || undefined,
       }]
     : [{
         id: ADMIN_CONTACT_ID,
         displayName: 'Support',
         subtitle: 'Assistance',
         initial: 'S',
+        lastMessage: lastMsg?.content || undefined,
+        lastMessageAt: lastMsg?.created_at || undefined,
+        lastMessageSender: lastMsg?.sender || undefined,
       }];
 
   return (
@@ -142,6 +161,7 @@ export default function ClientMessagerie({ clientName, clientAuthId }: ClientMes
           accentRgb="52,211,153"
           onSendMessage={handleSend}
           onDeleteMessage={handleDelete}
+          isAdmin={isAdmin}
           loading={loading}
           contactLoading={contactLoading}
         />

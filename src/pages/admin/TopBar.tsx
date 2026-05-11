@@ -57,7 +57,7 @@ interface TopBarProps {
 }
 
 export default function TopBar({ breadcrumb, onMobileMenuToggle, adminName = 'Administrateur', unreadClientCount = 0, unreadClientEntries = [], onClientEntryClick, unreadVendorCount = 0, unreadVendorEntries = [], onVendorEntryClick, agendaPersoCount = 0, agendaPersoEntries = [], onAgendaPersoEntryClick, agendaEquipeCount = 0, agendaEquipeEntries = [], onAgendaEquipeEntryClick, propositionsCount = 0, propositionsEntries = [], onPropositionEntryClick }: TopBarProps) {
-  const { timezone, tzLabel, setTimezone } = useTimezone();
+  const { timezone, tzLabel, tzCode, setTimezone } = useTimezone();
   const t = useThemeTokens();
   const [clientDropdownOpen, setClientDropdownOpen] = useState(false);
   const [vendorDropdownOpen, setVendorDropdownOpen] = useState(false);
@@ -141,6 +141,7 @@ export default function TopBar({ breadcrumb, onMobileMenuToggle, adminName = 'Ad
           propositionsCount={propositionsCount}
           propositionsEntries={propositionsEntries}
           onPropositionEntryClick={onPropositionEntryClick}
+          timezone={timezone}
           tokens={t}
           containerRef={mobileNotifRef}
           panelRef={mobileNotifPanelRef}
@@ -180,7 +181,7 @@ export default function TopBar({ breadcrumb, onMobileMenuToggle, adminName = 'Ad
           tokens={t}
         />
 
-        <ClockButton tzLabel={tzLabel} clock={clock} onClick={() => setTzModalOpen(true)} />
+        <ClockButton tzLabel={tzLabel} tzCode={tzCode} clock={clock} onClick={() => setTzModalOpen(true)} />
         <ProfileMenu adminName={adminName} tokens={t} />
       </div>
     </header>

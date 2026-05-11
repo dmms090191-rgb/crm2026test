@@ -11,6 +11,7 @@ interface Props {
   statutDefs: StatutDef[];
   isSelected: boolean;
   colSep: React.CSSProperties;
+  selectMode?: boolean;
   workModeEnabled: boolean;
   isWorkActive: boolean;
   workHistoryLength: number;
@@ -30,7 +31,7 @@ interface Props {
 }
 
 const VendorLeadDesktopRow = forwardRef<HTMLTableRowElement, Props>(({
-  lead, index, statutDefs, isSelected, colSep, workModeEnabled, isWorkActive,
+  lead, index, statutDefs, isSelected, colSep, selectMode, workModeEnabled, isWorkActive,
   workHistoryLength, workHistoryPosition, canUndo, canRedo,
   onWorkSelect, onWorkUndo, onWorkRedo, onToggle, onStatutChange,
   onToggleActif, onDetail, onOpenChat, onOpenRdv, onConnectAsClient,
@@ -57,31 +58,33 @@ const VendorLeadDesktopRow = forwardRef<HTMLTableRowElement, Props>(({
       onMouseEnter={e => { if (!isSelected && !isWorkActive) e.currentTarget.style.background = tokens.table.rowHover; }}
       onMouseLeave={e => { e.currentTarget.style.background = isWorkActive ? 'rgba(249,115,22,0.04)' : isSelected ? tokens.table.rowSelected : 'transparent'; }}
     >
-      <td className="px-3 py-3.5 w-28" style={colSep}>
-        {workModeEnabled ? (
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => onWorkSelect(lead.id)}
-              className="w-5 h-5 rounded-md flex items-center justify-center transition-all flex-shrink-0"
-              style={isWorkActive
-                ? { background: 'rgba(249,115,22,0.15)', border: '1px solid rgba(249,115,22,0.4)' }
-                : { background: tokens.input.bg, border: `1px solid ${tokens.input.border}` }
-              }
-            >
-              {isWorkActive && <CheckCircle2 className="w-3.5 h-3.5" style={{ color: '#f97316' }} />}
-            </button>
-            {isWorkActive && workHistoryLength > 0 && (
-              <div className="flex items-center gap-0.5 ml-1">
-                <button onClick={onWorkUndo} disabled={!canUndo} className="w-5 h-5 rounded flex items-center justify-center disabled:opacity-30" style={{ color: '#f97316' }}><Undo2 className="w-3 h-3" /></button>
-                <span className="text-[9px] font-semibold tabular-nums" style={{ color: '#f97316' }}>{workHistoryPosition}/{workHistoryLength}</span>
-                <button onClick={onWorkRedo} disabled={!canRedo} className="w-5 h-5 rounded flex items-center justify-center disabled:opacity-30" style={{ color: '#f97316' }}><Redo2 className="w-3 h-3" /></button>
-              </div>
-            )}
-          </div>
-        ) : (
-          <CheckBox checked={isSelected} onChange={() => onToggle(lead.id)} />
-        )}
-      </td>
+      {(selectMode || workModeEnabled) && (
+        <td className="px-2 py-3.5 w-11" style={colSep}>
+          {workModeEnabled ? (
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => onWorkSelect(lead.id)}
+                className="w-5 h-5 rounded-md flex items-center justify-center transition-all flex-shrink-0"
+                style={isWorkActive
+                  ? { background: 'rgba(249,115,22,0.15)', border: '1px solid rgba(249,115,22,0.4)' }
+                  : { background: tokens.input.bg, border: `1px solid ${tokens.input.border}` }
+                }
+              >
+                {isWorkActive && <CheckCircle2 className="w-3.5 h-3.5" style={{ color: '#f97316' }} />}
+              </button>
+              {isWorkActive && workHistoryLength > 0 && (
+                <div className="flex items-center gap-0.5 ml-1">
+                  <button onClick={onWorkUndo} disabled={!canUndo} className="w-5 h-5 rounded flex items-center justify-center disabled:opacity-30" style={{ color: '#f97316' }}><Undo2 className="w-3 h-3" /></button>
+                  <span className="text-[9px] font-semibold tabular-nums" style={{ color: '#f97316' }}>{workHistoryPosition}/{workHistoryLength}</span>
+                  <button onClick={onWorkRedo} disabled={!canRedo} className="w-5 h-5 rounded flex items-center justify-center disabled:opacity-30" style={{ color: '#f97316' }}><Redo2 className="w-3 h-3" /></button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <CheckBox checked={isSelected} onChange={() => onToggle(lead.id)} />
+          )}
+        </td>
+      )}
       <td className="px-5 py-3.5 text-xs tabular-nums" style={{ color: tokens.table.indexText, ...colSep }}>{index + 1}</td>
       <td className="px-5 py-3.5" style={colSep}>
         <div className="flex items-center gap-2.5">
@@ -107,17 +110,17 @@ const VendorLeadDesktopRow = forwardRef<HTMLTableRowElement, Props>(({
         </div>
       </td>
       <td className="px-5 py-3.5" style={colSep}>
-        <button onClick={() => onToggleActif(lead.id, actif)} className="relative inline-flex items-center rounded-full transition-all duration-300 focus:outline-none" style={{ width: 36, height: 20, background: actif ? tokens.success.bg : tokens.surface.hover, border: actif ? `1px solid ${tokens.success.border}` : `1px solid ${tokens.surface.borderLight}` }} title={actif ? 'Desactiver' : 'Activer'}>
-          <span className="absolute rounded-full transition-all duration-300" style={{ width: 12, height: 12, left: actif ? 20 : 3, background: actif ? tokens.success.text : tokens.text.quaternary, boxShadow: actif ? `0 0 6px ${tokens.success.text}` : 'none' }} />
-        </button>
-      </td>
-      <td className="px-5 py-3.5">
         <div className="flex items-center gap-2">
           <button onClick={() => onDetail(lead, index)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105" style={{ background: tokens.accent.bg, border: `1px solid ${tokens.accent.border}`, color: tokens.accent.text }}><ChevronDown className="w-3 h-3" />Detail</button>
           <button onClick={() => onConnectAsClient?.({ id: lead.id, nom, prenom, email })} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105" style={{ background: tokens.success.bg, border: `1px solid ${tokens.success.border}`, color: tokens.success.text }}><LogIn className="w-3 h-3" />Connect</button>
           <button onClick={() => onOpenChat?.({ id: lead.id, nom, prenom, email, tel })} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105" style={{ background: tokens.warning.bg, border: `1px solid ${tokens.warning.border}`, color: tokens.warning.text }}><MessageCircle className="w-3 h-3" />Chat</button>
           <button onClick={() => onOpenRdv?.({ id: lead.id, nom, prenom, email, tel })} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105" style={{ background: 'rgba(34,211,238,0.08)', border: '1px solid rgba(34,211,238,0.18)', color: '#22d3ee' }}><CalendarClock className="w-3 h-3" />RDV</button>
         </div>
+      </td>
+      <td className="px-5 py-3.5">
+        <button onClick={() => onToggleActif(lead.id, actif)} className="relative inline-flex items-center rounded-full transition-all duration-300 focus:outline-none" style={{ width: 36, height: 20, background: actif ? tokens.success.bg : tokens.surface.hover, border: actif ? `1px solid ${tokens.success.border}` : `1px solid ${tokens.surface.borderLight}` }} title={actif ? 'Desactiver' : 'Activer'}>
+          <span className="absolute rounded-full transition-all duration-300" style={{ width: 12, height: 12, left: actif ? 20 : 3, background: actif ? tokens.success.text : tokens.text.quaternary, boxShadow: actif ? `0 0 6px ${tokens.success.text}` : 'none' }} />
+        </button>
       </td>
     </tr>
   );
