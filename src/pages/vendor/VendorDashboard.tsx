@@ -209,7 +209,7 @@ export default function VendorDashboard({ onLogout, impersonatedVendor, onBackTo
           activeView={activeView}
           onNavigate={(view) => { if (view === 'chat-client') sessionStorage.removeItem('crm_chat_return_context'); setActiveView(view); setMobileOpen(false); }}
           collapsed={mobileOpen ? false : sidebarCollapsed}
-          onCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+          onCollapse={() => { if (mobileOpen) setMobileOpen(false); else setSidebarCollapsed(!sidebarCollapsed); }}
           onLogout={onLogout}
         />
       </div>

@@ -197,7 +197,7 @@ export default function ClientDashboard({ onLogout, impersonatedClient, onBackTo
           activeView={activeView}
           onNavigate={(view) => { setActiveView(view); setMobileOpen(false); }}
           collapsed={mobileOpen ? false : sidebarCollapsed}
-          onCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+          onCollapse={() => { if (mobileOpen) setMobileOpen(false); else setSidebarCollapsed(!sidebarCollapsed); }}
           onLogout={onLogout}
         />
       </div>
