@@ -78,31 +78,35 @@ export default function ClientMessagerie({ clientName, clientAuthId, isAdmin }: 
   }, [clientAuthId, loadMessages]);
 
   const handleSend = useCallback(async (content: string, file?: { url: string; name: string; type: string }) => {
-    if (!clientAuthId) return;
-    try {
-      const { data: inserted, error } = await supabase.from('client_messages').insert({
-        content: content || '',
-        sender: 'client',
-        client_auth_id: clientAuthId,
-        vendor_id: leadVendorId,
-        ...(file ? { file_url: file.url, file_name: file.name, file_type: file.type } : {}),
-      }).select().maybeSingle();
-      if (error) {
-        console.error('Erreur envoi message client:', error);
-        return;
-      }
-      if (inserted) {
-        setMessages(prev => [...prev, inserted as ChatMessage]);
-      }
-    } catch {
-      // Ensure the promise resolves so the send button spinner stops
-    }
-  }, [clientAuthId, leadVendorId]);
+    if (!clientAuthId) throw new Error('missing_context');
+    const payload = {
+      content: content || '',
+      sender: 'client' as const,
+      client_auth_id: clientAuthId,
+      vendor_id: leadVendorId,
+      ...(file ? { file_url: file.url, file_name: file.name, file_type: file.type } : {}),
+    };
+
+    setMessages(prev => [...prev, {
+      id: `_local_${Date.now()}`,
+      content: payload.content,
+      sender: payload.sender,
+      client_auth_id: payload.client_auth_id,
+      vendor_id: payload.vendor_id ?? undefined,
+      created_at: new Date().toISOString(),
+      ...(file ? { file_url: file.url, file_name: file.name, file_type: file.type } : {}),
+    } as ChatMessage]);
+
+    supabase.from('client_messages').insert(payload).then(({ error }) => {
+      if (error) console.error('[ClientMessagerie] insert error:', error.message);
+      loadMessages(false).catch(() => {});
+    });
+  }, [clientAuthId, leadVendorId, loadMessages]);
 
   const handleDelete = useCallback(async (id: string) => {
     if (!isAdmin) return;
-    await supabase.from('client_messages').update({ deleted: true }).eq('id', id);
-    setMessages(prev => prev.map(m => m.id === id ? { ...m, deleted: true } : m));
+    setMessages(prev => prev.filter(m => m.id !== id));
+    supabase.from('client_messages').update({ deleted: true }).eq('id', id);
   }, [isAdmin]);
 
 

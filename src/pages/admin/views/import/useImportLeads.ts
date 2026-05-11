@@ -201,7 +201,7 @@ export function useImportLeads(activeTab: 'import' | 'history') {
 
   return {
     phase, dragOver, parseError, file, allColumns, mapping,
-    processedRows, analyzeProgress, importMode, importResult,
+    processedRows, setProcessedRows, analyzeProgress, importMode, importResult,
     history, historyLoading, previewRecord, counts, importableCount,
     setDragOver, setImportMode, setPreviewRecord,
     resetImport, handleFile, handleDrop, handleImport,

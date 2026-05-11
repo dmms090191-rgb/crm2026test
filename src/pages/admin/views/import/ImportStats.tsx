@@ -21,20 +21,20 @@ export default function ImportStats({ total, valid, dupFile, dupCrm, errors }: I
   ];
 
   return (
-    <div className="grid grid-cols-5 gap-3">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
       {stats.map(s => (
         <div
           key={s.label}
-          className="rounded-2xl p-4"
+          className="rounded-2xl p-3 sm:p-4"
           style={{ background: tokens.card.bg, border: tokens.card.border }}
         >
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] font-semibold tracking-wide uppercase" style={{ color: tokens.text.tertiary }}>{s.label}</span>
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: s.bg, color: s.color, border: `1px solid ${s.border}` }}>
+          <div className="flex items-center justify-between mb-1.5 sm:mb-2">
+            <span className="text-[10px] font-semibold tracking-wide uppercase leading-tight" style={{ color: tokens.text.tertiary }}>{s.label}</span>
+            <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg flex items-center justify-center flex-shrink-0 ml-2" style={{ background: s.bg, color: s.color, border: `1px solid ${s.border}` }}>
               {s.icon}
             </div>
           </div>
-          <p className="text-xl font-bold tabular-nums" style={{ color: s.value > 0 && s.label !== 'Nouveaux leads' && s.label !== 'Total détecté' ? s.color : s.label === 'Nouveaux leads' && s.value > 0 ? s.color : tokens.text.primary }}>{s.value}</p>
+          <p className="text-lg sm:text-xl font-bold tabular-nums" style={{ color: s.value > 0 && s.label !== 'Nouveaux leads' && s.label !== 'Total détecté' ? s.color : s.label === 'Nouveaux leads' && s.value > 0 ? s.color : tokens.text.primary }}>{s.value}</p>
         </div>
       ))}
     </div>

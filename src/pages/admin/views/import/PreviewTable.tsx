@@ -56,8 +56,8 @@ export default function PreviewTable({ rows, allColumns, mappedColumns }: Previe
   const filterTabs: { key: FilterType; label: string; count: number }[] = [
     { key: 'all' as const, label: 'Tous', count: rows.length },
     { key: 'valid' as const, label: 'Nouveaux', count: rows.filter(r => r.status === 'valid').length },
-    { key: 'dup_file' as const, label: 'Doublons fichier', count: rows.filter(r => r.status === 'dup_file').length },
-    { key: 'dup_crm' as const, label: 'Doublons CRM', count: rows.filter(r => r.status === 'dup_crm').length },
+    { key: 'dup_file' as const, label: 'Doub. fich.', count: rows.filter(r => r.status === 'dup_file').length },
+    { key: 'dup_crm' as const, label: 'Doub. CRM', count: rows.filter(r => r.status === 'dup_crm').length },
     { key: 'error' as const, label: 'Erreurs', count: rows.filter(r => r.status === 'error').length },
   ].filter(t => t.key === 'all' || t.count > 0);
 
@@ -65,41 +65,41 @@ export default function PreviewTable({ rows, allColumns, mappedColumns }: Previe
     Object.values(mappedColumns).includes(col);
 
   return (
-    <div
-      className="rounded-2xl overflow-hidden"
-      style={{ background: tokens.card.bg, border: tokens.card.border }}
-    >
+    <div>
+      {/* Filter bar + pagination */}
       <div
-        className="flex items-center justify-between flex-wrap gap-2 px-5 py-3"
+        className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-3 sm:px-5 py-3"
         style={{ borderBottom: tokens.table.headerBorder }}
       >
-        <div className="flex items-center gap-1.5 flex-wrap">
-          {filterTabs.map(t => (
-            <button
-              key={t.key}
-              onClick={() => { setFilter(t.key); setPage(0); }}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-semibold transition-all"
-              style={
-                filter === t.key
-                  ? { background: 'rgba(34,211,238,0.12)', color: tokens.accent.text, border: tokens.accent.border }
-                  : { background: tokens.surface.tertiary, color: tokens.text.tertiary, border: tokens.surface.borderLight }
-              }
-            >
-              {t.label}
-              <span
-                className="px-1 py-0.5 rounded text-[9px] font-bold"
-                style={{
-                  background: filter === t.key ? 'rgba(34,211,238,0.15)' : tokens.surface.borderLight,
-                  color: filter === t.key ? tokens.accent.text : tokens.text.tertiary,
-                }}
+        <div className="overflow-x-auto -mx-1 px-1 pb-1 sm:pb-0">
+          <div className="flex items-center gap-1.5 w-max">
+            {filterTabs.map(t => (
+              <button
+                key={t.key}
+                onClick={() => { setFilter(t.key); setPage(0); }}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-semibold transition-all whitespace-nowrap"
+                style={
+                  filter === t.key
+                    ? { background: 'rgba(34,211,238,0.12)', color: tokens.accent.text, border: tokens.accent.border }
+                    : { background: tokens.surface.tertiary, color: tokens.text.tertiary, border: tokens.surface.borderLight }
+                }
               >
-                {t.count}
-              </span>
-            </button>
-          ))}
+                {t.label}
+                <span
+                  className="px-1 py-0.5 rounded text-[9px] font-bold"
+                  style={{
+                    background: filter === t.key ? 'rgba(34,211,238,0.15)' : tokens.surface.borderLight,
+                    color: filter === t.key ? tokens.accent.text : tokens.text.tertiary,
+                  }}
+                >
+                  {t.count}
+                </span>
+              </button>
+            ))}
+          </div>
         </div>
         {totalPages > 1 && (
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 self-end sm:self-auto">
             <button
               onClick={() => setPage(p => Math.max(0, p - 1))}
               disabled={page === 0}
@@ -123,21 +123,22 @@ export default function PreviewTable({ rows, allColumns, mappedColumns }: Previe
         )}
       </div>
 
+      {/* Scrollable table */}
       <div className="overflow-x-auto">
-        <table className="w-full text-xs" style={{ borderCollapse: 'collapse' }}>
+        <table className="w-full text-xs" style={{ borderCollapse: 'collapse', minWidth: 'max-content' }}>
           <thead>
             <tr style={{ borderBottom: tokens.table.headerBorder, background: tokens.table.headerBg }}>
-              <th className="text-left px-4 py-2.5 text-[10px] font-bold tracking-widest uppercase w-10" style={{ color: tokens.table.headerText }}>#</th>
-              <th className="text-left px-4 py-2.5 text-[10px] font-bold tracking-widest uppercase whitespace-nowrap" style={{ color: tokens.table.headerText }}>Statut</th>
+              <th className="text-left px-3 sm:px-4 py-2.5 text-[10px] font-bold tracking-widest uppercase w-10" style={{ color: tokens.table.headerText }}>#</th>
+              <th className="text-left px-3 sm:px-4 py-2.5 text-[10px] font-bold tracking-widest uppercase whitespace-nowrap" style={{ color: tokens.table.headerText }}>Statut</th>
               {allColumns.map(col => (
                 <th
                   key={col}
-                  className="text-left px-4 py-2.5 text-[10px] font-bold tracking-widest uppercase whitespace-nowrap"
+                  className="text-left px-3 sm:px-4 py-2.5 text-[10px] font-bold tracking-widest uppercase whitespace-nowrap"
                   style={{ color: isMapped(col) ? tokens.accent.text : tokens.table.headerText }}
                 >
                   {col}
                   {isMapped(col) && (
-                    <span className="ml-1 text-[8px]" style={{ color: 'rgba(34,211,238,0.5)' }}>✓</span>
+                    <span className="ml-1 text-[8px]" style={{ color: 'rgba(34,211,238,0.5)' }}>&#10003;</span>
                   )}
                 </th>
               ))}
@@ -157,8 +158,8 @@ export default function PreviewTable({ rows, allColumns, mappedColumns }: Previe
                     'transparent',
                 }}
               >
-                <td className="px-4 py-2.5 tabular-nums" style={{ color: tokens.label.hint }}>{row.index + 1}</td>
-                <td className="px-4 py-2.5">
+                <td className="px-3 sm:px-4 py-2.5 tabular-nums" style={{ color: tokens.label.hint }}>{row.index + 1}</td>
+                <td className="px-3 sm:px-4 py-2.5">
                   <StatusBadge
                     status={row.status}
                     reason={row.errorReason}
@@ -168,8 +169,8 @@ export default function PreviewTable({ rows, allColumns, mappedColumns }: Previe
                   />
                 </td>
                 {allColumns.map(col => (
-                  <td key={col} className="px-4 py-2.5 max-w-[180px] truncate" style={{ color: tokens.table.cellText }}>
-                    {row.raw[col] || <span style={{ color: tokens.label.hint }}>—</span>}
+                  <td key={col} className="px-3 sm:px-4 py-2.5 max-w-[180px] truncate" style={{ color: tokens.table.cellText }}>
+                    {row.raw[col] || <span style={{ color: tokens.label.hint }}>&mdash;</span>}
                   </td>
                 ))}
               </tr>
@@ -180,7 +181,7 @@ export default function PreviewTable({ rows, allColumns, mappedColumns }: Previe
 
       {filteredRows.length === 0 && (
         <div className="flex items-center justify-center py-8">
-          <p className="text-xs" style={{ color: tokens.text.quaternary }}>Aucune ligne dans cette catégorie</p>
+          <p className="text-xs" style={{ color: tokens.text.quaternary }}>Aucune ligne dans cette categorie</p>
         </div>
       )}
     </div>

@@ -201,7 +201,7 @@ export default function AdminDashboard({ onLogout, onConnectAsVendor, onConnectA
 
   const renderView = () => {
     switch (activeView) {
-      case 'vue-ensemble': return <Suspense fallback={lazyFallback}><VueEnsemble onNavigate={handleNavigate} /></Suspense>;
+      case 'vue-ensemble': return <Suspense fallback={lazyFallback}><VueEnsemble onNavigate={handleNavigate} unreadClientConversations={unreadEntries.length} unreadVendorConversations={unreadVendorEntries.length} /></Suspense>;
       case 'inscription': return <Suspense fallback={lazyFallback}><Inscription /></Suspense>;
       case 'import-leads': return <Suspense fallback={lazyFallback}><ImportLeads onNavigateToCrm={() => handleNavigate('crm')} /></Suspense>;
       case 'ajouter-leads': return <Suspense fallback={lazyFallback}><AjouterLeads /></Suspense>;
@@ -215,7 +215,7 @@ export default function AdminDashboard({ onLogout, onConnectAsVendor, onConnectA
       case 'propositions-rdv': return <Suspense fallback={lazyFallback}><PropositionsRdv initialLead={rdvLead} onInitialLeadConsumed={() => setRdvLead(null)} onNavigateToCrm={() => handleNavigate('crm')} /></Suspense>;
       case 'statuts': return <Suspense fallback={lazyFallback}><Statuts /></Suspense>;
       case 'documentation-crm': return <Suspense fallback={lazyFallback}><DocumentationCrm initialTab={docInitialTab} onInitialTabConsumed={() => setDocInitialTab(undefined)} /></Suspense>;
-      default: return <Suspense fallback={lazyFallback}><VueEnsemble /></Suspense>;
+      default: return <Suspense fallback={lazyFallback}><VueEnsemble unreadClientConversations={unreadEntries.length} unreadVendorConversations={unreadVendorEntries.length} /></Suspense>;
     }
   };
 

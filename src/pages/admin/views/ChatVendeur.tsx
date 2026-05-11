@@ -114,28 +114,36 @@ export default function ChatVendeur({ initialVendor, onMessageSent, onVendorView
   }, [selectedVendorId, loadMessages]);
 
   const handleSend = useCallback(async (content: string, file?: { url: string; name: string; type: string }) => {
-    if (!selectedVendorId) return;
-    try {
-      const vendor = allVendors.find(v => v.id === selectedVendorId) ?? initialVendor;
-      const { data: inserted, error } = await supabase.from('vendor_admin_messages').insert({
-        content: content || '',
-        sender: 'admin',
-        vendor_id: selectedVendorId,
-        vendor_auth_id: vendor?.auth_user_id ?? null,
-        ...(file ? { file_url: file.url, file_name: file.name, file_type: file.type } : {}),
-      }).select().maybeSingle();
-      if (!error && inserted) {
-        setMessages(prev => [...prev, inserted as ChatMessage]);
-      }
-      onMessageSent?.();
-    } catch (err) {
-      console.error('ChatVendeur handleSend error:', err);
-    }
-  }, [selectedVendorId, allVendors, initialVendor, onMessageSent]);
+    if (!selectedVendorId) throw new Error('missing_context');
+    const vendor = allVendors.find(v => v.id === selectedVendorId) ?? initialVendor;
+    const payload = {
+      content: content || '',
+      sender: 'admin' as const,
+      vendor_id: selectedVendorId,
+      vendor_auth_id: vendor?.auth_user_id ?? null,
+      ...(file ? { file_url: file.url, file_name: file.name, file_type: file.type } : {}),
+    };
+
+    setMessages(prev => [...prev, {
+      id: `_local_${Date.now()}`,
+      content: payload.content,
+      sender: payload.sender,
+      vendor_id: payload.vendor_id,
+      vendor_auth_id: payload.vendor_auth_id ?? undefined,
+      created_at: new Date().toISOString(),
+      ...(file ? { file_url: file.url, file_name: file.name, file_type: file.type } : {}),
+    } as ChatMessage]);
+
+    supabase.from('vendor_admin_messages').insert(payload).then(({ error }) => {
+      if (error) console.error('[ChatVendeur] insert error:', error.message);
+      loadMessages(false).catch(() => {});
+    });
+    onMessageSent?.();
+  }, [selectedVendorId, allVendors, initialVendor, onMessageSent, loadMessages]);
 
   const handleDelete = useCallback(async (id: string) => {
-    await supabase.from('vendor_admin_messages').update({ deleted: true }).eq('id', id);
-    setMessages(prev => prev.map(m => m.id === id ? { ...m, deleted: true } : m));
+    setMessages(prev => prev.filter(m => m.id !== id));
+    supabase.from('vendor_admin_messages').update({ deleted: true }).eq('id', id);
   }, []);
 
 

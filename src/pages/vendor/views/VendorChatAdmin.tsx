@@ -96,26 +96,34 @@ export default function VendorChatAdmin({ vendorName, vendorDbId, vendorAuthId, 
   }, [userId, vendorId, loadMessages]);
 
   const handleSend = useCallback(async (content: string, file?: { url: string; name: string; type: string }) => {
-    if (!userId) return;
-    try {
-      const { data: inserted, error } = await supabase.from('vendor_admin_messages').insert({
-        content: content || '',
-        sender: 'vendor',
-        vendor_auth_id: userId,
-        vendor_id: vendorId ?? null,
-        ...(file ? { file_url: file.url, file_name: file.name, file_type: file.type } : {}),
-      }).select().maybeSingle();
-      if (!error && inserted) {
-        setMessages(prev => [...prev, inserted as ChatMessage]);
-      }
-    } catch (err) {
-      console.error('VendorChatAdmin handleSend error:', err);
-    }
-  }, [userId, vendorId]);
+    if (!userId) throw new Error('missing_context');
+    const payload = {
+      content: content || '',
+      sender: 'vendor' as const,
+      vendor_auth_id: userId,
+      vendor_id: vendorId ?? null,
+      ...(file ? { file_url: file.url, file_name: file.name, file_type: file.type } : {}),
+    };
+
+    setMessages(prev => [...prev, {
+      id: `_local_${Date.now()}`,
+      content: payload.content,
+      sender: payload.sender,
+      vendor_auth_id: payload.vendor_auth_id,
+      vendor_id: payload.vendor_id ?? undefined,
+      created_at: new Date().toISOString(),
+      ...(file ? { file_url: file.url, file_name: file.name, file_type: file.type } : {}),
+    } as ChatMessage]);
+
+    supabase.from('vendor_admin_messages').insert(payload).then(({ error }) => {
+      if (error) console.error('[VendorChatAdmin] insert error:', error.message);
+      loadMessages(false).catch(() => {});
+    });
+  }, [userId, vendorId, loadMessages]);
 
   const handleDelete = useCallback(async (id: string) => {
-    await supabase.from('vendor_admin_messages').update({ deleted: true }).eq('id', id);
-    setMessages(prev => prev.map(m => m.id === id ? { ...m, deleted: true } : m));
+    setMessages(prev => prev.filter(m => m.id !== id));
+    supabase.from('vendor_admin_messages').update({ deleted: true }).eq('id', id);
   }, []);
 
   const lastMsg = useMemo(() => {

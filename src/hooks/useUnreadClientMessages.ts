@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 
 interface UnreadEntry {
@@ -14,8 +14,10 @@ interface UnreadEntry {
 export function useUnreadClientMessages() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [unreadEntries, setUnreadEntries] = useState<UnreadEntry[]>([]);
+  const justMarked = useRef(false);
 
   const load = useCallback(async () => {
+    if (justMarked.current) { justMarked.current = false; return; }
     const { data: msgs } = await supabase
       .from('client_messages')
       .select('client_auth_id, created_at')
@@ -86,6 +88,12 @@ export function useUnreadClientMessages() {
   }, [load]);
 
   const markAsRead = useCallback(async (clientAuthId: string) => {
+    if (!clientAuthId) return;
+    justMarked.current = true;
+    const entry = unreadEntries.find(e => e.clientAuthId === clientAuthId);
+    setUnreadEntries(prev => prev.filter(e => e.clientAuthId !== clientAuthId));
+    setUnreadCount(prev => Math.max(0, prev - (entry?.count ?? 0)));
+
     await supabase
       .from('client_messages')
       .update({ read: true })
@@ -93,8 +101,7 @@ export function useUnreadClientMessages() {
       .eq('sender', 'client')
       .eq('read', false)
       .is('vendor_id', null);
-    load();
-  }, [load]);
+  }, [unreadEntries]);
 
   return { unreadCount, unreadEntries, markAsRead, reload: load };
 }

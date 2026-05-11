@@ -126,27 +126,20 @@ export default function ChatClient({ initialLead, onMessageSent, onClientViewed,
   }, [clientAuthId, loadMessages]);
 
   const handleSend = useCallback(async (content: string, file?: { url: string; name: string; type: string }) => {
-    if (!clientAuthId) return;
-    try {
-      const { data: inserted, error } = await supabase.from('client_messages').insert({
-        content: content || '',
-        sender: 'admin',
-        client_auth_id: clientAuthId,
-        vendor_id: null,
-        ...(file ? { file_url: file.url, file_name: file.name, file_type: file.type } : {}),
-      }).select().maybeSingle();
-      if (!error && inserted) {
-        setMessages(prev => [...prev, inserted as ChatMessage]);
-      }
-      onMessageSent?.();
-    } catch (err) {
-      console.error('ChatClient handleSend error:', err);
-    }
-  }, [clientAuthId, onMessageSent]);
+    if (!clientAuthId) throw new Error('missing_context');
+    const fileFields = file ? { file_url: file.url, file_name: file.name, file_type: file.type } : {};
+    const payload = { content: content || '', sender: 'admin' as const, client_auth_id: clientAuthId, vendor_id: null, ...fileFields };
+    setMessages(prev => [...prev, { id: `_local_${Date.now()}`, content: payload.content, sender: payload.sender, client_auth_id: payload.client_auth_id, created_at: new Date().toISOString(), ...fileFields } as ChatMessage]);
+    supabase.from('client_messages').insert(payload).then(({ error }) => {
+      if (error) console.error('[ChatClient] insert error:', error.message);
+      loadMessages(false).catch(() => {});
+    });
+    onMessageSent?.();
+  }, [clientAuthId, onMessageSent, loadMessages]);
 
   const handleDelete = useCallback(async (id: string) => {
-    await supabase.from('client_messages').update({ deleted: true }).eq('id', id);
-    setMessages(prev => prev.map(m => m.id === id ? { ...m, deleted: true } : m));
+    setMessages(prev => prev.filter(m => m.id !== id));
+    supabase.from('client_messages').update({ deleted: true }).eq('id', id);
   }, []);
 
   const handleReset = useCallback(async () => {

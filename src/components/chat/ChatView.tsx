@@ -34,7 +34,7 @@ export default function MessagingPanel({
   useEffect(() => {
     if (pendingMessages.length > 0) {
       setPendingMessages(prev => prev.filter(p =>
-        p._failed || !messages.some(m => m.sender === p.sender && m.content === p.content && !m.deleted)
+        !messages.some(m => m.sender === p.sender && m.content === p.content && !m.deleted)
       ));
     }
   }, [messages, pendingMessages.length]);
@@ -68,7 +68,9 @@ export default function MessagingPanel({
       setPendingMessages(prev => prev.filter(m => m.id !== tempId));
     } catch {
       setPendingMessages(prev => prev.map(m => m.id === tempId ? { ...m, _pending: false, _failed: true } : m));
-    } finally { setSending(false); }
+    } finally {
+      setSending(false);
+    }
   }, [input, sending, onSendMessage, currentRole]);
 
   const handleReset = async () => {
@@ -98,14 +100,13 @@ export default function MessagingPanel({
 
   const selectedContact = contacts.find(c => c.id === selectedContactId);
   const myCfg = SENDER_STYLES[currentRole] ?? SENDER_STYLES.admin;
-  const lastOwnMsgId = [...displayMessages].reverse().find(m => m.sender === currentRole && !m.deleted && !m._pending && !m._failed)?.id;
 
   const canDelete = useCallback((msg: ChatMessage) => {
     if (msg.deleted || msg._pending || msg._failed) return false;
     if (isAdmin || currentRole === 'admin') return true;
-    if (currentRole === 'vendor') return msg.sender === 'vendor' && msg.id === lastOwnMsgId;
+    if (currentRole === 'vendor') return msg.sender === 'vendor';
     return false;
-  }, [currentRole, lastOwnMsgId, isAdmin]);
+  }, [currentRole, isAdmin]);
 
   const showSidebar = contacts.length >= 1;
 

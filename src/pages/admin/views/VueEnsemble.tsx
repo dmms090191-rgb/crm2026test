@@ -1,4 +1,4 @@
-import { UserPlus, Tag, Activity } from 'lucide-react';
+import { UserPlus, Tag, Activity, MessageCircle } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { useTheme } from '../../../contexts/ThemeContext';
@@ -36,9 +36,9 @@ function StatCard({ label, sublabel, count, icon, accentColor, glowColor, tokens
       />
 
       <div className="flex items-start justify-between mb-3 md:mb-4">
-        <div className="min-w-0">
-          <p className="text-[9px] md:text-[10px] font-bold tracking-[0.15em] uppercase mb-0.5" style={{ color: accentColor }}>{label}</p>
-          <p className="text-[10px] md:text-xs uppercase tracking-wider" style={{ color: tokens.label.muted }}>{sublabel}</p>
+        <div className="min-w-0 flex-1 mr-2">
+          <p className="text-[9px] md:text-[10px] font-bold tracking-[0.12em] md:tracking-[0.15em] uppercase mb-0.5" style={{ color: accentColor }}>{label}</p>
+          <p className="text-[10px] md:text-xs leading-tight uppercase tracking-wide md:tracking-wider whitespace-nowrap" style={{ color: tokens.label.muted }}>{sublabel}</p>
         </div>
         <div
           className="w-8 h-8 md:w-9 md:h-9 rounded-xl flex items-center justify-center flex-shrink-0"
@@ -48,14 +48,18 @@ function StatCard({ label, sublabel, count, icon, accentColor, glowColor, tokens
         </div>
       </div>
 
-      <div>
-        <p className="text-3xl md:text-4xl font-bold tabular-nums" style={{ color: tokens.stat.valuePrimary }}>{count}</p>
-      </div>
+      <p className="text-3xl md:text-4xl font-bold tabular-nums" style={{ color: tokens.stat.valuePrimary }}>{count}</p>
     </div>
   );
 }
 
-export default function VueEnsemble({ onNavigate }: { onNavigate?: (view: ActiveView, options?: { docTab?: string }) => void }) {
+interface VueEnsembleProps {
+  onNavigate?: (view: ActiveView, options?: { docTab?: string }) => void;
+  unreadClientConversations?: number;
+  unreadVendorConversations?: number;
+}
+
+export default function VueEnsemble({ onNavigate, unreadClientConversations = 0, unreadVendorConversations = 0 }: VueEnsembleProps) {
   const { theme } = useTheme();
   const t = useThemeTokens();
   const [pendingCount, setPendingCount] = useState(0);
@@ -120,7 +124,7 @@ export default function VueEnsemble({ onNavigate }: { onNavigate?: (view: Active
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
         <StatCard
           label="En attente"
           sublabel="Inscriptions"
@@ -139,6 +143,15 @@ export default function VueEnsemble({ onNavigate }: { onNavigate?: (view: Active
           icon={<Tag className="w-4 h-4" />}
           tokens={t}
           onClick={() => setModalOpen(true)}
+        />
+        <StatCard
+          label="Messages"
+          sublabel="Conversations à ouvrir"
+          count={unreadClientConversations + unreadVendorConversations}
+          accentColor="#60a5fa"
+          glowColor="#60a5fa"
+          icon={<MessageCircle className="w-4 h-4" />}
+          tokens={t}
         />
       </div>
 

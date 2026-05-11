@@ -35,6 +35,8 @@ export default function ChatInputBar({ input, setInput, onSend, sending, onSendM
         const isImage = file.type.startsWith('image/');
         await onSendMessage('', { url: publicUrl, name: file.name, type: isImage ? 'image' : 'document' });
       }
+    } catch {
+      // Error handled by parent optimistic UI
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = '';

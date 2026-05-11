@@ -43,7 +43,7 @@ export default function ImportResult({ inserted, updated, ignored, errors, mode,
 
   return (
     <div
-      className="rounded-2xl p-8 space-y-6"
+      className="rounded-2xl p-5 sm:p-8 space-y-5 sm:space-y-6"
       style={{ background: tokens.card.bg, border: tokens.card.border }}
     >
       <div className="flex flex-col items-center gap-3">
@@ -61,7 +61,7 @@ export default function ImportResult({ inserted, updated, ignored, errors, mode,
         </div>
       </div>
 
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {stats.map(s => (
           <div
             key={s.label}

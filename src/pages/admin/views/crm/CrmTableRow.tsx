@@ -2,8 +2,16 @@ import { forwardRef } from 'react';
 import { Phone, Mail, ChevronDown, LogIn, MessageCircle, CalendarClock, CheckCircle2, Undo2, Redo2 } from 'lucide-react';
 import type { ImportedLead, Vendor, StatutDef, ImpersonatedClient, ChatLead } from './types';
 import type { ThemeTokens } from '../../../../lib/themeTokens';
-import { getStatutCfg, FALLBACK_COLOR, getInitials, gradients } from './utils';
+import { getStatutCfg, FALLBACK_COLOR } from './utils';
 import CheckBox from './CheckBox';
+
+function formatImportedAt(isoDate: string, tz: string): string {
+  try {
+    const d = new Date(isoDate);
+    return d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit', timeZone: tz })
+      + ' ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: tz });
+  } catch { return isoDate.slice(0, 10); }
+}
 
 interface Props {
   lead: ImportedLead;
@@ -12,6 +20,7 @@ interface Props {
   statutDefs: StatutDef[];
   vendors: Vendor[];
   tokens: ThemeTokens;
+  timezone: string;
   colSep: React.CSSProperties;
   onToggle: (id: string) => void;
   onStatutChange: (id: string, statut: string) => void;
@@ -32,7 +41,7 @@ interface Props {
   workHistoryLength?: number;
 }
 
-const CrmTableRow = forwardRef<HTMLTableRowElement, Props>(function CrmTableRow({ lead, index, isSelected, statutDefs, vendors, tokens, colSep, onToggle, onStatutChange, onToggleActif, onDetail, onConnectAsClient, onOpenChat, onOpenRdv, selectMode, workModeEnabled, isWorkActive, onWorkSelect, onWorkUndo, onWorkRedo, canWorkUndo, canWorkRedo, workHistoryPosition, workHistoryLength }, ref) {
+const CrmTableRow = forwardRef<HTMLTableRowElement, Props>(function CrmTableRow({ lead, index, isSelected, statutDefs, vendors, tokens, timezone, colSep, onToggle, onStatutChange, onToggleActif, onDetail, onConnectAsClient, onOpenChat, onOpenRdv, selectMode, workModeEnabled, isWorkActive, onWorkSelect, onWorkUndo, onWorkRedo, canWorkUndo, canWorkRedo, workHistoryPosition, workHistoryLength }, ref) {
   const nom = lead.data['Nom'] ?? '';
   const prenom = lead.data['Prenom'] ?? '';
   const email = lead.data['Email'] ?? '';
@@ -40,8 +49,6 @@ const CrmTableRow = forwardRef<HTMLTableRowElement, Props>(function CrmTableRow(
   const statut = lead.statut ?? '';
   const statutDef = statutDefs.find(s => s.nom === statut);
   const cfg = getStatutCfg(statutDef?.couleur ?? FALLBACK_COLOR);
-  const initials = getInitials(nom, prenom);
-  const grad = gradients[index % gradients.length];
   const actif = lead.actif !== false;
   const assignedVendor = lead.vendor_id ? vendors.find(v => v.id === lead.vendor_id) : null;
 
@@ -101,10 +108,7 @@ const CrmTableRow = forwardRef<HTMLTableRowElement, Props>(function CrmTableRow(
       )}
       <td className="px-5 py-3.5 text-xs tabular-nums" style={{ ...colSep, color: tokens.table.indexText }}>{index + 1}</td>
       <td className="px-5 py-3.5" style={colSep}>
-        <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-bold flex-shrink-0" style={{ background: grad, boxShadow: '0 2px 6px rgba(0,0,0,0.3)', color: tokens.text.primary }}>{initials || '?'}</div>
-          <span className="text-sm font-semibold" style={{ color: tokens.table.cellText }}>{nom || '\u2014'}</span>
-        </div>
+        <span className="text-sm font-semibold" style={{ color: tokens.table.cellText }}>{nom || '\u2014'}</span>
       </td>
       <td className="px-5 py-3.5" style={colSep}><span className="text-sm" style={{ color: tokens.text.secondary }}>{prenom || '\u2014'}</span></td>
       <td className="px-5 py-3.5" style={colSep}>
@@ -118,6 +122,9 @@ const CrmTableRow = forwardRef<HTMLTableRowElement, Props>(function CrmTableRow(
           <Phone className="w-3 h-3 flex-shrink-0" style={{ color: tokens.table.cellIcon }} />
           <span className="text-xs" style={{ color: tokens.table.cellTextMuted }}>{tel || '\u2014'}</span>
         </div>
+      </td>
+      <td className="px-5 py-3.5" style={colSep}>
+        <span className="text-xs whitespace-nowrap tabular-nums" style={{ color: tokens.table.cellTextMuted }}>{formatImportedAt(lead.imported_at, timezone)}</span>
       </td>
       <td className="px-5 py-3.5" style={colSep}>
         <div className="relative inline-flex items-center">
@@ -162,12 +169,7 @@ const CrmTableRow = forwardRef<HTMLTableRowElement, Props>(function CrmTableRow(
       </td>
       <td className="px-5 py-3.5" style={colSep}>
         {assignedVendor ? (
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-md flex items-center justify-center text-[9px] font-bold flex-shrink-0" style={{ background: 'linear-gradient(135deg, #22d3ee, #2563eb)', color: tokens.text.primary }}>
-              {`${assignedVendor.first_name?.[0] ?? ''}${assignedVendor.last_name?.[0] ?? ''}`.toUpperCase() || '?'}
-            </div>
-            <span className="text-xs truncate max-w-[100px]" style={{ color: tokens.text.secondary }}>{assignedVendor.first_name} {assignedVendor.last_name}</span>
-          </div>
+          <span className="text-xs truncate max-w-[120px]" style={{ color: tokens.text.secondary }}>{assignedVendor.first_name} {assignedVendor.last_name}</span>
         ) : (
           <span className="text-xs" style={{ color: tokens.text.quaternary }}>Admin</span>
         )}

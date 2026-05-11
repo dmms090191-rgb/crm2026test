@@ -31,7 +31,7 @@ export default function ImportModeSelector({ value, onChange, dupCrmCount }: Imp
 
   return (
     <div
-      className="rounded-2xl p-4 space-y-3"
+      className="rounded-2xl p-3 sm:p-4 space-y-3"
       style={{ background: tokens.card.bg, border: tokens.card.border }}
     >
       <p className="text-xs font-bold tracking-widest uppercase" style={{ color: tokens.text.tertiary }}>Mode d'import</p>
@@ -44,7 +44,7 @@ export default function ImportModeSelector({ value, onChange, dupCrmCount }: Imp
               key={m.key}
               onClick={() => !isDisabled && onChange(m.key)}
               disabled={isDisabled}
-              className="w-full text-left flex items-start gap-3 px-3.5 py-3 rounded-xl transition-all"
+              className="w-full text-left flex items-start gap-2.5 sm:gap-3 px-3 sm:px-3.5 py-2.5 sm:py-3 rounded-xl transition-all"
               style={{
                 background: isActive ? 'rgba(34,211,238,0.06)' : tokens.surface.tertiary,
                 border: isActive ? tokens.accent.border : tokens.surface.borderLight,

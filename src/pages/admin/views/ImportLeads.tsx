@@ -19,7 +19,7 @@ export default function ImportLeads({ onNavigateToCrm }: ImportLeadsProps) {
 
   const {
     phase, dragOver, parseError, file, allColumns, mapping,
-    processedRows, analyzeProgress, importMode, importResult,
+    processedRows, setProcessedRows, analyzeProgress, importMode, importResult,
     history, historyLoading, previewRecord, counts, importableCount,
     setDragOver, setImportMode, setPreviewRecord,
     resetImport, handleFile, handleDrop, handleImport,
@@ -35,13 +35,13 @@ export default function ImportLeads({ onNavigateToCrm }: ImportLeadsProps) {
       {previewRecord && <HistoryPreview record={previewRecord} onClose={() => setPreviewRecord(null)} />}
 
       <div className="space-y-5">
-        <div className="flex items-center gap-4 rounded-2xl p-4" style={{ background: tokens.card.bg, border: tokens.card.border }}>
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'linear-gradient(135deg, #22d3ee, #0ea5e9)', boxShadow: '0 0 16px rgba(34,211,238,0.3)' }}>
-            <Download className="w-5 h-5 text-white" />
+        <div className="flex items-center gap-3 sm:gap-4 rounded-2xl p-3 sm:p-4" style={{ background: tokens.card.bg, border: tokens.card.border }}>
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'linear-gradient(135deg, #22d3ee, #0ea5e9)', boxShadow: '0 0 16px rgba(34,211,238,0.3)' }}>
+            <Download className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
           </div>
-          <div>
+          <div className="min-w-0">
             <h2 className="text-sm font-bold" style={{ color: tokens.text.primary }}>Import de leads</h2>
-            <p className="text-xs" style={{ color: tokens.text.quaternary }}>Importez vos contacts depuis un fichier CSV — max {MAX_FILE_SIZE_MB} Mo · {MAX_ROWS.toLocaleString('fr-FR')} lignes</p>
+            <p className="text-[11px] sm:text-xs truncate" style={{ color: tokens.text.quaternary }}>Importez vos contacts depuis un fichier CSV — max {MAX_FILE_SIZE_MB} Mo · {MAX_ROWS.toLocaleString('fr-FR')} lignes</p>
           </div>
         </div>
 
@@ -91,7 +91,8 @@ export default function ImportLeads({ onNavigateToCrm }: ImportLeadsProps) {
             {phase === 'preview' && (
               <PreviewPhase
                 file={file} counts={counts} allColumns={allColumns} mapping={mapping}
-                processedRows={processedRows} importMode={importMode}
+                processedRows={processedRows} onProcessedRowsChange={setProcessedRows}
+                importMode={importMode}
                 onImportModeChange={setImportMode} importableCount={importableCount}
                 onReset={resetImport} onImport={handleImport}
               />

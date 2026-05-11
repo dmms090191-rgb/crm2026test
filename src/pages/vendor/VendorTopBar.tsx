@@ -172,6 +172,7 @@ export default function VendorTopBar({ breadcrumb, onMobileMenuToggle, vendorNam
           timezone={timezone}
           tokens={tokens}
           containerRef={mobileNotifRef}
+          panelRef={mobileNotifPanelRef}
         />
 
         <VendorDesktopNotifPill

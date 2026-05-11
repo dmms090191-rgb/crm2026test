@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { Users, Phone, Mail, ChevronDown, Filter, SlidersHorizontal } from 'lucide-react';
 import { useThemeTokens } from '../../../hooks/useThemeTokens';
+import { useTimezone } from '../../../hooks/useTimezone';
 import DualScrollWrapper from '../../../components/DualScrollWrapper';
 import VendorLeadDetailModal from './VendorLeadDetailModal';
 import VendorLeadDesktopRow from './leads/VendorLeadDesktopRow';
@@ -13,8 +14,10 @@ export type { VendorChatLeadRef } from './vendorLeadsTypes';
 
 export default function VendorLeads({ vendorId, onOpenChat, onConnectAsClient, onOpenRdv }: VendorLeadsProps) {
   const tokens = useThemeTokens();
+  const { timezone } = useTimezone();
   const d = useVendorLeadsData(vendorId);
   const colSep = { borderRight: `1px solid ${tokens.table.colSep}` };
+  const showLoading = d.loading || !vendorId;
 
   const [selectMode, setSelectMode] = useState(false);
   const handleToggleSelectMode = useCallback(() => {
@@ -32,10 +35,12 @@ export default function VendorLeads({ vendorId, onOpenChat, onConnectAsClient, o
           <p className="text-xs mt-0.5" style={{ color: tokens.text.quaternary }}>Leads qui vous sont attribues</p>
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold" style={{ background: tokens.accent.bg, color: tokens.accent.text, border: `1px solid ${tokens.accent.border}` }}>
-            <Users className="w-3.5 h-3.5" />
-            {d.leads.length} lead{d.leads.length !== 1 ? 's' : ''}
-          </div>
+          {!showLoading && (
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold" style={{ background: tokens.accent.bg, color: tokens.accent.text, border: `1px solid ${tokens.accent.border}` }}>
+              <Users className="w-3.5 h-3.5" />
+              {d.leads.length} lead{d.leads.length !== 1 ? 's' : ''}
+            </div>
+          )}
         </div>
       </div>
 
@@ -148,9 +153,17 @@ export default function VendorLeads({ vendorId, onOpenChat, onConnectAsClient, o
       </div>
 
       <div className="rounded-2xl overflow-hidden" style={{ background: tokens.card.bg, border: `1px solid ${tokens.card.border}` }}>
-        {d.loading ? (
-          <div className="flex items-center justify-center py-16">
-            <div className="w-6 h-6 border-2 rounded-full animate-spin" style={{ borderColor: tokens.text.quaternary, borderTopColor: tokens.accent.text }} />
+        {showLoading ? (
+          <div className="px-4 md:px-5 py-4 space-y-3 animate-pulse">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl flex-shrink-0" style={{ background: tokens.surface.hover }} />
+                <div className="flex-1 space-y-2">
+                  <div className="h-3 rounded-full w-1/3" style={{ background: tokens.surface.hover }} />
+                  <div className="h-2.5 rounded-full w-2/3" style={{ background: tokens.surface.hover, opacity: 0.6 }} />
+                </div>
+              </div>
+            ))}
           </div>
         ) : d.leads.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 gap-3">
@@ -183,6 +196,7 @@ export default function VendorLeads({ vendorId, onOpenChat, onConnectAsClient, o
                       <th className="text-left px-5 py-3 text-[10px] font-bold tracking-[0.12em] uppercase" style={{ color: tokens.table.headerText, ...colSep }}>Prenom</th>
                       <th className="text-left px-5 py-3 text-[10px] font-bold tracking-[0.12em] uppercase" style={{ color: tokens.table.headerText, ...colSep }}>Email</th>
                       <th className="text-left px-5 py-3 text-[10px] font-bold tracking-[0.12em] uppercase" style={{ color: tokens.table.headerText, ...colSep }}>Telephone</th>
+                      <th className="text-left px-5 py-3 text-[10px] font-bold tracking-[0.12em] uppercase" style={{ color: tokens.table.headerText, ...colSep }}>Date d'ajout</th>
                       <th className="text-left px-5 py-3 text-[10px] font-bold tracking-[0.12em] uppercase" style={{ color: tokens.table.headerText, ...colSep }}>Statut</th>
                       <th className="text-left px-5 py-3 text-[10px] font-bold tracking-[0.12em] uppercase" style={{ color: tokens.table.headerText, ...colSep }}>Actions</th>
                       <th className="text-left px-5 py-3 text-[10px] font-bold tracking-[0.12em] uppercase" style={{ color: tokens.table.headerText }}>Acces</th>
@@ -193,7 +207,7 @@ export default function VendorLeads({ vendorId, onOpenChat, onConnectAsClient, o
                       <VendorLeadDesktopRow
                         key={lead.id}
                         ref={el => { if (el) d.rowRefsMap.current.set(lead.id, el); else d.rowRefsMap.current.delete(lead.id); }}
-                        lead={lead} index={i} statutDefs={d.statutDefs} isSelected={d.selected.has(lead.id)} colSep={colSep}
+                        lead={lead} index={i} statutDefs={d.statutDefs} isSelected={d.selected.has(lead.id)} timezone={timezone} colSep={colSep}
                         selectMode={selectMode}
                         workModeEnabled={d.workMode.enabled} isWorkActive={d.workMode.activeId === lead.id}
                         workHistoryLength={d.workMode.historyLength} workHistoryPosition={d.workMode.historyPosition}
@@ -224,7 +238,7 @@ export default function VendorLeads({ vendorId, onOpenChat, onConnectAsClient, o
                 {d.filtered.map((lead, i) => (
                   <VendorLeadMobileCard
                     key={lead.id}
-                    lead={lead} index={i} statutDefs={d.statutDefs} isSelected={d.selected.has(lead.id)}
+                    lead={lead} index={i} statutDefs={d.statutDefs} timezone={timezone} isSelected={d.selected.has(lead.id)}
                     selectMode={selectMode}
                     workModeEnabled={d.workMode.enabled} workModeActiveId={d.workMode.activeId}
                     workHistoryLength={d.workMode.historyLength} workHistoryPosition={d.workMode.historyPosition}

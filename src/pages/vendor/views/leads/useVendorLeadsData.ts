@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '../../../../lib/supabase';
 import { useWorkMode } from '../../../../hooks/useWorkMode';
 import type { ImportedLead, StatutDef } from '../vendorLeadsTypes';
@@ -19,22 +19,44 @@ export function useVendorLeadsData(vendorId: string | null) {
   const workMode = useWorkMode(vendorId ? `crm_work_mode_vendor_${vendorId}` : '');
   const cardRefsMap = useRef<Map<string, HTMLDivElement>>(new Map());
   const rowRefsMap = useRef<Map<string, HTMLTableRowElement>>(new Map());
-
-  const loadStatuts = useCallback(async () => {
-    const { data } = await supabase.from('statuts').select('id, nom, couleur').order('created_at', { ascending: true });
-    setStatutDefs((data ?? []) as StatutDef[]);
-  }, []);
+  const hasFetched = useRef(false);
+  const loadId = useRef(0);
 
   const load = useCallback(async () => {
-    if (vendorId === null && vendorId !== null) return;
-    const query = supabase.from('leads').select('id, data, imported_at, statut, actif, vendor_id').order('imported_at', { ascending: false });
-    const finalQuery = vendorId ? query.eq('vendor_id', vendorId) : query.is('vendor_id', null);
-    const { data } = await finalQuery;
-    setLeads((data ?? []) as ImportedLead[]);
+    if (!vendorId) return;
+    const thisLoad = ++loadId.current;
+
+    if (!hasFetched.current) setLoading(true);
+
+    const [leadsRes, statutsRes] = await Promise.all([
+      supabase
+        .from('leads')
+        .select('id, data, imported_at, statut, actif, vendor_id')
+        .eq('vendor_id', vendorId)
+        .order('imported_at', { ascending: false }),
+      supabase
+        .from('statuts')
+        .select('id, nom, couleur')
+        .order('created_at', { ascending: true }),
+    ]);
+
+    if (thisLoad !== loadId.current) return;
+
+    if (leadsRes.error) {
+      setLoading(false);
+      return;
+    }
+
+    setLeads((leadsRes.data ?? []) as ImportedLead[]);
+    setStatutDefs((statutsRes.data ?? []) as StatutDef[]);
+    hasFetched.current = true;
     setLoading(false);
   }, [vendorId]);
 
-  useEffect(() => { setLoading(true); load(); loadStatuts(); }, [load, loadStatuts]);
+  useEffect(() => {
+    if (!vendorId) return;
+    load();
+  }, [vendorId, load]);
 
   useEffect(() => {
     if (!workMode.enabled || !workMode.activeId) return;
@@ -46,17 +68,21 @@ export function useVendorLeadsData(vendorId: string | null) {
   }, [workMode.enabled, workMode.activeId]);
 
   useEffect(() => {
-    const channelName = `vendor-leads-${vendorId ?? 'unassigned'}-${Date.now()}`;
+    if (!vendorId) return;
     const channel = supabase
-      .channel(channelName)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'leads' }, load)
+      .channel(`vendor-leads-${vendorId}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'leads' }, (payload) => {
+        const inserted = payload.new as ImportedLead;
+        if (inserted.vendor_id === vendorId) {
+          setLeads(prev => prev.some(l => l.id === inserted.id) ? prev : [inserted, ...prev]);
+        }
+      })
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'leads' }, (payload) => {
         setLeads(prev => prev.filter(l => l.id !== (payload.old as { id: string }).id));
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'leads' }, (payload) => {
         const updated = payload.new as ImportedLead;
-        const belongsToVendor = vendorId ? updated.vendor_id === vendorId : updated.vendor_id === null;
-        if (belongsToVendor) {
+        if (updated.vendor_id === vendorId) {
           setLeads(prev => {
             const exists = prev.some(l => l.id === updated.id);
             if (exists) return prev.map(l => l.id === updated.id ? { ...l, ...updated } : l);
@@ -68,7 +94,7 @@ export function useVendorLeadsData(vendorId: string | null) {
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [load, vendorId]);
+  }, [vendorId]);
 
   const handleStatut = async (id: string, statut: string) => {
     const prev = leads.find(l => l.id === id)?.statut;
@@ -83,30 +109,33 @@ export function useVendorLeadsData(vendorId: string | null) {
     if (error) setLeads(ls => ls.map(l => l.id === id ? { ...l, actif: current } : l));
   };
 
-  const filtered = leads
-    .filter(l => {
-      const nom = (l.data['Nom'] ?? '').toLowerCase();
-      const prenom = (l.data['Prenom'] ?? '').toLowerCase();
-      const email = (l.data['Email'] ?? '').toLowerCase();
-      const tel = (l.data['Telephone'] ?? '').toLowerCase();
-      if (filterNom && !nom.includes(filterNom.toLowerCase())) return false;
-      if (filterPrenom && !prenom.includes(filterPrenom.toLowerCase())) return false;
-      if (filterEmail && !email.includes(filterEmail.toLowerCase())) return false;
-      if (filterTel && !tel.includes(filterTel.toLowerCase())) return false;
+  const statutNames = useMemo(() => new Set(statutDefs.map(s => s.nom)), [statutDefs]);
+
+  const filtered = useMemo(() => {
+    const fNom = filterNom.toLowerCase();
+    const fPrenom = filterPrenom.toLowerCase();
+    const fEmail = filterEmail.toLowerCase();
+    const fTel = filterTel.toLowerCase();
+
+    const result = leads.filter(l => {
+      if (fNom && !(l.data['Nom'] ?? '').toLowerCase().includes(fNom)) return false;
+      if (fPrenom && !(l.data['Prenom'] ?? '').toLowerCase().includes(fPrenom)) return false;
+      if (fEmail && !(l.data['Email'] ?? '').toLowerCase().includes(fEmail)) return false;
+      if (fTel && !(l.data['Telephone'] ?? '').toLowerCase().includes(fTel)) return false;
       if (statutFilter === 'sans_statut') {
         const nomStatut = l.statut ?? '';
-        const statutConnu = statutDefs.some(s => s.nom === nomStatut);
-        if (nomStatut !== '' && statutConnu) return false;
+        if (nomStatut !== '' && statutNames.has(nomStatut)) return false;
       } else if (statutFilter !== 'Tous' && (l.statut ?? '') !== statutFilter) return false;
       return true;
-    })
-    .sort((a, b) => {
-      const da = new Date(a.imported_at).getTime();
-      const db = new Date(b.imported_at).getTime();
-      return sortOrder === 'recent' ? db - da : da - db;
     });
 
-  const filteredIds = filtered.map(l => l.id);
+    if (sortOrder === 'ancien') {
+      result.sort((a, b) => a.imported_at.localeCompare(b.imported_at));
+    }
+    return result;
+  }, [leads, filterNom, filterPrenom, filterEmail, filterTel, statutFilter, sortOrder, statutNames]);
+
+  const filteredIds = useMemo(() => filtered.map(l => l.id), [filtered]);
   const allChecked = filteredIds.length > 0 && filteredIds.every(id => selected.has(id));
   const someChecked = filteredIds.some(id => selected.has(id));
   const toggleAll = () => {

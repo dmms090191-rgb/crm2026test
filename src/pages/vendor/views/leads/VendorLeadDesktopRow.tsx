@@ -1,15 +1,24 @@
 import { forwardRef } from 'react';
 import { Mail, Phone, ChevronDown, LogIn, MessageCircle, CalendarClock, Undo2, Redo2, CheckCircle2 } from 'lucide-react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
-import { getStatutCfg, FALLBACK_COLOR, getInitials, gradients } from '../../../admin/views/crm/utils';
+import { getStatutCfg, FALLBACK_COLOR } from '../../../admin/views/crm/utils';
 import CheckBox from '../../../admin/views/crm/CheckBox';
 import type { ImportedLead, StatutDef } from '../vendorLeadsTypes';
+
+function formatImportedAt(isoDate: string, tz: string): string {
+  try {
+    const d = new Date(isoDate);
+    return d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit', timeZone: tz })
+      + ' ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: tz });
+  } catch { return isoDate.slice(0, 10); }
+}
 
 interface Props {
   lead: ImportedLead;
   index: number;
   statutDefs: StatutDef[];
   isSelected: boolean;
+  timezone: string;
   colSep: React.CSSProperties;
   selectMode?: boolean;
   workModeEnabled: boolean;
@@ -31,7 +40,7 @@ interface Props {
 }
 
 const VendorLeadDesktopRow = forwardRef<HTMLTableRowElement, Props>(({
-  lead, index, statutDefs, isSelected, colSep, selectMode, workModeEnabled, isWorkActive,
+  lead, index, statutDefs, isSelected, timezone, colSep, selectMode, workModeEnabled, isWorkActive,
   workHistoryLength, workHistoryPosition, canUndo, canRedo,
   onWorkSelect, onWorkUndo, onWorkRedo, onToggle, onStatutChange,
   onToggleActif, onDetail, onOpenChat, onOpenRdv, onConnectAsClient,
@@ -44,8 +53,6 @@ const VendorLeadDesktopRow = forwardRef<HTMLTableRowElement, Props>(({
   const statut = lead.statut ?? '';
   const statutDef = statutDefs.find(s => s.nom === statut);
   const cfg = getStatutCfg(statutDef?.couleur ?? FALLBACK_COLOR);
-  const initials = getInitials(nom, prenom);
-  const grad = gradients[index % gradients.length];
   const actif = lead.actif !== false;
   const rowBg = isWorkActive ? 'rgba(249,115,22,0.04)' : isSelected ? tokens.table.rowSelected : 'transparent';
 
@@ -87,10 +94,7 @@ const VendorLeadDesktopRow = forwardRef<HTMLTableRowElement, Props>(({
       )}
       <td className="px-5 py-3.5 text-xs tabular-nums" style={{ color: tokens.table.indexText, ...colSep }}>{index + 1}</td>
       <td className="px-5 py-3.5" style={colSep}>
-        <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-bold flex-shrink-0" style={{ background: grad, boxShadow: '0 2px 6px rgba(0,0,0,0.3)', color: tokens.text.primary }}>{initials || '?'}</div>
-          <span className="text-sm font-semibold" style={{ color: tokens.table.cellText }}>{nom || '\u2014'}</span>
-        </div>
+        <span className="text-sm font-semibold" style={{ color: tokens.table.cellText }}>{nom || '\u2014'}</span>
       </td>
       <td className="px-5 py-3.5" style={colSep}><span className="text-sm" style={{ color: tokens.text.secondary }}>{prenom || '\u2014'}</span></td>
       <td className="px-5 py-3.5" style={colSep}>
@@ -98,6 +102,9 @@ const VendorLeadDesktopRow = forwardRef<HTMLTableRowElement, Props>(({
       </td>
       <td className="px-5 py-3.5" style={colSep}>
         <div className="flex items-center gap-1.5"><Phone className="w-3 h-3 flex-shrink-0" style={{ color: tokens.table.cellIcon }} /><span className="text-xs" style={{ color: tokens.table.cellTextMuted }}>{tel || '\u2014'}</span></div>
+      </td>
+      <td className="px-5 py-3.5" style={colSep}>
+        <span className="text-xs whitespace-nowrap tabular-nums" style={{ color: tokens.table.cellTextMuted }}>{formatImportedAt(lead.imported_at, timezone)}</span>
       </td>
       <td className="px-5 py-3.5" style={colSep}>
         <div className="relative inline-flex items-center">

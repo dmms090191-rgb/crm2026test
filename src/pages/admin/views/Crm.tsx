@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { Users } from 'lucide-react';
 import { useThemeTokens } from '../../../hooks/useThemeTokens';
+import { useTimezone } from '../../../hooks/useTimezone';
 import type { ImpersonatedClient, ChatLead } from './crm/types';
 import CrmTableRow from './crm/CrmTableRow';
 import CrmActionBar from './crm/CrmActionBar';
@@ -21,6 +22,7 @@ interface CrmProps {
 
 export default function Crm({ onConnectAsClient, onOpenChat, onOpenRdv }: CrmProps) {
   const tokens = useThemeTokens();
+  const { timezone } = useTimezone();
   const d = useCrmData();
   const colSep = { borderRight: `1px solid ${tokens.table.colSep}` };
   const cardStyle = { background: tokens.card.bg, border: tokens.card.border };
@@ -94,6 +96,7 @@ export default function Crm({ onConnectAsClient, onOpenChat, onOpenRdv }: CrmPro
                       <th className="text-left px-5 py-3 text-[10px] font-bold tracking-[0.12em] uppercase" style={{ ...colSep, color: tokens.table.headerText }}>Prenom</th>
                       <th className="text-left px-5 py-3 text-[10px] font-bold tracking-[0.12em] uppercase" style={{ ...colSep, color: tokens.table.headerText }}>Email</th>
                       <th className="text-left px-5 py-3 text-[10px] font-bold tracking-[0.12em] uppercase" style={{ ...colSep, color: tokens.table.headerText }}>Telephone</th>
+                      <th className="text-left px-5 py-3 text-[10px] font-bold tracking-[0.12em] uppercase" style={{ ...colSep, color: tokens.table.headerText }}>Date d'ajout</th>
                       <th className="text-left px-5 py-3 text-[10px] font-bold tracking-[0.12em] uppercase" style={{ ...colSep, color: tokens.table.headerText }}>Statut</th>
                       <th className="text-left px-5 py-3 text-[10px] font-bold tracking-[0.12em] uppercase" style={{ ...colSep, color: tokens.table.headerText }}>Actions</th>
                       <th className="text-left px-5 py-3 text-[10px] font-bold tracking-[0.12em] uppercase" style={{ ...colSep, color: tokens.table.headerText }}>Acces</th>
@@ -106,7 +109,7 @@ export default function Crm({ onConnectAsClient, onOpenChat, onOpenRdv }: CrmPro
                         key={lead.id}
                         ref={el => { if (el) d.rowRefsMap.current.set(lead.id, el); else d.rowRefsMap.current.delete(lead.id); }}
                         lead={lead} index={i} isSelected={d.selected.has(lead.id)}
-                        statutDefs={d.statutDefs} vendors={d.vendors} tokens={tokens} colSep={colSep}
+                        statutDefs={d.statutDefs} vendors={d.vendors} tokens={tokens} timezone={timezone} colSep={colSep}
                         onToggle={d.toggleOne} onStatutChange={d.handleStatut} onToggleActif={d.handleToggleActif}
                         onDetail={(l, idx) => d.setDetailLead({ lead: l, index: idx })}
                         onConnectAsClient={onConnectAsClient} onOpenChat={onOpenChat} onOpenRdv={onOpenRdv}
@@ -137,7 +140,7 @@ export default function Crm({ onConnectAsClient, onOpenChat, onOpenRdv }: CrmPro
                 {d.filtered.map((lead, i) => (
                   <CrmMobileLeadCard
                     key={lead.id}
-                    lead={lead} index={i} statutDefs={d.statutDefs} vendors={d.vendors}
+                    lead={lead} index={i} statutDefs={d.statutDefs} vendors={d.vendors} timezone={timezone}
                     isSelected={d.selected.has(lead.id)}
                     workModeEnabled={d.workMode.enabled} workModeActiveId={d.workMode.activeId}
                     workHistoryLength={d.workMode.historyLength} workHistoryPosition={d.workMode.historyPosition}

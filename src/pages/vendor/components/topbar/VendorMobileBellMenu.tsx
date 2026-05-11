@@ -28,6 +28,7 @@ interface Props {
   timezone: string;
   tokens: ThemeTokens;
   containerRef: React.RefObject<HTMLDivElement>;
+  panelRef?: React.RefObject<HTMLDivElement>;
 }
 
 export default function VendorMobileBellMenu({
@@ -36,9 +37,10 @@ export default function VendorMobileBellMenu({
   unreadClientCount, unreadClientEntries, onClientEntryClick,
   agendaCount, agendaEntries, onAgendaEntryClick,
   propositionsCount, propositionsEntries, onPropositionEntryClick,
-  timezone, tokens, containerRef,
+  timezone, tokens, containerRef, panelRef: externalPanelRef,
 }: Props) {
-  const panelRef = useRef<HTMLDivElement>(null);
+  const internalPanelRef = useRef<HTMLDivElement>(null);
+  const panelRef = externalPanelRef ?? internalPanelRef;
 
   return (
     <div className="relative md:hidden" ref={containerRef}>
