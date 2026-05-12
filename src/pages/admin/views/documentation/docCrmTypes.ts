@@ -6,6 +6,7 @@ import {
   FolderOpen,
   BookOpen,
   Lightbulb,
+  Monitor,
   ShieldCheck,
   TrendingUp,
 } from 'lucide-react';
@@ -17,6 +18,7 @@ export const TABS_DEFAULT = [
   { id: 'structure-crm', label: 'Structure du CRM', icon: React.createElement(FolderOpen, { className: 'w-4 h-4' }) },
   { id: 'documentation-generale', label: 'Documentation générale', icon: React.createElement(BookOpen, { className: 'w-4 h-4' }) },
   { id: 'ameliorations', label: 'Améliorations', icon: React.createElement(TrendingUp, { className: 'w-4 h-4' }) },
+  { id: 'system', label: 'System', icon: React.createElement(Monitor, { className: 'w-4 h-4' }) },
   { id: 'idees', label: 'Idées', icon: React.createElement(Lightbulb, { className: 'w-4 h-4' }) },
   { id: 'audit-technique', label: 'Audit technique', icon: React.createElement(ShieldCheck, { className: 'w-4 h-4' }) },
 ] as const;
@@ -100,6 +102,7 @@ export const PLACEHOLDER: Record<TabId, string> = {
   'contexte-chatgpt': CONTEXTE_CHATGPT_INITIAL,
   'documentation-generale': `Écrivez ici la documentation générale du projet…`,
   'ameliorations': '',
+  'system': '',
   'idees': '',
   'audit-technique': '',
 };

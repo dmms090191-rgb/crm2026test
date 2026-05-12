@@ -5,6 +5,7 @@ import NoteModal, { NoteFormData } from './notes/NoteModal';
 import { Note } from './notes/NotesList';
 import { Idea } from './ideas/IdeasView';
 import { Amelioration, AmeliorationCategory } from './ameliorations/AmeliorationsView';
+import { SystemItem, SystemCategory, SystemStatus } from './system/SystemView';
 import { ContextCard } from './documentation/ContextCardsView';
 import ImportExportPanel from './documentation/ImportExportPanel';
 import { useThemeTokens } from '../../../hooks/useThemeTokens';
@@ -32,19 +33,25 @@ export default function DocumentationCrm({ initialTab, onInitialTabConsumed }: D
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [ameliorations, setAmeliorations] = useState<Amelioration[]>([]);
   const [ameliorationCategories, setAmeliorationCategories] = useState<AmeliorationCategory[]>([]);
+  const [systemItems, setSystemItems] = useState<SystemItem[]>([]);
+  const [systemCategories, setSystemCategories] = useState<SystemCategory[]>([]);
+  const [systemStatuses, setSystemStatuses] = useState<SystemStatus[]>([]);
   const [contextCards, setContextCards] = useState<ContextCard[]>([]);
   const [sidebarItems, setSidebarItems] = useState<SidebarItem[]>([...TABS_DEFAULT]);
   const [mobileDocOpen, setMobileDocOpen] = useState(false);
 
   const loadAllData = useCallback(async () => {
     setLoading(true);
-    const [{ data: docData }, { data: notesData }, { data: orderData }, { data: ideasData }, { data: ameliorationsData }, { data: ameliorationCatsData }, { data: contextCardsData }, { data: labelData }] = await Promise.all([
+    const [{ data: docData }, { data: notesData }, { data: orderData }, { data: ideasData }, { data: ameliorationsData }, { data: ameliorationCatsData }, { data: systemItemsData }, { data: systemCatsData }, { data: systemStatusesData }, { data: contextCardsData }, { data: labelData }] = await Promise.all([
       supabase.from('crm_documentation').select('tab_id, content'),
       supabase.from('crm_notes').select('*').order('note_date', { ascending: false }).order('time_start', { ascending: false }),
       supabase.from('sidebar_order').select('group_id, item_key, position').eq('group_id', 'docs').order('position', { ascending: true }),
       supabase.from('crm_ideas').select('*').order('position', { ascending: true }).order('created_at', { ascending: true }),
       supabase.from('crm_ameliorations').select('*').order('position', { ascending: true }),
       supabase.from('crm_amelioration_categories').select('*').order('position', { ascending: true }),
+      supabase.from('crm_system_items').select('*').order('position', { ascending: true }),
+      supabase.from('crm_system_categories').select('*').order('position', { ascending: true }),
+      supabase.from('crm_system_statuses').select('*').order('position', { ascending: true }),
       supabase.from('crm_context_cards').select('*').order('position', { ascending: true }).order('created_at', { ascending: true }),
       supabase.from('doc_tab_labels').select('tab_id, label'),
     ]);
@@ -81,6 +88,9 @@ export default function DocumentationCrm({ initialTab, onInitialTabConsumed }: D
     if (ideasData) setIdeas(ideasData as Idea[]);
     if (ameliorationsData) setAmeliorations(ameliorationsData as Amelioration[]);
     if (ameliorationCatsData) setAmeliorationCategories(ameliorationCatsData as AmeliorationCategory[]);
+    if (systemItemsData) setSystemItems(systemItemsData as SystemItem[]);
+    if (systemCatsData) setSystemCategories(systemCatsData as SystemCategory[]);
+    if (systemStatusesData) setSystemStatuses(systemStatusesData as SystemStatus[]);
     if (contextCardsData) setContextCards(contextCardsData as ContextCard[]);
     setLoading(false);
   }, []);
@@ -123,7 +133,7 @@ export default function DocumentationCrm({ initialTab, onInitialTabConsumed }: D
           <p className="text-sm mt-0.5" style={{ color: tokens.text.tertiary }}>Referentiel interne -- architecture, process et conventions</p>
           <div className="mt-2"><ImportExportPanel onImportComplete={loadAllData} /></div>
         </div>
-        {activeSection.kind === 'doc' && activeTab !== 'documentation-generale' && activeTab !== 'idees' && activeTab !== 'ameliorations' && activeTab !== 'contexte-chatgpt' && activeTab !== 'audit-technique' && (
+        {activeSection.kind === 'doc' && activeTab !== 'documentation-generale' && activeTab !== 'idees' && activeTab !== 'ameliorations' && activeTab !== 'system' && activeTab !== 'contexte-chatgpt' && activeTab !== 'audit-technique' && (
           <div className="flex items-center gap-2 text-xs font-medium h-7 px-3 rounded-lg transition-all duration-300" style={{ background: currentStatus === 'saved' ? tokens.success.bg : currentStatus === 'saving' ? tokens.accent.bg : currentStatus === 'error' ? tokens.danger.bg : 'transparent', border: currentStatus === 'idle' ? '1px solid transparent' : currentStatus === 'saved' ? `1px solid ${tokens.success.border}` : currentStatus === 'saving' ? `1px solid ${tokens.accent.border}` : `1px solid ${tokens.danger.border}` }}>
             {currentStatus === 'saving' && (<><Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" style={{ color: tokens.accent.text }} /><span style={{ color: tokens.accent.text }}>Enregistrement…</span></>)}
             {currentStatus === 'saved' && (<><CheckCircle className="w-3.5 h-3.5 mr-1.5" style={{ color: tokens.success.text }} /><span style={{ color: tokens.success.text }}>Enregistré</span></>)}
@@ -176,7 +186,7 @@ export default function DocumentationCrm({ initialTab, onInitialTabConsumed }: D
         </div>
 
         <div className="flex flex-col flex-1 min-h-0 overflow-y-auto p-3 pt-14 md:p-5 md:pt-5">
-          <DocContentPanel activeSection={activeSection} activeTab={activeTab} currentTab={currentTab} loading={loading} contents={contents} tabs={tabs} notes={notes} ideas={ideas} ameliorations={ameliorations} ameliorationCategories={ameliorationCategories} contextCards={contextCards} onCardsChange={setContextCards} onIdeasChange={setIdeas} onAmeliorationsChange={setAmeliorations} onAmeliorationCategoriesChange={setAmeliorationCategories} onEditNote={(note) => { setEditingNote(note); setNoteModalOpen(true); }} onDeleteNote={handleDeleteNote} onOpenNewNote={() => { setEditingNote(null); setNoteModalOpen(true); }} onChange={handleChange} tokens={tokens} />
+          <DocContentPanel activeSection={activeSection} activeTab={activeTab} currentTab={currentTab} loading={loading} contents={contents} tabs={tabs} notes={notes} ideas={ideas} ameliorations={ameliorations} ameliorationCategories={ameliorationCategories} systemItems={systemItems} systemCategories={systemCategories} systemStatuses={systemStatuses} contextCards={contextCards} onCardsChange={setContextCards} onIdeasChange={setIdeas} onAmeliorationsChange={setAmeliorations} onAmeliorationCategoriesChange={setAmeliorationCategories} onSystemItemsChange={setSystemItems} onSystemCategoriesChange={setSystemCategories} onSystemStatusesChange={setSystemStatuses} onEditNote={(note) => { setEditingNote(note); setNoteModalOpen(true); }} onDeleteNote={handleDeleteNote} onOpenNewNote={() => { setEditingNote(null); setNoteModalOpen(true); }} onChange={handleChange} tokens={tokens} />
         </div>
       </div>
       {noteModalOpen && (

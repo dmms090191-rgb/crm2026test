@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-12T17:47:42.560Z",
+  "generatedAt": "2026-05-12T23:56:32.896Z",
   "anyCount": 0,
   "anyOccurrences": [],
   "unusedImportCount": 0,
@@ -11,7 +11,7 @@
   "eslintErrorCount": 0,
   "eslintWarningCount": 0,
   "eslintIssues": [],
-  "totalFilesAnalyzed": 270,
-  "totalLinesAnalyzed": 37207,
+  "totalFilesAnalyzed": 278,
+  "totalLinesAnalyzed": 38529,
   "totalOverflowLines": 0
 }
