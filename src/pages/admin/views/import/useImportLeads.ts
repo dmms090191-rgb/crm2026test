@@ -7,8 +7,11 @@ import {
   type ProcessedRow, type ColumnMapping,
 } from '../../../../lib/csvImportPipeline';
 import { decodeCsvFile } from '../../../../lib/csvEncoding';
+import { parseExcelFile } from '../../../../lib/excelImport';
 import type { ImportMode } from './ImportModeSelector';
 import type { ImportRecord, Phase, ImportResultState } from './importLeadsTypes';
+
+const ACCEPTED_EXTENSIONS = ['.csv', '.xlsx', '.xls'];
 
 export function useImportLeads(activeTab: 'import' | 'history') {
   const [phase, setPhase] = useState<Phase>('upload');
@@ -59,17 +62,23 @@ export function useImportLeads(activeTab: 'import' | 'history') {
   };
 
   const handleFile = async (f: File) => {
-    if (!f.name.endsWith('.csv')) { setParseError('Veuillez selectionner un fichier .csv'); return; }
+    const ext = f.name.substring(f.name.lastIndexOf('.')).toLowerCase();
+    if (!ACCEPTED_EXTENSIONS.includes(ext)) { setParseError('Format non supporte. Utilisez un fichier CSV, XLSX ou XLS.'); return; }
     if (f.size > MAX_FILE_SIZE_MB * 1024 * 1024) { setParseError(`Le fichier depasse la limite de ${MAX_FILE_SIZE_MB} Mo.`); return; }
     setParseError('');
     setFile(f);
     setPhase('analyzing');
     setAnalyzeProgress(0);
 
-    const text = await decodeCsvFile(f);
-    const parsed = parseCSVText(text);
+    let parsed: { columns: string[]; rows: Record<string, string>[] };
+    if (ext === '.xlsx' || ext === '.xls') {
+      parsed = await parseExcelFile(f);
+    } else {
+      const text = await decodeCsvFile(f);
+      parsed = parseCSVText(text);
+    }
 
-    if (parsed.columns.length === 0) { setParseError('Le fichier CSV est vide ou invalide.'); setPhase('upload'); return; }
+    if (parsed.columns.length === 0) { setParseError('Le fichier est vide ou invalide.'); setPhase('upload'); return; }
     if (parsed.rows.length > MAX_ROWS) { setParseError(`Le fichier contient ${parsed.rows.length} lignes, la limite est de ${MAX_ROWS} lignes par import.`); setPhase('upload'); return; }
 
     const rawMapping = detectColumnMapping(parsed.columns);

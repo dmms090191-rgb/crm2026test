@@ -30,16 +30,16 @@ export default function UploadZone({ dragOver, parseError, onDragOver, onDragLea
           <Upload className="w-7 h-7" style={{ color: dragOver ? tokens.accent.text : tokens.text.tertiary }} />
         </div>
         <div className="text-center">
-          <p className="text-sm font-semibold" style={{ color: tokens.text.primary }}>Glissez-deposez votre fichier CSV</p>
-          <p className="text-xs mt-1" style={{ color: tokens.text.quaternary }}>ou cliquez pour selectionner depuis votre ordinateur</p>
+          <p className="text-sm font-semibold" style={{ color: tokens.text.primary }}>Glissez-deposez votre fichier</p>
+          <p className="text-xs mt-1" style={{ color: tokens.text.quaternary }}>ou cliquez pour selectionner depuis votre appareil</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap justify-center">
-          {[`.csv uniquement`, `Max ${MAX_FILE_SIZE_MB} Mo`, `Max ${MAX_ROWS.toLocaleString('fr-FR')} lignes`].map(lbl => (
+          {[`CSV, XLSX`, `Max ${MAX_FILE_SIZE_MB} Mo`, `Max ${MAX_ROWS.toLocaleString('fr-FR')} lignes`].map(lbl => (
             <span key={lbl} className="px-3 py-1 rounded-lg text-[11px] font-medium" style={{ background: tokens.surface.tertiary, color: tokens.text.tertiary, border: tokens.card.border }}>{lbl}</span>
           ))}
         </div>
       </div>
-      <input ref={fileRef} type="file" accept=".csv" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) onFile(f); e.target.value = ''; }} />
+      <input ref={fileRef} type="file" accept=".csv,.xlsx,.xls" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) onFile(f); e.target.value = ''; }} />
       {parseError && (
         <div className="flex items-center gap-2 mt-3 px-4 py-3 rounded-xl" style={{ background: tokens.danger.bg, border: tokens.danger.border }}>
           <AlertCircle className="w-4 h-4 flex-shrink-0" style={{ color: tokens.danger.text }} />
