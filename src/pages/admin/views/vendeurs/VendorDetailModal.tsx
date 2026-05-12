@@ -44,8 +44,18 @@ export default function VendorDetailModal({ vendor, onClose, onUpdate }: { vendo
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
-      style={{ background: tokens.modal.overlayBg, backdropFilter: 'blur(6px)' }}
+      className="flex items-center justify-center p-4"
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: '100vw',
+        height: '100dvh',
+        zIndex: 99999,
+        background: tokens.modal.overlayBg,
+        backdropFilter: 'blur(6px)',
+        WebkitBackdropFilter: 'blur(6px)',
+      }}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div

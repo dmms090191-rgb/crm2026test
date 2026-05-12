@@ -49,8 +49,18 @@ export default function DetailModal({ lead, gradIndex, onClose, statutDefs }: De
   return createPortal(
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-[9999] flex items-center justify-center px-4 py-4"
-      style={{ background: tokens.modal.overlayBg, backdropFilter: 'blur(6px)' }}
+      className="flex items-center justify-center px-4 py-4"
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: '100vw',
+        height: '100dvh',
+        zIndex: 99999,
+        background: tokens.modal.overlayBg,
+        backdropFilter: 'blur(6px)',
+        WebkitBackdropFilter: 'blur(6px)',
+      }}
       onClick={e => { if (e.target === overlayRef.current) onClose(); }}
     >
       <div
