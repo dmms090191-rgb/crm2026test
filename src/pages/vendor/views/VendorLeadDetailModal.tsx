@@ -1,4 +1,5 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X, LogIn } from 'lucide-react';
 import { useThemeTokens } from '../../../hooks/useThemeTokens';
 import type { ImpersonatedClientInfo } from '../../client/ClientDashboard';
@@ -23,6 +24,11 @@ export default function VendorLeadDetailModal({ lead, gradIndex, onClose, statut
   const [leadData, setLeadData] = useState<Record<string, string>>(lead.data);
   const overlayRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = ''; };
+  }, []);
+
   const nom = lead.data['Nom'] ?? '';
   const prenom = lead.data['Prenom'] ?? '';
   const email = lead.data['Email'] ?? '';
@@ -38,10 +44,10 @@ export default function VendorLeadDetailModal({ lead, gradIndex, onClose, statut
     { id: 'mot-de-passe', label: 'Mot de passe' },
   ];
 
-  return (
+  return createPortal(
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-50 flex items-center justify-center px-4 py-4"
+      className="fixed inset-0 z-[9999] flex items-center justify-center px-4 py-4"
       style={{ background: tokens.modal.overlayBg, backdropFilter: 'blur(6px)' }}
       onClick={e => { if (e.target === overlayRef.current) onClose(); }}
     >
@@ -131,6 +137,7 @@ export default function VendorLeadDetailModal({ lead, gradIndex, onClose, statut
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

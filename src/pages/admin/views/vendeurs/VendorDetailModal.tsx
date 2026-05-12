@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { supabase } from '../../../../lib/supabase';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
@@ -9,6 +10,11 @@ import CommentsTab from './CommentsTab';
 export default function VendorDetailModal({ vendor, onClose, onUpdate }: { vendor: Vendor; onClose: () => void; onUpdate: () => void }) {
   const tokens = useThemeTokens();
   const [tab, setTab] = useState<ModalTab>('informations');
+
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = ''; };
+  }, []);
   const [firstName, setFirstName] = useState(vendor.first_name);
   const [lastName, setLastName] = useState(vendor.last_name);
   const [email, setEmail] = useState(vendor.email);
@@ -36,9 +42,9 @@ export default function VendorDetailModal({ vendor, onClose, onUpdate }: { vendo
     setTimeout(() => setSaved(false), 2000);
   }
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
       style={{ background: tokens.modal.overlayBg, backdropFilter: 'blur(6px)' }}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
@@ -149,6 +155,7 @@ export default function VendorDetailModal({ vendor, onClose, onUpdate }: { vendo
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
