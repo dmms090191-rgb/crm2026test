@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { MessageCircle } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import MessagingPanel, { ChatMessage, ChatContact } from '../../../components/chat/ChatView';
@@ -30,6 +30,8 @@ export default function VendorChatClient({ vendorName, vendorDbId, initialLead, 
   const [loading, setLoading] = useState(false);
   const [contactLoading, setContactLoading] = useState(true);
   const [lastMessages, setLastMessages] = useState<Record<string, { content: string; created_at: string; sender: string }>>({});
+
+  const loadGenRef = useRef(0);
 
   useEffect(() => {
     if (!vendorDbId) { setContactLoading(false); return; }
@@ -85,32 +87,41 @@ export default function VendorChatClient({ vendorName, vendorDbId, initialLead, 
     if (clientAuthId) onClientViewed?.(clientAuthId);
   }, [clientAuthId, onClientViewed]);
 
-  const loadMessages = useCallback(async (showLoader = true) => {
-    if (!clientAuthId || !vendorDbId) return;
+  const loadMessages = useCallback(async (authId: string, showLoader: boolean) => {
+    const gen = ++loadGenRef.current;
     if (showLoader) setLoading(true);
     try {
       const { data } = await supabase
         .from('client_messages')
         .select('*')
-        .eq('client_auth_id', clientAuthId)
+        .eq('client_auth_id', authId)
         .or('deleted.is.null,deleted.eq.false')
         .order('created_at', { ascending: true });
+      if (gen !== loadGenRef.current) return;
       setMessages((data ?? []) as ChatMessage[]);
     } finally {
-      if (showLoader) setLoading(false);
+      if (gen === loadGenRef.current && showLoader) setLoading(false);
     }
-  }, [clientAuthId, vendorDbId]);
+  }, []);
 
   useEffect(() => {
-    if (clientAuthId && vendorDbId) loadMessages(true);
-    else setMessages([]);
+    if (clientAuthId && vendorDbId) {
+      loadMessages(clientAuthId, true);
+    } else {
+      loadGenRef.current++;
+      setMessages([]);
+      setLoading(false);
+    }
   }, [clientAuthId, vendorDbId, loadMessages]);
 
   useEffect(() => {
     if (!clientAuthId || !vendorDbId) return;
+    const currentAuthId = clientAuthId;
     const ch = supabase
       .channel(`vendor-client-chat-${vendorDbId}-${clientAuthId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'client_messages' }, () => loadMessages(false))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'client_messages' }, () => {
+        loadMessages(currentAuthId, false);
+      })
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [clientAuthId, vendorDbId, loadMessages]);
@@ -135,9 +146,10 @@ export default function VendorChatClient({ vendorName, vendorDbId, initialLead, 
       ...(file ? { file_url: file.url, file_name: file.name, file_type: file.type } : {}),
     } as ChatMessage]);
 
+    const capturedAuthId = clientAuthId;
     supabase.from('client_messages').insert(payload).then(({ error }) => {
       if (error) console.error('[VendorChatClient] insert error:', error.message);
-      loadMessages(false).catch(() => {});
+      loadMessages(capturedAuthId, false).catch(() => {});
     });
   }, [clientAuthId, vendorDbId, loadMessages]);
 

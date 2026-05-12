@@ -145,9 +145,9 @@ export default function VendorTopBar({ breadcrumb, onMobileMenuToggle, vendorNam
             <Menu className="w-5 h-5" />
           </button>
         )}
-        <span className="text-xs hidden sm:inline" style={{ color: tokens.topbar.breadcrumbPrefix }}>Principal</span>
-        <ChevronRight className="w-3 h-3 hidden sm:block" style={{ color: tokens.topbar.chevron }} />
-        <span className="text-xs sm:text-sm font-semibold truncate" style={{ color: tokens.topbar.breadcrumbText }}>{breadcrumb}</span>
+        <span className="text-xs hidden md:inline" style={{ color: tokens.topbar.breadcrumbPrefix }}>Principal</span>
+        <ChevronRight className="w-3 h-3 hidden md:block" style={{ color: tokens.topbar.chevron }} />
+        <span className="hidden md:inline text-sm font-semibold truncate" style={{ color: tokens.topbar.breadcrumbText }}>{breadcrumb}</span>
       </div>
 
       <div className="flex items-center gap-1 min-w-0">

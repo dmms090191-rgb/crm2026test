@@ -84,6 +84,29 @@ export default function CrmPinDisplay({ password, leadId, leadData, onPasswordUp
       return;
     }
 
+    const clientEmail = leadData['Email'];
+    if (clientEmail) {
+      const { data: session } = await supabase.auth.getSession();
+      const token = session?.session?.access_token;
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/update-user-password`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token || import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          },
+          body: JSON.stringify({ email: clientEmail, password: newPass, role: 'client' }),
+        }
+      );
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setError(body.error || 'Erreur lors de la mise a jour Auth.');
+        setSaving(false);
+        return;
+      }
+    }
+
     onPasswordUpdate?.(updatedData);
     setSaving(false);
     setSaved(true);

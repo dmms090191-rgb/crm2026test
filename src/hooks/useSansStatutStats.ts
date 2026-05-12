@@ -55,13 +55,14 @@ export function useSansStatutStats(role: 'admin' | 'vendor', vendorId?: string |
         setLoading(false);
         return;
       }
-      const { data, count: total } = await supabase
+      const { data } = await supabase
         .from('leads')
-        .select('id, prenom, nom, email, telephone, vendor_id', { count: 'exact' })
-        .eq('statut', STATUT_NOUVEAU)
+        .select('id, prenom, nom, email, telephone, vendor_id')
+        .in('statut', [STATUT_NOUVEAU, ''])
         .eq('vendor_id', vendorId);
-      setCount(total ?? 0);
-      setLeads((data ?? []) as SansStatutLead[]);
+      const results = (data ?? []) as SansStatutLead[];
+      setCount(results.length);
+      setLeads(results);
       setLoading(false);
       return;
     }
@@ -70,7 +71,7 @@ export function useSansStatutStats(role: 'admin' | 'vendor', vendorId?: string |
       supabase
         .from('leads')
         .select('id, prenom, nom, email, telephone, vendor_id')
-        .eq('statut', STATUT_NOUVEAU),
+        .in('statut', [STATUT_NOUVEAU, '']),
       supabase
         .from('vendors')
         .select('id, first_name, last_name'),

@@ -115,7 +115,7 @@ export default function VendorLeadDetailModal({ lead, gradIndex, onClose, statut
             <CrmCommentsTab leadId={lead.id} leadData={leadData} onDataUpdate={setLeadData} />
           )}
           {tab === 'mot-de-passe' && (
-            <CrmPinDisplay password={mdp} leadId={lead.id} leadData={leadData} onPasswordUpdate={setLeadData} readOnly />
+            <CrmPinDisplay password={mdp} leadId={lead.id} leadData={leadData} onPasswordUpdate={setLeadData} />
           )}
         </div>
 

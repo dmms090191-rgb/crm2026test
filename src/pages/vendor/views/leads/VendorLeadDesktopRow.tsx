@@ -50,9 +50,10 @@ const VendorLeadDesktopRow = forwardRef<HTMLTableRowElement, Props>(({
   const prenom = lead.data['Prenom'] ?? '';
   const email = lead.data['Email'] ?? '';
   const tel = lead.data['Telephone'] ?? '';
-  const statut = lead.statut ?? '';
+  const statut = lead.statut || 'Nouveau';
+  const isNeutral = statut === 'Nouveau';
   const statutDef = statutDefs.find(s => s.nom === statut);
-  const cfg = getStatutCfg(statutDef?.couleur ?? FALLBACK_COLOR);
+  const cfg = getStatutCfg(statutDef?.couleur ?? FALLBACK_COLOR, isNeutral);
   const actif = lead.actif !== false;
   const rowBg = isWorkActive ? 'rgba(249,115,22,0.04)' : isSelected ? tokens.table.rowSelected : 'transparent';
 
@@ -110,8 +111,8 @@ const VendorLeadDesktopRow = forwardRef<HTMLTableRowElement, Props>(({
         <div className="relative inline-flex items-center">
           <span className="pointer-events-none absolute left-2 w-1.5 h-1.5 rounded-full flex-shrink-0 z-10" style={{ background: statut ? cfg.dot : 'rgba(148,163,184,0.5)', boxShadow: statut ? `0 0 4px ${cfg.dot}` : 'none' }} />
           <select value={statut} onChange={e => onStatutChange(lead.id, e.target.value)} className="rounded-lg text-xs font-semibold pl-5 pr-6 py-1 focus:outline-none cursor-pointer appearance-none" style={{ background: statut ? cfg.bg : 'rgba(148,163,184,0.08)', color: statut ? cfg.color : 'rgba(148,163,184,0.7)', border: `1px solid ${statut ? cfg.border : 'rgba(148,163,184,0.18)'}` }}>
-            <option value="" style={{ background: tokens.selectBg }}>Sans statut</option>
-            {statutDefs.map(s => (<option key={s.id} value={s.nom} style={{ background: tokens.selectBg }}>{s.nom}</option>))}
+            <option value="Nouveau" style={{ background: tokens.selectBg }}>Sans statut</option>
+            {statutDefs.filter(s => s.nom !== 'Nouveau').map(s => (<option key={s.id} value={s.nom} style={{ background: tokens.selectBg }}>{s.nom}</option>))}
           </select>
           <ChevronDown className="pointer-events-none absolute right-1.5 w-3 h-3" style={{ color: statut ? cfg.color : 'rgba(148,163,184,0.5)' }} />
         </div>

@@ -197,9 +197,9 @@ export default function InfoAdmin({ onNameChange }: InfoAdminProps) {
           disabled={savingIdentity}
           className="w-full flex items-center justify-center gap-2 py-2 md:py-2.5 rounded-xl text-sm font-bold transition-all hover:brightness-110 disabled:opacity-60"
           style={{
-            background: t.success.bg,
+            background: '#059669',
             color: '#ffffff',
-            boxShadow: '0 0 20px rgba(249,115,22,0.25)',
+            boxShadow: '0 4px 14px rgba(5,150,105,0.30)',
           }}
         >
           <Save className="w-4 h-4" />
@@ -278,9 +278,9 @@ export default function InfoAdmin({ onNameChange }: InfoAdminProps) {
           disabled={savingCred}
           className="w-full flex items-center justify-center gap-2 py-2 md:py-2.5 rounded-xl text-sm font-bold transition-all hover:brightness-110 disabled:opacity-60"
           style={{
-            background: t.accent.bg,
-            color: t.accent.text,
-            boxShadow: '0 0 20px rgba(14,165,233,0.25)',
+            background: t.accent.solid,
+            color: '#ffffff',
+            boxShadow: '0 4px 14px rgba(6,182,212,0.30)',
           }}
         >
           <Save className="w-4 h-4" />

@@ -14,11 +14,11 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { auth_user_id, password } = await req.json();
+    const { auth_user_id, email, password, role } = await req.json();
 
-    if (!auth_user_id || !password) {
+    if ((!auth_user_id && !email) || !password) {
       return new Response(
-        JSON.stringify({ error: "auth_user_id and password are required" }),
+        JSON.stringify({ error: "auth_user_id or email, and password are required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -35,10 +35,44 @@ Deno.serve(async (req: Request) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const { error } = await supabaseAdmin.auth.admin.updateUserById(
-      auth_user_id,
-      { password }
-    );
+    let userId = auth_user_id;
+
+    if (!userId && email) {
+      const { data: usersData } = await supabaseAdmin.auth.admin.listUsers();
+      const existing = usersData?.users?.find(
+        (u: { email?: string }) => u.email === email
+      );
+
+      if (existing) {
+        userId = existing.id;
+      } else {
+        const userRole = role || "client";
+        const { data: created, error: createErr } =
+          await supabaseAdmin.auth.admin.createUser({
+            email,
+            password,
+            email_confirm: true,
+            app_metadata: { role: userRole },
+            user_metadata: { role: userRole },
+          });
+
+        if (createErr) {
+          return new Response(
+            JSON.stringify({ error: createErr.message }),
+            { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        return new Response(
+          JSON.stringify({ success: true, created: true, auth_user_id: created.user.id }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+      password,
+    });
 
     if (error) {
       return new Response(
@@ -48,7 +82,7 @@ Deno.serve(async (req: Request) => {
     }
 
     return new Response(
-      JSON.stringify({ success: true }),
+      JSON.stringify({ success: true, auth_user_id: userId }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {

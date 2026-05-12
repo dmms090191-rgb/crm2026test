@@ -10,7 +10,15 @@ export function colorWithAlpha(hex: string, alpha: number) {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
-export function getStatutCfg(couleur: string) {
+export const NEUTRAL_STATUT_CFG = {
+  color: '#6b7280',
+  bg: 'rgba(107,114,128,0.07)',
+  border: 'rgba(107,114,128,0.18)',
+  dot: '#9ca3af',
+};
+
+export function getStatutCfg(couleur: string, isNeutral?: boolean) {
+  if (isNeutral) return NEUTRAL_STATUT_CFG;
   return {
     color: couleur,
     bg: colorWithAlpha(couleur, 0.08),

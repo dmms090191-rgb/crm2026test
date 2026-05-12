@@ -24,6 +24,7 @@ export function useCrmData() {
   const workMode = useWorkMode(authUserId ? `crm_work_mode_admin_${authUserId}` : '');
   const cardRefsMap = useRef<Map<string, HTMLDivElement>>(new Map());
   const rowRefsMap = useRef<Map<string, HTMLTableRowElement>>(new Map());
+  const recentUpdates = useRef<Map<string, number>>(new Map());
 
   const topScrollRef = useRef<HTMLDivElement>(null);
   const bottomScrollRef = useRef<HTMLDivElement>(null);
@@ -81,7 +82,8 @@ export function useCrmData() {
     const { data } = await supabase
       .from('leads')
       .select('id, data, imported_at, statut, actif, vendor_id')
-      .order('imported_at', { ascending: false });
+      .order('imported_at', { ascending: false })
+      .order('id', { ascending: true });
     setLeads((data ?? []) as ImportedLead[]);
     setLoading(false);
   }, []);
@@ -104,12 +106,17 @@ export function useCrmData() {
   useEffect(() => {
     const leadsChannel = supabase
       .channel('leads-crm')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'leads' }, load)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'leads' }, (payload) => {
+        const inserted = payload.new as ImportedLead;
+        setLeads(prev => prev.some(l => l.id === inserted.id) ? prev : [inserted, ...prev]);
+      })
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'leads' }, (payload) => {
         setLeads(prev => prev.filter(l => l.id !== (payload.old as { id: string }).id));
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'leads' }, (payload) => {
         const updated = payload.new as ImportedLead;
+        const lockedUntil = recentUpdates.current.get(updated.id);
+        if (lockedUntil && Date.now() < lockedUntil) return;
         setLeads(prev => prev.map(l => l.id === updated.id ? { ...l, ...updated } : l));
       })
       .subscribe();
@@ -121,13 +128,17 @@ export function useCrmData() {
       supabase.removeChannel(leadsChannel);
       supabase.removeChannel(statutsChannel);
     };
-  }, [load, loadStatuts]);
+  }, [loadStatuts]);
 
   const handleStatut = async (id: string, statut: string) => {
     const prev = leads.find(l => l.id === id)?.statut;
+    recentUpdates.current.set(id, Date.now() + 3000);
     setLeads(ls => ls.map(l => l.id === id ? { ...l, statut } : l));
     const { error } = await supabase.from('leads').update({ statut }).eq('id', id);
-    if (error) setLeads(ls => ls.map(l => l.id === id ? { ...l, statut: prev } : l));
+    if (error) {
+      setLeads(ls => ls.map(l => l.id === id ? { ...l, statut: prev } : l));
+    }
+    recentUpdates.current.delete(id);
   };
 
   const handleToggleActif = async (id: string, current: boolean) => {
@@ -158,9 +169,8 @@ export function useCrmData() {
       if (filterTel && !tel.includes(filterTel.toLowerCase())) return false;
       if (statutFilter === 'sans_statut') {
         const nomStatut = l.statut ?? '';
-        const statutConnu = statutDefs.some(s => s.nom === nomStatut);
-        if (nomStatut !== '' && statutConnu) return false;
-      } else if (statutFilter !== 'Tous' && (l.statut ?? '') !== statutFilter) return false;
+        if (nomStatut !== '' && nomStatut !== 'Nouveau') return false;
+      } else if (statutFilter !== 'Tous' && (l.statut || 'Nouveau') !== statutFilter) return false;
       if (filterVendor === 'admin' && l.vendor_id !== null) return false;
       if (filterVendor !== 'tous' && filterVendor !== 'admin' && l.vendor_id !== filterVendor) return false;
       return true;
@@ -168,7 +178,9 @@ export function useCrmData() {
     .sort((a, b) => {
       const da = new Date(a.imported_at).getTime();
       const db = new Date(b.imported_at).getTime();
-      return sortOrder === 'recent' ? db - da : da - db;
+      const diff = sortOrder === 'recent' ? db - da : da - db;
+      if (diff !== 0) return diff;
+      return a.id.localeCompare(b.id);
     });
 
   const filteredIds = filtered.map(l => l.id);

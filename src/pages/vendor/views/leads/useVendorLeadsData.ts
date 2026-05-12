@@ -21,6 +21,7 @@ export function useVendorLeadsData(vendorId: string | null) {
   const rowRefsMap = useRef<Map<string, HTMLTableRowElement>>(new Map());
   const hasFetched = useRef(false);
   const loadId = useRef(0);
+  const recentUpdates = useRef<Map<string, number>>(new Map());
 
   const load = useCallback(async () => {
     if (!vendorId) return;
@@ -33,7 +34,8 @@ export function useVendorLeadsData(vendorId: string | null) {
         .from('leads')
         .select('id, data, imported_at, statut, actif, vendor_id')
         .eq('vendor_id', vendorId)
-        .order('imported_at', { ascending: false }),
+        .order('imported_at', { ascending: false })
+        .order('id', { ascending: true }),
       supabase
         .from('statuts')
         .select('id, nom, couleur')
@@ -82,6 +84,8 @@ export function useVendorLeadsData(vendorId: string | null) {
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'leads' }, (payload) => {
         const updated = payload.new as ImportedLead;
+        const lockedUntil = recentUpdates.current.get(updated.id);
+        if (lockedUntil && Date.now() < lockedUntil) return;
         if (updated.vendor_id === vendorId) {
           setLeads(prev => {
             const exists = prev.some(l => l.id === updated.id);
@@ -98,9 +102,13 @@ export function useVendorLeadsData(vendorId: string | null) {
 
   const handleStatut = async (id: string, statut: string) => {
     const prev = leads.find(l => l.id === id)?.statut;
+    recentUpdates.current.set(id, Date.now() + 3000);
     setLeads(ls => ls.map(l => l.id === id ? { ...l, statut } : l));
     const { error } = await supabase.from('leads').update({ statut }).eq('id', id);
-    if (error) setLeads(ls => ls.map(l => l.id === id ? { ...l, statut: prev } : l));
+    if (error) {
+      setLeads(ls => ls.map(l => l.id === id ? { ...l, statut: prev } : l));
+    }
+    recentUpdates.current.delete(id);
   };
 
   const handleToggleActif = async (id: string, current: boolean) => {
@@ -108,8 +116,6 @@ export function useVendorLeadsData(vendorId: string | null) {
     const { error } = await supabase.from('leads').update({ actif: !current }).eq('id', id);
     if (error) setLeads(ls => ls.map(l => l.id === id ? { ...l, actif: current } : l));
   };
-
-  const statutNames = useMemo(() => new Set(statutDefs.map(s => s.nom)), [statutDefs]);
 
   const filtered = useMemo(() => {
     const fNom = filterNom.toLowerCase();
@@ -124,16 +130,20 @@ export function useVendorLeadsData(vendorId: string | null) {
       if (fTel && !(l.data['Telephone'] ?? '').toLowerCase().includes(fTel)) return false;
       if (statutFilter === 'sans_statut') {
         const nomStatut = l.statut ?? '';
-        if (nomStatut !== '' && statutNames.has(nomStatut)) return false;
-      } else if (statutFilter !== 'Tous' && (l.statut ?? '') !== statutFilter) return false;
+        if (nomStatut !== '' && nomStatut !== 'Nouveau') return false;
+      } else if (statutFilter !== 'Tous' && (l.statut || 'Nouveau') !== statutFilter) return false;
       return true;
     });
 
-    if (sortOrder === 'ancien') {
-      result.sort((a, b) => a.imported_at.localeCompare(b.imported_at));
-    }
+    result.sort((a, b) => {
+      const cmp = sortOrder === 'ancien'
+        ? a.imported_at.localeCompare(b.imported_at)
+        : b.imported_at.localeCompare(a.imported_at);
+      if (cmp !== 0) return cmp;
+      return a.id.localeCompare(b.id);
+    });
     return result;
-  }, [leads, filterNom, filterPrenom, filterEmail, filterTel, statutFilter, sortOrder, statutNames]);
+  }, [leads, filterNom, filterPrenom, filterEmail, filterTel, statutFilter, sortOrder]);
 
   const filteredIds = useMemo(() => filtered.map(l => l.id), [filtered]);
   const allChecked = filteredIds.length > 0 && filteredIds.every(id => selected.has(id));

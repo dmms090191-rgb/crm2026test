@@ -108,7 +108,7 @@ export default function ClientTopBar({ breadcrumb, onMobileMenuToggle, clientNam
   return (
     <>
     <header
-      className="flex items-center justify-between px-3 sm:px-4 md:px-6 h-14 md:h-16 flex-shrink-0 transition-colors duration-300"
+      className="relative z-30 flex items-center justify-between px-3 sm:px-4 md:px-6 h-14 md:h-16 flex-shrink-0 transition-colors duration-300"
       style={{
         background: t.topbar.bg,
         borderBottom: `1px solid ${t.topbar.border}`,
@@ -125,9 +125,9 @@ export default function ClientTopBar({ breadcrumb, onMobileMenuToggle, clientNam
             <Menu className="w-5 h-5" />
           </button>
         )}
-        <span className="text-xs hidden sm:inline" style={{ color: t.topbar.breadcrumbPrefix }}>Espace Client</span>
-        <ChevronRight className="w-3 h-3 hidden sm:block" style={{ color: t.topbar.border }} />
-        <span className="text-xs sm:text-sm font-semibold truncate" style={{ color: t.topbar.breadcrumbText }}>{breadcrumb}</span>
+        <span className="text-xs hidden md:inline" style={{ color: t.topbar.breadcrumbPrefix }}>Espace Client</span>
+        <ChevronRight className="w-3 h-3 hidden md:block" style={{ color: t.topbar.border }} />
+        <span className="hidden md:inline text-sm font-semibold truncate" style={{ color: t.topbar.breadcrumbText }}>{breadcrumb}</span>
       </div>
 
       <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">

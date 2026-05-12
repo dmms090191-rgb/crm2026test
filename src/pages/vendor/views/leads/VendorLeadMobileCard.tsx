@@ -1,7 +1,8 @@
 import { Mail, Phone, ChevronDown, LogIn, MessageCircle, CalendarClock, Undo2, Redo2, CheckCircle2, Calendar } from 'lucide-react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
-import { getStatutCfg, FALLBACK_COLOR, getInitials, gradients } from '../../../admin/views/crm/utils';
+import { getInitials, gradients } from '../../../admin/views/crm/utils';
 import CheckBox from '../../../admin/views/crm/CheckBox';
+import StatutSelect from '../../../admin/views/crm/StatutSelect';
 import type { ImportedLead, StatutDef } from '../vendorLeadsTypes';
 
 function formatImportedAtShort(isoDate: string, tz: string): string {
@@ -48,9 +49,7 @@ export default function VendorLeadMobileCard({
   const prenom = lead.data['Prenom'] ?? '';
   const email = lead.data['Email'] ?? '';
   const tel = lead.data['Telephone'] ?? '';
-  const statut = lead.statut ?? '';
-  const statutDef = statutDefs.find(s => s.nom === statut);
-  const cfg = getStatutCfg(statutDef?.couleur ?? FALLBACK_COLOR);
+  const statut = lead.statut || 'Nouveau';
   const initials = getInitials(nom, prenom);
   const grad = gradients[index % gradients.length];
   const actif = lead.actif !== false;
@@ -98,7 +97,10 @@ export default function VendorLeadMobileCard({
           )}
         </div>
 
-        <span className="text-[10px] tabular-nums font-medium self-start mt-0.5" style={{ color: tokens.table.indexText }}>#{index + 1}</span>
+        <span
+          className="text-[11px] tabular-nums font-bold self-start px-1.5 py-0.5 rounded-md flex-shrink-0"
+          style={{ color: tokens.accent.text, background: tokens.accent.bg, border: `1px solid ${tokens.accent.border}` }}
+        >#{index + 1}</span>
       </div>
 
       {/* Contact info */}
@@ -120,19 +122,7 @@ export default function VendorLeadMobileCard({
       {/* Metadata: Statut, Date, Acces */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mb-3 text-[11px]" style={{ color: tokens.text.quaternary }}>
         <div className="flex items-center gap-1.5">
-          <div className="relative inline-flex items-center">
-            <span className="pointer-events-none absolute left-2 w-1.5 h-1.5 rounded-full z-10" style={{ background: statut ? cfg.dot : 'rgba(148,163,184,0.5)', boxShadow: statut ? `0 0 4px ${cfg.dot}` : 'none' }} />
-            <select
-              value={statut}
-              onChange={e => onStatutChange(lead.id, e.target.value)}
-              className="rounded-lg text-[11px] font-semibold pl-5 pr-5 py-1 focus:outline-none cursor-pointer appearance-none"
-              style={{ background: statut ? cfg.bg : 'rgba(148,163,184,0.08)', color: statut ? cfg.color : 'rgba(148,163,184,0.7)', border: `1px solid ${statut ? cfg.border : 'rgba(148,163,184,0.18)'}` }}
-            >
-              <option value="" style={{ background: tokens.selectBg }}>Sans statut</option>
-              {statutDefs.map(s => (<option key={s.id} value={s.nom} style={{ background: tokens.selectBg }}>{s.nom}</option>))}
-            </select>
-            <ChevronDown className="pointer-events-none absolute right-1.5 w-2.5 h-2.5" style={{ color: statut ? cfg.color : 'rgba(148,163,184,0.5)' }} />
-          </div>
+          <StatutSelect value={statut} statutDefs={statutDefs} onChange={v => onStatutChange(lead.id, v)} size="sm" tokens={tokens} />
         </div>
 
         <div className="flex items-center gap-1">

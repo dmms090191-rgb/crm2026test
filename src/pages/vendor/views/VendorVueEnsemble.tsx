@@ -50,22 +50,22 @@ export default function VendorVueEnsemble({ vendorId, unreadConversations = 0 }:
   }, [vendorId]);
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-bold" style={{ color: tokens.heading.primary }}>Vue d'ensemble</h2>
-          <p className="text-xs mt-0.5" style={{ color: tokens.text.quaternary }}>Tableau de bord en temps réel</p>
+    <div className="space-y-6 sm:space-y-6">
+      <div className="flex items-start justify-between gap-3 pt-1 sm:pt-0">
+        <div className="min-w-0">
+          <h2 className="text-base sm:text-xl font-extrabold tracking-tight leading-tight" style={{ color: tokens.heading.primary }}>Vue d'ensemble</h2>
+          <p className="text-[10px] sm:text-xs mt-0.5" style={{ color: tokens.text.quaternary }}>Tableau de bord en temps réel</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="flex flex-col sm:grid sm:grid-cols-3 gap-3 sm:gap-4">
         <StatCard
           label="Total"
           sublabel="Leads assignés"
           count={totalLeads}
           accentColor="#22d3ee"
           glowColor="#22d3ee"
-          icon={<Tag className="w-4 h-4" />}
+          icon={<Tag className="w-[18px] h-[18px] sm:w-4 sm:h-4" />}
         />
         <StatCard
           label="Sans statut"
@@ -73,7 +73,7 @@ export default function VendorVueEnsemble({ vendorId, unreadConversations = 0 }:
           count={sansStatut.count}
           accentColor="#f59e0b"
           glowColor="#f59e0b"
-          icon={<AlertCircle className="w-4 h-4" />}
+          icon={<AlertCircle className="w-[18px] h-[18px] sm:w-4 sm:h-4" />}
           onClick={() => setSansStatutModalOpen(true)}
         />
         <StatCard
@@ -82,7 +82,7 @@ export default function VendorVueEnsemble({ vendorId, unreadConversations = 0 }:
           count={unreadConversations}
           accentColor="#60a5fa"
           glowColor="#60a5fa"
-          icon={<MessageCircle className="w-4 h-4" />}
+          icon={<MessageCircle className="w-[18px] h-[18px] sm:w-4 sm:h-4" />}
         />
       </div>
 
