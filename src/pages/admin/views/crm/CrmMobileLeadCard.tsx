@@ -1,4 +1,4 @@
-import { Mail, Phone, ChevronDown, LogIn, MessageCircle, CalendarClock, Undo2, Redo2, CheckCircle2, Calendar, User } from 'lucide-react';
+import { Mail, Phone, ChevronDown, LogIn, MessageCircle, CalendarClock, Undo2, Redo2, CheckCircle2, Calendar, User, RotateCcw } from 'lucide-react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 import { getInitials, gradients } from './utils';
 import CheckBox from './CheckBox';
@@ -28,6 +28,7 @@ interface Props {
   onWorkSelect: (id: string) => void;
   onWorkUndo: () => void;
   onWorkRedo: () => void;
+  onWorkReset: () => void;
   onToggle: (id: string) => void;
   onStatutChange: (id: string, statut: string) => void;
   onToggleActif: (id: string, current: boolean) => void;
@@ -42,7 +43,7 @@ interface Props {
 export default function CrmMobileLeadCard({
   lead, index, statutDefs, vendors, timezone, isSelected, workModeEnabled, workModeActiveId,
   workHistoryLength, workHistoryPosition, canUndo, canRedo,
-  onWorkSelect, onWorkUndo, onWorkRedo, onToggle, onStatutChange,
+  onWorkSelect, onWorkUndo, onWorkRedo, onWorkReset, onToggle, onStatutChange,
   onToggleActif, onDetail, onOpenChat, onOpenRdv, onConnectAsClient, selectMode, cardRef,
 }: Props) {
   const tokens = useThemeTokens();
@@ -95,6 +96,7 @@ export default function CrmMobileLeadCard({
               <button onClick={onWorkUndo} disabled={!canUndo} className="w-5 h-5 rounded flex items-center justify-center disabled:opacity-30" style={{ color: '#f97316' }}><Undo2 className="w-3 h-3" /></button>
               <span className="text-[9px] font-semibold tabular-nums" style={{ color: '#f97316' }}>{workHistoryPosition}/{workHistoryLength}</span>
               <button onClick={onWorkRedo} disabled={!canRedo} className="w-5 h-5 rounded flex items-center justify-center disabled:opacity-30" style={{ color: '#f97316' }}><Redo2 className="w-3 h-3" /></button>
+              <button onClick={onWorkReset} className="w-5 h-5 rounded flex items-center justify-center" style={{ color: '#f97316' }} title="Reinitialiser"><RotateCcw className="w-2.5 h-2.5" /></button>
             </div>
           )}
         </div>

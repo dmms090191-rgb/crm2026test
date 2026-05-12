@@ -112,11 +112,17 @@ export function useWorkMode(storageKey: string) {
   const canUndo = indexRef.current > 0;
   const canRedo = indexRef.current < historyRef.current.length - 1;
 
+  const resetHistory = useCallback(() => {
+    historyRef.current = [];
+    indexRef.current = -1;
+    setActiveId(null);
+  }, []);
+
   const activate = useCallback(() => setEnabled(true), []);
   const deactivate = useCallback(() => setEnabled(false), []);
 
   const historyPosition = indexRef.current + 1;
   const historyLength = historyRef.current.length;
 
-  return { enabled, activeId, select, undo, redo, canUndo, canRedo, activate, deactivate, historyPosition, historyLength };
+  return { enabled, activeId, select, undo, redo, canUndo, canRedo, activate, deactivate, historyPosition, historyLength, resetHistory };
 }

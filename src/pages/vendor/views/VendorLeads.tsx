@@ -185,6 +185,7 @@ export default function VendorLeads({ vendorId, onOpenChat, onConnectAsClient, o
                 historyPosition={d.workMode.historyPosition} historyLength={d.workMode.historyLength}
                 onLocate={() => { if (d.workMode.activeId) d.rowRefsMap.current.get(d.workMode.activeId)?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }}
                 canLocate={!!d.workMode.activeId && d.filtered.some(l => l.id === d.workMode.activeId)}
+                onResetHistory={d.workMode.resetHistory}
               />
               <DualScrollWrapper deps={[d.filtered.length]}>
                 <table className="w-full" style={{ borderCollapse: 'collapse', minWidth: 'max-content' }}>
@@ -233,6 +234,7 @@ export default function VendorLeads({ vendorId, onOpenChat, onConnectAsClient, o
                 historyPosition={d.workMode.historyPosition} historyLength={d.workMode.historyLength}
                 onLocate={() => { if (d.workMode.activeId) d.cardRefsMap.current.get(d.workMode.activeId)?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }}
                 canLocate={!!d.workMode.activeId && d.filtered.some(l => l.id === d.workMode.activeId)}
+                onResetHistory={d.workMode.resetHistory}
               />
               <div className="divide-y" style={{ borderColor: tokens.table.rowBorder }}>
                 {d.filtered.map((lead, i) => (
@@ -243,7 +245,7 @@ export default function VendorLeads({ vendorId, onOpenChat, onConnectAsClient, o
                     workModeEnabled={d.workMode.enabled} workModeActiveId={d.workMode.activeId}
                     workHistoryLength={d.workMode.historyLength} workHistoryPosition={d.workMode.historyPosition}
                     canUndo={d.workMode.canUndo} canRedo={d.workMode.canRedo}
-                    onWorkSelect={d.workMode.select} onWorkUndo={d.workMode.undo} onWorkRedo={d.workMode.redo}
+                    onWorkSelect={d.workMode.select} onWorkUndo={d.workMode.undo} onWorkRedo={d.workMode.redo} onWorkReset={d.workMode.resetHistory}
                     onToggle={d.toggleOne} onStatutChange={d.handleStatut} onToggleActif={d.handleToggleActif}
                     onDetail={(l, idx) => d.setDetailLead({ lead: l, index: idx })}
                     onOpenChat={onOpenChat} onOpenRdv={onOpenRdv} onConnectAsClient={onConnectAsClient}
