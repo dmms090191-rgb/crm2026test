@@ -5,6 +5,7 @@ import MessagingPanel, { ChatMessage, ChatContact } from '../../../components/ch
 import type { ChatLead } from './Crm';
 import { useThemeTokens } from '../../../hooks/useThemeTokens';
 import { peekChatReturnContext } from '../../../lib/connectReturnContext';
+import { useSimulation } from '../../../contexts/SimulationContext';
 
 interface LeadRow {
   id: string;
@@ -21,6 +22,7 @@ interface ChatClientProps {
 
 export default function ChatClient({ initialLead, onMessageSent, onClientViewed, onReturnToCrm }: ChatClientProps) {
   const tokens = useThemeTokens();
+  const { isSimulating } = useSimulation();
   const chatReturnCtx = onReturnToCrm ? peekChatReturnContext() : null;
 
   const [leads, setLeads] = useState<LeadRow[]>([]);
@@ -126,6 +128,7 @@ export default function ChatClient({ initialLead, onMessageSent, onClientViewed,
   }, [clientAuthId, loadMessages]);
 
   const handleSend = useCallback(async (content: string, file?: { url: string; name: string; type: string }) => {
+    if (isSimulating) return;
     if (!clientAuthId) throw new Error('missing_context');
     const fileFields = file ? { file_url: file.url, file_name: file.name, file_type: file.type } : {};
     const payload = { content: content || '', sender: 'admin' as const, client_auth_id: clientAuthId, vendor_id: null, ...fileFields };
@@ -135,18 +138,20 @@ export default function ChatClient({ initialLead, onMessageSent, onClientViewed,
       loadMessages(false).catch(() => {});
     });
     onMessageSent?.();
-  }, [clientAuthId, onMessageSent, loadMessages]);
+  }, [clientAuthId, onMessageSent, loadMessages, isSimulating]);
 
   const handleDelete = useCallback(async (id: string) => {
+    if (isSimulating) return;
     setMessages(prev => prev.filter(m => m.id !== id));
     supabase.from('client_messages').update({ deleted: true }).eq('id', id);
-  }, []);
+  }, [isSimulating]);
 
   const handleReset = useCallback(async () => {
+    if (isSimulating) return;
     if (!clientAuthId) return;
     await supabase.from('client_messages').delete().eq('client_auth_id', clientAuthId);
     setMessages([]);
-  }, [clientAuthId]);
+  }, [clientAuthId, isSimulating]);
 
   const [selectMode, setSelectMode] = useState(false);
   const [selectedConvos, setSelectedConvos] = useState<Set<string>>(new Set());

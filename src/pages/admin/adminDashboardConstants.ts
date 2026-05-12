@@ -16,4 +16,5 @@ export const BREADCRUMB_LABELS: Record<ActiveView, string> = {
   'propositions-rdv': 'Propositions RDV',
   'statuts': 'Statuts',
   'documentation-crm': 'Documentation CRM',
+  'sauvegarde': 'Sauvegarde & restauration',
 };

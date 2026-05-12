@@ -4,6 +4,7 @@ import { supabase } from '../../../lib/supabase';
 import MessagingPanel, { ChatMessage, ChatContact } from '../../../components/chat/ChatView';
 import type { Vendor } from './ListeVendeurs';
 import { useThemeTokens } from '../../../hooks/useThemeTokens';
+import { useSimulation } from '../../../contexts/SimulationContext';
 
 interface ChatVendeurProps {
   initialVendor?: Vendor | null;
@@ -13,6 +14,7 @@ interface ChatVendeurProps {
 
 export default function ChatVendeur({ initialVendor, onMessageSent, onVendorViewed }: ChatVendeurProps) {
   const tokens = useThemeTokens();
+  const { isSimulating } = useSimulation();
 
   const [allVendors, setAllVendors] = useState<Vendor[]>([]);
   const [vendorsWithMessages, setVendorsWithMessages] = useState<string[]>([]);
@@ -114,6 +116,7 @@ export default function ChatVendeur({ initialVendor, onMessageSent, onVendorView
   }, [selectedVendorId, loadMessages]);
 
   const handleSend = useCallback(async (content: string, file?: { url: string; name: string; type: string }) => {
+    if (isSimulating) return;
     if (!selectedVendorId) throw new Error('missing_context');
     const vendor = allVendors.find(v => v.id === selectedVendorId) ?? initialVendor;
     const payload = {
@@ -139,19 +142,20 @@ export default function ChatVendeur({ initialVendor, onMessageSent, onVendorView
       loadMessages(false).catch(() => {});
     });
     onMessageSent?.();
-  }, [selectedVendorId, allVendors, initialVendor, onMessageSent, loadMessages]);
+  }, [selectedVendorId, allVendors, initialVendor, onMessageSent, loadMessages, isSimulating]);
 
   const handleDelete = useCallback(async (id: string) => {
+    if (isSimulating) return;
     setMessages(prev => prev.filter(m => m.id !== id));
     supabase.from('vendor_admin_messages').update({ deleted: true }).eq('id', id);
-  }, []);
-
+  }, [isSimulating]);
 
   const handleReset = useCallback(async () => {
+    if (isSimulating) return;
     if (!selectedVendorId) return;
     await supabase.from('vendor_admin_messages').delete().eq('vendor_id', selectedVendorId);
     setMessages([]);
-  }, [selectedVendorId]);
+  }, [selectedVendorId, isSimulating]);
 
   const vendorsForContacts = (() => {
     const withMsgs = allVendors.filter(v => vendorsWithMessages.includes(v.id));

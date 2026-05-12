@@ -5,7 +5,8 @@ import InfoAdmin from './views/InfoAdmin';
 import type { ImpersonatedClient, ChatLead } from './views/Crm';
 import type { Vendor } from './views/ListeVendeurs';
 import AgendaEquipe from './views/AgendaEquipe';
-
+import { SimulationProvider } from '../../contexts/SimulationContext';
+import { SimulationBanner } from './views/sauvegarde/SimulationBanner';
 const VueEnsemble = lazy(() => import('./views/VueEnsemble'));
 const Inscription = lazy(() => import('./views/Inscription'));
 const AjouterLeads = lazy(() => import('./views/AjouterLeads'));
@@ -20,6 +21,7 @@ const Crm = lazy(() => import('./views/Crm'));
 const ImportLeads = lazy(() => import('./views/ImportLeads'));
 const importDocumentationCrm = () => import('./views/DocumentationCrm');
 const DocumentationCrm = lazy(importDocumentationCrm);
+const SauvegardeRestauration = lazy(() => import('./views/SauvegardeRestauration'));
 import { supabase } from '../../lib/supabase';
 import { saveConnectReturnContext, consumeConnectReturnContext, saveChatReturnContext, consumeChatReturnContext } from '../../lib/connectReturnContext';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
@@ -51,7 +53,8 @@ export type ActiveView =
   | 'agenda-equipe'
   | 'propositions-rdv'
   | 'statuts'
-  | 'documentation-crm';
+  | 'documentation-crm'
+  | 'sauvegarde';
 
 export default function AdminDashboard({ onLogout, onConnectAsVendor, onConnectAsClient }: AdminDashboardProps) {
   const t = useThemeTokens();
@@ -114,7 +117,6 @@ export default function AdminDashboard({ onLogout, onConnectAsVendor, onConnectA
       }
     });
   }, []);
-
   useEffect(() => {
     const fetchUnseen = async () => {
       const { data } = await supabase
@@ -196,7 +198,6 @@ export default function AdminDashboard({ onLogout, onConnectAsVendor, onConnectA
     setChatLead(null); setActiveView('crm');
     if (ctx) pendingScrollRef.current = { leadId: ctx.leadId, scrollY: 0 };
   }, []);
-
   const lazyFallback = <div className="flex items-center justify-center py-12"><div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" /></div>;
 
   const renderView = () => {
@@ -215,13 +216,14 @@ export default function AdminDashboard({ onLogout, onConnectAsVendor, onConnectA
       case 'propositions-rdv': return <Suspense fallback={lazyFallback}><PropositionsRdv initialLead={rdvLead} onInitialLeadConsumed={() => setRdvLead(null)} onNavigateToCrm={() => handleNavigate('crm')} /></Suspense>;
       case 'statuts': return <Suspense fallback={lazyFallback}><Statuts /></Suspense>;
       case 'documentation-crm': return <Suspense fallback={lazyFallback}><DocumentationCrm initialTab={docInitialTab} onInitialTabConsumed={() => setDocInitialTab(undefined)} /></Suspense>;
+      case 'sauvegarde': return <Suspense fallback={lazyFallback}><SauvegardeRestauration /></Suspense>;
       default: return <Suspense fallback={lazyFallback}><VueEnsemble unreadClientConversations={unreadEntries.length} unreadVendorConversations={unreadVendorEntries.length} /></Suspense>;
     }
   };
-
   const getBreadcrumb = () => BREADCRUMB_LABELS[activeView];
 
   return (
+    <SimulationProvider>
     <div className="flex h-[100dvh] overflow-hidden transition-colors duration-300" style={{ background: t.main.bg }}>
       {mobileOpen && (
         <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setMobileOpen(false)} />
@@ -263,6 +265,7 @@ export default function AdminDashboard({ onLogout, onConnectAsVendor, onConnectA
           propositionsEntries={confirmedUnseen}
           onPropositionEntryClick={handleProposalEntryClick}
         />
+        <SimulationBanner />
         <main
           className={`flex-1 flex flex-col md:p-6 mobile-main-scroll ${(activeView === 'chat-client' || activeView === 'chat-vendeur') ? 'p-2 sm:p-3' : 'p-3 sm:p-4'}`}
           style={{
@@ -291,5 +294,6 @@ export default function AdminDashboard({ onLogout, onConnectAsVendor, onConnectA
         </main>
       </div>
     </div>
+    </SimulationProvider>
   );
 }

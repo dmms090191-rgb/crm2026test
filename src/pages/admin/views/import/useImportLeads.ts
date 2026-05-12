@@ -8,12 +8,14 @@ import {
 } from '../../../../lib/csvImportPipeline';
 import { decodeCsvFile } from '../../../../lib/csvEncoding';
 import { parseExcelFile } from '../../../../lib/excelImport';
+import { useSimulation } from '../../../../contexts/SimulationContext';
 import type { ImportMode } from './ImportModeSelector';
 import type { ImportRecord, Phase, ImportResultState } from './importLeadsTypes';
 
 const ACCEPTED_EXTENSIONS = ['.csv', '.xlsx', '.xls'];
 
 export function useImportLeads(activeTab: 'import' | 'history') {
+  const { isSimulating } = useSimulation();
   const [phase, setPhase] = useState<Phase>('upload');
   const [dragOver, setDragOver] = useState(false);
   const [parseError, setParseError] = useState('');
@@ -122,6 +124,7 @@ export function useImportLeads(activeTab: 'import' | 'history') {
   const handleDrop = (e: React.DragEvent) => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files[0]; if (f) handleFile(f); };
 
   const handleImport = async () => {
+    if (isSimulating) return;
     if (!file || processedRows.length === 0) return;
     setPhase('importing');
 

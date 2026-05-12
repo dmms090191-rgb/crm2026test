@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useWorkMode } from '../../../../hooks/useWorkMode';
+import { useSimulation } from '../../../../contexts/SimulationContext';
 import { supabase } from '../../../../lib/supabase';
 import type { ImportedLead, Vendor, StatutDef } from './types';
 
 export function useCrmData() {
+  const { isSimulating } = useSimulation();
   const [leads, setLeads] = useState<ImportedLead[]>([]);
   const [statutDefs, setStatutDefs] = useState<StatutDef[]>([]);
   const [loading, setLoading] = useState(true);
@@ -71,6 +73,7 @@ export function useCrmData() {
   }, []);
 
   const handleTransfer = async (vendorId: string | null) => {
+    if (isSimulating) return;
     const ids = Array.from(selected);
     await supabase.from('leads').update({ vendor_id: vendorId }).in('id', ids);
     setLeads(prev => prev.map(l => selected.has(l.id) ? { ...l, vendor_id: vendorId } : l));
@@ -131,6 +134,7 @@ export function useCrmData() {
   }, [loadStatuts]);
 
   const handleStatut = async (id: string, statut: string) => {
+    if (isSimulating) return;
     const prev = leads.find(l => l.id === id)?.statut;
     recentUpdates.current.set(id, Date.now() + 3000);
     setLeads(ls => ls.map(l => l.id === id ? { ...l, statut } : l));
@@ -142,12 +146,14 @@ export function useCrmData() {
   };
 
   const handleToggleActif = async (id: string, current: boolean) => {
+    if (isSimulating) return;
     setLeads(ls => ls.map(l => l.id === id ? { ...l, actif: !current } : l));
     const { error } = await supabase.from('leads').update({ actif: !current }).eq('id', id);
     if (error) setLeads(ls => ls.map(l => l.id === id ? { ...l, actif: current } : l));
   };
 
   const handleDeleteSelected = async () => {
+    if (isSimulating) return;
     if (selected.size === 0) return;
     setDeleting(true);
     const ids = Array.from(selected);

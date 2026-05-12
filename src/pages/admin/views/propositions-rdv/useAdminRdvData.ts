@@ -3,6 +3,7 @@ import { supabase } from '../../../../lib/supabase';
 import { RdvProposal, filterToStatus } from '../../../vendor/views/rdvPropositionsConstants';
 import { useTimezone } from '../../../../hooks/useTimezone';
 import { localToUTC } from '../../../../lib/timezoneUtils';
+import { useSimulation } from '../../../../contexts/SimulationContext';
 
 interface RdvLeadRef { id: string; nom: string; prenom: string; email: string; tel?: string; }
 interface VendorOption { id: string; first_name: string; last_name: string; }
@@ -13,6 +14,7 @@ const emptyForm = () => ({
 });
 
 export function useAdminRdvData(initialLead?: RdvLeadRef | null, onInitialLeadConsumed?: () => void) {
+  const { isSimulating } = useSimulation();
   const { timezone, userName } = useTimezone();
   const [rdvs, setRdvs] = useState<RdvProposal[]>([]);
   const [vendors, setVendors] = useState<VendorOption[]>([]);
@@ -63,18 +65,21 @@ export function useAdminRdvData(initialLead?: RdvLeadRef | null, onInitialLeadCo
   const statusCounts = rdvs.reduce<Record<string, number>>((acc, r) => { acc[r.status] = (acc[r.status] || 0) + 1; return acc; }, {});
 
   async function handleAccept(id: string) {
+    if (isSimulating) return;
     const now = new Date().toISOString();
     await supabase.from('rdv_proposals').update({ status: 'confirmed', responded_at: now, responded_by: 'admin' }).eq('id', id);
     setRdvs(prev => prev.map(r => r.id === id ? { ...r, status: 'confirmed', responded_at: now, responded_by: 'admin' } : r));
   }
 
   async function handleRefuse(id: string) {
+    if (isSimulating) return;
     const now = new Date().toISOString();
     await supabase.from('rdv_proposals').update({ status: 'cancelled', responded_at: now, responded_by: 'admin' }).eq('id', id);
     setRdvs(prev => prev.map(r => r.id === id ? { ...r, status: 'cancelled', responded_at: now, responded_by: 'admin' } : r));
   }
 
   async function handleAdd() {
+    if (isSimulating) return;
     if (!newForm.proposed_date) return;
     const appointmentCheck = new Date(localToUTC(newForm.proposed_date, newForm.proposed_time, timezone));
     if (appointmentCheck.getTime() <= Date.now()) {
@@ -140,6 +145,7 @@ export function useAdminRdvData(initialLead?: RdvLeadRef | null, onInitialLeadCo
   }
 
   async function handleBulkDelete() {
+    if (isSimulating) return;
     if (selected.size === 0) return;
     setDeleting(true);
     const ids = Array.from(selected);
