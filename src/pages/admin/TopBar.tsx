@@ -97,7 +97,7 @@ export default function TopBar({ breadcrumb, onMobileMenuToggle, adminName = 'Ad
   return (
     <>
     <header
-      className="flex items-center justify-between px-3 sm:px-4 md:px-6 h-14 md:h-16 flex-shrink-0 transition-colors duration-300"
+      className="flex items-center justify-between px-3 sm:px-4 md:px-6 h-14 md:h-16 flex-shrink-0"
       style={{
         background: t.topbar.bg,
         borderBottom: `1px solid ${t.topbar.border}`,
