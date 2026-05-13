@@ -144,30 +144,35 @@ export default function QuickEmailSelector({ email, onSelect, tokens }: Props) {
       {/* Picker overlay */}
       {showPicker && (
         <div
-          className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4"
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4"
           style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}
           onClick={e => { if (e.target === e.currentTarget) setShowPicker(false); }}
         >
           <div
-            className="w-full sm:max-w-xs sm:rounded-2xl rounded-t-2xl overflow-hidden"
+            className="w-[90%] max-w-xs rounded-2xl overflow-hidden shadow-xl"
             style={{ background: tokens.modal.bg, border: `1px solid ${tokens.modal.border}` }}
           >
-            <div className="flex items-center justify-between px-5 py-3" style={{ borderBottom: `1px solid ${tokens.surface.border}` }}>
-              <p className="text-xs font-semibold" style={{ color: tokens.text.primary }}>Emails rapides</p>
+            <div className="flex items-center justify-between px-5 py-3.5" style={{ borderBottom: `1px solid ${tokens.surface.border}` }}>
+              <p className="text-sm font-semibold" style={{ color: tokens.text.primary }}>Emails rapides</p>
               <button
                 type="button"
                 onClick={() => setShowPicker(false)}
-                className="w-7 h-7 rounded-lg flex items-center justify-center"
+                className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors"
                 style={{ background: tokens.modal.closeBtnBg, color: tokens.modal.closeBtnText }}
               >
                 <X className="w-3.5 h-3.5" />
               </button>
             </div>
-            <div className="max-h-52 overflow-y-auto">
+            <div className="max-h-64 overflow-y-auto">
               {quickEmails.length === 0 ? (
-                <p className="px-5 py-4 text-xs text-center" style={{ color: tokens.text.quaternary }}>
-                  Aucun email rapide enregistre.
-                </p>
+                <div className="px-5 py-6 text-center space-y-1.5">
+                  <p className="text-xs font-medium" style={{ color: tokens.text.quaternary }}>
+                    Aucun email rapide enregistre sur cet appareil.
+                  </p>
+                  <p className="text-[11px]" style={{ color: tokens.text.tertiary }}>
+                    Cliquez sur Enregistrer pour ajouter l'email actuel.
+                  </p>
+                </div>
               ) : (
                 quickEmails.map(qe => (
                   <button
@@ -191,15 +196,15 @@ export default function QuickEmailSelector({ email, onSelect, tokens }: Props) {
       {/* Manage overlay */}
       {showManage && (
         <div
-          className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4"
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4"
           style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
           onClick={e => { if (e.target === e.currentTarget) setShowManage(false); }}
         >
           <div
-            className="w-full sm:max-w-sm sm:rounded-2xl rounded-t-2xl overflow-hidden"
+            className="w-[90%] max-w-sm rounded-2xl overflow-hidden shadow-xl"
             style={{ background: tokens.modal.bg, border: `1px solid ${tokens.modal.border}` }}
           >
-            <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: `1px solid ${tokens.surface.border}` }}>
+            <div className="flex items-center justify-between px-5 py-3.5" style={{ borderBottom: `1px solid ${tokens.surface.border}` }}>
               <p className="text-sm font-semibold" style={{ color: tokens.text.primary }}>Gerer les emails rapides</p>
               <button
                 type="button"
@@ -233,7 +238,7 @@ export default function QuickEmailSelector({ email, onSelect, tokens }: Props) {
               </button>
             </div>
 
-            <div className="px-5 py-3 max-h-48 overflow-y-auto space-y-1">
+            <div className="px-5 py-3 max-h-56 overflow-y-auto space-y-1">
               {quickEmails.length === 0 ? (
                 <p className="text-xs py-3 text-center" style={{ color: tokens.text.quaternary }}>Aucun email rapide enregistre.</p>
               ) : (

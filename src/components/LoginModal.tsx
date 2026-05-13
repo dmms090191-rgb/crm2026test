@@ -4,7 +4,6 @@ import { supabase } from '../lib/supabase';
 import RegisterModal from './RegisterModal';
 import { useTheme } from '../contexts/ThemeContext';
 import { useThemeTokens } from '../hooks/useThemeTokens';
-import { getSavedEmails, saveEmail } from '../lib/savedEmails';
 import { usePinInput } from './hooks/usePinInput';
 import LoginPinInput from './login/LoginPinInput';
 import QuickEmailSelector from './login/QuickEmailSelector';
@@ -25,11 +24,8 @@ export default function LoginModal({ isOpen, onClose, onLogin }: LoginModalProps
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showRegister, setShowRegister] = useState(false);
-  const [suggestions, setSuggestions] = useState<string[]>([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
 
   const emailInputRef = useRef<HTMLInputElement>(null);
-  const suggestionsRef = useRef<HTMLDivElement>(null);
   const validateRef = useRef<() => void>(() => {});
 
   const playClick = useCallback(() => {
@@ -72,7 +68,6 @@ export default function LoginModal({ isOpen, onClose, onLogin }: LoginModalProps
       setDigits(['', '', '', '', '', '']);
       setTimeout(() => pinRefs.current[0]?.focus(), 0);
     } else {
-      saveEmail(email);
       onLogin();
     }
   }, [email, digits, onLogin, setDigits, pinRefs]);
@@ -80,55 +75,12 @@ export default function LoginModal({ isOpen, onClose, onLogin }: LoginModalProps
   validateRef.current = handleValidate;
 
   useEffect(() => {
-    setDigits(['', '', '', '', '', '']);
-    setError('');
-    setShowSuggestions(false);
     if (isOpen) {
-      const saved = getSavedEmails();
-      if (saved.length > 0) {
-        setEmail(saved[0]);
-      }
+      setEmail('');
+      setDigits(['', '', '', '', '', '']);
+      setError('');
     }
   }, [isOpen, setDigits]);
-
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (
-        suggestionsRef.current &&
-        !suggestionsRef.current.contains(e.target as Node) &&
-        emailInputRef.current &&
-        !emailInputRef.current.contains(e.target as Node)
-      ) {
-        setShowSuggestions(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const handleEmailChange = (value: string) => {
-    setEmail(value);
-    const saved = getSavedEmails();
-    const filtered = value
-      ? saved.filter((e) => e.toLowerCase().includes(value.toLowerCase()))
-      : saved;
-    setSuggestions(filtered);
-    setShowSuggestions(filtered.length > 0);
-  };
-
-  const handleEmailFocus = () => {
-    const saved = getSavedEmails();
-    const filtered = email
-      ? saved.filter((e) => e.toLowerCase().includes(email.toLowerCase()))
-      : saved;
-    setSuggestions(filtered);
-    setShowSuggestions(filtered.length > 0);
-  };
-
-  const handleSuggestionClick = (suggestion: string) => {
-    setEmail(suggestion);
-    setShowSuggestions(false);
-  };
 
   const pin = digits.join('');
 
@@ -179,8 +131,7 @@ export default function LoginModal({ isOpen, onClose, onLogin }: LoginModalProps
                   ref={emailInputRef}
                   type="email"
                   value={email}
-                  onChange={(e) => handleEmailChange(e.target.value)}
-                  onFocus={handleEmailFocus}
+                  onChange={(e) => setEmail(e.target.value)}
                   placeholder="votre@email.com"
                   autoComplete="off"
                   className="w-full rounded-xl pl-9 sm:pl-12 pr-9 sm:pr-10 py-3 focus:outline-none focus:ring-2 transition-all text-sm sm:text-base truncate"
@@ -201,7 +152,7 @@ export default function LoginModal({ isOpen, onClose, onLogin }: LoginModalProps
                 {email && (
                   <button
                     type="button"
-                    onClick={() => { setEmail(''); setShowSuggestions(false); emailInputRef.current?.focus(); }}
+                    onClick={() => { setEmail(''); emailInputRef.current?.focus(); }}
                     className="absolute right-2.5 sm:right-3 top-1/2 -translate-y-1/2 w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center transition-colors"
                     style={{ backgroundColor: tokens.surface.tertiary, color: tokens.text.tertiary }}
                     title="Effacer l'adresse email"
@@ -209,31 +160,6 @@ export default function LoginModal({ isOpen, onClose, onLogin }: LoginModalProps
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
-                )}
-                {showSuggestions && (
-                  <div
-                    ref={suggestionsRef}
-                    className="absolute top-full left-0 right-0 mt-1 rounded-xl shadow-2xl overflow-hidden z-50"
-                    style={{ backgroundColor: tokens.modal.fieldBg, borderColor: tokens.modal.fieldBorder, borderWidth: '1px', borderStyle: 'solid' }}
-                  >
-                    {suggestions.map((suggestion) => (
-                      <button
-                        key={suggestion}
-                        type="button"
-                        onMouseDown={() => handleSuggestionClick(suggestion)}
-                        className="w-full text-left px-4 py-3 text-sm transition-colors border-b last:border-0"
-                        style={{ color: tokens.modal.fieldValue, borderColor: tokens.surface.borderLight }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.backgroundColor = tokens.surface.hover;
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = 'transparent';
-                        }}
-                      >
-                        {suggestion}
-                      </button>
-                    ))}
-                  </div>
                 )}
               </div>
               {email && (
