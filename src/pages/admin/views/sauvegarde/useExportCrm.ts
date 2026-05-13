@@ -4,11 +4,23 @@ import { CRM_TABLE_NAMES, SCHEMA_VERSION } from './restoreConstants';
 
 type ExportResult = { status: 'success' | 'error'; message: string } | null;
 
+export interface ExportSnapshot {
+  date: string;
+  counts: Record<string, number>;
+  exportedTables: string[];
+  failedTables: { table: string; error: string }[];
+  totalRows: number;
+}
+
+const TABLES_WITH_DELETED_COLUMN = ['client_messages', 'vendor_admin_messages'];
+
 export function useExportCrm() {
   const [exporting, setExporting] = useState(false);
   const [exportResult, setExportResult] = useState<ExportResult>(null);
+  const [exportSnapshot, setExportSnapshot] = useState<ExportSnapshot | null>(null);
 
   const clearExportResult = useCallback(() => setExportResult(null), []);
+  const clearExportSnapshot = useCallback(() => setExportSnapshot(null), []);
 
   const handleExport = useCallback(async () => {
     setExporting(true);
@@ -21,7 +33,11 @@ export function useExportCrm() {
 
     const results = await Promise.allSettled(
       CRM_TABLE_NAMES.map(async (table) => {
-        const { data: rows, error } = await supabase.from(table).select('*');
+        let query = supabase.from(table).select('*');
+        if (TABLES_WITH_DELETED_COLUMN.includes(table)) {
+          query = query.or('deleted.is.null,deleted.eq.false');
+        }
+        const { data: rows, error } = await query;
         return { table, rows, error };
       })
     );
@@ -47,6 +63,7 @@ export function useExportCrm() {
 
     if (exportedTables.length === 0) {
       setExporting(false);
+      setExportSnapshot(null);
       setExportResult({ status: 'error', message: 'Echec total : aucune table exportee.' });
       return;
     }
@@ -74,6 +91,15 @@ export function useExportCrm() {
     Object.assign(document.createElement('a'), { href: url, download: `crm-backup-${dateStr}.json` }).click();
     URL.revokeObjectURL(url);
 
+    const totalRows = Object.values(counts).reduce((sum, n) => sum + n, 0);
+    setExportSnapshot({
+      date: now.toISOString(),
+      counts,
+      exportedTables,
+      failedTables,
+      totalRows,
+    });
+
     setExporting(false);
     const failedMsg = failedTables.length > 0
       ? ` (${failedTables.length} table(s) en echec)`
@@ -84,5 +110,5 @@ export function useExportCrm() {
     });
   }, []);
 
-  return { exporting, exportResult, handleExport, clearExportResult };
+  return { exporting, exportResult, exportSnapshot, handleExport, clearExportResult, clearExportSnapshot };
 }

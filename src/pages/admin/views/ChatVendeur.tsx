@@ -147,7 +147,7 @@ export default function ChatVendeur({ initialVendor, onMessageSent, onVendorView
   const handleDelete = useCallback(async (id: string) => {
     if (isSimulating) return;
     setMessages(prev => prev.filter(m => m.id !== id));
-    supabase.from('vendor_admin_messages').update({ deleted: true }).eq('id', id);
+    supabase.from('vendor_admin_messages').delete().eq('id', id);
   }, [isSimulating]);
 
   const handleReset = useCallback(async () => {
@@ -202,7 +202,7 @@ export default function ChatVendeur({ initialVendor, onMessageSent, onVendorView
   const handleConfirmDeleteConvos = useCallback(async () => {
     const ids = [...selectedConvos];
     await Promise.all(ids.map(vendorId =>
-      supabase.from('vendor_admin_messages').update({ deleted: true }).eq('vendor_id', vendorId)
+      supabase.from('vendor_admin_messages').delete().eq('vendor_id', vendorId)
     ));
     if (selectedVendorId && ids.includes(selectedVendorId)) {
       setMessages([]);
@@ -283,7 +283,7 @@ export default function ChatVendeur({ initialVendor, onMessageSent, onVendorView
               {selectedConvos.size > 1 ? 'Voulez-vous vraiment supprimer ces conversations ?' : 'Voulez-vous vraiment supprimer cette conversation ?'}
             </p>
             <p className="text-xs" style={{ color: tokens.text.tertiary }}>
-              Les messages seront masques des deux cotes (admin et vendeur).
+              Les messages seront supprimés définitivement.
             </p>
             <div className="flex items-center gap-3 justify-end">
               <button onClick={() => setConfirmDelete(false)} className="px-4 py-2 rounded-lg text-xs font-semibold" style={{ background: tokens.surface.hover, color: tokens.text.secondary }}>Annuler</button>

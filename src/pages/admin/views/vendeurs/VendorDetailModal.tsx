@@ -6,6 +6,7 @@ import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 import type { Vendor, ModalTab } from './vendeurTypes';
 import PinDisplay from './PinDisplay';
 import CommentsTab from './CommentsTab';
+import CopyButton from '../../../../components/CopyButton';
 
 export default function VendorDetailModal({ vendor, onClose, onUpdate }: { vendor: Vendor; onClose: () => void; onUpdate: () => void }) {
   const tokens = useThemeTokens();
@@ -124,13 +125,16 @@ export default function VendorDetailModal({ vendor, onClose, onUpdate }: { vendo
               </div>
               <div>
                 <label className="block text-[10px] font-bold tracking-[0.15em] uppercase mb-1.5" style={{ color: tokens.modal.fieldLabel }}>Email</label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg text-sm outline-none focus:ring-1 transition-all"
-                  style={{ background: tokens.modal.fieldBg, border: `1px solid ${tokens.modal.fieldBorder}`, color: tokens.modal.fieldValue }}
-                />
+                <div className="flex items-center gap-1">
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
+                    className="flex-1 min-w-0 px-3 py-2 rounded-lg text-sm outline-none focus:ring-1 transition-all"
+                    style={{ background: tokens.modal.fieldBg, border: `1px solid ${tokens.modal.fieldBorder}`, color: tokens.modal.fieldValue }}
+                  />
+                  <CopyButton value={email} label="Copier l'email du vendeur" />
+                </div>
               </div>
               <div>
                 <label className="block text-[10px] font-bold tracking-[0.15em] uppercase mb-1.5" style={{ color: tokens.modal.fieldLabel }}>Téléphone</label>

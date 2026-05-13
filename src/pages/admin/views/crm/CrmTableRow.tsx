@@ -4,6 +4,7 @@ import type { ImportedLead, Vendor, StatutDef, ImpersonatedClient, ChatLead } fr
 import type { ThemeTokens } from '../../../../lib/themeTokens';
 import { getStatutCfg, FALLBACK_COLOR } from './utils';
 import CheckBox from './CheckBox';
+import CopyButton from '../../../../components/CopyButton';
 
 function formatImportedAt(isoDate: string, tz: string): string {
   try {
@@ -113,9 +114,10 @@ const CrmTableRow = forwardRef<HTMLTableRowElement, Props>(function CrmTableRow(
       </td>
       <td className="px-5 py-3.5" style={colSep}><span className="text-sm" style={{ color: tokens.text.secondary }}>{prenom || '\u2014'}</span></td>
       <td className="px-5 py-3.5" style={colSep}>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1">
           <Mail className="w-3 h-3 flex-shrink-0" style={{ color: tokens.table.cellIcon }} />
-          <span className="text-xs" style={{ color: tokens.table.cellTextMuted }}>{email || '\u2014'}</span>
+          <span className="text-xs truncate" style={{ color: tokens.table.cellTextMuted }}>{email || '\u2014'}</span>
+          {email && <CopyButton value={email} />}
         </div>
       </td>
       <td className="px-5 py-3.5" style={colSep}>

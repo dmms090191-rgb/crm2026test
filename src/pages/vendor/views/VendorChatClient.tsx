@@ -155,7 +155,7 @@ export default function VendorChatClient({ vendorName, vendorDbId, initialLead, 
 
   const handleDelete = useCallback(async (id: string) => {
     setMessages(prev => prev.filter(m => m.id !== id));
-    supabase.from('client_messages').update({ deleted: true }).eq('id', id);
+    supabase.from('client_messages').delete().eq('id', id);
   }, []);
 
   const [selectMode, setSelectMode] = useState(false);
@@ -180,7 +180,7 @@ export default function VendorChatClient({ vendorName, vendorDbId, initialLead, 
       return lead ? (lead.data['AuthId'] ?? lead.data['auth_id'] ?? lead.id) : id;
     });
     await Promise.all(authIdsToDelete.map(authId =>
-      supabase.from('client_messages').update({ deleted: true }).eq('client_auth_id', authId)
+      supabase.from('client_messages').delete().eq('client_auth_id', authId)
     ));
     if (selectedId && ids.includes(selectedId)) { setMessages([]); setSelectedId(null); }
     setLeads(prev => prev.filter(l => !ids.includes(l.id)));
@@ -265,7 +265,7 @@ export default function VendorChatClient({ vendorName, vendorDbId, initialLead, 
               {selectedConvos.size > 1 ? 'Supprimer ces conversations ?' : 'Supprimer cette conversation ?'}
             </p>
             <p className="text-xs" style={{ color: tokens.text.tertiary }}>
-              Les messages seront masques de la liste.
+              Les messages seront supprimés définitivement.
             </p>
             <div className="flex gap-3 justify-end">
               <button onClick={() => setConfirmDelete(false)} className="px-4 py-2 rounded-lg text-xs font-medium" style={{ background: tokens.surface.hover, color: tokens.text.secondary }}>Annuler</button>

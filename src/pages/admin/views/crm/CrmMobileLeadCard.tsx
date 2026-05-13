@@ -3,6 +3,7 @@ import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 import { getInitials, gradients } from './utils';
 import CheckBox from './CheckBox';
 import StatutSelect from './StatutSelect';
+import CopyButton from '../../../../components/CopyButton';
 import type { ImportedLead, StatutDef, Vendor, ImpersonatedClient, ChatLead } from './types';
 
 function formatImportedAtShort(isoDate: string, tz: string): string {
@@ -110,9 +111,10 @@ export default function CrmMobileLeadCard({
       {/* Contact info */}
       <div className="rounded-xl px-3 py-2.5 mb-3 space-y-1.5" style={{ background: tokens.surface.hover }}>
         {email && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <Mail className="w-3.5 h-3.5 flex-shrink-0" style={{ color: tokens.table.cellIcon }} />
-            <span className="text-xs truncate" style={{ color: tokens.table.cellTextMuted }}>{email}</span>
+            <span className="text-xs truncate flex-1 min-w-0" style={{ color: tokens.table.cellTextMuted }}>{email}</span>
+            <CopyButton value={email} />
           </div>
         )}
         {tel && (

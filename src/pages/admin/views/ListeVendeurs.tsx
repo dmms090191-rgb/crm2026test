@@ -8,6 +8,7 @@ import VendorDetailModal from './vendeurs/VendorDetailModal';
 import VendorDeleteModal from './vendeurs/VendorDeleteModal';
 import DualScrollWrapper from '../../../components/DualScrollWrapper';
 import CheckBox from './crm/CheckBox';
+import CopyButton from '../../../components/CopyButton';
 
 export type { Vendor } from './vendeurs/vendeurTypes';
 
@@ -169,7 +170,12 @@ export default function ListeVendeurs({ onConnectAsVendor, onOpenChat }: ListeVe
                         )}
                         <td className="px-5 py-3.5"><span className="text-sm font-medium" style={{ color: tokens.table.cellText }}>{vendor.first_name}</span></td>
                         <td className="px-5 py-3.5"><span className="text-sm font-medium" style={{ color: tokens.table.cellText }}>{vendor.last_name}</span></td>
-                        <td className="px-5 py-3.5"><span className="text-sm" style={{ color: tokens.table.cellTextMuted }}>{vendor.email}</span></td>
+                        <td className="px-5 py-3.5">
+                          <div className="flex items-center gap-1">
+                            <span className="text-sm truncate" style={{ color: tokens.table.cellTextMuted }}>{vendor.email}</span>
+                            {vendor.email && <CopyButton value={vendor.email} />}
+                          </div>
+                        </td>
                         <td className="px-5 py-3.5"><span className="text-sm font-mono tracking-widest" style={{ color: tokens.label.hint }}>{maskedPassword}</span></td>
                         <td className="px-5 py-3.5"><span className="text-sm" style={{ color: tokens.table.cellTextMuted }}>{vendor.phone || '\u2014'}</span></td>
                         <td className="px-5 py-3.5">
@@ -208,9 +214,10 @@ export default function ListeVendeurs({ onConnectAsVendor, onOpenChat }: ListeVe
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold truncate" style={{ color: tokens.table.cellText }}>{vendor.first_name} {vendor.last_name}</p>
                         {vendor.email && (
-                          <div className="flex items-center gap-1.5 mt-1">
+                          <div className="flex items-center gap-1 mt-1">
                             <Mail className="w-3 h-3 flex-shrink-0" style={{ color: tokens.table.cellIcon }} />
-                            <span className="text-xs truncate" style={{ color: tokens.table.cellTextMuted }}>{vendor.email}</span>
+                            <span className="text-xs truncate flex-1 min-w-0" style={{ color: tokens.table.cellTextMuted }}>{vendor.email}</span>
+                            <CopyButton value={vendor.email} />
                           </div>
                         )}
                         {vendor.phone && (

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Users, UserCheck, Palette, MessageSquare, Calendar, MessageCircle, Eye, Database, ShieldCheck } from 'lucide-react';
+import { Users, UserCheck, Palette, MessageSquare, Calendar, MessageCircle, Eye, Database, ShieldCheck, AlertTriangle } from 'lucide-react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 import { LeadsTab, VendeursTab, StatutsTab, MessagesTab, RdvTab, CommentairesTab } from './SimulationPreviewTabs';
 import type { SimulationData } from '../../../../contexts/SimulationContext';
@@ -61,10 +61,10 @@ export function SimulationPreview({ data }: SimulationPreviewProps) {
             </div>
             <div className="min-w-0">
               <h3 className="text-xs sm:text-sm font-bold tracking-tight" style={{ color: t.heading.primary }}>
-                Apercu visuel de la sauvegarde
+                Apercu du fichier JSON importe
               </h3>
               <p className="text-[10px] sm:text-[11px] mt-0.5 truncate" style={{ color: t.text.tertiary }}>
-                {data.filename} — {data.exportDate ? new Date(data.exportDate).toLocaleDateString('fr-FR') : ''}
+                Source : fichier {data.filename} — {data.exportDate ? new Date(data.exportDate).toLocaleDateString('fr-FR') : ''}
               </p>
             </div>
           </div>
@@ -100,10 +100,10 @@ export function SimulationPreview({ data }: SimulationPreviewProps) {
         </div>
       </div>
 
-      {/* Tabs - scrollable internally, no page overflow */}
+      {/* Tabs */}
       <div
-        className="flex overflow-x-auto px-3 sm:px-4 py-2 sm:py-2.5 gap-1.5"
-        style={{ borderBottom: `1px solid ${t.surface.border}`, background: t.surface.tertiary, WebkitOverflowScrolling: 'touch' }}
+        className="flex flex-wrap px-3 sm:px-4 py-2 sm:py-2.5 gap-1.5"
+        style={{ borderBottom: `1px solid ${t.surface.border}`, background: t.surface.tertiary }}
       >
         {TABS.map((tab) => {
           const Icon = tab.icon;
@@ -113,7 +113,7 @@ export function SimulationPreview({ data }: SimulationPreviewProps) {
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-[11px] sm:text-xs font-semibold whitespace-nowrap transition-all duration-200 flex-shrink-0"
+              className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-[11px] sm:text-xs font-semibold whitespace-nowrap transition-all duration-200"
               style={{
                 background: isActive ? t.tab.activeBg : 'transparent',
                 color: isActive ? t.tab.activeText : t.tab.inactiveText,
@@ -137,8 +137,16 @@ export function SimulationPreview({ data }: SimulationPreviewProps) {
         })}
       </div>
 
+      {/* Stale data warning */}
+      <div className="flex items-start gap-2.5 mx-3 sm:mx-5 mt-3 sm:mt-4 rounded-xl px-4 py-2.5" style={{ background: t.warning.bg, border: `1px solid ${t.warning.border}` }}>
+        <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" style={{ color: t.warning.text }} />
+        <p className="text-[11px]" style={{ color: t.warning.text }}>
+          Cet apercu provient d'un fichier JSON charge. Il ne reflete pas forcement l'etat actuel de Supabase.
+        </p>
+      </div>
+
       {/* Content */}
-      <div className="p-3 sm:p-5 max-h-[55vh] overflow-auto">
+      <div className="p-3 sm:p-5">
         {rows.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 gap-3">
             <div

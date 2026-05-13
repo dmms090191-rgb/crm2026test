@@ -72,7 +72,7 @@ export function RestoreReportPanel({ report, onClose, tokens: t }: Props) {
         </div>
       </div>
 
-      <div className="px-4 sm:px-5 py-4 space-y-4 max-h-[60vh] overflow-y-auto">
+      <div className="px-4 sm:px-5 py-4 space-y-4">
         {/* Summary stats */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
           <StatBox label="Tables dans le fichier" value={report.tablesInFile} tokens={t} />

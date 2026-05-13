@@ -3,6 +3,7 @@ import { Mail, Phone, ChevronDown, LogIn, MessageCircle, CalendarClock, Undo2, R
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 import { getStatutCfg, FALLBACK_COLOR } from '../../../admin/views/crm/utils';
 import CheckBox from '../../../admin/views/crm/CheckBox';
+import CopyButton from '../../../../components/CopyButton';
 import type { ImportedLead, StatutDef } from '../vendorLeadsTypes';
 
 function formatImportedAt(isoDate: string, tz: string): string {
@@ -99,7 +100,7 @@ const VendorLeadDesktopRow = forwardRef<HTMLTableRowElement, Props>(({
       </td>
       <td className="px-5 py-3.5" style={colSep}><span className="text-sm" style={{ color: tokens.text.secondary }}>{prenom || '\u2014'}</span></td>
       <td className="px-5 py-3.5" style={colSep}>
-        <div className="flex items-center gap-1.5"><Mail className="w-3 h-3 flex-shrink-0" style={{ color: tokens.table.cellIcon }} /><span className="text-xs" style={{ color: tokens.table.cellTextMuted }}>{email || '\u2014'}</span></div>
+        <div className="flex items-center gap-1"><Mail className="w-3 h-3 flex-shrink-0" style={{ color: tokens.table.cellIcon }} /><span className="text-xs truncate" style={{ color: tokens.table.cellTextMuted }}>{email || '\u2014'}</span>{email && <CopyButton value={email} />}</div>
       </td>
       <td className="px-5 py-3.5" style={colSep}>
         <div className="flex items-center gap-1.5"><Phone className="w-3 h-3 flex-shrink-0" style={{ color: tokens.table.cellIcon }} /><span className="text-xs" style={{ color: tokens.table.cellTextMuted }}>{tel || '\u2014'}</span></div>

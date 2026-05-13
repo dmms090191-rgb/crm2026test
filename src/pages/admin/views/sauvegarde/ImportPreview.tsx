@@ -54,9 +54,12 @@ export function ImportPreview({
           </div>
           <div className="min-w-0">
             <h3 className="text-sm font-semibold" style={{ color: t.text.primary }}>
-              Apercu de la sauvegarde
+              Apercu du fichier JSON importe
             </h3>
-            <p className="text-xs truncate" style={{ color: t.text.secondary }}>
+            <p className="text-[11px]" style={{ color: t.text.tertiary }}>
+              Source : fichier JSON selectionne — lecture seule
+            </p>
+            <p className="text-xs truncate mt-0.5" style={{ color: t.text.secondary }}>
               {backup.filename}
             </p>
           </div>

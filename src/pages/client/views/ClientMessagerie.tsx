@@ -106,7 +106,7 @@ export default function ClientMessagerie({ clientName, clientAuthId, isAdmin }: 
   const handleDelete = useCallback(async (id: string) => {
     if (!isAdmin) return;
     setMessages(prev => prev.filter(m => m.id !== id));
-    supabase.from('client_messages').update({ deleted: true }).eq('id', id);
+    supabase.from('client_messages').delete().eq('id', id);
   }, [isAdmin]);
 
 

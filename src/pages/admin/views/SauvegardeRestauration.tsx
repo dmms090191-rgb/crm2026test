@@ -3,12 +3,14 @@ import { Download, Upload, RotateCcw, ShieldCheck, AlertTriangle, CheckCircle, A
 import { useThemeTokens } from '../../../hooks/useThemeTokens';
 import { CRM_TABLE_NAMES } from './sauvegarde/restoreConstants';
 import { ImportPreview } from './sauvegarde/ImportPreview';
+import { ExportPreview } from './sauvegarde/ExportPreview';
 import { BackupCard } from './sauvegarde/BackupCard';
 import { BackupConfigSection } from './sauvegarde/BackupConfigSection';
 import { RestoreConfirmModal } from './sauvegarde/RestoreConfirmModal';
 import { RestoreProgress } from './sauvegarde/RestoreProgress';
 import { RestoreReportPanel } from './sauvegarde/RestoreReport';
 import { SimulationPreview } from './sauvegarde/SimulationPreview';
+import { OrphanCleanupSection } from './sauvegarde/OrphanCleanupSection';
 import { useExportCrm } from './sauvegarde/useExportCrm';
 import { useRestoreCrm } from './sauvegarde/useRestoreCrm';
 import { useSimulation } from '../../../contexts/SimulationContext';
@@ -17,7 +19,7 @@ import type { ImportedBackup } from './sauvegarde/types';
 
 export default function SauvegardeRestauration() {
   const t = useThemeTokens();
-  const { exporting, exportResult, handleExport, clearExportResult } = useExportCrm();
+  const { exporting, exportResult, exportSnapshot, handleExport, clearExportResult, clearExportSnapshot } = useExportCrm();
   const { status, currentTable, progress, report, simulate, restore, reset } = useRestoreCrm();
   const { isSimulating } = useSimulation();
   const [importedBackup, setImportedBackup] = useState<ImportedBackup | null>(null);
@@ -141,7 +143,7 @@ export default function SauvegardeRestauration() {
           Sauvegarde & restauration
         </h1>
         <p className="mt-1 text-xs sm:text-sm break-words" style={{ color: t.text.secondary }}>
-          Outil de secours pour exporter, importer et restaurer les donnees du CRM.
+          Exporter, importer, analyser et restaurer les donnees du CRM.
         </p>
       </div>
 
@@ -162,7 +164,7 @@ export default function SauvegardeRestauration() {
         </div>
       </div>
 
-      <div className="grid gap-4 sm:gap-5 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-4 sm:gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
         <BackupCard
           icon={<Download className="w-6 h-6" />}
           title="Exporter une sauvegarde"
@@ -238,6 +240,10 @@ export default function SauvegardeRestauration() {
         </div>
       )}
 
+      {exportSnapshot && (
+        <ExportPreview snapshot={exportSnapshot} onClear={clearExportSnapshot} tokens={t} />
+      )}
+
       {importedBackup && (
         <ImportPreview backup={importedBackup} onClear={handleClearImport} tokens={t} />
       )}
@@ -265,16 +271,14 @@ export default function SauvegardeRestauration() {
         <SimulationPreview data={previewData} />
       )}
 
+      <OrphanCleanupSection tokens={t} onCleanupDone={() => { clearExportSnapshot(); setShowVisualPreview(false); setPreviewData(null); }} />
+
       <BackupConfigSection tokens={t} />
 
-      <div
-        className="flex items-start gap-3 rounded-xl px-4 sm:px-5 py-3 sm:py-4 min-w-0"
-        style={{ background: t.surface.tertiary, border: `1px dashed ${t.surface.borderLight}` }}
-      >
+      <div className="flex items-start gap-3 rounded-xl px-4 sm:px-5 py-3 sm:py-4 min-w-0" style={{ background: t.surface.tertiary, border: `1px dashed ${t.surface.borderLight}` }}>
         <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: t.text.tertiary }} />
         <p className="text-xs break-words min-w-0" style={{ color: t.text.tertiary }}>
-          La restauration insere/met a jour les donnees dans les tables existantes. Elle ne modifie
-          jamais la structure (tables, colonnes, policies, triggers, migrations).
+          La restauration insere/met a jour les donnees dans les tables existantes. Elle ne modifie jamais la structure (tables, colonnes, policies, triggers, migrations).
         </p>
       </div>
 

@@ -1,4 +1,4 @@
-import { X, Mail } from 'lucide-react';
+import { X, Mail, Delete } from 'lucide-react';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import RegisterModal from './RegisterModal';
@@ -7,6 +7,7 @@ import { useThemeTokens } from '../hooks/useThemeTokens';
 import { getSavedEmails, saveEmail } from '../lib/savedEmails';
 import { usePinInput } from './hooks/usePinInput';
 import LoginPinInput from './login/LoginPinInput';
+import QuickEmailSelector from './login/QuickEmailSelector';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -171,57 +172,84 @@ export default function LoginModal({ isOpen, onClose, onLogin }: LoginModalProps
             <label className="block text-sm font-medium mb-2" style={{ color: tokens.modal.fieldLabel }}>
               Adresse email
             </label>
-            <div className="relative">
-              <Mail className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 z-10 pointer-events-none" style={{ color: tokens.input.placeholder }} />
-              <input
-                ref={emailInputRef}
-                type="email"
-                value={email}
-                onChange={(e) => handleEmailChange(e.target.value)}
-                onFocus={handleEmailFocus}
-                placeholder="votre@email.com"
-                autoComplete="off"
-                className="w-full rounded-xl pl-9 sm:pl-12 pr-3 sm:pr-4 py-3 focus:outline-none focus:ring-2 transition-all text-sm sm:text-base truncate"
-                style={{
-                  backgroundColor: tokens.input.bg,
-                  borderColor: tokens.input.border,
-                  borderWidth: '1px',
-                  borderStyle: 'solid',
-                  color: tokens.input.text,
-                }}
-                onFocusCapture={(e) => {
-                  e.currentTarget.style.borderColor = tokens.input.borderFocus;
-                }}
-                onBlurCapture={(e) => {
-                  e.currentTarget.style.borderColor = tokens.input.border;
-                }}
-              />
-              {showSuggestions && (
-                <div
-                  ref={suggestionsRef}
-                  className="absolute top-full left-0 right-0 mt-1 rounded-xl shadow-2xl overflow-hidden z-50"
-                  style={{ backgroundColor: tokens.modal.fieldBg, borderColor: tokens.modal.fieldBorder, borderWidth: '1px', borderStyle: 'solid' }}
+            <div className="flex items-center gap-1.5">
+              <div className="relative flex-1 min-w-0">
+                <Mail className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 z-10 pointer-events-none" style={{ color: tokens.input.placeholder }} />
+                <input
+                  ref={emailInputRef}
+                  type="email"
+                  value={email}
+                  onChange={(e) => handleEmailChange(e.target.value)}
+                  onFocus={handleEmailFocus}
+                  placeholder="votre@email.com"
+                  autoComplete="off"
+                  className="w-full rounded-xl pl-9 sm:pl-12 pr-9 sm:pr-10 py-3 focus:outline-none focus:ring-2 transition-all text-sm sm:text-base truncate"
+                  style={{
+                    backgroundColor: tokens.input.bg,
+                    borderColor: tokens.input.border,
+                    borderWidth: '1px',
+                    borderStyle: 'solid',
+                    color: tokens.input.text,
+                  }}
+                  onFocusCapture={(e) => {
+                    e.currentTarget.style.borderColor = tokens.input.borderFocus;
+                  }}
+                  onBlurCapture={(e) => {
+                    e.currentTarget.style.borderColor = tokens.input.border;
+                  }}
+                />
+                {email && (
+                  <button
+                    type="button"
+                    onClick={() => { setEmail(''); setShowSuggestions(false); emailInputRef.current?.focus(); }}
+                    className="absolute right-2.5 sm:right-3 top-1/2 -translate-y-1/2 w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center transition-colors"
+                    style={{ backgroundColor: tokens.surface.tertiary, color: tokens.text.tertiary }}
+                    title="Effacer l'adresse email"
+                    aria-label="Effacer l'adresse email"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+                {showSuggestions && (
+                  <div
+                    ref={suggestionsRef}
+                    className="absolute top-full left-0 right-0 mt-1 rounded-xl shadow-2xl overflow-hidden z-50"
+                    style={{ backgroundColor: tokens.modal.fieldBg, borderColor: tokens.modal.fieldBorder, borderWidth: '1px', borderStyle: 'solid' }}
+                  >
+                    {suggestions.map((suggestion) => (
+                      <button
+                        key={suggestion}
+                        type="button"
+                        onMouseDown={() => handleSuggestionClick(suggestion)}
+                        className="w-full text-left px-4 py-3 text-sm transition-colors border-b last:border-0"
+                        style={{ color: tokens.modal.fieldValue, borderColor: tokens.surface.borderLight }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = tokens.surface.hover;
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = 'transparent';
+                        }}
+                      >
+                        {suggestion}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {email && (
+                <button
+                  type="button"
+                  onClick={() => { setEmail(v => v.slice(0, -1)); emailInputRef.current?.focus(); }}
+                  className="shrink-0 w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center transition-colors"
+                  style={{ backgroundColor: tokens.surface.tertiary, color: tokens.text.tertiary }}
+                  title="Supprimer le dernier caractere"
+                  aria-label="Supprimer le dernier caractere"
                 >
-                  {suggestions.map((suggestion) => (
-                    <button
-                      key={suggestion}
-                      type="button"
-                      onMouseDown={() => handleSuggestionClick(suggestion)}
-                      className="w-full text-left px-4 py-3 text-sm transition-colors border-b last:border-0"
-                      style={{ color: tokens.modal.fieldValue, borderColor: tokens.surface.borderLight }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = tokens.surface.hover;
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = 'transparent';
-                      }}
-                    >
-                      {suggestion}
-                    </button>
-                  ))}
-                </div>
+                  <Delete className="w-4.5 h-4.5 sm:w-5 sm:h-5" />
+                </button>
               )}
             </div>
+            <QuickEmailSelector email={email} onSelect={setEmail} tokens={tokens} />
           </div>
 
           <LoginPinInput

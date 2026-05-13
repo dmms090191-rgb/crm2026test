@@ -123,7 +123,7 @@ export default function VendorChatAdmin({ vendorName, vendorDbId, vendorAuthId, 
 
   const handleDelete = useCallback(async (id: string) => {
     setMessages(prev => prev.filter(m => m.id !== id));
-    supabase.from('vendor_admin_messages').update({ deleted: true }).eq('id', id);
+    supabase.from('vendor_admin_messages').delete().eq('id', id);
   }, []);
 
   const lastMsg = useMemo(() => {
