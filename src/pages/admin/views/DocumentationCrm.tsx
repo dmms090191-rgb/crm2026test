@@ -127,7 +127,7 @@ export default function DocumentationCrm({ initialTab, onInitialTabConsumed }: D
 
   return (
     <div className="flex flex-col h-full min-h-0">
-      <div className="flex items-center justify-between mb-6 flex-shrink-0">
+      <div className={`flex items-center justify-between mb-6 flex-shrink-0 ${activeTab === 'system' ? 'hidden md:flex' : ''}`}>
         <div>
           <h1 className="text-xl font-bold tracking-tight" style={{ color: tokens.text.primary }}>Documentation CRM</h1>
           <p className="text-sm mt-0.5" style={{ color: tokens.text.tertiary }}>Referentiel interne -- architecture, process et conventions</p>
@@ -185,7 +185,7 @@ export default function DocumentationCrm({ initialTab, onInitialTabConsumed }: D
           />
         </div>
 
-        <div className="flex flex-col flex-1 min-h-0 overflow-y-auto p-3 pt-14 md:p-5 md:pt-5">
+        <div className={`flex flex-col flex-1 min-h-0 overflow-y-auto md:p-5 md:pt-5 ${activeTab === 'system' ? 'p-2 pt-12' : 'p-3 pt-14'}`}>
           <DocContentPanel activeSection={activeSection} activeTab={activeTab} currentTab={currentTab} loading={loading} contents={contents} tabs={tabs} notes={notes} ideas={ideas} ameliorations={ameliorations} ameliorationCategories={ameliorationCategories} systemItems={systemItems} systemCategories={systemCategories} systemStatuses={systemStatuses} contextCards={contextCards} onCardsChange={setContextCards} onIdeasChange={setIdeas} onAmeliorationsChange={setAmeliorations} onAmeliorationCategoriesChange={setAmeliorationCategories} onSystemItemsChange={setSystemItems} onSystemCategoriesChange={setSystemCategories} onSystemStatusesChange={setSystemStatuses} onEditNote={(note) => { setEditingNote(note); setNoteModalOpen(true); }} onDeleteNote={handleDeleteNote} onOpenNewNote={() => { setEditingNote(null); setNoteModalOpen(true); }} onChange={handleChange} tokens={tokens} />
         </div>
       </div>
