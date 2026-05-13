@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
 import { supabase } from '../lib/supabase';
 
-export type Theme = 'dark' | 'light' | 'graphite' | 'beige' | 'rose' | 'emerald' | 'luxury' | 'pink' | 'red' | 'orange';
+export type Theme = 'dark' | 'light' | 'graphite' | 'beige' | 'rose' | 'emerald' | 'luxury' | 'pink' | 'red' | 'orange' | 'yellow';
 
 type PanelRole = 'admin' | 'vendor' | 'client';
 
@@ -20,7 +20,7 @@ function buildLocalKey(panelRole: PanelRole, effectiveId: string, isLeadFallback
 }
 
 function isValidTheme(v: unknown): v is Theme {
-  return v === 'dark' || v === 'light' || v === 'graphite' || v === 'beige' || v === 'rose' || v === 'emerald' || v === 'luxury' || v === 'pink' || v === 'red' || v === 'orange';
+  return v === 'dark' || v === 'light' || v === 'graphite' || v === 'beige' || v === 'rose' || v === 'emerald' || v === 'luxury' || v === 'pink' || v === 'red' || v === 'orange' || v === 'yellow';
 }
 
 interface ThemeProviderProps {

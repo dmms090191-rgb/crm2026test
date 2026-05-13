@@ -1,5 +1,5 @@
 import { RefObject } from 'react';
-import { ChevronDown, Sun, Moon, Monitor, Palette, Heart, Leaf, Crown, Cherry, Flame, Droplets } from 'lucide-react';
+import { ChevronDown, Sun, Moon, Monitor, Palette, Heart, Leaf, Crown, Cherry, Flame, Droplets, Zap } from 'lucide-react';
 import type { Theme } from '../../../../contexts/ThemeContext';
 import type { ThemeTokens } from '../../../../lib/themeTokensTypes';
 import VendorThemeOption from './VendorThemeOption';
@@ -15,6 +15,7 @@ const themeOptions: { value: Theme; label: string; icon: React.ReactNode }[] = [
   { value: 'pink', label: 'Rose Premium', icon: <Cherry className="w-3.5 h-3.5" /> },
   { value: 'red', label: 'Rouge Premium', icon: <Droplets className="w-3.5 h-3.5" /> },
   { value: 'orange', label: 'Orange Premium', icon: <Flame className="w-3.5 h-3.5" /> },
+  { value: 'yellow', label: 'Jaune Premium', icon: <Zap className="w-3.5 h-3.5" /> },
 ];
 
 interface Props {

@@ -188,6 +188,10 @@ html[data-theme="orange"] {
   background: #100A06;
 }
 
+html[data-theme="yellow"] {
+  background: #0E0C06;
+}
+
 html[data-theme="light"] input::placeholder,
 html[data-theme="light"] textarea::placeholder {
   color: #3D8098;
@@ -245,6 +249,12 @@ html[data-theme="red"] textarea::placeholder {
 html[data-theme="orange"] input::placeholder,
 html[data-theme="orange"] textarea::placeholder {
   color: #9E5A28;
+  opacity: 1;
+}
+
+html[data-theme="yellow"] input::placeholder,
+html[data-theme="yellow"] textarea::placeholder {
+  color: #8A7820;
   opacity: 1;
 }
 

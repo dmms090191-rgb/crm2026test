@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { MessageCircle, CalendarCheck, CalendarClock, ChevronRight, ChevronDown, Sun, Moon, Monitor, Palette, Heart, Leaf, Crown, Cherry, Flame, Droplets, Menu } from 'lucide-react';
+import { MessageCircle, CalendarCheck, CalendarClock, ChevronRight, ChevronDown, Sun, Moon, Monitor, Palette, Heart, Leaf, Crown, Cherry, Flame, Droplets, Zap, Menu } from 'lucide-react';
 import { useTheme, type Theme } from '../../contexts/ThemeContext';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
 import { useTimezone } from '../../hooks/useTimezone';
@@ -50,6 +50,7 @@ const themeOptions: { value: Theme; label: string; icon: React.ReactNode }[] = [
   { value: 'pink', label: 'Rose Premium', icon: <Cherry className="w-3.5 h-3.5" /> },
   { value: 'red', label: 'Rouge Premium', icon: <Droplets className="w-3.5 h-3.5" /> },
   { value: 'orange', label: 'Orange Premium', icon: <Flame className="w-3.5 h-3.5" /> },
+  { value: 'yellow', label: 'Jaune Premium', icon: <Zap className="w-3.5 h-3.5" /> },
 ];
 
 export default function ClientTopBar({ breadcrumb, onMobileMenuToggle, clientName = 'Client', unreadMessageCount = 0, unreadLatestAt, onMessageNotifClick, agendaCount = 0, agendaEntries = [], onAgendaEntryClick, propositionsCount = 0, propositionsEntries = [], onPropositionEntryClick }: ClientTopBarProps) {
@@ -92,7 +93,6 @@ export default function ClientTopBar({ breadcrumb, onMobileMenuToggle, clientNam
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-
   const clock = getCurrentTime(timezone);
   const totalNotifCount = unreadMessageCount + agendaCount + propositionsCount;
   const badgeColors = { iconColor: t.topbar.notifIcon, iconHoverColor: t.topbar.notifIconHover, labelColor: t.topbar.notifLabel, labelHoverColor: t.topbar.notifLabelHover, hoverBg: t.surface.hover };
