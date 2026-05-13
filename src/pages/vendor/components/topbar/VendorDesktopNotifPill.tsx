@@ -30,7 +30,7 @@ interface Props {
   propositionsEntries: ConfirmedProposalEntry[];
   onPropositionEntryClick?: (proposalId: string) => void;
   tokens: ThemeTokens;
-  badgeColors: { iconColor: string; iconHoverColor: string; labelColor: string; labelHoverColor: string };
+  badgeColors: { iconColor: string; iconHoverColor: string; labelColor: string; labelHoverColor: string; hoverBg?: string };
 }
 
 export default function VendorDesktopNotifPill({

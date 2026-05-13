@@ -70,6 +70,7 @@ export default function AdminDesktopNotifPill({
           iconHoverColor={t.topbar.notifIconHover}
           labelColor={t.topbar.notifLabel}
           labelHoverColor={t.topbar.notifLabelHover}
+          hoverBg={t.surface.hover}
           onClick={() => setClientDropdownOpen((prev: boolean) => !prev)}
         />
         {clientDropdownOpen && (
@@ -104,6 +105,7 @@ export default function AdminDesktopNotifPill({
           iconHoverColor={t.topbar.notifIconHover}
           labelColor={t.topbar.notifLabel}
           labelHoverColor={t.topbar.notifLabelHover}
+          hoverBg={t.surface.hover}
           onClick={() => setVendorDropdownOpen((prev: boolean) => !prev)}
         />
         {vendorDropdownOpen && (
@@ -138,6 +140,7 @@ export default function AdminDesktopNotifPill({
           iconHoverColor={t.topbar.notifIconHover}
           labelColor={t.topbar.notifLabel}
           labelHoverColor={t.topbar.notifLabelHover}
+          hoverBg={t.surface.hover}
           onClick={() => setAgendaDropdownOpen((prev: boolean) => !prev)}
         />
         {agendaDropdownOpen && (
@@ -172,6 +175,7 @@ export default function AdminDesktopNotifPill({
           iconHoverColor={t.topbar.notifIconHover}
           labelColor={t.topbar.notifLabel}
           labelHoverColor={t.topbar.notifLabelHover}
+          hoverBg={t.surface.hover}
           onClick={() => setEquipeDropdownOpen((prev: boolean) => !prev)}
         />
         {equipeDropdownOpen && (
@@ -206,6 +210,7 @@ export default function AdminDesktopNotifPill({
           iconHoverColor={t.topbar.notifIconHover}
           labelColor={t.topbar.notifLabel}
           labelHoverColor={t.topbar.notifLabelHover}
+          hoverBg={t.surface.hover}
           onClick={() => setProposDropdownOpen((prev: boolean) => !prev)}
         />
         {proposDropdownOpen && (

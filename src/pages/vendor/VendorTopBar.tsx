@@ -99,7 +99,7 @@ export default function VendorTopBar({ breadcrumb, onMobileMenuToggle, vendorNam
 
   const clock = getCurrentTime(timezone);
   const totalNotifCount = unreadAdminCount + unreadClientCount + agendaCount + propositionsCount;
-  const badgeColors = { iconColor: tokens.topbar.notifIcon, iconHoverColor: tokens.topbar.notifIconHover, labelColor: tokens.topbar.notifLabel, labelHoverColor: tokens.topbar.notifLabelHover };
+  const badgeColors = { iconColor: tokens.topbar.notifIcon, iconHoverColor: tokens.topbar.notifIconHover, labelColor: tokens.topbar.notifLabel, labelHoverColor: tokens.topbar.notifLabelHover, hoverBg: tokens.surface.hover };
 
   function handleNotifItemClick() {
     setAdminDropdownOpen(false);

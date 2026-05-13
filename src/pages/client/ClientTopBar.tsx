@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { MessageCircle, CalendarCheck, CalendarClock, ChevronRight, ChevronDown, Sun, Moon, Monitor, Palette, Heart, Leaf, Crown, Menu } from 'lucide-react';
+import { MessageCircle, CalendarCheck, CalendarClock, ChevronRight, ChevronDown, Sun, Moon, Monitor, Palette, Heart, Leaf, Crown, Cherry, Flame, Droplets, Menu } from 'lucide-react';
 import { useTheme, type Theme } from '../../contexts/ThemeContext';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
 import { useTimezone } from '../../hooks/useTimezone';
@@ -24,7 +24,6 @@ export interface PropositionNotifEntry {
   lead_name: string;
   created_at: string;
 }
-
 interface ClientTopBarProps {
   breadcrumb: string;
   onMobileMenuToggle?: () => void;
@@ -45,9 +44,12 @@ const themeOptions: { value: Theme; label: string; icon: React.ReactNode }[] = [
   { value: 'light', label: 'Clair', icon: <Sun className="w-3.5 h-3.5" /> },
   { value: 'graphite', label: 'Graphite', icon: <Monitor className="w-3.5 h-3.5" /> },
   { value: 'beige', label: 'Beige Premium', icon: <Palette className="w-3.5 h-3.5" /> },
-  { value: 'rose', label: 'Rose Tech Premium', icon: <Heart className="w-3.5 h-3.5" /> },
+  { value: 'rose', label: 'Violet Royal Premium', icon: <Heart className="w-3.5 h-3.5" /> },
   { value: 'emerald', label: 'Vert Émeraude Premium', icon: <Leaf className="w-3.5 h-3.5" /> },
   { value: 'luxury', label: 'Blanc Luxe', icon: <Crown className="w-3.5 h-3.5" /> },
+  { value: 'pink', label: 'Rose Premium', icon: <Cherry className="w-3.5 h-3.5" /> },
+  { value: 'red', label: 'Rouge Premium', icon: <Droplets className="w-3.5 h-3.5" /> },
+  { value: 'orange', label: 'Orange Premium', icon: <Flame className="w-3.5 h-3.5" /> },
 ];
 
 export default function ClientTopBar({ breadcrumb, onMobileMenuToggle, clientName = 'Client', unreadMessageCount = 0, unreadLatestAt, onMessageNotifClick, agendaCount = 0, agendaEntries = [], onAgendaEntryClick, propositionsCount = 0, propositionsEntries = [], onPropositionEntryClick }: ClientTopBarProps) {
@@ -67,7 +69,6 @@ export default function ClientTopBar({ breadcrumb, onMobileMenuToggle, clientNam
   const mobileNotifRef = useRef<HTMLDivElement>(null);
   const mobileNotifPanelRef = useRef<HTMLDivElement>(null);
   const [, setTick] = useState(0);
-
   useEffect(() => {
     const id = setInterval(() => setTick(v => v + 1), 60_000);
     return () => clearInterval(id);
@@ -94,8 +95,7 @@ export default function ClientTopBar({ breadcrumb, onMobileMenuToggle, clientNam
 
   const clock = getCurrentTime(timezone);
   const totalNotifCount = unreadMessageCount + agendaCount + propositionsCount;
-  const badgeColors = { iconColor: t.topbar.notifIcon, iconHoverColor: t.topbar.notifIconHover, labelColor: t.topbar.notifLabel, labelHoverColor: t.topbar.notifLabelHover };
-
+  const badgeColors = { iconColor: t.topbar.notifIcon, iconHoverColor: t.topbar.notifIconHover, labelColor: t.topbar.notifLabel, labelHoverColor: t.topbar.notifLabelHover, hoverBg: t.surface.hover };
   const initials = clientName.split(' ').map(w => w.charAt(0)).join('').toUpperCase().slice(0, 2);
 
   function handleNotifItemClick() {

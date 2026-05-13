@@ -1,8 +1,9 @@
+import { useState } from 'react';
 import { Mail, Phone, ChevronDown, LogIn, MessageCircle, CalendarClock, Undo2, Redo2, CheckCircle2, Calendar, RotateCcw } from 'lucide-react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
-import { getInitials, gradients } from '../../../admin/views/crm/utils';
+import { getInitials, gradients, getStatutCfg, FALLBACK_COLOR } from '../../../admin/views/crm/utils';
 import CheckBox from '../../../admin/views/crm/CheckBox';
-import StatutSelect from '../../../admin/views/crm/StatutSelect';
+import MobileStatutModal from '../../../admin/views/crm/MobileStatutModal';
 import CopyButton from '../../../../components/CopyButton';
 import type { ImportedLead, StatutDef } from '../vendorLeadsTypes';
 
@@ -47,6 +48,7 @@ export default function VendorLeadMobileCard({
   onToggleActif, onDetail, onOpenChat, onOpenRdv, onConnectAsClient, selectMode, cardRef,
 }: Props) {
   const tokens = useThemeTokens();
+  const [statutModalOpen, setStatutModalOpen] = useState(false);
   const nom = lead.data['Nom'] ?? '';
   const prenom = lead.data['Prenom'] ?? '';
   const email = lead.data['Email'] ?? '';
@@ -56,6 +58,10 @@ export default function VendorLeadMobileCard({
   const grad = gradients[index % gradients.length];
   const actif = lead.actif !== false;
   const isWorkActive = workModeEnabled && workModeActiveId === lead.id;
+  const isNeutral = statut === 'Nouveau';
+  const statutDef = statutDefs.find(s => s.nom === statut);
+  const statutCfg = getStatutCfg(statutDef?.couleur ?? FALLBACK_COLOR, isNeutral);
+  const statutLabel = statut === 'Nouveau' ? 'Sans statut' : statut;
 
   return (
     <div
@@ -125,9 +131,16 @@ export default function VendorLeadMobileCard({
 
       {/* Metadata: Statut, Date, Acces */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mb-3 text-[11px]" style={{ color: tokens.text.quaternary }}>
-        <div className="flex items-center gap-1.5">
-          <StatutSelect value={statut} statutDefs={statutDefs} onChange={v => onStatutChange(lead.id, v)} size="sm" tokens={tokens} />
-        </div>
+        <button
+          type="button"
+          onClick={() => setStatutModalOpen(true)}
+          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-all active:scale-95"
+          style={{ background: statutCfg.bg, border: `1px solid ${statutCfg.border}`, color: statutCfg.color }}
+        >
+          <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: statutCfg.dot, boxShadow: `0 0 4px ${statutCfg.dot}` }} />
+          {statutLabel}
+          <ChevronDown className="w-2.5 h-2.5" />
+        </button>
 
         <div className="flex items-center gap-1">
           <Calendar className="w-3 h-3" />
@@ -162,6 +175,15 @@ export default function VendorLeadMobileCard({
           <LogIn className="w-3 h-3" />Connect
         </button>
       </div>
+
+      {statutModalOpen && (
+        <MobileStatutModal
+          currentStatut={statut}
+          statutDefs={statutDefs}
+          onSelect={v => onStatutChange(lead.id, v)}
+          onClose={() => setStatutModalOpen(false)}
+        />
+      )}
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { RefObject } from 'react';
-import { ChevronDown, Sun, Moon, Monitor, Palette, Heart, Leaf, Crown } from 'lucide-react';
+import { ChevronDown, Sun, Moon, Monitor, Palette, Heart, Leaf, Crown, Cherry, Flame, Droplets } from 'lucide-react';
 import type { Theme } from '../../../../contexts/ThemeContext';
 import type { ThemeTokens } from '../../../../lib/themeTokensTypes';
 import VendorThemeOption from './VendorThemeOption';
@@ -9,9 +9,12 @@ const themeOptions: { value: Theme; label: string; icon: React.ReactNode }[] = [
   { value: 'light', label: 'Clair', icon: <Sun className="w-3.5 h-3.5" /> },
   { value: 'graphite', label: 'Graphite', icon: <Monitor className="w-3.5 h-3.5" /> },
   { value: 'beige', label: 'Beige Premium', icon: <Palette className="w-3.5 h-3.5" /> },
-  { value: 'rose', label: 'Rose Tech Premium', icon: <Heart className="w-3.5 h-3.5" /> },
+  { value: 'rose', label: 'Violet Royal Premium', icon: <Heart className="w-3.5 h-3.5" /> },
   { value: 'emerald', label: 'Vert Émeraude Premium', icon: <Leaf className="w-3.5 h-3.5" /> },
   { value: 'luxury', label: 'Blanc Luxe', icon: <Crown className="w-3.5 h-3.5" /> },
+  { value: 'pink', label: 'Rose Premium', icon: <Cherry className="w-3.5 h-3.5" /> },
+  { value: 'red', label: 'Rouge Premium', icon: <Droplets className="w-3.5 h-3.5" /> },
+  { value: 'orange', label: 'Orange Premium', icon: <Flame className="w-3.5 h-3.5" /> },
 ];
 
 interface Props {

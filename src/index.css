@@ -5,11 +5,14 @@
 @layer utilities {
   .no-scrollbar::-webkit-scrollbar { display: none; }
   .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  .hover-token:hover { background: var(--hover-bg); }
 }
 
 @media (max-width: 767px) {
   .mobile-main-scroll {
     scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: env(safe-area-inset-bottom, 16px);
   }
   .mobile-main-scroll::-webkit-scrollbar {
     width: 4px;
@@ -146,8 +149,7 @@ html {
 }
 
 html[data-theme="light"] {
-  background: linear-gradient(145deg, #d8e2f0 0%, #cdd8ea 50%, #c5d2e5 100%);
-  background-attachment: fixed;
+  background: #080C16;
 }
 
 html[data-theme="dark"] {
@@ -159,7 +161,7 @@ html[data-theme="graphite"] {
 }
 
 html[data-theme="beige"] {
-  background: #F5EFE6;
+  background: #14100A;
 }
 
 html[data-theme="rose"] {
@@ -167,16 +169,28 @@ html[data-theme="rose"] {
 }
 
 html[data-theme="emerald"] {
-  background: #EEF7F1;
+  background: #06130D;
 }
 
 html[data-theme="luxury"] {
-  background: #F8F7F4;
+  background: #12100B;
+}
+
+html[data-theme="pink"] {
+  background: #120810;
+}
+
+html[data-theme="red"] {
+  background: #100808;
+}
+
+html[data-theme="orange"] {
+  background: #100A06;
 }
 
 html[data-theme="light"] input::placeholder,
 html[data-theme="light"] textarea::placeholder {
-  color: #6888a2;
+  color: #3D8098;
   opacity: 1;
 }
 
@@ -194,7 +208,7 @@ html[data-theme="graphite"] textarea::placeholder {
 
 html[data-theme="beige"] input::placeholder,
 html[data-theme="beige"] textarea::placeholder {
-  color: #A8957E;
+  color: #8C6A3E;
   opacity: 1;
 }
 
@@ -206,13 +220,31 @@ html[data-theme="rose"] textarea::placeholder {
 
 html[data-theme="emerald"] input::placeholder,
 html[data-theme="emerald"] textarea::placeholder {
-  color: #8BA396;
+  color: #5D8A6E;
   opacity: 1;
 }
 
 html[data-theme="luxury"] input::placeholder,
 html[data-theme="luxury"] textarea::placeholder {
-  color: #A49A8B;
+  color: #877450;
+  opacity: 1;
+}
+
+html[data-theme="pink"] input::placeholder,
+html[data-theme="pink"] textarea::placeholder {
+  color: #9E4E72;
+  opacity: 1;
+}
+
+html[data-theme="red"] input::placeholder,
+html[data-theme="red"] textarea::placeholder {
+  color: #9E4444;
+  opacity: 1;
+}
+
+html[data-theme="orange"] input::placeholder,
+html[data-theme="orange"] textarea::placeholder {
+  color: #9E5A28;
   opacity: 1;
 }
 

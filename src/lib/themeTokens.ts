@@ -6,6 +6,9 @@ import { beigeTokens } from './themeTokensBeige';
 import { roseTokens } from './themeTokensRose';
 import { emeraldTokens } from './themeTokensEmerald';
 import { whiteLuxuryTokens } from './themeTokensWhiteLuxury';
+import { pinkTokens } from './themeTokensPink';
+import { redTokens } from './themeTokensRed';
+import { orangeTokens } from './themeTokensOrange';
 
 export type { ThemeTokens } from './themeTokensTypes';
 
@@ -17,6 +20,9 @@ const tokenMap: Record<Theme, typeof darkTokens> = {
   rose: roseTokens,
   emerald: emeraldTokens,
   luxury: whiteLuxuryTokens,
+  pink: pinkTokens,
+  red: redTokens,
+  orange: orangeTokens,
 };
 
 export function getThemeTokens(theme: Theme) {

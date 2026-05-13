@@ -1,7 +1,8 @@
-import { forwardRef } from 'react';
+import { forwardRef, useState } from 'react';
 import { Mail, Phone, ChevronDown, LogIn, MessageCircle, CalendarClock, Undo2, Redo2, CheckCircle2 } from 'lucide-react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 import { getStatutCfg, FALLBACK_COLOR } from '../../../admin/views/crm/utils';
+import MobileStatutModal from '../../../admin/views/crm/MobileStatutModal';
 import CheckBox from '../../../admin/views/crm/CheckBox';
 import CopyButton from '../../../../components/CopyButton';
 import type { ImportedLead, StatutDef } from '../vendorLeadsTypes';
@@ -47,6 +48,7 @@ const VendorLeadDesktopRow = forwardRef<HTMLTableRowElement, Props>(({
   onToggleActif, onDetail, onOpenChat, onOpenRdv, onConnectAsClient,
 }, ref) => {
   const tokens = useThemeTokens();
+  const [statutModalOpen, setStatutModalOpen] = useState(false);
   const nom = lead.data['Nom'] ?? '';
   const prenom = lead.data['Prenom'] ?? '';
   const email = lead.data['Email'] ?? '';
@@ -56,6 +58,7 @@ const VendorLeadDesktopRow = forwardRef<HTMLTableRowElement, Props>(({
   const statutDef = statutDefs.find(s => s.nom === statut);
   const cfg = getStatutCfg(statutDef?.couleur ?? FALLBACK_COLOR, isNeutral);
   const actif = lead.actif !== false;
+  const statutLabel = statut === 'Nouveau' ? 'Sans statut' : statut;
   const rowBg = isWorkActive ? 'rgba(249,115,22,0.04)' : isSelected ? tokens.table.rowSelected : 'transparent';
 
   return (
@@ -109,14 +112,24 @@ const VendorLeadDesktopRow = forwardRef<HTMLTableRowElement, Props>(({
         <span className="text-xs whitespace-nowrap tabular-nums" style={{ color: tokens.table.cellTextMuted }}>{formatImportedAt(lead.imported_at, timezone)}</span>
       </td>
       <td className="px-5 py-3.5" style={colSep}>
-        <div className="relative inline-flex items-center">
-          <span className="pointer-events-none absolute left-2 w-1.5 h-1.5 rounded-full flex-shrink-0 z-10" style={{ background: statut ? cfg.dot : 'rgba(148,163,184,0.5)', boxShadow: statut ? `0 0 4px ${cfg.dot}` : 'none' }} />
-          <select value={statut} onChange={e => onStatutChange(lead.id, e.target.value)} className="rounded-lg text-xs font-semibold pl-5 pr-6 py-1 focus:outline-none cursor-pointer appearance-none" style={{ background: statut ? cfg.bg : 'rgba(148,163,184,0.08)', color: statut ? cfg.color : 'rgba(148,163,184,0.7)', border: `1px solid ${statut ? cfg.border : 'rgba(148,163,184,0.18)'}` }}>
-            <option value="Nouveau" style={{ background: tokens.selectBg }}>Sans statut</option>
-            {statutDefs.filter(s => s.nom !== 'Nouveau').map(s => (<option key={s.id} value={s.nom} style={{ background: tokens.selectBg }}>{s.nom}</option>))}
-          </select>
-          <ChevronDown className="pointer-events-none absolute right-1.5 w-3 h-3" style={{ color: statut ? cfg.color : 'rgba(148,163,184,0.5)' }} />
-        </div>
+        <button
+          type="button"
+          onClick={() => setStatutModalOpen(true)}
+          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105 active:scale-95 cursor-pointer"
+          style={{ background: cfg.bg, border: `1px solid ${cfg.border}`, color: cfg.color }}
+        >
+          <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: cfg.dot, boxShadow: `0 0 4px ${cfg.dot}` }} />
+          {statutLabel}
+          <ChevronDown className="w-3 h-3" />
+        </button>
+        {statutModalOpen && (
+          <MobileStatutModal
+            currentStatut={statut}
+            statutDefs={statutDefs}
+            onSelect={v => onStatutChange(lead.id, v)}
+            onClose={() => setStatutModalOpen(false)}
+          />
+        )}
       </td>
       <td className="px-5 py-3.5" style={colSep}>
         <div className="flex items-center gap-2">

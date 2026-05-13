@@ -1,5 +1,6 @@
-import { CalendarDays, Plus } from 'lucide-react';
+import { CalendarDays, Plus, Globe } from 'lucide-react';
 import { useThemeTokens } from '../../../hooks/useThemeTokens';
+import { getTzLabel } from '../../../lib/timezoneUtils';
 import { statusConfig } from './rdvPropositionsConstants';
 import RdvEditModal from './RdvEditModal';
 import RdvAddForm from './RdvAddForm';
@@ -34,7 +35,13 @@ export default function VendorPropositionsRdv({ vendorDbId, initialLead, onIniti
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold" style={{ color: tokens.heading.primary }}>Propositions RDV</h2>
-          <p className="text-xs mt-0.5" style={{ color: tokens.text.quaternary }}>{rdvs.length} proposition{rdvs.length !== 1 ? 's' : ''} au total</p>
+          <div className="flex items-center gap-2 mt-0.5">
+            <p className="text-xs" style={{ color: tokens.text.quaternary }}>{rdvs.length} proposition{rdvs.length !== 1 ? 's' : ''} au total</p>
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px]" style={{ background: tokens.surface.secondary, border: `1px solid ${tokens.surface.border}`, color: tokens.text.tertiary }}>
+              <Globe className="w-2.5 h-2.5" />
+              {getTzLabel(timezone)}
+            </span>
+          </div>
         </div>
         <button
           onClick={() => setShowAdd(v => !v)}

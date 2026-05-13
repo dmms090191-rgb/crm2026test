@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { Check, X, AlertCircle } from 'lucide-react';
+import { Check, X, AlertCircle, Globe } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { useThemeTokens } from '../../../hooks/useThemeTokens';
 import { RdvProposal, statusConfig } from './rdvPropositionsConstants';
 import { useTimezone } from '../../../hooks/useTimezone';
-import { localToUTC } from '../../../lib/timezoneUtils';
+import { localToUTC, utcToLocal, getTzLabel } from '../../../lib/timezoneUtils';
 
 interface EditModalProps {
   rdv: RdvProposal;
@@ -12,12 +12,20 @@ interface EditModalProps {
   onSaved: () => void;
 }
 
+function getInitialDateTime(rdv: RdvProposal, timezone: string) {
+  if (rdv.appointment_utc) {
+    return utcToLocal(rdv.appointment_utc, timezone);
+  }
+  return { date: rdv.proposed_date, time: rdv.proposed_time };
+}
+
 export default function RdvEditModal({ rdv, onClose, onSaved }: EditModalProps) {
   const tokens = useThemeTokens();
   const { timezone } = useTimezone();
+  const localDt = getInitialDateTime(rdv, timezone);
   const [form, setForm] = useState({
-    proposed_date: rdv.proposed_date,
-    proposed_time: rdv.proposed_time,
+    proposed_date: localDt.date,
+    proposed_time: localDt.time,
     motif: rdv.motif,
     description: rdv.description,
     notes: rdv.notes,
@@ -106,6 +114,10 @@ export default function RdvEditModal({ rdv, onClose, onSaved }: EditModalProps) 
               <label className="block text-[10px] font-bold tracking-[0.15em] uppercase mb-1.5" style={{ color: tokens.modal.fieldLabel }}>Heure</label>
               <input type="time" value={form.proposed_time} onChange={e => set('proposed_time', e.target.value)} className={inputCls} style={inputStyle} />
             </div>
+          </div>
+          <div className="flex items-center gap-1.5 px-2 py-1 rounded-md w-fit" style={{ background: tokens.surface.secondary, border: `1px solid ${tokens.surface.border}` }}>
+            <Globe className="w-3 h-3" style={{ color: tokens.accent.text }} />
+            <span className="text-[10px]" style={{ color: tokens.text.tertiary }}>Fuseau : {getTzLabel(timezone)}</span>
           </div>
 
           <div>

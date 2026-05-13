@@ -55,7 +55,7 @@ export default function VendorDeleteModal({ vendorIds, vendors, onClose, onSucce
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/60" />
+      <div className="absolute inset-0" style={{ background: t.modal.overlayBg }} />
       <div
         className="relative rounded-2xl p-6 max-w-md w-full space-y-4 max-h-[80vh] overflow-auto"
         style={{ background: t.card.bg, border: `1px solid ${t.card.border}` }}

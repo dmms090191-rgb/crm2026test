@@ -144,7 +144,7 @@ export default function DocumentationCrm({ initialTab, onInitialTabConsumed }: D
 
         {/* Mobile: overlay */}
         {mobileDocOpen && (
-          <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setMobileDocOpen(false)} />
+          <div className="fixed inset-0 z-40 md:hidden" style={{ background: tokens.modal.overlayBg }} onClick={() => setMobileDocOpen(false)} />
         )}
 
         {/* Sidebar: always visible on desktop, drawer on mobile */}

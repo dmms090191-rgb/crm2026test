@@ -181,7 +181,7 @@ export default function ClientDashboard({ onLogout, impersonatedClient, onBackTo
   return (
     <div className="flex h-[100dvh] overflow-hidden" style={{ background: tokens.main.bg }}>
       {mobileOpen && (
-        <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setMobileOpen(false)} />
+        <div className="fixed inset-0 z-40 md:hidden" style={{ background: tokens.modal.overlayBg }} onClick={() => setMobileOpen(false)} />
       )}
       <div
         className={`

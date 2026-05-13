@@ -115,7 +115,7 @@ function DesktopDropdown({ btnRef, dropdownRef, items, tokens, onAction }: { btn
 function MobileSheet({ sheetRef, name, items, tokens, onAction, onClose }: { sheetRef: React.RefObject<HTMLDivElement | null>; name: string; items: ActionDef[]; tokens: ReturnType<typeof useThemeTokens>; onAction: (action: () => void) => void; onClose: () => void }) {
   return createPortal(
     <div className="md:hidden fixed inset-0 z-[9999] flex flex-col justify-end">
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div className="absolute inset-0" style={{ background: tokens.modal.overlayBg }} onClick={onClose} />
       <div ref={sheetRef as React.RefObject<HTMLDivElement>} className="relative rounded-t-2xl pb-[env(safe-area-inset-bottom)] animate-slide-up" style={{ background: tokens.surface.primary, borderTop: `1px solid ${tokens.surface.border}` }}>
         <div className="flex justify-center pt-3 pb-1">
           <div className="w-10 h-1 rounded-full" style={{ background: tokens.surface.border }} />

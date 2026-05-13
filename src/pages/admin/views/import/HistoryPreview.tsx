@@ -37,7 +37,7 @@ export default function HistoryPreview({ record, onClose }: HistoryPreviewProps)
   const cols = record.columns.length > 0 ? record.columns : ['Prenom', 'Nom', 'Email', 'Telephone'];
 
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 backdrop-blur-sm flex items-center justify-center z-50 p-4" style={{ background: tokens.modal.overlayBg }}>
       <div
         className="w-full max-w-4xl rounded-2xl overflow-hidden flex flex-col"
         style={{ background: tokens.surface.secondary, border: tokens.surface.border, maxHeight: '85vh' }}

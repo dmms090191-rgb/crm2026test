@@ -99,16 +99,16 @@ export default function DocSidebarSections({
                   <button
                     onClick={() => move(idx, idx - 1)}
                     disabled={idx === 0}
-                    className="p-0.5 rounded hover:bg-white/10 disabled:opacity-20 transition-opacity"
-                    style={{ color: tokens.text.tertiary }}
+                    className="p-0.5 rounded hover-token disabled:opacity-20 transition-opacity"
+                    style={{ '--hover-bg': tokens.surface.hover, color: tokens.text.tertiary } as React.CSSProperties}
                   >
                     <ArrowUp className="w-3 h-3" />
                   </button>
                   <button
                     onClick={() => move(idx, idx + 1)}
                     disabled={idx === draft.length - 1}
-                    className="p-0.5 rounded hover:bg-white/10 disabled:opacity-20 transition-opacity"
-                    style={{ color: tokens.text.tertiary }}
+                    className="p-0.5 rounded hover-token disabled:opacity-20 transition-opacity"
+                    style={{ '--hover-bg': tokens.surface.hover, color: tokens.text.tertiary } as React.CSSProperties}
                   >
                     <ArrowDown className="w-3 h-3" />
                   </button>
@@ -143,16 +143,16 @@ export default function DocSidebarSections({
                 <button
                   onClick={() => move(idx, idx - 1)}
                   disabled={idx === 0}
-                  className="p-0.5 rounded hover:bg-white/10 disabled:opacity-20 transition-opacity"
-                  style={{ color: tokens.text.tertiary }}
+                  className="p-0.5 rounded hover-token disabled:opacity-20 transition-opacity"
+                  style={{ '--hover-bg': tokens.surface.hover, color: tokens.text.tertiary } as React.CSSProperties}
                 >
                   <ArrowUp className="w-3 h-3" />
                 </button>
                 <button
                   onClick={() => move(idx, idx + 1)}
                   disabled={idx === draft.length - 1}
-                  className="p-0.5 rounded hover:bg-white/10 disabled:opacity-20 transition-opacity"
-                  style={{ color: tokens.text.tertiary }}
+                  className="p-0.5 rounded hover-token disabled:opacity-20 transition-opacity"
+                  style={{ '--hover-bg': tokens.surface.hover, color: tokens.text.tertiary } as React.CSSProperties}
                 >
                   <ArrowDown className="w-3 h-3" />
                 </button>

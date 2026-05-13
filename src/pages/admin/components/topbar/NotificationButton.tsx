@@ -8,6 +8,7 @@ interface NotificationButtonProps {
   iconHoverColor: string;
   labelColor: string;
   labelHoverColor: string;
+  hoverBg?: string;
   onClick?: () => void;
 }
 
@@ -19,12 +20,14 @@ export default function NotificationButton({
   iconHoverColor,
   labelColor,
   labelHoverColor,
+  hoverBg,
   onClick,
 }: NotificationButtonProps) {
   const [hovered, setHovered] = useState(false);
   return (
     <button
-      className="relative group flex items-center gap-1.5 px-1.5 py-1 rounded-md transition-all duration-200 hover:bg-black/[0.04] dark:hover:bg-white/[0.06]"
+      className="relative group flex items-center gap-1.5 px-1.5 py-1 rounded-md transition-all duration-200"
+      style={{ background: hovered && hoverBg ? hoverBg : undefined }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onClick={onClick}

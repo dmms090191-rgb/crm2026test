@@ -85,7 +85,8 @@ export default function ClientMobileBellMenu({
                 <button
                   key={item.key}
                   type="button"
-                  className="flex items-center gap-3 w-full px-3 py-2.5 text-left transition-colors hover:bg-black/[0.04] dark:hover:bg-white/[0.06]"
+                  className="flex items-center gap-3 w-full px-3 py-2.5 text-left transition-colors hover-token"
+                  style={{ '--hover-bg': t.dropdown.itemBgHover } as React.CSSProperties}
                   onClick={() => setCategory(item.key)}
                 >
                   <span style={{ color: t.topbar.notifIcon }}>{item.icon}</span>
