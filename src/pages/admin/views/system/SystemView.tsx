@@ -93,7 +93,7 @@ export default function SystemView({ items, categories, statuses, onItemsChange,
   }, [tree, searchQuery]);
 
   return (
-    <div className="flex flex-col flex-1 min-h-0">
+    <div className="flex flex-col flex-1 md:min-h-0">
       {/* Summary */}
       <SystemSummaryBar items={items} statuses={activeStatuses} tokens={tokens} />
 
@@ -165,7 +165,7 @@ export default function SystemView({ items, categories, statuses, onItemsChange,
       </div>
 
       {/* Tree */}
-      <div className="flex-1 min-h-0 overflow-y-auto space-y-3 pb-4">
+      <div className="space-y-3 pb-4 md:flex-1 md:min-h-0 md:overflow-y-auto">
         {filteredTree.length === 0 && !searchQuery && (
           <div className="flex flex-col items-center justify-center py-12 gap-2">
             <p className="text-sm" style={{ color: tokens.text.quaternary }}>Aucune categorie.</p>
