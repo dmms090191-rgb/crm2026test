@@ -9,17 +9,22 @@ interface PinDisplayProps {
   authUserId?: string | null;
 }
 
+function splitPin(pwd: string): string[] {
+  const digits = (pwd || '').replace(/\D/g, '').slice(0, 6);
+  return Array.from({ length: 6 }, (_, i) => digits[i] || '');
+}
+
 export default function PinDisplay({ password, vendorId, authUserId }: PinDisplayProps) {
   const tokens = useThemeTokens();
   const [show, setShow] = useState(false);
-  const [editPin, setEditPin] = useState(password.padEnd(6, '').split('').slice(0, 6));
+  const [editPin, setEditPin] = useState(() => splitPin(password));
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
   const pinRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   useEffect(() => {
-    setEditPin(password.padEnd(6, '').split('').slice(0, 6));
+    setEditPin(splitPin(password));
   }, [password]);
 
   function handleChange(index: number, value: string) {
@@ -73,13 +78,6 @@ export default function PinDisplay({ password, vendorId, authUserId }: PinDispla
     setSaving(true);
     setError('');
 
-    const { error: dbError } = await supabase.from('vendors').update({ password: newPass }).eq('id', vendorId);
-    if (dbError) {
-      setError('Erreur lors de la mise a jour en base.');
-      setSaving(false);
-      return;
-    }
-
     if (authUserId) {
       const { data: session } = await supabase.auth.getSession();
       const token = session?.session?.access_token;
@@ -90,6 +88,7 @@ export default function PinDisplay({ password, vendorId, authUserId }: PinDispla
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token || import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+            'Apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
           },
           body: JSON.stringify({ auth_user_id: authUserId, password: newPass }),
         }
@@ -100,6 +99,17 @@ export default function PinDisplay({ password, vendorId, authUserId }: PinDispla
         setSaving(false);
         return;
       }
+    } else {
+      setError('Impossible de modifier le mot de passe : compte Auth vendeur introuvable.');
+      setSaving(false);
+      return;
+    }
+
+    const { error: dbError } = await supabase.from('vendors').update({ password: newPass }).eq('id', vendorId);
+    if (dbError) {
+      setError('Erreur lors de la mise a jour en base.');
+      setSaving(false);
+      return;
     }
 
     setSaving(false);
