@@ -59,7 +59,7 @@ export default function StatCard({ label, sublabel, count, icon, accentColor, gl
 
       {/* Desktop card: vertical layout (unchanged) */}
       <div
-        className={`hidden sm:flex relative overflow-hidden rounded-2xl p-4 md:p-5 flex-col justify-between group transition-all duration-300 hover:-translate-y-0.5${onClick ? ' cursor-pointer' : ''}`}
+        className={`hidden sm:flex relative overflow-hidden rounded-2xl p-4 md:p-5 flex-col justify-between group transition-transform duration-300 hover:-translate-y-0.5${onClick ? ' cursor-pointer' : ''}`}
         style={{
           background: tokens.card.bg,
           border: `1px solid ${tokens.card.border}`,

@@ -199,7 +199,7 @@ export default function ClientDashboard({ onLogout, impersonatedClient, onBackTo
           onLogout={onLogout}
         />
       </div>
-      <div className="flex flex-col flex-1 overflow-hidden">
+      <div className="flex flex-col flex-1 min-h-0">
         {impersonatedClient && onBackToAdmin && (
           <div
             className="flex items-center gap-3 px-5 py-2.5"

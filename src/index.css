@@ -23,6 +23,10 @@ html, body, #root {
   overflow-x: hidden;
 }
 
+html {
+  transition: background-color 150ms ease;
+}
+
 * {
   scrollbar-width: thin;
   scrollbar-color: rgba(128, 128, 128, 0.3) transparent;
@@ -150,6 +154,14 @@ html[data-theme="dark"] {
   background: #050810;
 }
 
+html[data-theme="graphite"] {
+  background: #1e2024;
+}
+
+html[data-theme="beige"] {
+  background: #F5EFE6;
+}
+
 html[data-theme="light"] input::placeholder,
 html[data-theme="light"] textarea::placeholder {
   color: #6888a2;
@@ -160,6 +172,34 @@ html[data-theme="dark"] input::placeholder,
 html[data-theme="dark"] textarea::placeholder {
   color: #3e5a72;
   opacity: 1;
+}
+
+html[data-theme="graphite"] input::placeholder,
+html[data-theme="graphite"] textarea::placeholder {
+  color: #505868;
+  opacity: 1;
+}
+
+html[data-theme="beige"] input::placeholder,
+html[data-theme="beige"] textarea::placeholder {
+  color: #A8957E;
+  opacity: 1;
+}
+
+html[data-theme="graphite"] .dual-scroll-top::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+html[data-theme="graphite"] .dual-scroll-top::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.20);
+  border-radius: 7px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+html[data-theme="graphite"] .dual-scroll-top::-webkit-scrollbar-thumb:active {
+  background: rgba(255, 255, 255, 0.35);
+  background-clip: content-box;
 }
 
 @keyframes fadeScaleIn {

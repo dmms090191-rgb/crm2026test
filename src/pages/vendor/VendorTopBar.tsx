@@ -128,7 +128,7 @@ export default function VendorTopBar({ breadcrumb, onMobileMenuToggle, vendorNam
         </div>
       )}
     <header
-      className="flex items-center justify-between px-3 sm:px-4 md:px-6 h-14 md:h-16"
+      className="relative z-30 flex items-center justify-between px-3 sm:px-4 md:px-6 h-14 md:h-16"
       style={{
         background: tokens.topbar.bg,
         borderBottom: `1px solid ${tokens.topbar.border}`,

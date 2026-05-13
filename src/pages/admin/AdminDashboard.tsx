@@ -223,7 +223,7 @@ export default function AdminDashboard({ onLogout, onConnectAsVendor, onConnectA
 
   return (
     <SimulationProvider>
-    <div className="flex h-[100dvh] overflow-hidden transition-colors duration-300" style={{ background: t.main.bg }}>
+    <div className="flex h-[100dvh] overflow-hidden" style={{ background: t.main.bg }}>
       {mobileOpen && (
         <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setMobileOpen(false)} />
       )}
@@ -243,7 +243,7 @@ export default function AdminDashboard({ onLogout, onConnectAsVendor, onConnectA
           onLogout={onLogout}
         />
       </div>
-      <div className="flex flex-col flex-1 overflow-hidden">
+      <div className="flex flex-col flex-1 min-h-0">
         <TopBar
           breadcrumb={getBreadcrumb()}
           onMobileMenuToggle={() => setMobileOpen(!mobileOpen)}

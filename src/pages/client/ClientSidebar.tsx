@@ -56,7 +56,7 @@ export default function ClientSidebar({ activeView, onNavigate, collapsed, onCol
 
   return (
     <aside
-      className={`relative flex flex-col flex-shrink-0 h-full transition-all duration-300 ${collapsed ? 'w-16' : 'w-full md:w-60'}`}
+      className={`relative flex flex-col flex-shrink-0 h-full transition-[width] duration-300 ${collapsed ? 'w-16' : 'w-full md:w-60'}`}
       style={{
         background: tokens.sidebar.bg,
         borderRight: `1px solid ${tokens.sidebar.border}`,

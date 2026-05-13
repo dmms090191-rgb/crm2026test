@@ -100,7 +100,7 @@ export function FolderCard({ section }: { section: FolderSection }) {
       </button>
 
       <div
-        className="transition-all duration-300 ease-in-out overflow-hidden"
+        className="transition-[max-height,opacity] duration-300 ease-in-out overflow-hidden"
         style={{
           maxHeight: open ? '1000px' : '0px',
           opacity: open ? 1 : 0,

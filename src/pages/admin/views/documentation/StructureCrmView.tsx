@@ -146,7 +146,7 @@ export default function StructureCrmView() {
         </button>
 
         <div
-          className="transition-all duration-300 ease-in-out overflow-hidden"
+          className="transition-[max-height,opacity] duration-300 ease-in-out overflow-hidden"
           style={{
             maxHeight: treeOpen ? '8000px' : '0px',
             opacity: treeOpen ? 1 : 0,

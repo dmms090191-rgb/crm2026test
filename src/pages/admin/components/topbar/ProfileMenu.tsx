@@ -1,11 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
-import { ChevronDown, Sun, Moon } from 'lucide-react';
+import { ChevronDown, Sun, Moon, Monitor, Palette } from 'lucide-react';
 import { useTheme, type Theme } from '../../../../contexts/ThemeContext';
 import type { ThemeTokens } from '../../../../lib/themeTokensTypes';
 
 const themeOptions: { value: Theme; label: string; icon: React.ReactNode }[] = [
   { value: 'dark', label: 'Sombre', icon: <Moon className="w-3.5 h-3.5" /> },
   { value: 'light', label: 'Clair', icon: <Sun className="w-3.5 h-3.5" /> },
+  { value: 'graphite', label: 'Graphite', icon: <Monitor className="w-3.5 h-3.5" /> },
+  { value: 'beige', label: 'Beige Premium', icon: <Palette className="w-3.5 h-3.5" /> },
 ];
 
 interface ProfileMenuProps {

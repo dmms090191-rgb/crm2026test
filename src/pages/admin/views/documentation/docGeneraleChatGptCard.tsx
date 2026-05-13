@@ -25,7 +25,7 @@ export function ChatGptSectionCard({
 
   return (
     <div
-      className="rounded-2xl overflow-hidden transition-all duration-300"
+      className="rounded-2xl overflow-hidden"
       style={{
         background: tokens.card.bg,
         border: `1px solid ${tokens.card.border}`,
@@ -111,7 +111,7 @@ export function ChatGptSectionCard({
         </div>
       </button>
       <div
-        className="transition-all duration-300 ease-in-out overflow-hidden"
+        className="transition-[max-height,opacity] duration-300 ease-in-out overflow-hidden"
         style={{
           maxHeight: isOpen ? '5000px' : '0px',
           opacity: isOpen ? 1 : 0,
