@@ -21,7 +21,7 @@ interface MonthViewProps {
   userTimezone?: string;
 }
 
-export default function MonthView({ year, month, todayStr, selectedDate, onSelectDate, rdvsByDate, canAdd, onAdd, onDetail, accentColor, accentRgb, userTimezone = 'Europe/Paris' }: MonthViewProps) {
+export default function MonthView({ year, month, todayStr, selectedDate, onSelectDate, rdvsByDate, canAdd, onAdd, onDetail, accentColor, accentRgb, userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC' }: MonthViewProps) {
   const tokens = useThemeTokens();
   const daysInMonth = getDaysInMonth(year, month);
   const firstDay = getFirstDayOfMonth(year, month);

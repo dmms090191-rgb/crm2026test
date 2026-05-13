@@ -17,7 +17,7 @@ interface DayViewProps {
   userTimezone?: string;
 }
 
-export default function DayView({ dayDate, todayStr, rdvsByDate, canAdd, onAdd, onDetail, accentColor, accentRgb, userTimezone = 'Europe/Paris' }: DayViewProps) {
+export default function DayView({ dayDate, todayStr, rdvsByDate, canAdd, onAdd, onDetail, accentColor, accentRgb, userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC' }: DayViewProps) {
   const tokens = useThemeTokens();
   const dayRdvs = rdvsByDate[dayDate] ?? [];
   const isToday = dayDate === todayStr;

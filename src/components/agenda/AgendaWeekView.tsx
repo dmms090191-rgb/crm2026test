@@ -19,7 +19,7 @@ interface WeekViewProps {
   userTimezone?: string;
 }
 
-export default function WeekView({ weekStart, todayStr, rdvsByDate, canAdd, onAdd, onDetail, onGoToDay, accentColor, accentRgb, userTimezone = 'Europe/Paris' }: WeekViewProps) {
+export default function WeekView({ weekStart, todayStr, rdvsByDate, canAdd, onAdd, onDetail, onGoToDay, accentColor, accentRgb, userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC' }: WeekViewProps) {
   const tokens = useThemeTokens();
 
   const days = Array.from({ length: 7 }, (_, i) => {

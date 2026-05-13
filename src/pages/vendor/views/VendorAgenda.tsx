@@ -34,5 +34,5 @@ export default function VendorAgenda({ vendorId }: VendorAgendaProps) {
     return () => { supabase.removeChannel(ch); };
   }, [load, vendorId]);
 
-  return <AgendaView rdvs={rdvs} onReload={load} canAdd={false} canDelete={true} canTreat={true} accentColor="#22d3ee" accentRgb="34,211,238" userTimezone={timezone} clientTimezone="Europe/Paris" />;
+  return <AgendaView rdvs={rdvs} onReload={load} canAdd={false} canDelete={true} canTreat={true} accentColor="#22d3ee" accentRgb="34,211,238" userTimezone={timezone} />;
 }

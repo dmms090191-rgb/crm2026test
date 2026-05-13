@@ -32,7 +32,7 @@ interface AgendaViewProps {
   title?: string;
 }
 
-export default function AgendaView({ rdvs, onReload, canAdd = true, canDelete, canTreat = false, accentColor = '#22d3ee', accentRgb = '34,211,238', userTimezone = 'Europe/Paris', clientTimezone, title = 'Agenda' }: AgendaViewProps) {
+export default function AgendaView({ rdvs, onReload, canAdd = true, canDelete, canTreat = false, accentColor = '#22d3ee', accentRgb = '34,211,238', userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC', clientTimezone, title = 'Agenda' }: AgendaViewProps) {
   const tokens = useThemeTokens();
 
   const today = new Date();

@@ -11,7 +11,7 @@ interface RdvPillProps {
   userTimezone?: string;
 }
 
-export default function RdvPill({ rdv, compact, onDetail, userTimezone = 'Europe/Paris' }: RdvPillProps) {
+export default function RdvPill({ rdv, compact, onDetail, userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC' }: RdvPillProps) {
   const cfg = STATUS_CFG[rdv.status] ?? STATUS_CFG.pending;
   const localTime = getRdvLocalTime(rdv, userTimezone);
   const isPast = rdv.status === 'confirmed' && isRdvPast(rdv);

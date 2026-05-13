@@ -53,5 +53,5 @@ export default function AgendaEquipe() {
     return () => { supabase.removeChannel(ch); };
   }, [load]);
 
-  return <AgendaView rdvs={rdvs} onReload={load} canAdd={false} canDelete={true} canTreat={true} accentColor="#3b82f6" accentRgb="59,130,246" userTimezone={timezone} clientTimezone="Europe/Paris" title="Agenda équipe" />;
+  return <AgendaView rdvs={rdvs} onReload={load} canAdd={false} canDelete={true} canTreat={true} accentColor="#3b82f6" accentRgb="59,130,246" userTimezone={timezone} title="Agenda équipe" />;
 }

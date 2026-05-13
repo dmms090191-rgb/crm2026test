@@ -289,13 +289,17 @@ This has **no functional impact**. When reconstructing from scratch with `supaba
 
 Before deploying to production or exposing this CRM as a public SaaS, the following points should be addressed:
 
-### 1. CORS Hardening
+### 1. CORS Configuration
 
-The Edge Functions (`create-user`, `update-user-password`) currently use `Access-Control-Allow-Origin: *`. In production, restrict this to your actual frontend domain(s):
+The Edge Functions use a configurable CORS origin list. By default, only `localhost:5173` and `localhost:3000` are allowed.
 
-```typescript
-"Access-Control-Allow-Origin": "https://your-app-domain.com"
-```
+To allow your production domain, set the `ALLOWED_ORIGINS` secret in Supabase Edge Functions settings:
+
+| Name              | Value                                           |
+|-------------------|-------------------------------------------------|
+| `ALLOWED_ORIGINS` | `https://my-app.vercel.app,https://my-domain.com` |
+
+Multiple origins are separated by commas. If `ALLOWED_ORIGINS` is not set, only localhost origins are permitted.
 
 ### 2. Authentication Strength
 
@@ -313,13 +317,11 @@ Before production, audit all RLS policies to ensure:
 - Ownership checks are enforced where applicable
 - Policies cover all CRUD operations (SELECT, INSERT, UPDATE, DELETE separately)
 
-### 4. Edge Function Protection
+### 4. Edge Function Protection (already implemented)
 
-The Edge Functions use `SUPABASE_SERVICE_ROLE_KEY` internally. Ensure:
+Both Edge Functions (`create-user`, `update-user-password`) verify the caller's JWT and require `app_metadata.role === "admin"`. Unauthenticated or non-admin callers receive 401/403 responses.
 
-- Functions that mutate auth state (`create-user`, `update-user-password`) are only callable by authenticated admins
-- Add caller role verification inside the function body (check JWT `app_metadata.role === 'admin'`)
-- Never expose the service role key to client-side code
+The `SUPABASE_SERVICE_ROLE_KEY` is never exposed to client-side code.
 
 ### 5. Storage Bucket
 
