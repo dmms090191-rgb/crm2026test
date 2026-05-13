@@ -42,30 +42,46 @@ CREATE TABLE IF NOT EXISTS crm_system_statuses (
 
 ALTER TABLE crm_system_statuses ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Authenticated users can select system statuses"
-  ON crm_system_statuses
-  FOR SELECT
-  TO authenticated
-  USING (auth.uid() IS NOT NULL);
+DO $$ BEGIN
+IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Authenticated users can select system statuses' AND tablename = 'crm_system_statuses') THEN
+  CREATE POLICY "Authenticated users can select system statuses"
+    ON crm_system_statuses
+    FOR SELECT
+    TO authenticated
+    USING (auth.uid() IS NOT NULL);
+END IF;
+END $$;
 
-CREATE POLICY "Authenticated users can insert system statuses"
-  ON crm_system_statuses
-  FOR INSERT
-  TO authenticated
-  WITH CHECK (auth.uid() IS NOT NULL);
+DO $$ BEGIN
+IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Authenticated users can insert system statuses' AND tablename = 'crm_system_statuses') THEN
+  CREATE POLICY "Authenticated users can insert system statuses"
+    ON crm_system_statuses
+    FOR INSERT
+    TO authenticated
+    WITH CHECK (auth.uid() IS NOT NULL);
+END IF;
+END $$;
 
-CREATE POLICY "Authenticated users can update system statuses"
-  ON crm_system_statuses
-  FOR UPDATE
-  TO authenticated
-  USING (auth.uid() IS NOT NULL)
-  WITH CHECK (auth.uid() IS NOT NULL);
+DO $$ BEGIN
+IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Authenticated users can update system statuses' AND tablename = 'crm_system_statuses') THEN
+  CREATE POLICY "Authenticated users can update system statuses"
+    ON crm_system_statuses
+    FOR UPDATE
+    TO authenticated
+    USING (auth.uid() IS NOT NULL)
+    WITH CHECK (auth.uid() IS NOT NULL);
+END IF;
+END $$;
 
-CREATE POLICY "Authenticated users can delete system statuses"
-  ON crm_system_statuses
-  FOR DELETE
-  TO authenticated
-  USING (auth.uid() IS NOT NULL);
+DO $$ BEGIN
+IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Authenticated users can delete system statuses' AND tablename = 'crm_system_statuses') THEN
+  CREATE POLICY "Authenticated users can delete system statuses"
+    ON crm_system_statuses
+    FOR DELETE
+    TO authenticated
+    USING (auth.uid() IS NOT NULL);
+END IF;
+END $$;
 
 -- Add status_id to items
 DO $$
@@ -86,4 +102,5 @@ INSERT INTO crm_system_statuses (name, color, icon, position, is_active) VALUES
   ('A ameliorer', '#3b82f6', 'arrow-up-circle', 3, true),
   ('En cours', '#eab308', 'loader', 4, true),
   ('A tester', '#06b6d4', 'flask-conical', 5, true),
-  ('Urgent', '#dc2626', 'flame', 6, true);
+  ('Urgent', '#dc2626', 'flame', 6, true)
+ON CONFLICT DO NOTHING;

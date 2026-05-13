@@ -35,30 +35,46 @@ CREATE TABLE IF NOT EXISTS crm_system_categories (
 
 ALTER TABLE crm_system_categories ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Authenticated users can select system categories"
-  ON crm_system_categories
-  FOR SELECT
-  TO authenticated
-  USING (auth.uid() IS NOT NULL);
+DO $$ BEGIN
+IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Authenticated users can select system categories' AND tablename = 'crm_system_categories') THEN
+  CREATE POLICY "Authenticated users can select system categories"
+    ON crm_system_categories
+    FOR SELECT
+    TO authenticated
+    USING (auth.uid() IS NOT NULL);
+END IF;
+END $$;
 
-CREATE POLICY "Authenticated users can insert system categories"
-  ON crm_system_categories
-  FOR INSERT
-  TO authenticated
-  WITH CHECK (auth.uid() IS NOT NULL);
+DO $$ BEGIN
+IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Authenticated users can insert system categories' AND tablename = 'crm_system_categories') THEN
+  CREATE POLICY "Authenticated users can insert system categories"
+    ON crm_system_categories
+    FOR INSERT
+    TO authenticated
+    WITH CHECK (auth.uid() IS NOT NULL);
+END IF;
+END $$;
 
-CREATE POLICY "Authenticated users can update system categories"
-  ON crm_system_categories
-  FOR UPDATE
-  TO authenticated
-  USING (auth.uid() IS NOT NULL)
-  WITH CHECK (auth.uid() IS NOT NULL);
+DO $$ BEGIN
+IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Authenticated users can update system categories' AND tablename = 'crm_system_categories') THEN
+  CREATE POLICY "Authenticated users can update system categories"
+    ON crm_system_categories
+    FOR UPDATE
+    TO authenticated
+    USING (auth.uid() IS NOT NULL)
+    WITH CHECK (auth.uid() IS NOT NULL);
+END IF;
+END $$;
 
-CREATE POLICY "Authenticated users can delete system categories"
-  ON crm_system_categories
-  FOR DELETE
-  TO authenticated
-  USING (auth.uid() IS NOT NULL);
+DO $$ BEGIN
+IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Authenticated users can delete system categories' AND tablename = 'crm_system_categories') THEN
+  CREATE POLICY "Authenticated users can delete system categories"
+    ON crm_system_categories
+    FOR DELETE
+    TO authenticated
+    USING (auth.uid() IS NOT NULL);
+END IF;
+END $$;
 
 -- Items table
 CREATE TABLE IF NOT EXISTS crm_system_items (
@@ -74,27 +90,43 @@ CREATE TABLE IF NOT EXISTS crm_system_items (
 
 ALTER TABLE crm_system_items ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Authenticated users can select system items"
-  ON crm_system_items
-  FOR SELECT
-  TO authenticated
-  USING (auth.uid() IS NOT NULL);
+DO $$ BEGIN
+IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Authenticated users can select system items' AND tablename = 'crm_system_items') THEN
+  CREATE POLICY "Authenticated users can select system items"
+    ON crm_system_items
+    FOR SELECT
+    TO authenticated
+    USING (auth.uid() IS NOT NULL);
+END IF;
+END $$;
 
-CREATE POLICY "Authenticated users can insert system items"
-  ON crm_system_items
-  FOR INSERT
-  TO authenticated
-  WITH CHECK (auth.uid() IS NOT NULL);
+DO $$ BEGIN
+IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Authenticated users can insert system items' AND tablename = 'crm_system_items') THEN
+  CREATE POLICY "Authenticated users can insert system items"
+    ON crm_system_items
+    FOR INSERT
+    TO authenticated
+    WITH CHECK (auth.uid() IS NOT NULL);
+END IF;
+END $$;
 
-CREATE POLICY "Authenticated users can update system items"
-  ON crm_system_items
-  FOR UPDATE
-  TO authenticated
-  USING (auth.uid() IS NOT NULL)
-  WITH CHECK (auth.uid() IS NOT NULL);
+DO $$ BEGIN
+IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Authenticated users can update system items' AND tablename = 'crm_system_items') THEN
+  CREATE POLICY "Authenticated users can update system items"
+    ON crm_system_items
+    FOR UPDATE
+    TO authenticated
+    USING (auth.uid() IS NOT NULL)
+    WITH CHECK (auth.uid() IS NOT NULL);
+END IF;
+END $$;
 
-CREATE POLICY "Authenticated users can delete system items"
-  ON crm_system_items
-  FOR DELETE
-  TO authenticated
-  USING (auth.uid() IS NOT NULL);
+DO $$ BEGIN
+IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Authenticated users can delete system items' AND tablename = 'crm_system_items') THEN
+  CREATE POLICY "Authenticated users can delete system items"
+    ON crm_system_items
+    FOR DELETE
+    TO authenticated
+    USING (auth.uid() IS NOT NULL);
+END IF;
+END $$;

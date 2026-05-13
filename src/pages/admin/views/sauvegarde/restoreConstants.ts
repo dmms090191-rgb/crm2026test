@@ -34,6 +34,9 @@ export const CRM_BACKUP_TABLES: BackupTableConfig[] = [
   { name: 'content_block_tasks', label: 'Taches blocs contenu', category: 'crm' },
   { name: 'doc_tab_labels', label: 'Labels onglets doc', category: 'crm' },
   { name: 'audit_history', label: 'Historique audit', category: 'crm' },
+  { name: 'crm_system_categories', label: 'Categories systeme', category: 'crm' },
+  { name: 'crm_system_statuses', label: 'Statuts systeme', category: 'crm' },
+  { name: 'crm_system_items', label: 'Elements systeme', category: 'crm' },
 ];
 
 export const CRM_TABLE_NAMES = CRM_BACKUP_TABLES.map((t) => t.name);
@@ -70,6 +73,9 @@ export const RESTORE_ORDER = [
   'content_block_tasks',
   'doc_tab_labels',
   'audit_history',
+  'crm_system_categories',
+  'crm_system_statuses',
+  'crm_system_items',
 ] as const;
 
 export const TABLE_PRIMARY_KEYS: Record<string, string> = {
@@ -102,6 +108,9 @@ export const TABLE_PRIMARY_KEYS: Record<string, string> = {
   content_block_tasks: 'id',
   doc_tab_labels: 'tab_id',
   audit_history: 'id',
+  crm_system_categories: 'id',
+  crm_system_statuses: 'id',
+  crm_system_items: 'id',
 };
 
 export interface FkRule {
@@ -142,6 +151,13 @@ export const FK_RULES: Record<string, FkRule[]> = {
   ],
   content_block_tasks: [
     { column: 'block_id', referencedTable: 'content_blocks', referencedColumn: 'id' },
+  ],
+  crm_system_categories: [
+    { column: 'parent_id', referencedTable: 'crm_system_categories', referencedColumn: 'id', optional: true },
+  ],
+  crm_system_items: [
+    { column: 'category_id', referencedTable: 'crm_system_categories', referencedColumn: 'id' },
+    { column: 'status_id', referencedTable: 'crm_system_statuses', referencedColumn: 'id', optional: true },
   ],
 };
 

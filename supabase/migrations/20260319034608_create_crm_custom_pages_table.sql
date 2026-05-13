@@ -31,30 +31,46 @@ CREATE TABLE IF NOT EXISTS crm_custom_pages (
 
 ALTER TABLE crm_custom_pages ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Authenticated users can view custom pages"
-  ON crm_custom_pages
-  FOR SELECT
-  TO authenticated
-  USING (auth.uid() IS NOT NULL);
+DO $$ BEGIN
+IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Authenticated users can view custom pages' AND tablename = 'crm_custom_pages') THEN
+  CREATE POLICY "Authenticated users can view custom pages"
+    ON crm_custom_pages
+    FOR SELECT
+    TO authenticated
+    USING (auth.uid() IS NOT NULL);
+END IF;
+END $$;
 
-CREATE POLICY "Authenticated users can insert custom pages"
-  ON crm_custom_pages
-  FOR INSERT
-  TO authenticated
-  WITH CHECK (auth.uid() IS NOT NULL);
+DO $$ BEGIN
+IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Authenticated users can insert custom pages' AND tablename = 'crm_custom_pages') THEN
+  CREATE POLICY "Authenticated users can insert custom pages"
+    ON crm_custom_pages
+    FOR INSERT
+    TO authenticated
+    WITH CHECK (auth.uid() IS NOT NULL);
+END IF;
+END $$;
 
-CREATE POLICY "Authenticated users can update custom pages"
-  ON crm_custom_pages
-  FOR UPDATE
-  TO authenticated
-  USING (auth.uid() IS NOT NULL)
-  WITH CHECK (auth.uid() IS NOT NULL);
+DO $$ BEGIN
+IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Authenticated users can update custom pages' AND tablename = 'crm_custom_pages') THEN
+  CREATE POLICY "Authenticated users can update custom pages"
+    ON crm_custom_pages
+    FOR UPDATE
+    TO authenticated
+    USING (auth.uid() IS NOT NULL)
+    WITH CHECK (auth.uid() IS NOT NULL);
+END IF;
+END $$;
 
-CREATE POLICY "Authenticated users can delete custom pages"
-  ON crm_custom_pages
-  FOR DELETE
-  TO authenticated
-  USING (auth.uid() IS NOT NULL);
+DO $$ BEGIN
+IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Authenticated users can delete custom pages' AND tablename = 'crm_custom_pages') THEN
+  CREATE POLICY "Authenticated users can delete custom pages"
+    ON crm_custom_pages
+    FOR DELETE
+    TO authenticated
+    USING (auth.uid() IS NOT NULL);
+END IF;
+END $$;
 
 CREATE INDEX IF NOT EXISTS idx_crm_custom_pages_page_key ON crm_custom_pages(page_key);
 CREATE INDEX IF NOT EXISTS idx_crm_custom_pages_position ON crm_custom_pages(position);

@@ -27,21 +27,33 @@ CREATE TABLE IF NOT EXISTS user_preferences (
 
 ALTER TABLE user_preferences ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users can read own preferences"
-  ON user_preferences
-  FOR SELECT
-  TO authenticated
-  USING (auth.uid() = user_id);
+DO $$ BEGIN
+IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Users can read own preferences' AND tablename = 'user_preferences') THEN
+  CREATE POLICY "Users can read own preferences"
+    ON user_preferences
+    FOR SELECT
+    TO authenticated
+    USING (auth.uid() = user_id);
+END IF;
+END $$;
 
-CREATE POLICY "Users can insert own preferences"
-  ON user_preferences
-  FOR INSERT
-  TO authenticated
-  WITH CHECK (auth.uid() = user_id);
+DO $$ BEGIN
+IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Users can insert own preferences' AND tablename = 'user_preferences') THEN
+  CREATE POLICY "Users can insert own preferences"
+    ON user_preferences
+    FOR INSERT
+    TO authenticated
+    WITH CHECK (auth.uid() = user_id);
+END IF;
+END $$;
 
-CREATE POLICY "Users can update own preferences"
-  ON user_preferences
-  FOR UPDATE
-  TO authenticated
-  USING (auth.uid() = user_id)
-  WITH CHECK (auth.uid() = user_id);
+DO $$ BEGIN
+IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Users can update own preferences' AND tablename = 'user_preferences') THEN
+  CREATE POLICY "Users can update own preferences"
+    ON user_preferences
+    FOR UPDATE
+    TO authenticated
+    USING (auth.uid() = user_id)
+    WITH CHECK (auth.uid() = user_id);
+END IF;
+END $$;

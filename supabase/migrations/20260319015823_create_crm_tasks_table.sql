@@ -35,27 +35,43 @@ CREATE TABLE IF NOT EXISTS crm_tasks (
 
 ALTER TABLE crm_tasks ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Authenticated users can view tasks"
-  ON crm_tasks
-  FOR SELECT
-  TO authenticated
-  USING (auth.uid() IS NOT NULL);
+DO $$ BEGIN
+IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Authenticated users can view tasks' AND tablename = 'crm_tasks') THEN
+  CREATE POLICY "Authenticated users can view tasks"
+    ON crm_tasks
+    FOR SELECT
+    TO authenticated
+    USING (auth.uid() IS NOT NULL);
+END IF;
+END $$;
 
-CREATE POLICY "Authenticated users can create tasks"
-  ON crm_tasks
-  FOR INSERT
-  TO authenticated
-  WITH CHECK (auth.uid() IS NOT NULL);
+DO $$ BEGIN
+IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Authenticated users can create tasks' AND tablename = 'crm_tasks') THEN
+  CREATE POLICY "Authenticated users can create tasks"
+    ON crm_tasks
+    FOR INSERT
+    TO authenticated
+    WITH CHECK (auth.uid() IS NOT NULL);
+END IF;
+END $$;
 
-CREATE POLICY "Authenticated users can update tasks"
-  ON crm_tasks
-  FOR UPDATE
-  TO authenticated
-  USING (auth.uid() IS NOT NULL)
-  WITH CHECK (auth.uid() IS NOT NULL);
+DO $$ BEGIN
+IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Authenticated users can update tasks' AND tablename = 'crm_tasks') THEN
+  CREATE POLICY "Authenticated users can update tasks"
+    ON crm_tasks
+    FOR UPDATE
+    TO authenticated
+    USING (auth.uid() IS NOT NULL)
+    WITH CHECK (auth.uid() IS NOT NULL);
+END IF;
+END $$;
 
-CREATE POLICY "Authenticated users can delete tasks"
-  ON crm_tasks
-  FOR DELETE
-  TO authenticated
-  USING (auth.uid() IS NOT NULL);
+DO $$ BEGIN
+IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Authenticated users can delete tasks' AND tablename = 'crm_tasks') THEN
+  CREATE POLICY "Authenticated users can delete tasks"
+    ON crm_tasks
+    FOR DELETE
+    TO authenticated
+    USING (auth.uid() IS NOT NULL);
+END IF;
+END $$;

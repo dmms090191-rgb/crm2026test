@@ -31,14 +31,22 @@ CREATE TABLE IF NOT EXISTS audit_history (
 
 ALTER TABLE audit_history ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Authenticated users can view audit history"
-  ON audit_history
-  FOR SELECT
-  TO authenticated
-  USING (auth.uid() IS NOT NULL);
+DO $$ BEGIN
+IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Authenticated users can view audit history' AND tablename = 'audit_history') THEN
+  CREATE POLICY "Authenticated users can view audit history"
+    ON audit_history
+    FOR SELECT
+    TO authenticated
+    USING (auth.uid() IS NOT NULL);
+END IF;
+END $$;
 
-CREATE POLICY "Authenticated users can insert audit history"
-  ON audit_history
-  FOR INSERT
-  TO authenticated
-  WITH CHECK (auth.uid() IS NOT NULL);
+DO $$ BEGIN
+IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Authenticated users can insert audit history' AND tablename = 'audit_history') THEN
+  CREATE POLICY "Authenticated users can insert audit history"
+    ON audit_history
+    FOR INSERT
+    TO authenticated
+    WITH CHECK (auth.uid() IS NOT NULL);
+END IF;
+END $$;

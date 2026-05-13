@@ -23,27 +23,43 @@ CREATE TABLE IF NOT EXISTS doc_tab_labels (
 
 ALTER TABLE doc_tab_labels ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Authenticated users can read tab labels"
-  ON doc_tab_labels
-  FOR SELECT
-  TO authenticated
-  USING (auth.uid() IS NOT NULL);
+DO $$ BEGIN
+IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Authenticated users can read tab labels' AND tablename = 'doc_tab_labels') THEN
+  CREATE POLICY "Authenticated users can read tab labels"
+    ON doc_tab_labels
+    FOR SELECT
+    TO authenticated
+    USING (auth.uid() IS NOT NULL);
+END IF;
+END $$;
 
-CREATE POLICY "Authenticated users can insert tab labels"
-  ON doc_tab_labels
-  FOR INSERT
-  TO authenticated
-  WITH CHECK (auth.uid() IS NOT NULL);
+DO $$ BEGIN
+IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Authenticated users can insert tab labels' AND tablename = 'doc_tab_labels') THEN
+  CREATE POLICY "Authenticated users can insert tab labels"
+    ON doc_tab_labels
+    FOR INSERT
+    TO authenticated
+    WITH CHECK (auth.uid() IS NOT NULL);
+END IF;
+END $$;
 
-CREATE POLICY "Authenticated users can update tab labels"
-  ON doc_tab_labels
-  FOR UPDATE
-  TO authenticated
-  USING (auth.uid() IS NOT NULL)
-  WITH CHECK (auth.uid() IS NOT NULL);
+DO $$ BEGIN
+IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Authenticated users can update tab labels' AND tablename = 'doc_tab_labels') THEN
+  CREATE POLICY "Authenticated users can update tab labels"
+    ON doc_tab_labels
+    FOR UPDATE
+    TO authenticated
+    USING (auth.uid() IS NOT NULL)
+    WITH CHECK (auth.uid() IS NOT NULL);
+END IF;
+END $$;
 
-CREATE POLICY "Authenticated users can delete tab labels"
-  ON doc_tab_labels
-  FOR DELETE
-  TO authenticated
-  USING (auth.uid() IS NOT NULL);
+DO $$ BEGIN
+IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Authenticated users can delete tab labels' AND tablename = 'doc_tab_labels') THEN
+  CREATE POLICY "Authenticated users can delete tab labels"
+    ON doc_tab_labels
+    FOR DELETE
+    TO authenticated
+    USING (auth.uid() IS NOT NULL);
+END IF;
+END $$;

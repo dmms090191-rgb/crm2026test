@@ -39,26 +39,42 @@ CREATE TABLE IF NOT EXISTS content_blocks (
 
 ALTER TABLE content_blocks ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Authenticated users can view content blocks"
-  ON content_blocks FOR SELECT
-  TO authenticated
-  USING (auth.uid() IS NOT NULL);
+DO $$ BEGIN
+IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Authenticated users can view content blocks' AND tablename = 'content_blocks') THEN
+  CREATE POLICY "Authenticated users can view content blocks"
+    ON content_blocks FOR SELECT
+    TO authenticated
+    USING (auth.uid() IS NOT NULL);
+END IF;
+END $$;
 
-CREATE POLICY "Authenticated users can insert content blocks"
-  ON content_blocks FOR INSERT
-  TO authenticated
-  WITH CHECK (auth.uid() IS NOT NULL);
+DO $$ BEGIN
+IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Authenticated users can insert content blocks' AND tablename = 'content_blocks') THEN
+  CREATE POLICY "Authenticated users can insert content blocks"
+    ON content_blocks FOR INSERT
+    TO authenticated
+    WITH CHECK (auth.uid() IS NOT NULL);
+END IF;
+END $$;
 
-CREATE POLICY "Authenticated users can update content blocks"
-  ON content_blocks FOR UPDATE
-  TO authenticated
-  USING (auth.uid() IS NOT NULL)
-  WITH CHECK (auth.uid() IS NOT NULL);
+DO $$ BEGIN
+IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Authenticated users can update content blocks' AND tablename = 'content_blocks') THEN
+  CREATE POLICY "Authenticated users can update content blocks"
+    ON content_blocks FOR UPDATE
+    TO authenticated
+    USING (auth.uid() IS NOT NULL)
+    WITH CHECK (auth.uid() IS NOT NULL);
+END IF;
+END $$;
 
-CREATE POLICY "Authenticated users can delete content blocks"
-  ON content_blocks FOR DELETE
-  TO authenticated
-  USING (auth.uid() IS NOT NULL);
+DO $$ BEGIN
+IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Authenticated users can delete content blocks' AND tablename = 'content_blocks') THEN
+  CREATE POLICY "Authenticated users can delete content blocks"
+    ON content_blocks FOR DELETE
+    TO authenticated
+    USING (auth.uid() IS NOT NULL);
+END IF;
+END $$;
 
 CREATE TABLE IF NOT EXISTS content_block_tasks (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -71,26 +87,42 @@ CREATE TABLE IF NOT EXISTS content_block_tasks (
 
 ALTER TABLE content_block_tasks ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Authenticated users can view block tasks"
-  ON content_block_tasks FOR SELECT
-  TO authenticated
-  USING (auth.uid() IS NOT NULL);
+DO $$ BEGIN
+IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Authenticated users can view block tasks' AND tablename = 'content_block_tasks') THEN
+  CREATE POLICY "Authenticated users can view block tasks"
+    ON content_block_tasks FOR SELECT
+    TO authenticated
+    USING (auth.uid() IS NOT NULL);
+END IF;
+END $$;
 
-CREATE POLICY "Authenticated users can insert block tasks"
-  ON content_block_tasks FOR INSERT
-  TO authenticated
-  WITH CHECK (auth.uid() IS NOT NULL);
+DO $$ BEGIN
+IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Authenticated users can insert block tasks' AND tablename = 'content_block_tasks') THEN
+  CREATE POLICY "Authenticated users can insert block tasks"
+    ON content_block_tasks FOR INSERT
+    TO authenticated
+    WITH CHECK (auth.uid() IS NOT NULL);
+END IF;
+END $$;
 
-CREATE POLICY "Authenticated users can update block tasks"
-  ON content_block_tasks FOR UPDATE
-  TO authenticated
-  USING (auth.uid() IS NOT NULL)
-  WITH CHECK (auth.uid() IS NOT NULL);
+DO $$ BEGIN
+IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Authenticated users can update block tasks' AND tablename = 'content_block_tasks') THEN
+  CREATE POLICY "Authenticated users can update block tasks"
+    ON content_block_tasks FOR UPDATE
+    TO authenticated
+    USING (auth.uid() IS NOT NULL)
+    WITH CHECK (auth.uid() IS NOT NULL);
+END IF;
+END $$;
 
-CREATE POLICY "Authenticated users can delete block tasks"
-  ON content_block_tasks FOR DELETE
-  TO authenticated
-  USING (auth.uid() IS NOT NULL);
+DO $$ BEGIN
+IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Authenticated users can delete block tasks' AND tablename = 'content_block_tasks') THEN
+  CREATE POLICY "Authenticated users can delete block tasks"
+    ON content_block_tasks FOR DELETE
+    TO authenticated
+    USING (auth.uid() IS NOT NULL);
+END IF;
+END $$;
 
 CREATE TABLE IF NOT EXISTS content_block_infos (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -102,23 +134,39 @@ CREATE TABLE IF NOT EXISTS content_block_infos (
 
 ALTER TABLE content_block_infos ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Authenticated users can view block infos"
-  ON content_block_infos FOR SELECT
-  TO authenticated
-  USING (auth.uid() IS NOT NULL);
+DO $$ BEGIN
+IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Authenticated users can view block infos' AND tablename = 'content_block_infos') THEN
+  CREATE POLICY "Authenticated users can view block infos"
+    ON content_block_infos FOR SELECT
+    TO authenticated
+    USING (auth.uid() IS NOT NULL);
+END IF;
+END $$;
 
-CREATE POLICY "Authenticated users can insert block infos"
-  ON content_block_infos FOR INSERT
-  TO authenticated
-  WITH CHECK (auth.uid() IS NOT NULL);
+DO $$ BEGIN
+IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Authenticated users can insert block infos' AND tablename = 'content_block_infos') THEN
+  CREATE POLICY "Authenticated users can insert block infos"
+    ON content_block_infos FOR INSERT
+    TO authenticated
+    WITH CHECK (auth.uid() IS NOT NULL);
+END IF;
+END $$;
 
-CREATE POLICY "Authenticated users can update block infos"
-  ON content_block_infos FOR UPDATE
-  TO authenticated
-  USING (auth.uid() IS NOT NULL)
-  WITH CHECK (auth.uid() IS NOT NULL);
+DO $$ BEGIN
+IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Authenticated users can update block infos' AND tablename = 'content_block_infos') THEN
+  CREATE POLICY "Authenticated users can update block infos"
+    ON content_block_infos FOR UPDATE
+    TO authenticated
+    USING (auth.uid() IS NOT NULL)
+    WITH CHECK (auth.uid() IS NOT NULL);
+END IF;
+END $$;
 
-CREATE POLICY "Authenticated users can delete block infos"
-  ON content_block_infos FOR DELETE
-  TO authenticated
-  USING (auth.uid() IS NOT NULL);
+DO $$ BEGIN
+IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Authenticated users can delete block infos' AND tablename = 'content_block_infos') THEN
+  CREATE POLICY "Authenticated users can delete block infos"
+    ON content_block_infos FOR DELETE
+    TO authenticated
+    USING (auth.uid() IS NOT NULL);
+END IF;
+END $$;

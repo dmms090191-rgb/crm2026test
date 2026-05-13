@@ -10,4 +10,11 @@
     - Without this, realtime channels on this table receive no events
 */
 
-ALTER PUBLICATION supabase_realtime ADD TABLE vendor_admin_messages;
+DO $$ BEGIN
+IF NOT EXISTS (
+  SELECT 1 FROM pg_publication_tables
+  WHERE pubname = 'supabase_realtime' AND tablename = 'vendor_admin_messages'
+) THEN
+  ALTER PUBLICATION supabase_realtime ADD TABLE vendor_admin_messages;
+END IF;
+END $$;

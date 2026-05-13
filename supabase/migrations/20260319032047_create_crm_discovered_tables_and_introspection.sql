@@ -23,26 +23,42 @@ CREATE TABLE IF NOT EXISTS crm_discovered_tables (
 
 ALTER TABLE crm_discovered_tables ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Authenticated users can read discovered tables"
-  ON crm_discovered_tables FOR SELECT
-  TO authenticated
-  USING (auth.uid() IS NOT NULL);
+DO $$ BEGIN
+IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Authenticated users can read discovered tables' AND tablename = 'crm_discovered_tables') THEN
+  CREATE POLICY "Authenticated users can read discovered tables"
+    ON crm_discovered_tables FOR SELECT
+    TO authenticated
+    USING (auth.uid() IS NOT NULL);
+END IF;
+END $$;
 
-CREATE POLICY "Authenticated users can insert discovered tables"
-  ON crm_discovered_tables FOR INSERT
-  TO authenticated
-  WITH CHECK (auth.uid() IS NOT NULL);
+DO $$ BEGIN
+IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Authenticated users can insert discovered tables' AND tablename = 'crm_discovered_tables') THEN
+  CREATE POLICY "Authenticated users can insert discovered tables"
+    ON crm_discovered_tables FOR INSERT
+    TO authenticated
+    WITH CHECK (auth.uid() IS NOT NULL);
+END IF;
+END $$;
 
-CREATE POLICY "Authenticated users can update discovered tables"
-  ON crm_discovered_tables FOR UPDATE
-  TO authenticated
-  USING (auth.uid() IS NOT NULL)
-  WITH CHECK (auth.uid() IS NOT NULL);
+DO $$ BEGIN
+IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Authenticated users can update discovered tables' AND tablename = 'crm_discovered_tables') THEN
+  CREATE POLICY "Authenticated users can update discovered tables"
+    ON crm_discovered_tables FOR UPDATE
+    TO authenticated
+    USING (auth.uid() IS NOT NULL)
+    WITH CHECK (auth.uid() IS NOT NULL);
+END IF;
+END $$;
 
-CREATE POLICY "Authenticated users can delete discovered tables"
-  ON crm_discovered_tables FOR DELETE
-  TO authenticated
-  USING (auth.uid() IS NOT NULL);
+DO $$ BEGIN
+IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Authenticated users can delete discovered tables' AND tablename = 'crm_discovered_tables') THEN
+  CREATE POLICY "Authenticated users can delete discovered tables"
+    ON crm_discovered_tables FOR DELETE
+    TO authenticated
+    USING (auth.uid() IS NOT NULL);
+END IF;
+END $$;
 
 CREATE OR REPLACE FUNCTION introspect_table_schema(p_table_name text)
 RETURNS jsonb

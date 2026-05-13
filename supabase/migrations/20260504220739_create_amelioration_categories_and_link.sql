@@ -26,30 +26,46 @@ CREATE TABLE IF NOT EXISTS crm_amelioration_categories (
 
 ALTER TABLE crm_amelioration_categories ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Authenticated users can select categories"
-  ON crm_amelioration_categories
-  FOR SELECT
-  TO authenticated
-  USING (auth.uid() IS NOT NULL);
+DO $$ BEGIN
+IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Authenticated users can select categories' AND tablename = 'crm_amelioration_categories') THEN
+  CREATE POLICY "Authenticated users can select categories"
+    ON crm_amelioration_categories
+    FOR SELECT
+    TO authenticated
+    USING (auth.uid() IS NOT NULL);
+END IF;
+END $$;
 
-CREATE POLICY "Authenticated users can insert categories"
-  ON crm_amelioration_categories
-  FOR INSERT
-  TO authenticated
-  WITH CHECK (auth.uid() IS NOT NULL);
+DO $$ BEGIN
+IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Authenticated users can insert categories' AND tablename = 'crm_amelioration_categories') THEN
+  CREATE POLICY "Authenticated users can insert categories"
+    ON crm_amelioration_categories
+    FOR INSERT
+    TO authenticated
+    WITH CHECK (auth.uid() IS NOT NULL);
+END IF;
+END $$;
 
-CREATE POLICY "Authenticated users can update categories"
-  ON crm_amelioration_categories
-  FOR UPDATE
-  TO authenticated
-  USING (auth.uid() IS NOT NULL)
-  WITH CHECK (auth.uid() IS NOT NULL);
+DO $$ BEGIN
+IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Authenticated users can update categories' AND tablename = 'crm_amelioration_categories') THEN
+  CREATE POLICY "Authenticated users can update categories"
+    ON crm_amelioration_categories
+    FOR UPDATE
+    TO authenticated
+    USING (auth.uid() IS NOT NULL)
+    WITH CHECK (auth.uid() IS NOT NULL);
+END IF;
+END $$;
 
-CREATE POLICY "Authenticated users can delete categories"
-  ON crm_amelioration_categories
-  FOR DELETE
-  TO authenticated
-  USING (auth.uid() IS NOT NULL);
+DO $$ BEGIN
+IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Authenticated users can delete categories' AND tablename = 'crm_amelioration_categories') THEN
+  CREATE POLICY "Authenticated users can delete categories"
+    ON crm_amelioration_categories
+    FOR DELETE
+    TO authenticated
+    USING (auth.uid() IS NOT NULL);
+END IF;
+END $$;
 
 DO $$
 BEGIN
