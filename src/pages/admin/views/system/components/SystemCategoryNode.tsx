@@ -1,4 +1,4 @@
-import { Check, X, ChevronRight, ChevronDown, Pencil, Trash2, ArrowUp, ArrowDown, FolderPlus, Plus } from 'lucide-react';
+import { Check, X, ChevronRight, ChevronDown } from 'lucide-react';
 import type { useThemeTokens } from '../../../../../hooks/useThemeTokens';
 import type { SystemTreeNode, SystemStatus } from '../types';
 import { countAllItems } from '../types';
@@ -119,40 +119,26 @@ export default function SystemCategoryNode(props: CategoryNodeProps) {
             </div>
           ) : (
             <>
-              {/* Color picker */}
               {props.colorPickerCatId === cat.id && (
-                <div className="relative">
-                  <SystemColorPicker
-                    currentColor={cat.color}
-                    tokens={tokens}
-                    onSelect={(c) => { props.onSetColor(cat.id, c); props.onOpenColorPicker(null); }}
-                    onClose={() => props.onOpenColorPicker(null)}
-                  />
-                </div>
-              )}
-
-              {/* Desktop inline actions */}
-              <div className="hidden md:flex items-center gap-0.5 opacity-0 group-hover/header:opacity-100 transition-opacity">
-                <button onClick={() => props.onMoveCatUp(cat.id)} className="p-1 rounded-md" style={{ color: tokens.text.tertiary }} title="Monter"><ArrowUp className="w-3.5 h-3.5" /></button>
-                <button onClick={() => props.onMoveCatDown(cat.id)} className="p-1 rounded-md" style={{ color: tokens.text.tertiary }} title="Descendre"><ArrowDown className="w-3.5 h-3.5" /></button>
-                <button onClick={() => props.onSetAddingChildOf(cat.id)} className="p-1 rounded-md" style={{ color: tokens.text.tertiary }} title="Sous-categorie"><FolderPlus className="w-3.5 h-3.5" /></button>
-                <button onClick={() => props.onSetAddingItem(cat.id)} className="p-1 rounded-md" style={{ color: tokens.accent.text }} title="Item"><Plus className="w-3.5 h-3.5" /></button>
-                <button onClick={() => props.onStartRename(cat.id, cat.name)} className="p-1 rounded-md" style={{ color: tokens.text.tertiary }} title="Renommer"><Pencil className="w-3.5 h-3.5" /></button>
-                <button onClick={() => props.onConfirmDeleteCat(cat.id)} className="p-1 rounded-md" style={{ color: tokens.text.tertiary }} title="Supprimer"><Trash2 className="w-3.5 h-3.5" /></button>
-              </div>
-
-              {/* Mobile/Tablet dropdown */}
-              <div className="md:hidden">
-                <SystemCategoryActions
-                  depth={depth}
+                <SystemColorPicker
+                  currentColor={cat.color}
                   tokens={tokens}
-                  onAddChild={() => props.onSetAddingChildOf(cat.id)}
-                  onAddItem={() => props.onSetAddingItem(cat.id)}
-                  onRename={() => props.onStartRename(cat.id, cat.name)}
-                  onDelete={() => props.onConfirmDeleteCat(cat.id)}
-                  onOpenColorPicker={() => props.onOpenColorPicker(props.colorPickerCatId === cat.id ? null : cat.id)}
+                  onSelect={(c) => { props.onSetColor(cat.id, c); props.onOpenColorPicker(null); }}
+                  onClose={() => props.onOpenColorPicker(null)}
                 />
-              </div>
+              )}
+              <SystemCategoryActions
+                depth={depth}
+                name={cat.name}
+                tokens={tokens}
+                onAddChild={() => props.onSetAddingChildOf(cat.id)}
+                onAddItem={() => props.onSetAddingItem(cat.id)}
+                onRename={() => props.onStartRename(cat.id, cat.name)}
+                onDelete={() => props.onConfirmDeleteCat(cat.id)}
+                onOpenColorPicker={() => props.onOpenColorPicker(props.colorPickerCatId === cat.id ? null : cat.id)}
+                onMoveUp={() => props.onMoveCatUp(cat.id)}
+                onMoveDown={() => props.onMoveCatDown(cat.id)}
+              />
             </>
           )}
         </div>
