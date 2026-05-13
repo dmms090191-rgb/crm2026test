@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Check, X, ChevronRight, ChevronDown } from 'lucide-react';
 import type { useThemeTokens } from '../../../../../hooks/useThemeTokens';
 import type { SystemTreeNode, SystemStatus } from '../types';
@@ -30,7 +31,7 @@ export interface CategoryNodeProps {
   onConfirmRename: (id: string) => void;
   onCancelRename: () => void;
   onConfirmDeleteCat: (id: string | null) => void;
-  onDeleteCat: (id: string) => void;
+  onDeleteCat: (id: string) => Promise<{ blocked?: boolean; message?: string }>;
   onCancelDeleteCat: () => void;
   onMoveCatUp: (id: string) => void;
   onMoveCatDown: (id: string) => void;
@@ -54,10 +55,10 @@ export default function SystemCategoryNode(props: CategoryNodeProps) {
   const cat = node.category;
   const isOpen = openNodes.has(cat.id);
   const isRenaming = props.renamingCatId === cat.id;
-  const isConfirmingDelete = props.confirmDeleteCatId === cat.id;
   const isAddingChild = props.addingChildOf === cat.id;
   const isAddingItem = props.addingItemToCat === cat.id;
   const totalItems = countAllItems(node);
+  const [blockMsg, setBlockMsg] = useState<string | null>(null);
 
   const styles = getDepthStyles(depth, tokens, cat.color);
 
@@ -106,13 +107,7 @@ export default function SystemCategoryNode(props: CategoryNodeProps) {
 
         {/* Actions */}
         <div className="flex items-center gap-0.5 shrink-0" onClick={(e) => e.stopPropagation()}>
-          {isConfirmingDelete ? (
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="text-[11px]" style={{ color: tokens.danger.text }}>Supprimer ?</span>
-              <button onClick={() => props.onDeleteCat(cat.id)} className="px-2 py-0.5 rounded text-[11px] font-medium" style={{ background: tokens.danger.bg, color: tokens.danger.text, border: `1px solid ${tokens.danger.border}` }}>Oui</button>
-              <button onClick={props.onCancelDeleteCat} className="px-2 py-0.5 rounded text-[11px] font-medium" style={{ background: tokens.surface.tertiary, color: tokens.text.tertiary, border: `1px solid ${tokens.surface.border}` }}>Non</button>
-            </div>
-          ) : isRenaming ? (
+          {isRenaming ? (
             <div className="flex items-center gap-0.5">
               <button onClick={() => props.onConfirmRename(cat.id)} className="p-1.5 rounded-md" style={{ color: tokens.success.text }}><Check className="w-4 h-4" /></button>
               <button onClick={props.onCancelRename} className="p-1.5 rounded-md" style={{ color: tokens.text.tertiary }}><X className="w-4 h-4" /></button>
@@ -134,7 +129,13 @@ export default function SystemCategoryNode(props: CategoryNodeProps) {
                 onAddChild={() => props.onSetAddingChildOf(cat.id)}
                 onAddItem={() => props.onSetAddingItem(cat.id)}
                 onRename={() => props.onStartRename(cat.id, cat.name)}
-                onDelete={() => props.onConfirmDeleteCat(cat.id)}
+                onDelete={async () => {
+                  const result = await props.onDeleteCat(cat.id);
+                  if (result.blocked) {
+                    setBlockMsg(result.message || 'Suppression impossible.');
+                    setTimeout(() => setBlockMsg(null), 3500);
+                  }
+                }}
                 onOpenColorPicker={() => props.onOpenColorPicker(props.colorPickerCatId === cat.id ? null : cat.id)}
                 onMoveUp={() => props.onMoveCatUp(cat.id)}
                 onMoveDown={() => props.onMoveCatDown(cat.id)}
@@ -143,6 +144,12 @@ export default function SystemCategoryNode(props: CategoryNodeProps) {
           )}
         </div>
       </div>
+
+      {blockMsg && (
+        <div className="px-3 py-2 text-xs font-medium" style={{ background: tokens.danger.bg, color: tokens.danger.text, borderTop: `1px solid ${tokens.danger.border}` }}>
+          {blockMsg}
+        </div>
+      )}
 
       {/* Content */}
       {isOpen && (

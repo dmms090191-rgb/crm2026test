@@ -27,13 +27,18 @@ export default function SystemCategoryActions({ depth, name, tokens, onAddChild,
   const [open, setOpen] = useState(false);
   const btnRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const sheetRef = useRef<HTMLDivElement>(null);
 
   const close = useCallback(() => setOpen(false), []);
 
   useEffect(() => {
     if (!open) return;
     const handle = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node) && btnRef.current && !btnRef.current.contains(e.target as Node)) close();
+      const target = e.target as Node;
+      if (btnRef.current?.contains(target)) return;
+      if (dropdownRef.current?.contains(target)) return;
+      if (sheetRef.current?.contains(target)) return;
+      close();
     };
     document.addEventListener('mousedown', handle);
     return () => document.removeEventListener('mousedown', handle);
@@ -45,6 +50,11 @@ export default function SystemCategoryActions({ depth, name, tokens, onAddChild,
     document.addEventListener('keydown', handle);
     return () => document.removeEventListener('keydown', handle);
   }, [open, close]);
+
+  const handleAction = useCallback((action: () => void) => {
+    close();
+    requestAnimationFrame(() => { action(); });
+  }, [close]);
 
   const items: ActionDef[] = [];
   items.push({ label: 'Monter', icon: <ArrowUp className="w-4 h-4" />, action: onMoveUp });
@@ -71,17 +81,15 @@ export default function SystemCategoryActions({ depth, name, tokens, onAddChild,
 
       {open && (
         <>
-          {/* Desktop dropdown */}
-          <DesktopDropdown btnRef={btnRef} dropdownRef={dropdownRef} items={items} tokens={tokens} onClose={close} />
-          {/* Mobile bottom sheet */}
-          <MobileSheet name={name} items={items} tokens={tokens} onClose={close} />
+          <DesktopDropdown btnRef={btnRef} dropdownRef={dropdownRef} items={items} tokens={tokens} onAction={handleAction} />
+          <MobileSheet sheetRef={sheetRef} name={name} items={items} tokens={tokens} onAction={handleAction} onClose={close} />
         </>
       )}
     </>
   );
 }
 
-function DesktopDropdown({ btnRef, dropdownRef, items, tokens, onClose }: { btnRef: React.RefObject<HTMLButtonElement | null>; dropdownRef: React.RefObject<HTMLDivElement | null>; items: ActionDef[]; tokens: ReturnType<typeof useThemeTokens>; onClose: () => void }) {
+function DesktopDropdown({ btnRef, dropdownRef, items, tokens, onAction }: { btnRef: React.RefObject<HTMLButtonElement | null>; dropdownRef: React.RefObject<HTMLDivElement | null>; items: ActionDef[]; tokens: ReturnType<typeof useThemeTokens>; onAction: (action: () => void) => void }) {
   const [pos, setPos] = useState({ top: 0, right: 0 });
 
   useEffect(() => {
@@ -94,7 +102,7 @@ function DesktopDropdown({ btnRef, dropdownRef, items, tokens, onClose }: { btnR
   return createPortal(
     <div ref={dropdownRef as React.RefObject<HTMLDivElement>} className="hidden md:block fixed z-[9999] rounded-lg shadow-xl py-1 min-w-[170px]" style={{ top: pos.top, right: pos.right, background: tokens.surface.primary, border: `1px solid ${tokens.surface.border}` }}>
       {items.map((item, i) => (
-        <button key={i} onClick={() => { item.action(); onClose(); }} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left transition-colors hover:opacity-80" style={{ color: item.danger ? tokens.danger.text : tokens.text.secondary }}>
+        <button key={i} onClick={() => onAction(item.action)} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left transition-colors hover:opacity-80" style={{ color: item.danger ? tokens.danger.text : tokens.text.secondary }}>
           <span style={{ color: item.danger ? tokens.danger.text : tokens.text.quaternary }}>{item.icon}</span>
           {item.label}
         </button>
@@ -104,16 +112,14 @@ function DesktopDropdown({ btnRef, dropdownRef, items, tokens, onClose }: { btnR
   );
 }
 
-function MobileSheet({ name, items, tokens, onClose }: { name: string; items: ActionDef[]; tokens: ReturnType<typeof useThemeTokens>; onClose: () => void }) {
+function MobileSheet({ sheetRef, name, items, tokens, onAction, onClose }: { sheetRef: React.RefObject<HTMLDivElement | null>; name: string; items: ActionDef[]; tokens: ReturnType<typeof useThemeTokens>; onAction: (action: () => void) => void; onClose: () => void }) {
   return createPortal(
-    <div className="md:hidden fixed inset-0 z-[9999] flex flex-col justify-end" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/50" />
-      <div className="relative rounded-t-2xl pb-[env(safe-area-inset-bottom)] animate-slide-up" style={{ background: tokens.surface.primary, borderTop: `1px solid ${tokens.surface.border}` }} onClick={(e) => e.stopPropagation()}>
-        {/* Handle */}
+    <div className="md:hidden fixed inset-0 z-[9999] flex flex-col justify-end">
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div ref={sheetRef as React.RefObject<HTMLDivElement>} className="relative rounded-t-2xl pb-[env(safe-area-inset-bottom)] animate-slide-up" style={{ background: tokens.surface.primary, borderTop: `1px solid ${tokens.surface.border}` }}>
         <div className="flex justify-center pt-3 pb-1">
           <div className="w-10 h-1 rounded-full" style={{ background: tokens.surface.border }} />
         </div>
-        {/* Header */}
         <div className="flex items-center justify-between px-5 py-3" style={{ borderBottom: `1px solid ${tokens.surface.border}` }}>
           <div>
             <p className="text-xs font-medium uppercase tracking-wider" style={{ color: tokens.text.quaternary }}>Actions</p>
@@ -123,10 +129,9 @@ function MobileSheet({ name, items, tokens, onClose }: { name: string; items: Ac
             <X className="w-5 h-5" />
           </button>
         </div>
-        {/* Actions */}
         <div className="px-4 py-3 space-y-1">
           {items.map((item, i) => (
-            <button key={i} onClick={() => { item.action(); onClose(); }} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-colors active:scale-[0.98]" style={{ color: item.danger ? tokens.danger.text : tokens.text.secondary, background: item.danger ? tokens.danger.bg : tokens.surface.secondary }}>
+            <button key={i} onClick={() => onAction(item.action)} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-colors active:scale-[0.98]" style={{ color: item.danger ? tokens.danger.text : tokens.text.secondary, background: item.danger ? tokens.danger.bg : tokens.surface.secondary }}>
               <span className="shrink-0" style={{ color: item.danger ? tokens.danger.text : tokens.accent.text }}>{item.icon}</span>
               <span className="text-sm font-medium">{item.label}</span>
             </button>

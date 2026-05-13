@@ -54,14 +54,23 @@ export function useSystemActions({ items, categories, statuses, onItemsChange, o
     }
   }, [categories, onCategoriesChange]);
 
-  const handleDeleteCategory = useCallback(async (id: string) => {
-    await supabase.from('crm_system_categories').delete().eq('id', id);
-    const idsToRemove = getDescendantIds(id, categories);
-    idsToRemove.push(id);
-    onCategoriesChange(categories.filter((c) => !idsToRemove.includes(c.id)));
-    onItemsChange(items.filter((a) => !a.category_id || !idsToRemove.includes(a.category_id)));
+  const handleDeleteCategory = useCallback(async (id: string): Promise<{ blocked?: boolean; message?: string }> => {
+    const hasChildren = categories.some((c) => c.parent_id === id);
+    const hasItems = items.some((i) => i.category_id === id);
+    if (hasChildren || hasItems) {
+      setConfirmDeleteCatId(null);
+      return { blocked: true, message: 'Impossible de supprimer : cette categorie contient encore des elements.' };
+    }
+    const { error } = await supabase.from('crm_system_categories').delete().eq('id', id);
+    if (error) {
+      console.error('Delete category failed:', error);
+      setConfirmDeleteCatId(null);
+      return { blocked: true, message: 'Erreur lors de la suppression.' };
+    }
+    onCategoriesChange(categories.filter((c) => c.id !== id));
     setConfirmDeleteCatId(null);
-  }, [categories, items, onCategoriesChange, onItemsChange]);
+    return {};
+  }, [categories, items, onCategoriesChange]);
 
   const handleMoveCategoryUp = useCallback(async (id: string) => {
     const cat = categories.find((c) => c.id === id);
@@ -254,12 +263,3 @@ export function useSystemActions({ items, categories, statuses, onItemsChange, o
   };
 }
 
-function getDescendantIds(parentId: string, categories: SystemCategory[]): string[] {
-  const result: string[] = [];
-  const children = categories.filter((c) => c.parent_id === parentId);
-  for (const child of children) {
-    result.push(child.id);
-    result.push(...getDescendantIds(child.id, categories));
-  }
-  return result;
-}
