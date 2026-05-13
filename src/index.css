@@ -162,6 +162,18 @@ html[data-theme="beige"] {
   background: #F5EFE6;
 }
 
+html[data-theme="rose"] {
+  background: #120A16;
+}
+
+html[data-theme="emerald"] {
+  background: #EEF7F1;
+}
+
+html[data-theme="luxury"] {
+  background: #F8F7F4;
+}
+
 html[data-theme="light"] input::placeholder,
 html[data-theme="light"] textarea::placeholder {
   color: #6888a2;
@@ -183,6 +195,24 @@ html[data-theme="graphite"] textarea::placeholder {
 html[data-theme="beige"] input::placeholder,
 html[data-theme="beige"] textarea::placeholder {
   color: #A8957E;
+  opacity: 1;
+}
+
+html[data-theme="rose"] input::placeholder,
+html[data-theme="rose"] textarea::placeholder {
+  color: #96738A;
+  opacity: 1;
+}
+
+html[data-theme="emerald"] input::placeholder,
+html[data-theme="emerald"] textarea::placeholder {
+  color: #8BA396;
+  opacity: 1;
+}
+
+html[data-theme="luxury"] input::placeholder,
+html[data-theme="luxury"] textarea::placeholder {
+  color: #A49A8B;
   opacity: 1;
 }
 

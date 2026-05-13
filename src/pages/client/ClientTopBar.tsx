@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { MessageCircle, CalendarCheck, CalendarClock, ChevronRight, ChevronDown, Sun, Moon, Monitor, Palette, Menu } from 'lucide-react';
+import { MessageCircle, CalendarCheck, CalendarClock, ChevronRight, ChevronDown, Sun, Moon, Monitor, Palette, Heart, Leaf, Crown, Menu } from 'lucide-react';
 import { useTheme, type Theme } from '../../contexts/ThemeContext';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
 import { useTimezone } from '../../hooks/useTimezone';
@@ -45,6 +45,9 @@ const themeOptions: { value: Theme; label: string; icon: React.ReactNode }[] = [
   { value: 'light', label: 'Clair', icon: <Sun className="w-3.5 h-3.5" /> },
   { value: 'graphite', label: 'Graphite', icon: <Monitor className="w-3.5 h-3.5" /> },
   { value: 'beige', label: 'Beige Premium', icon: <Palette className="w-3.5 h-3.5" /> },
+  { value: 'rose', label: 'Rose Tech Premium', icon: <Heart className="w-3.5 h-3.5" /> },
+  { value: 'emerald', label: 'Vert Émeraude Premium', icon: <Leaf className="w-3.5 h-3.5" /> },
+  { value: 'luxury', label: 'Blanc Luxe', icon: <Crown className="w-3.5 h-3.5" /> },
 ];
 
 export default function ClientTopBar({ breadcrumb, onMobileMenuToggle, clientName = 'Client', unreadMessageCount = 0, unreadLatestAt, onMessageNotifClick, agendaCount = 0, agendaEntries = [], onAgendaEntryClick, propositionsCount = 0, propositionsEntries = [], onPropositionEntryClick }: ClientTopBarProps) {
