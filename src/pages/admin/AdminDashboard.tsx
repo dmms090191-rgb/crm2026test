@@ -22,6 +22,7 @@ const ImportLeads = lazy(() => import('./views/ImportLeads'));
 const importDocumentationCrm = () => import('./views/DocumentationCrm');
 const DocumentationCrm = lazy(importDocumentationCrm);
 const SauvegardeRestauration = lazy(() => import('./views/SauvegardeRestauration'));
+const SystemPage = lazy(() => import('./views/SystemPage'));
 import { supabase } from '../../lib/supabase';
 import { saveConnectReturnContext, consumeConnectReturnContext, saveChatReturnContext, consumeChatReturnContext } from '../../lib/connectReturnContext';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
@@ -54,6 +55,7 @@ export type ActiveView =
   | 'propositions-rdv'
   | 'statuts'
   | 'documentation-crm'
+  | 'system'
   | 'sauvegarde';
 
 export default function AdminDashboard({ onLogout, onConnectAsVendor, onConnectAsClient }: AdminDashboardProps) {
@@ -140,11 +142,9 @@ export default function AdminDashboard({ onLogout, onConnectAsVendor, onConnectA
     const id = requestIdleCallback(() => { importDocumentationCrm(); });
     return () => cancelIdleCallback(id);
   }, []);
-
   const handleNameChange = useCallback((firstName: string, lastName: string) => {
     setAdminName([firstName, lastName].filter(Boolean).join(' ') || 'Administrateur');
   }, []);
-
   const handleClientEntryClick = useCallback((entry: { leadId: string; nom: string; prenom: string; email: string; clientAuthId: string }) => {
     setChatLead({ id: entry.leadId, nom: entry.nom, prenom: entry.prenom, email: entry.email });
     setChatClientMessageSent(false);
@@ -159,11 +159,9 @@ export default function AdminDashboard({ onLogout, onConnectAsVendor, onConnectA
     setActiveView('chat-vendeur');
     markVendorRead(entry.vendorId);
   }, [markVendorRead]);
-
   const handleVendorViewed = useCallback((vendorId: string) => {
     markVendorRead(vendorId);
   }, [markVendorRead]);
-
   const handleAgendaPersoClick = useCallback((rdvId: string, type?: 'starting' | 'untreated') => {
     markAgendaSeen(rdvId, type);
     setActiveView('agenda');
@@ -216,6 +214,7 @@ export default function AdminDashboard({ onLogout, onConnectAsVendor, onConnectA
       case 'propositions-rdv': return <Suspense fallback={lazyFallback}><PropositionsRdv initialLead={rdvLead} onInitialLeadConsumed={() => setRdvLead(null)} onNavigateToCrm={() => handleNavigate('crm')} /></Suspense>;
       case 'statuts': return <Suspense fallback={lazyFallback}><Statuts /></Suspense>;
       case 'documentation-crm': return <Suspense fallback={lazyFallback}><DocumentationCrm initialTab={docInitialTab} onInitialTabConsumed={() => setDocInitialTab(undefined)} /></Suspense>;
+      case 'system': return <Suspense fallback={lazyFallback}><SystemPage /></Suspense>;
       case 'sauvegarde': return <Suspense fallback={lazyFallback}><SauvegardeRestauration /></Suspense>;
       default: return <Suspense fallback={lazyFallback}><VueEnsemble unreadClientConversations={unreadEntries.length} unreadVendorConversations={unreadVendorEntries.length} /></Suspense>;
     }

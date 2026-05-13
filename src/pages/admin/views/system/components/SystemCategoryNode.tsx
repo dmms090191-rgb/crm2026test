@@ -1,8 +1,9 @@
-import { Check, X, ChevronRight, ChevronDown, Pencil, Trash2, ArrowUp, ArrowDown, FolderPlus, Palette, Plus } from 'lucide-react';
+import { Check, X, ChevronRight, ChevronDown, Pencil, Trash2, ArrowUp, ArrowDown, FolderPlus, Plus } from 'lucide-react';
 import type { useThemeTokens } from '../../../../../hooks/useThemeTokens';
 import type { SystemTreeNode, SystemStatus } from '../types';
 import { countAllItems } from '../types';
 import SystemColorPicker from './SystemColorPicker';
+import SystemCategoryActions from './SystemCategoryActions';
 import SystemItemRow from './SystemItemRow';
 
 export interface CategoryNodeProps {
@@ -111,37 +112,46 @@ export default function SystemCategoryNode(props: CategoryNodeProps) {
               <button onClick={() => props.onDeleteCat(cat.id)} className="px-2 py-0.5 rounded text-[11px] font-medium" style={{ background: tokens.danger.bg, color: tokens.danger.text, border: `1px solid ${tokens.danger.border}` }}>Oui</button>
               <button onClick={props.onCancelDeleteCat} className="px-2 py-0.5 rounded text-[11px] font-medium" style={{ background: tokens.surface.tertiary, color: tokens.text.tertiary, border: `1px solid ${tokens.surface.border}` }}>Non</button>
             </div>
+          ) : isRenaming ? (
+            <div className="flex items-center gap-0.5">
+              <button onClick={() => props.onConfirmRename(cat.id)} className="p-1.5 rounded-md" style={{ color: tokens.success.text }}><Check className="w-4 h-4" /></button>
+              <button onClick={props.onCancelRename} className="p-1.5 rounded-md" style={{ color: tokens.text.tertiary }}><X className="w-4 h-4" /></button>
+            </div>
           ) : (
             <>
-              <div className="relative">
-                <button onClick={() => props.onOpenColorPicker(props.colorPickerCatId === cat.id ? null : cat.id)} className="p-1.5 sm:p-1 rounded-md transition-colors" style={{ color: cat.color || tokens.text.tertiary }} title="Couleur">
-                  <Palette className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
-                </button>
-                {props.colorPickerCatId === cat.id && (
+              {/* Color picker */}
+              {props.colorPickerCatId === cat.id && (
+                <div className="relative">
                   <SystemColorPicker
                     currentColor={cat.color}
                     tokens={tokens}
                     onSelect={(c) => { props.onSetColor(cat.id, c); props.onOpenColorPicker(null); }}
                     onClose={() => props.onOpenColorPicker(null)}
                   />
-                )}
+                </div>
+              )}
+
+              {/* Desktop inline actions */}
+              <div className="hidden md:flex items-center gap-0.5 opacity-0 group-hover/header:opacity-100 transition-opacity">
+                <button onClick={() => props.onMoveCatUp(cat.id)} className="p-1 rounded-md" style={{ color: tokens.text.tertiary }} title="Monter"><ArrowUp className="w-3.5 h-3.5" /></button>
+                <button onClick={() => props.onMoveCatDown(cat.id)} className="p-1 rounded-md" style={{ color: tokens.text.tertiary }} title="Descendre"><ArrowDown className="w-3.5 h-3.5" /></button>
+                <button onClick={() => props.onSetAddingChildOf(cat.id)} className="p-1 rounded-md" style={{ color: tokens.text.tertiary }} title="Sous-categorie"><FolderPlus className="w-3.5 h-3.5" /></button>
+                <button onClick={() => props.onSetAddingItem(cat.id)} className="p-1 rounded-md" style={{ color: tokens.accent.text }} title="Item"><Plus className="w-3.5 h-3.5" /></button>
+                <button onClick={() => props.onStartRename(cat.id, cat.name)} className="p-1 rounded-md" style={{ color: tokens.text.tertiary }} title="Renommer"><Pencil className="w-3.5 h-3.5" /></button>
+                <button onClick={() => props.onConfirmDeleteCat(cat.id)} className="p-1 rounded-md" style={{ color: tokens.text.tertiary }} title="Supprimer"><Trash2 className="w-3.5 h-3.5" /></button>
               </div>
-              <div className="flex items-center gap-0.5 opacity-100 sm:opacity-0 sm:group-hover/header:opacity-100 transition-opacity">
-                {isRenaming ? (
-                  <>
-                    <button onClick={() => props.onConfirmRename(cat.id)} className="p-1.5 sm:p-1 rounded-md" style={{ color: tokens.success.text }}><Check className="w-4 h-4 sm:w-3.5 sm:h-3.5" /></button>
-                    <button onClick={props.onCancelRename} className="p-1.5 sm:p-1 rounded-md" style={{ color: tokens.text.tertiary }}><X className="w-4 h-4 sm:w-3.5 sm:h-3.5" /></button>
-                  </>
-                ) : (
-                  <>
-                    <button onClick={() => props.onMoveCatUp(cat.id)} className="p-1.5 sm:p-1 rounded-md hidden sm:block" style={{ color: tokens.text.tertiary }} title="Monter"><ArrowUp className="w-3.5 h-3.5" /></button>
-                    <button onClick={() => props.onMoveCatDown(cat.id)} className="p-1.5 sm:p-1 rounded-md hidden sm:block" style={{ color: tokens.text.tertiary }} title="Descendre"><ArrowDown className="w-3.5 h-3.5" /></button>
-                    <button onClick={() => props.onSetAddingChildOf(cat.id)} className="p-1.5 sm:p-1 rounded-md" style={{ color: tokens.text.tertiary }} title="Sous-categorie"><FolderPlus className="w-4 h-4 sm:w-3.5 sm:h-3.5" /></button>
-                    <button onClick={() => props.onSetAddingItem(cat.id)} className="p-1.5 sm:p-1 rounded-md" style={{ color: tokens.accent.text }} title="Ajouter un item"><Plus className="w-4 h-4 sm:w-3.5 sm:h-3.5" /></button>
-                    <button onClick={() => props.onStartRename(cat.id, cat.name)} className="p-1.5 sm:p-1 rounded-md" style={{ color: tokens.text.tertiary }} title="Renommer"><Pencil className="w-4 h-4 sm:w-3.5 sm:h-3.5" /></button>
-                    <button onClick={() => props.onConfirmDeleteCat(cat.id)} className="p-1.5 sm:p-1 rounded-md" style={{ color: tokens.text.tertiary }} title="Supprimer"><Trash2 className="w-4 h-4 sm:w-3.5 sm:h-3.5" /></button>
-                  </>
-                )}
+
+              {/* Mobile/Tablet dropdown */}
+              <div className="md:hidden">
+                <SystemCategoryActions
+                  depth={depth}
+                  tokens={tokens}
+                  onAddChild={() => props.onSetAddingChildOf(cat.id)}
+                  onAddItem={() => props.onSetAddingItem(cat.id)}
+                  onRename={() => props.onStartRename(cat.id, cat.name)}
+                  onDelete={() => props.onConfirmDeleteCat(cat.id)}
+                  onOpenColorPicker={() => props.onOpenColorPicker(props.colorPickerCatId === cat.id ? null : cat.id)}
+                />
               </div>
             </>
           )}
@@ -219,25 +229,12 @@ export default function SystemCategoryNode(props: CategoryNodeProps) {
             </div>
           )}
 
-          {/* Empty state */}
           {node.children.length === 0 && node.items.length === 0 && !isAddingChild && !isAddingItem && (
-            <div className="py-4 px-3 text-center">
-              <p className="text-xs mb-2" style={{ color: tokens.text.quaternary }}>Vide</p>
-              <div className="flex items-center justify-center gap-2 flex-wrap">
-                <button
-                  onClick={() => props.onSetAddingChildOf(cat.id)}
-                  className="px-3 py-1.5 rounded-lg text-[11px] font-medium"
-                  style={{ background: tokens.surface.tertiary, color: tokens.text.tertiary, border: `1px solid ${tokens.surface.border}` }}
-                >
-                  + Sous-categorie
-                </button>
-                <button
-                  onClick={() => props.onSetAddingItem(cat.id)}
-                  className="px-3 py-1.5 rounded-lg text-[11px] font-medium"
-                  style={{ background: tokens.accent.bg, color: tokens.accent.text, border: `1px solid ${tokens.accent.border}` }}
-                >
-                  + Item
-                </button>
+            <div className="py-3 px-3 flex flex-col items-center gap-2">
+              <p className="text-xs" style={{ color: tokens.text.quaternary }}>Vide</p>
+              <div className="flex items-center gap-2 flex-wrap">
+                <button onClick={() => props.onSetAddingChildOf(cat.id)} className="px-3 py-1.5 rounded-lg text-[11px] font-medium" style={{ background: tokens.surface.tertiary, color: tokens.text.tertiary, border: `1px solid ${tokens.surface.border}` }}>+ Sous-categorie</button>
+                <button onClick={() => props.onSetAddingItem(cat.id)} className="px-3 py-1.5 rounded-lg text-[11px] font-medium" style={{ background: tokens.accent.bg, color: tokens.accent.text, border: `1px solid ${tokens.accent.border}` }}>+ Item</button>
               </div>
             </div>
           )}

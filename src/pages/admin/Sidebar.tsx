@@ -14,6 +14,7 @@ import {
   CalendarCheck,
   Settings,
   BookOpen,
+  Monitor,
   HardDriveDownload,
   LogOut,
   ChevronLeft,
@@ -90,6 +91,7 @@ const sections: NavSection[] = [
     title: 'Ressources',
     items: [
       { id: 'documentation-crm', label: 'Documentation CRM', icon: <BookOpen className="w-4 h-4" /> },
+      { id: 'system', label: 'System', icon: <Monitor className="w-4 h-4" /> },
       { id: 'sauvegarde', label: 'Sauvegarde & restauration', icon: <HardDriveDownload className="w-4 h-4" /> },
     ],
   },

@@ -13,7 +13,6 @@ import DocGeneraleView from './DocGeneraleView';
 import StructureCrmView from './StructureCrmView';
 import AuditTechniqueView from './AuditTechniqueView';
 import AmeliorationsView, { Amelioration, AmeliorationCategory } from '../ameliorations/AmeliorationsView';
-import SystemView, { SystemItem, SystemCategory, SystemStatus } from '../system/SystemView';
 
 interface DocContentPanelProps {
   activeSection: ActiveSection;
@@ -26,17 +25,11 @@ interface DocContentPanelProps {
   ideas: Idea[];
   ameliorations: Amelioration[];
   ameliorationCategories: AmeliorationCategory[];
-  systemItems: SystemItem[];
-  systemCategories: SystemCategory[];
-  systemStatuses: SystemStatus[];
   contextCards: ContextCard[];
   onCardsChange: (cards: ContextCard[]) => void;
   onIdeasChange: (ideas: Idea[]) => void;
   onAmeliorationsChange: (ameliorations: Amelioration[]) => void;
   onAmeliorationCategoriesChange: (categories: AmeliorationCategory[]) => void;
-  onSystemItemsChange: (items: SystemItem[]) => void;
-  onSystemCategoriesChange: (categories: SystemCategory[]) => void;
-  onSystemStatusesChange: (statuses: SystemStatus[]) => void;
   onEditNote: (note: Note) => void;
   onDeleteNote: (id: string) => void;
   onOpenNewNote: () => void;
@@ -54,17 +47,11 @@ export default function DocContentPanel({
   ideas,
   ameliorations,
   ameliorationCategories,
-  systemItems,
-  systemCategories,
-  systemStatuses,
   contextCards,
   onCardsChange,
   onIdeasChange,
   onAmeliorationsChange,
   onAmeliorationCategoriesChange,
-  onSystemItemsChange,
-  onSystemCategoriesChange,
-  onSystemStatusesChange,
   onEditNote,
   onDeleteNote,
   onOpenNewNote,
@@ -75,13 +62,13 @@ export default function DocContentPanel({
 
   return (
     <>
-      {activeTab !== 'idees' && activeTab !== 'ameliorations' && activeTab !== 'system' && activeTab !== 'contexte-chatgpt' && activeTab !== 'documentation-generale' && activeTab !== 'structure-crm' && activeTab !== 'audit-technique' && <div className="flex items-center justify-between mb-3 flex-shrink-0">
+      {activeTab !== 'idees' && activeTab !== 'ameliorations' && activeTab !== 'contexte-chatgpt' && activeTab !== 'documentation-generale' && activeTab !== 'structure-crm' && activeTab !== 'audit-technique' && <div className="flex items-center justify-between mb-3 flex-shrink-0">
         <div className="flex items-center gap-2">
           <span style={{ color: tokens.accent.text }}>{currentTab.icon}</span>
           <h2 className="text-sm font-semibold" style={{ color: tokens.text.secondary }}>{currentTab.label}</h2>
         </div>
       </div>}
-      {loading && activeTab !== 'idees' && activeTab !== 'system' && activeTab !== 'contexte-chatgpt' && activeTab !== 'documentation-generale' ? (
+      {loading && activeTab !== 'idees' && activeTab !== 'contexte-chatgpt' && activeTab !== 'documentation-generale' ? (
         <div className="flex-1 flex items-center justify-center">
           <Loader2 className="w-6 h-6 animate-spin" style={{ color: tokens.accent.border }} />
         </div>
@@ -129,8 +116,6 @@ export default function DocContentPanel({
         />
       ) : activeTab === 'ameliorations' ? (
         <AmeliorationsView ameliorations={ameliorations} categories={ameliorationCategories} onAmeliorationsChange={onAmeliorationsChange} onCategoriesChange={onAmeliorationCategoriesChange} />
-      ) : activeTab === 'system' ? (
-        <SystemView items={systemItems} categories={systemCategories} statuses={systemStatuses} onItemsChange={onSystemItemsChange} onCategoriesChange={onSystemCategoriesChange} onStatusesChange={onSystemStatusesChange} />
       ) : activeTab === 'idees' ? (
         <IdeasView ideas={ideas} onIdeasChange={onIdeasChange} />
       ) : activeTab === 'technologies' ? (
