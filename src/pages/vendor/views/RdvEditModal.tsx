@@ -69,19 +69,20 @@ export default function RdvEditModal({ rdv, onClose, onSaved }: EditModalProps) 
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-2 sm:p-4"
       style={{ background: tokens.modal.overlayBg, backdropFilter: 'blur(6px)' }}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
-        className="w-full max-w-md rounded-2xl overflow-hidden"
+        className="w-full max-w-[95vw] sm:max-w-md rounded-2xl sm:rounded-2xl rounded-b-none sm:rounded-b-2xl overflow-hidden flex flex-col"
         style={{
           background: tokens.modal.bg,
           border: `1px solid ${tokens.modal.border}`,
           boxShadow: tokens.modal.shadow,
+          maxHeight: 'calc(100dvh - 16px)',
         }}
       >
-        <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: `1px solid ${tokens.card.border}` }}>
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 flex-shrink-0" style={{ borderBottom: `1px solid ${tokens.card.border}` }}>
           <div>
             <p className="font-semibold text-sm" style={{ color: tokens.modal.title }}>Modifier le rendez-vous</p>
             <p className="text-xs" style={{ color: tokens.modal.subtitle }}>{rdv.lead_name}</p>
@@ -97,7 +98,7 @@ export default function RdvEditModal({ rdv, onClose, onSaved }: EditModalProps) 
           </button>
         </div>
 
-        <div className="px-6 py-5 space-y-4">
+        <div className="px-4 sm:px-6 py-4 sm:py-5 space-y-3 sm:space-y-4 overflow-y-auto flex-1 overscroll-contain">
           {error && (
             <div className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs" style={{ background: tokens.danger.bg, border: `1px solid ${tokens.danger.border}`, color: tokens.danger.text }}>
               <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
@@ -155,26 +156,27 @@ export default function RdvEditModal({ rdv, onClose, onSaved }: EditModalProps) 
             />
           </div>
 
-          <div className="flex items-center gap-3 pt-1">
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition-all disabled:opacity-50 hover:scale-105"
-              style={{ background: 'linear-gradient(90deg, #0ea5e9, #22d3ee)', boxShadow: `0 0 16px ${tokens.accent.text}33`, color: tokens.text.primary }}
-            >
-              <Check className="w-3.5 h-3.5" />
-              {saving ? 'Enregistrement...' : 'Enregistrer'}
-            </button>
-            <button
-              onClick={onClose}
-              className="px-4 py-2 rounded-lg text-xs font-semibold transition-all"
-              style={{ background: tokens.surface.hover, border: `1px solid ${tokens.surface.borderLight}`, color: tokens.text.tertiary }}
-              onMouseEnter={e => e.currentTarget.style.color = tokens.text.primary}
-              onMouseLeave={e => e.currentTarget.style.color = tokens.text.tertiary}
-            >
-              Annuler
-            </button>
-          </div>
+        </div>
+
+        <div className="flex items-center gap-3 px-4 sm:px-6 py-3 sm:py-4 flex-shrink-0" style={{ borderTop: `1px solid ${tokens.card.border}` }}>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="flex items-center gap-1.5 px-4 py-2.5 sm:py-2 rounded-lg text-xs font-semibold transition-all disabled:opacity-50 hover:scale-105"
+            style={{ background: 'linear-gradient(90deg, #0ea5e9, #22d3ee)', boxShadow: `0 0 16px ${tokens.accent.text}33`, color: tokens.text.primary }}
+          >
+            <Check className="w-3.5 h-3.5" />
+            {saving ? 'Enregistrement...' : 'Enregistrer'}
+          </button>
+          <button
+            onClick={onClose}
+            className="px-4 py-2.5 sm:py-2 rounded-lg text-xs font-semibold transition-all"
+            style={{ background: tokens.surface.hover, border: `1px solid ${tokens.surface.borderLight}`, color: tokens.text.tertiary }}
+            onMouseEnter={e => e.currentTarget.style.color = tokens.text.primary}
+            onMouseLeave={e => e.currentTarget.style.color = tokens.text.tertiary}
+          >
+            Annuler
+          </button>
         </div>
       </div>
     </div>

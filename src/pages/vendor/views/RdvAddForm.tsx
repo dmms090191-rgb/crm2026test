@@ -29,7 +29,7 @@ export default function RdvAddForm({ form, leadName, onChange, onSubmit, onCance
 
   return (
     <div
-      className="rounded-2xl p-4 sm:p-5 space-y-4 pb-6 sm:pb-5"
+      className="rounded-2xl p-3 sm:p-5 space-y-3 sm:space-y-4 max-h-[80dvh] sm:max-h-none overflow-y-auto sm:overflow-visible overscroll-contain"
       style={{ background: tokens.accent.bg, border: `1px solid ${tokens.accent.border}` }}
     >
       <p className="text-sm font-semibold" style={{ color: tokens.text.primary }}>Nouvelle proposition de rendez-vous</p>
@@ -93,7 +93,7 @@ export default function RdvAddForm({ form, leadName, onChange, onSubmit, onCance
         <label className="block text-[10px] font-bold tracking-[0.15em] uppercase mb-1.5" style={{ color: tokens.label.hint }}>Notes</label>
         <textarea value={form.notes} onChange={e => onChange('notes', e.target.value)} rows={2} className={inputCls + ' resize-none'} style={inputStyle} placeholder="Informations complementaires..." />
       </div>
-      <div className="flex items-center gap-3 pt-2 pb-2 scroll-mt-20">
+      <div className="flex items-center gap-3 pt-2 pb-1 sticky bottom-0 z-10" style={{ background: tokens.accent.bg }}>
         <button
           onClick={onSubmit}
           disabled={saving || !form.proposed_date}
