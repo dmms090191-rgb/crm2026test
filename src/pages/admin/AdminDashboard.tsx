@@ -65,7 +65,8 @@ export default function AdminDashboard({ onLogout, onConnectAsVendor, onConnectA
   const [adminAuthId, setAdminAuthId] = useState<string | null>(null);
   const { notifications: agendaNotifs, count: agendaPersoCount, markAsSeen: markAgendaSeen } = useAgendaNotifications('admin', adminAuthId);
   const { notifications: agendaEquipeNotifs, count: agendaEquipeCount, markAsSeen: markAgendaEquipeSeen } = useAgendaEquipeNotifications(adminAuthId);
-  const [confirmedUnseen, setConfirmedUnseen] = useState<{ id: string; lead_name: string; created_at: string }[]>([]);
+  const [proposalUnseen, setProposalUnseen] = useState<{ id: string; lead_name: string; created_at: string; created_by_role?: string; parent_proposal_id?: string | null }[]>([]);
+  const [confirmedUnseen, setConfirmedUnseen] = useState<{ id: string; lead_name: string; created_at: string; created_by_role?: string; parent_proposal_id?: string | null }[]>([]);
   const [activeView, setActiveView] = useState<ActiveView>('vue-ensemble');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -121,25 +122,22 @@ export default function AdminDashboard({ onLogout, onConnectAsVendor, onConnectA
   }, []);
   useEffect(() => {
     const fetchUnseen = async () => {
-      const { data: confirmed } = await supabase
+      const { data: proposals } = await supabase
         .from('rdv_proposals')
-        .select('id, lead_name, created_at, created_by_role')
-        .eq('status', 'confirmed')
-        .eq('seen_by_admin', false)
-        .is('vendor_id', null)
-        .order('created_at', { ascending: false });
-      const { data: counterProps } = await supabase
-        .from('rdv_proposals')
-        .select('id, lead_name, created_at, created_by_role')
+        .select('id, lead_name, created_at, created_by_role, parent_proposal_id')
         .eq('seen_by_admin', false)
         .eq('status', 'pending')
         .eq('created_by_role', 'client')
         .order('created_at', { ascending: false });
-      const all = [...(confirmed ?? []), ...(counterProps ?? [])];
-      const seen = new Set<string>();
-      const deduped = all.filter(p => { if (seen.has(p.id)) return false; seen.add(p.id); return true; });
-      deduped.sort((a, b) => b.created_at.localeCompare(a.created_at));
-      setConfirmedUnseen(deduped);
+      const { data: confirmed } = await supabase
+        .from('rdv_proposals')
+        .select('id, lead_name, created_at, created_by_role, parent_proposal_id')
+        .eq('status', 'confirmed')
+        .eq('seen_by_admin', false)
+        .is('vendor_id', null)
+        .order('created_at', { ascending: false });
+      setProposalUnseen(proposals ?? []);
+      setConfirmedUnseen(confirmed ?? []);
     };
     fetchUnseen();
     const ch = supabase
@@ -184,6 +182,17 @@ export default function AdminDashboard({ onLogout, onConnectAsVendor, onConnectA
   }, [markAgendaEquipeSeen]);
 
   const handleProposalEntryClick = useCallback((proposalId: string) => {
+    supabase
+      .from('rdv_proposals')
+      .update({ seen_by_admin: true })
+      .eq('id', proposalId)
+      .then(() => {
+        setProposalUnseen(prev => prev.filter(p => p.id !== proposalId));
+      });
+    setActiveView('propositions-rdv');
+  }, []);
+
+  const handleConfirmedEntryClick = useCallback((proposalId: string) => {
     supabase
       .from('rdv_proposals')
       .update({ seen_by_admin: true })
@@ -271,9 +280,12 @@ export default function AdminDashboard({ onLogout, onConnectAsVendor, onConnectA
           agendaEquipeCount={agendaEquipeCount}
           agendaEquipeEntries={agendaEquipeNotifs}
           onAgendaEquipeEntryClick={handleAgendaEquipeClick}
-          propositionsCount={confirmedUnseen.length}
-          propositionsEntries={confirmedUnseen}
-          onPropositionEntryClick={handleProposalEntryClick}
+          proposalsCount={proposalUnseen.length}
+          proposalsEntries={proposalUnseen}
+          onProposalEntryClick={handleProposalEntryClick}
+          confirmedCount={confirmedUnseen.length}
+          confirmedEntries={confirmedUnseen}
+          onConfirmedEntryClick={handleConfirmedEntryClick}
         />
         <SimulationBanner />
         <main

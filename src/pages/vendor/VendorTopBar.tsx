@@ -25,6 +25,7 @@ export interface ConfirmedProposalEntry {
   lead_name: string;
   created_at: string;
   created_by_role?: string;
+  parent_proposal_id?: string | null;
 }
 
 interface VendorTopBarProps {
@@ -42,12 +43,15 @@ interface VendorTopBarProps {
   agendaCount?: number;
   agendaEntries?: AgendaNotifEntry[];
   onAgendaEntryClick?: (rdvId: string, type?: 'starting' | 'untreated') => void;
-  propositionsCount?: number;
-  propositionsEntries?: ConfirmedProposalEntry[];
-  onPropositionEntryClick?: (proposalId: string) => void;
+  proposalsCount?: number;
+  proposalsEntries?: ConfirmedProposalEntry[];
+  onProposalEntryClick?: (proposalId: string) => void;
+  confirmedCount?: number;
+  confirmedEntries?: ConfirmedProposalEntry[];
+  onConfirmedEntryClick?: (proposalId: string) => void;
 }
 
-export default function VendorTopBar({ breadcrumb, onMobileMenuToggle, vendorName = 'Vendeur', isImpersonating, onBackToAdmin, unreadAdminCount = 0, unreadAdminLatestAt, onAdminNotifClick, unreadClientCount = 0, unreadClientEntries = [], onClientEntryClick, agendaCount = 0, agendaEntries = [], onAgendaEntryClick, propositionsCount = 0, propositionsEntries = [], onPropositionEntryClick }: VendorTopBarProps) {
+export default function VendorTopBar({ breadcrumb, onMobileMenuToggle, vendorName = 'Vendeur', isImpersonating, onBackToAdmin, unreadAdminCount = 0, unreadAdminLatestAt, onAdminNotifClick, unreadClientCount = 0, unreadClientEntries = [], onClientEntryClick, agendaCount = 0, agendaEntries = [], onAgendaEntryClick, proposalsCount = 0, proposalsEntries = [], onProposalEntryClick, confirmedCount = 0, confirmedEntries = [], onConfirmedEntryClick }: VendorTopBarProps) {
   const { theme, setTheme } = useTheme();
   const tokens = useThemeTokens();
   const { timezone, tzLabel, tzCode, setTimezone } = useTimezone();
@@ -56,6 +60,7 @@ export default function VendorTopBar({ breadcrumb, onMobileMenuToggle, vendorNam
   const [clientDropdownOpen, setClientDropdownOpen] = useState(false);
   const [agendaDropdownOpen, setAgendaDropdownOpen] = useState(false);
   const [proposDropdownOpen, setProposDropdownOpen] = useState(false);
+  const [confirmedDropdownOpen, setConfirmedDropdownOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [mobileNotifOpen, setMobileNotifOpen] = useState(false);
   const [mobileNotifCategory, setMobileNotifCategory] = useState<string | null>(null);
@@ -63,6 +68,7 @@ export default function VendorTopBar({ breadcrumb, onMobileMenuToggle, vendorNam
   const clientDropdownRef = useRef<HTMLDivElement>(null);
   const agendaDropdownRef = useRef<HTMLDivElement>(null);
   const proposDropdownRef = useRef<HTMLDivElement>(null);
+  const confirmedDropdownRef = useRef<HTMLDivElement>(null);
   const profileDropdownRef = useRef<HTMLDivElement>(null);
   const mobileNotifRef = useRef<HTMLDivElement>(null);
   const mobileNotifPanelRef = useRef<HTMLDivElement>(null);
@@ -87,6 +93,9 @@ export default function VendorTopBar({ breadcrumb, onMobileMenuToggle, vendorNam
       if (proposDropdownRef.current && !proposDropdownRef.current.contains(e.target as Node)) {
         setProposDropdownOpen(false);
       }
+      if (confirmedDropdownRef.current && !confirmedDropdownRef.current.contains(e.target as Node)) {
+        setConfirmedDropdownOpen(false);
+      }
       if (profileDropdownRef.current && !profileDropdownRef.current.contains(e.target as Node)) {
         setProfileDropdownOpen(false);
       }
@@ -99,7 +108,7 @@ export default function VendorTopBar({ breadcrumb, onMobileMenuToggle, vendorNam
   }, []);
 
   const clock = getCurrentTime(timezone);
-  const totalNotifCount = unreadAdminCount + unreadClientCount + agendaCount + propositionsCount;
+  const totalNotifCount = unreadAdminCount + unreadClientCount + agendaCount + proposalsCount + confirmedCount;
   const badgeColors = { iconColor: tokens.topbar.notifIcon, iconHoverColor: tokens.topbar.notifIconHover, labelColor: tokens.topbar.notifLabel, labelHoverColor: tokens.topbar.notifLabelHover, hoverBg: tokens.surface.hover };
 
   function handleNotifItemClick() {
@@ -167,9 +176,12 @@ export default function VendorTopBar({ breadcrumb, onMobileMenuToggle, vendorNam
           agendaCount={agendaCount}
           agendaEntries={agendaEntries}
           onAgendaEntryClick={onAgendaEntryClick}
-          propositionsCount={propositionsCount}
-          propositionsEntries={propositionsEntries}
-          onPropositionEntryClick={onPropositionEntryClick}
+          proposalsCount={proposalsCount}
+          proposalsEntries={proposalsEntries}
+          onProposalEntryClick={onProposalEntryClick}
+          confirmedCount={confirmedCount}
+          confirmedEntries={confirmedEntries}
+          onConfirmedEntryClick={onConfirmedEntryClick}
           timezone={timezone}
           tokens={tokens}
           containerRef={mobileNotifRef}
@@ -185,10 +197,13 @@ export default function VendorTopBar({ breadcrumb, onMobileMenuToggle, vendorNam
           setAgendaDropdownOpen={setAgendaDropdownOpen}
           proposDropdownOpen={proposDropdownOpen}
           setProposDropdownOpen={setProposDropdownOpen}
+          confirmedDropdownOpen={confirmedDropdownOpen}
+          setConfirmedDropdownOpen={setConfirmedDropdownOpen}
           adminDropdownRef={adminDropdownRef}
           clientDropdownRef={clientDropdownRef}
           agendaDropdownRef={agendaDropdownRef}
           proposDropdownRef={proposDropdownRef}
+          confirmedDropdownRef={confirmedDropdownRef}
           unreadAdminCount={unreadAdminCount}
           unreadAdminLatestAt={unreadAdminLatestAt}
           onAdminNotifClick={handleNotifItemClick}
@@ -198,9 +213,12 @@ export default function VendorTopBar({ breadcrumb, onMobileMenuToggle, vendorNam
           agendaCount={agendaCount}
           agendaEntries={agendaEntries}
           onAgendaEntryClick={onAgendaEntryClick}
-          propositionsCount={propositionsCount}
-          propositionsEntries={propositionsEntries}
-          onPropositionEntryClick={onPropositionEntryClick}
+          proposalsCount={proposalsCount}
+          proposalsEntries={proposalsEntries}
+          onProposalEntryClick={onProposalEntryClick}
+          confirmedCount={confirmedCount}
+          confirmedEntries={confirmedEntries}
+          onConfirmedEntryClick={onConfirmedEntryClick}
           tokens={tokens}
           badgeColors={badgeColors}
         />

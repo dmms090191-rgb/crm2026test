@@ -28,7 +28,8 @@ export default function VendorRdvRow({
   const isPast = rdv.proposed_date < todayStr;
   const isPending = rdv.status === 'pending';
   const isCounterProposed = rdv.status === 'counter_proposed';
-  const isClientCounter = rdv.created_by_role === 'client' && !!rdv.parent_proposal_id;
+  const isClientProposal = rdv.created_by_role === 'client';
+  const isClientCounter = isClientProposal && !!rdv.parent_proposal_id;
 
   return (
     <tr
@@ -130,7 +131,7 @@ export default function VendorRdvRow({
           <span className="text-[11px]" style={{ color: tokens.table.footerText }}>--</span>
         ) : (
           <div className="flex items-center gap-1.5">
-            {isPending && isClientCounter && (
+            {isPending && isClientProposal && (
               <button
                 onClick={onAccept}
                 className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105"
@@ -147,7 +148,7 @@ export default function VendorRdvRow({
                 style={{ background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.2)', color: '#f87171' }}
               >
                 <XCircle className="w-3 h-3" />
-                {isClientCounter ? 'Refuser' : 'Annuler'}
+                {isClientProposal ? 'Refuser' : 'Annuler'}
               </button>
             )}
             <button

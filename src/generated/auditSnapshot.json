@@ -1,25 +1,30 @@
 {
-  "generatedAt": "2026-05-14T14:09:17.062Z",
+  "generatedAt": "2026-05-14T15:36:44.267Z",
   "anyCount": 0,
   "anyOccurrences": [],
   "unusedImportCount": 0,
   "unusedImports": [],
-  "largeFileCount": 3,
+  "largeFileCount": 4,
   "largeFiles": [
     {
       "file": "src/pages/client/ClientTopBar.tsx",
-      "lines": 301,
-      "overflow": 1
+      "lines": 303,
+      "overflow": 3
+    },
+    {
+      "file": "src/pages/admin/components/topbar/NotificationDropdown.tsx",
+      "lines": 312,
+      "overflow": 12
     },
     {
       "file": "src/pages/admin/AdminDashboard.tsx",
-      "lines": 310,
-      "overflow": 10
+      "lines": 322,
+      "overflow": 22
     },
     {
       "file": "src/pages/client/views/ClientPropositionsRdv.tsx",
-      "lines": 331,
-      "overflow": 31
+      "lines": 423,
+      "overflow": 123
     }
   ],
   "tscErrorCount": 0,
@@ -27,7 +32,7 @@
   "eslintErrorCount": 0,
   "eslintWarningCount": 0,
   "eslintIssues": [],
-  "totalFilesAnalyzed": 296,
-  "totalLinesAnalyzed": 42919,
-  "totalOverflowLines": 42
+  "totalFilesAnalyzed": 298,
+  "totalLinesAnalyzed": 43474,
+  "totalOverflowLines": 160
 }

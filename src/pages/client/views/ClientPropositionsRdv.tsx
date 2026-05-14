@@ -1,11 +1,13 @@
-import { useState, useEffect, useCallback } from 'react';
-import { CalendarDays } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { CalendarDays, Plus } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { useThemeTokens } from '../../../hooks/useThemeTokens';
 import { useTimezone } from '../../../hooks/useTimezone';
 import { localToUTC } from '../../../lib/timezoneUtils';
+import { getVisibleRdvProposals } from '../../vendor/views/rdvChainFilter';
 import ClientRdvCard from './ClientRdvCard';
 import ClientCounterProposalModal from './ClientCounterProposalModal';
+import ClientNewRdvModal from './ClientNewRdvModal';
 
 interface RdvProposal {
   id: string;
@@ -63,6 +65,9 @@ export default function ClientPropositionsRdv({ clientEmail, onMount }: ClientPr
   const [counterTarget, setCounterTarget] = useState<RdvProposal | null>(null);
   const [counterSaving, setCounterSaving] = useState(false);
   const [counterError, setCounterError] = useState('');
+  const [showNewRdv, setShowNewRdv] = useState(false);
+  const [newRdvSaving, setNewRdvSaving] = useState(false);
+  const [newRdvError, setNewRdvError] = useState('');
 
   useEffect(() => {
     onMount?.();
@@ -111,7 +116,8 @@ export default function ClientPropositionsRdv({ clientEmail, onMount }: ClientPr
 
   useEffect(() => { load(); }, [load]);
 
-  const filtered = rdvs.filter(r => {
+  const visibleRdvs = useMemo(() => getVisibleRdvProposals(rdvs), [rdvs]);
+  const filtered = visibleRdvs.filter(r => {
     if (filter === 'Tous') return true;
     return r.status === filterToStatus[filter];
   });
@@ -235,11 +241,88 @@ export default function ClientPropositionsRdv({ clientEmail, onMount }: ClientPr
     load();
   }
 
+  async function handleNewRdvSubmit(date: string, time: string, description: string) {
+    const appointmentCheck = new Date(localToUTC(date, time, CLIENT_TZ));
+    if (appointmentCheck.getTime() <= Date.now()) {
+      setNewRdvError('Veuillez choisir une date et une heure futures.');
+      return;
+    }
+    setNewRdvError('');
+    setNewRdvSaving(true);
+
+    const { data: leadByCol } = await supabase
+      .from('leads')
+      .select('id, prenom, nom, email, telephone, vendor_id, data')
+      .eq('email', clientEmail)
+      .limit(1)
+      .maybeSingle();
+    const { data: leadByJson } = !leadByCol
+      ? await supabase
+          .from('leads')
+          .select('id, prenom, nom, email, telephone, vendor_id, data')
+          .is('email', null)
+          .eq('data->>Email', clientEmail)
+          .limit(1)
+          .maybeSingle()
+      : { data: null };
+
+    const lead = leadByCol || leadByJson;
+    if (!lead) {
+      setNewRdvError('Impossible de trouver vos informations.');
+      setNewRdvSaving(false);
+      return;
+    }
+
+    const d = (lead.data && typeof lead.data === 'object') ? lead.data as Record<string, string> : {};
+    const leadName = [lead.prenom || d.Prenom || d.prenom, lead.nom || d.Nom || d.nom].filter(Boolean).join(' ') || clientEmail;
+    const leadPhone = lead.telephone || d.Telephone || d.telephone || '';
+    const leadEmail = lead.email || d.Email || d.email || clientEmail;
+    const leadVendorId = lead.vendor_id || null;
+
+    const appointmentUtc = localToUTC(date, time, CLIENT_TZ);
+
+    await supabase.from('rdv_proposals').insert({
+      lead_name: leadName,
+      lead_phone: leadPhone,
+      lead_email: leadEmail,
+      lead_id: lead.id,
+      vendor_id: leadVendorId,
+      proposed_date: date,
+      proposed_time: time,
+      motif: '',
+      description,
+      notes: '',
+      status: 'pending',
+      created_by_role: 'client',
+      created_by_name: userName || leadName,
+      target_role: leadVendorId ? 'vendor' : 'admin',
+      appointment_utc: appointmentUtc,
+      source_timezone: CLIENT_TZ,
+      seen_by_client: true,
+      seen_by_admin: false,
+      seen_by_vendor: false,
+    });
+
+    setNewRdvSaving(false);
+    setShowNewRdv(false);
+    load();
+  }
+
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-xl font-bold" style={{ color: tokens.text.primary }}>Propositions RDV</h2>
-        <p className="text-xs mt-0.5" style={{ color: tokens.text.quaternary }}>{rdvs.length} proposition{rdvs.length !== 1 ? 's' : ''} au total</p>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div>
+          <h2 className="text-xl font-bold" style={{ color: tokens.text.primary }}>Propositions RDV</h2>
+          <p className="text-xs mt-0.5" style={{ color: tokens.text.quaternary }}>{rdvs.length} proposition{rdvs.length !== 1 ? 's' : ''} au total</p>
+        </div>
+        <button
+          onClick={() => { setNewRdvError(''); setShowNewRdv(true); }}
+          className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all hover:scale-[1.02]"
+          style={{ background: tokens.accent.bg, border: `1px solid ${tokens.accent.border}`, color: tokens.accent.text }}
+        >
+          <Plus className="w-3.5 h-3.5" />
+          Proposer un rendez-vous
+        </button>
       </div>
 
       {rdvs.length === 0 && !loading && (
@@ -323,6 +406,15 @@ export default function ClientPropositionsRdv({ clientEmail, onMount }: ClientPr
           onCancel={() => setCounterTarget(null)}
           saving={counterSaving}
           error={counterError}
+        />
+      )}
+
+      {showNewRdv && (
+        <ClientNewRdvModal
+          onSubmit={handleNewRdvSubmit}
+          onCancel={() => setShowNewRdv(false)}
+          saving={newRdvSaving}
+          error={newRdvError}
         />
       )}
     </div>

@@ -24,6 +24,8 @@ export interface PropositionNotifEntry {
   lead_name: string;
   created_at: string;
   created_by_role?: string;
+  parent_proposal_id?: string | null;
+  status?: string;
 }
 interface ClientTopBarProps {
   breadcrumb: string;

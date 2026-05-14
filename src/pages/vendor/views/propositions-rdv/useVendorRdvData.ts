@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '../../../../lib/supabase';
 import { RdvProposal, filterToStatus } from '../rdvPropositionsConstants';
+import { getVisibleRdvProposals, getChainIdsForSelected } from '../rdvChainFilter';
 import { useTimezone } from '../../../../hooks/useTimezone';
 import { localToUTC } from '../../../../lib/timezoneUtils';
 
@@ -50,14 +51,15 @@ export function useVendorRdvData(vendorDbId?: string | null, initialLead?: RdvLe
     }
   }, [initialLead, onInitialLeadConsumed]);
 
-  const filtered = rdvs.filter(r => {
+  const visibleRdvs = useMemo(() => getVisibleRdvProposals(rdvs), [rdvs]);
+  const filtered = visibleRdvs.filter(r => {
     if (filter === 'Tous') return true;
     return r.status === filterToStatus[filter];
   });
 
   const todayStr = new Date().toISOString().split('T')[0];
 
-  const statusCounts = rdvs.reduce<Record<string, number>>((acc, r) => {
+  const statusCounts = visibleRdvs.reduce<Record<string, number>>((acc, r) => {
     acc[r.status] = (acc[r.status] || 0) + 1;
     return acc;
   }, {});
@@ -151,8 +153,9 @@ export function useVendorRdvData(vendorDbId?: string | null, initialLead?: RdvLe
   async function handleBulkDelete() {
     if (selected.size === 0) return;
     setDeleting(true);
-    const ids = Array.from(selected);
-    await supabase.from('rdv_proposals').delete().in('id', ids);
+    const selectedIds = Array.from(selected);
+    const allChainIds = getChainIdsForSelected(rdvs, selectedIds);
+    await supabase.from('rdv_proposals').delete().in('id', allChainIds);
     setSelected(new Set());
     setConfirmDelete(false);
     setDeleting(false);

@@ -30,13 +30,12 @@ export default function RdvEditModal({ rdv, onClose, onSaved, callerRole }: Edit
     proposed_time: localDt.time,
     motif: rdv.motif,
     description: rdv.description,
-    notes: rdv.notes,
     status: rdv.status,
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  const isClientCounter = rdv.created_by_role === 'client' && !!rdv.parent_proposal_id;
+  const isClientProposal = rdv.created_by_role === 'client';
   const role = callerRole || 'admin';
 
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
@@ -54,7 +53,7 @@ export default function RdvEditModal({ rdv, onClose, onSaved, callerRole }: Edit
     setSaving(true);
     setError('');
 
-    if (isClientCounter && rdv.status === 'pending') {
+    if (isClientProposal && rdv.status === 'pending') {
       const now = new Date().toISOString();
       await supabase.from('rdv_proposals').update({
         status: 'counter_proposed',
@@ -86,7 +85,7 @@ export default function RdvEditModal({ rdv, onClose, onSaved, callerRole }: Edit
         proposed_time: form.proposed_time,
         motif: form.motif.trim(),
         description: form.description.trim(),
-        notes: form.notes.trim(),
+        notes: '',
         status: 'pending',
         created_by_role: role,
         created_by_name: userName,
@@ -104,7 +103,6 @@ export default function RdvEditModal({ rdv, onClose, onSaved, callerRole }: Edit
         proposed_time: form.proposed_time,
         motif: form.motif.trim(),
         description: form.description.trim(),
-        notes: form.notes.trim(),
         status: form.status,
         appointment_utc: appointmentUtc,
         source_timezone: timezone,
@@ -139,7 +137,7 @@ export default function RdvEditModal({ rdv, onClose, onSaved, callerRole }: Edit
         <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 flex-shrink-0" style={{ borderBottom: `1px solid ${tokens.card.border}` }}>
           <div>
             <p className="font-semibold text-sm" style={{ color: tokens.modal.title }}>
-              {isClientCounter && rdv.status === 'pending' ? 'Reproposer un horaire' : 'Modifier le rendez-vous'}
+              {isClientProposal && rdv.status === 'pending' ? 'Reproposer un horaire' : 'Modifier le rendez-vous'}
             </p>
             <p className="text-xs" style={{ color: tokens.modal.subtitle }}>{rdv.lead_name}</p>
           </div>
@@ -155,7 +153,7 @@ export default function RdvEditModal({ rdv, onClose, onSaved, callerRole }: Edit
         </div>
 
         <div className="px-4 sm:px-6 py-4 sm:py-5 space-y-3 sm:space-y-4 overflow-y-auto flex-1 overscroll-contain">
-          {isClientCounter && rdv.status === 'pending' && (
+          {isClientProposal && rdv.status === 'pending' && (
             <div className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs" style={{ background: 'rgba(6,182,212,0.06)', border: '1px solid rgba(6,182,212,0.15)', color: '#06b6d4' }}>
               <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
               Une nouvelle proposition sera envoyee au client. L'ancienne sera remplacee.
@@ -194,7 +192,7 @@ export default function RdvEditModal({ rdv, onClose, onSaved, callerRole }: Edit
             <textarea value={form.description} onChange={e => set('description', e.target.value)} rows={2} className={inputCls + ' resize-none'} style={inputStyle} placeholder="Details du rendez-vous..." />
           </div>
 
-          {!(isClientCounter && rdv.status === 'pending') && (
+          {!(isClientProposal && rdv.status === 'pending') && (
             <div>
               <label className="block text-[10px] font-bold tracking-[0.15em] uppercase mb-1.5" style={{ color: tokens.modal.fieldLabel }}>Statut</label>
               <select
@@ -210,17 +208,6 @@ export default function RdvEditModal({ rdv, onClose, onSaved, callerRole }: Edit
             </div>
           )}
 
-          <div>
-            <label className="block text-[10px] font-bold tracking-[0.15em] uppercase mb-1.5" style={{ color: tokens.modal.fieldLabel }}>Notes</label>
-            <textarea
-              value={form.notes}
-              onChange={e => set('notes', e.target.value)}
-              rows={2}
-              className={inputCls + ' resize-none'}
-              style={inputStyle}
-            />
-          </div>
-
         </div>
 
         <div className="flex items-center gap-3 px-4 sm:px-6 py-3 sm:py-4 flex-shrink-0" style={{ borderTop: `1px solid ${tokens.card.border}` }}>
@@ -231,7 +218,7 @@ export default function RdvEditModal({ rdv, onClose, onSaved, callerRole }: Edit
             style={{ background: 'linear-gradient(90deg, #0ea5e9, #22d3ee)', boxShadow: `0 0 16px ${tokens.accent.text}33`, color: tokens.text.primary }}
           >
             <Check className="w-3.5 h-3.5" />
-            {saving ? 'Enregistrement...' : (isClientCounter && rdv.status === 'pending' ? 'Envoyer la proposition' : 'Enregistrer')}
+            {saving ? 'Enregistrement...' : (isClientProposal && rdv.status === 'pending' ? 'Envoyer la proposition' : 'Enregistrer')}
           </button>
           <button
             onClick={onClose}

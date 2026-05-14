@@ -23,7 +23,8 @@ export default function AdminRdvMobileCard({ rdv, timezone, selected, vendorName
   const cfg = statusConfig[rdv.status] ?? statusConfig.pending;
   const isPending = rdv.status === 'pending';
   const isCounterProposed = rdv.status === 'counter_proposed';
-  const isClientCounter = rdv.created_by_role === 'client' && !!rdv.parent_proposal_id;
+  const isClientProposal = rdv.created_by_role === 'client';
+  const isClientCounter = isClientProposal && !!rdv.parent_proposal_id;
 
   return (
     <div className="p-3 space-y-2" style={{ opacity: isCounterProposed ? 0.45 : 1 }}>
@@ -95,14 +96,14 @@ export default function AdminRdvMobileCard({ rdv, timezone, selected, vendorName
       )}
       {!isCounterProposed && (
         <div className="grid grid-cols-2 gap-1.5 pl-6">
-          {isPending && isClientCounter && (
+          {isPending && isClientProposal && (
             <button onClick={onAccept} className="flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-[11px] font-semibold" style={{ background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.2)', color: '#34d399' }}>
               <CheckCircle className="w-3 h-3" />Accepter
             </button>
           )}
           {isPending && (
             <button onClick={onCancel} className="flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-[11px] font-semibold" style={{ background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.2)', color: '#f87171' }}>
-              <XCircle className="w-3 h-3" />{isClientCounter ? 'Refuser' : 'Annuler'}
+              <XCircle className="w-3 h-3" />{isClientProposal ? 'Refuser' : 'Annuler'}
             </button>
           )}
           <button onClick={onEdit} className="flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-[11px] font-semibold" style={{ background: 'rgba(96,165,250,0.08)', border: '1px solid rgba(96,165,250,0.15)', color: '#60a5fa' }}>

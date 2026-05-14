@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '../../../../lib/supabase';
 import { RdvProposal, filterToStatus } from '../../../vendor/views/rdvPropositionsConstants';
+import { getVisibleRdvProposals, getChainIdsForSelected } from '../../../vendor/views/rdvChainFilter';
 import { useTimezone } from '../../../../hooks/useTimezone';
 import { localToUTC } from '../../../../lib/timezoneUtils';
 import { useSimulation } from '../../../../contexts/SimulationContext';
@@ -56,13 +57,14 @@ export function useAdminRdvData(initialLead?: RdvLeadRef | null, onInitialLeadCo
     }
   }, [initialLead, onInitialLeadConsumed]);
 
-  const filtered = rdvs.filter(r => {
+  const visibleRdvs = useMemo(() => getVisibleRdvProposals(rdvs), [rdvs]);
+  const filtered = visibleRdvs.filter(r => {
     if (filter !== 'Tous' && r.status !== filterToStatus[filter]) return false;
     if (vendorFilter !== 'all') return vendorFilter === 'none' ? !r.vendor_id : r.vendor_id === vendorFilter;
     return true;
   });
   const todayStr = new Date().toISOString().split('T')[0];
-  const statusCounts = rdvs.reduce<Record<string, number>>((acc, r) => { acc[r.status] = (acc[r.status] || 0) + 1; return acc; }, {});
+  const statusCounts = visibleRdvs.reduce<Record<string, number>>((acc, r) => { acc[r.status] = (acc[r.status] || 0) + 1; return acc; }, {});
 
   async function handleAccept(id: string) {
     if (isSimulating) return;
@@ -155,8 +157,9 @@ export function useAdminRdvData(initialLead?: RdvLeadRef | null, onInitialLeadCo
     if (isSimulating) return;
     if (selected.size === 0) return;
     setDeleting(true);
-    const ids = Array.from(selected);
-    await supabase.from('rdv_proposals').delete().in('id', ids);
+    const selectedIds = Array.from(selected);
+    const allChainIds = getChainIdsForSelected(rdvs, selectedIds);
+    await supabase.from('rdv_proposals').delete().in('id', allChainIds);
     setSelected(new Set());
     setConfirmDelete(false);
     setDeleting(false);

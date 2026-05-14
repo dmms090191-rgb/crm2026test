@@ -80,12 +80,6 @@ export default function AdminRdvDetailModal({ rdv, timezone, vendorName: vName, 
               <p className="text-sm whitespace-pre-wrap" style={{ color: tokens.modal.fieldValue }}>{rdv.description}</p>
             </div>
           )}
-          {rdv.notes && (
-            <div>
-              <p className="text-[10px] font-bold tracking-[0.12em] uppercase mb-0.5" style={{ color: tokens.modal.fieldLabel }}>Notes</p>
-              <p className="text-sm whitespace-pre-wrap" style={{ color: tokens.modal.fieldValue }}>{rdv.notes}</p>
-            </div>
-          )}
           {rdv.created_by_name && (
             <div>
               <p className="text-[10px] font-bold tracking-[0.12em] uppercase mb-0.5" style={{ color: tokens.modal.fieldLabel }}>Cree par</p>

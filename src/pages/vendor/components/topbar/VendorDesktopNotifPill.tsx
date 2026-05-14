@@ -1,5 +1,5 @@
-import { MessageCircle, MessageSquare, CalendarDays, CalendarClock } from 'lucide-react';
-import { VendorBadgeButton, AdminNotifRow, ClientNotifRow, VendorAgendaNotifItem, VendorConfirmedItem, VendorDropdownPanel, VendorDropdownHeader, VendorDropdownEmpty } from './index';
+import { MessageCircle, MessageSquare, CalendarDays, CalendarClock, CalendarCheck } from 'lucide-react';
+import { VendorBadgeButton, AdminNotifRow, ClientNotifRow, VendorAgendaNotifItem, VendorProposalItem, VendorConfirmedItem, VendorDropdownPanel, VendorDropdownHeader, VendorDropdownEmpty } from './index';
 import type { VendorClientNotifEntry, ConfirmedProposalEntry } from '../../VendorTopBar';
 import type { AgendaNotifEntry } from '../../../../hooks/useAgendaNotifications';
 import type { ThemeTokens } from '../../../../lib/themeTokensTypes';
@@ -13,10 +13,13 @@ interface Props {
   setAgendaDropdownOpen: (v: boolean | ((p: boolean) => boolean)) => void;
   proposDropdownOpen: boolean;
   setProposDropdownOpen: (v: boolean | ((p: boolean) => boolean)) => void;
+  confirmedDropdownOpen: boolean;
+  setConfirmedDropdownOpen: (v: boolean | ((p: boolean) => boolean)) => void;
   adminDropdownRef: React.RefObject<HTMLDivElement>;
   clientDropdownRef: React.RefObject<HTMLDivElement>;
   agendaDropdownRef: React.RefObject<HTMLDivElement>;
   proposDropdownRef: React.RefObject<HTMLDivElement>;
+  confirmedDropdownRef: React.RefObject<HTMLDivElement>;
   unreadAdminCount: number;
   unreadAdminLatestAt?: string | null;
   onAdminNotifClick: () => void;
@@ -26,9 +29,12 @@ interface Props {
   agendaCount: number;
   agendaEntries: AgendaNotifEntry[];
   onAgendaEntryClick?: (rdvId: string, type?: 'starting' | 'untreated') => void;
-  propositionsCount: number;
-  propositionsEntries: ConfirmedProposalEntry[];
-  onPropositionEntryClick?: (proposalId: string) => void;
+  proposalsCount: number;
+  proposalsEntries: ConfirmedProposalEntry[];
+  onProposalEntryClick?: (proposalId: string) => void;
+  confirmedCount: number;
+  confirmedEntries: ConfirmedProposalEntry[];
+  onConfirmedEntryClick?: (proposalId: string) => void;
   tokens: ThemeTokens;
   badgeColors: { iconColor: string; iconHoverColor: string; labelColor: string; labelHoverColor: string; hoverBg?: string };
 }
@@ -38,11 +44,13 @@ export default function VendorDesktopNotifPill({
   clientDropdownOpen, setClientDropdownOpen,
   agendaDropdownOpen, setAgendaDropdownOpen,
   proposDropdownOpen, setProposDropdownOpen,
-  adminDropdownRef, clientDropdownRef, agendaDropdownRef, proposDropdownRef,
+  confirmedDropdownOpen, setConfirmedDropdownOpen,
+  adminDropdownRef, clientDropdownRef, agendaDropdownRef, proposDropdownRef, confirmedDropdownRef,
   unreadAdminCount, unreadAdminLatestAt, onAdminNotifClick,
   unreadClientCount, unreadClientEntries, onClientEntryClick,
   agendaCount, agendaEntries, onAgendaEntryClick,
-  propositionsCount, propositionsEntries, onPropositionEntryClick,
+  proposalsCount, proposalsEntries, onProposalEntryClick,
+  confirmedCount, confirmedEntries, onConfirmedEntryClick,
   tokens, badgeColors,
 }: Props) {
   return (
@@ -127,22 +135,48 @@ export default function VendorDesktopNotifPill({
       </div>
       <div className="w-px h-5" style={{ background: tokens.topbar.notifDivider }} />
       <div className="relative" ref={proposDropdownRef}>
-        <VendorBadgeButton icon={<CalendarClock className="w-[15px] h-[15px]" />} label="RDV Confirmes" count={propositionsCount} {...badgeColors} onClick={() => setProposDropdownOpen((prev: boolean) => !prev)} />
+        <VendorBadgeButton icon={<CalendarClock className="w-[15px] h-[15px]" />} label="Propositions RDV" count={proposalsCount} {...badgeColors} onClick={() => setProposDropdownOpen((prev: boolean) => !prev)} />
         {proposDropdownOpen && (
           <VendorDropdownPanel tokens={tokens} width="w-80" align="right">
-            <VendorDropdownHeader label="RDV Confirmes" tokens={tokens} />
+            <VendorDropdownHeader label="Propositions RDV" tokens={tokens} />
             <div className="max-h-64 overflow-y-auto">
-              {propositionsEntries.length === 0 ? (
-                <VendorDropdownEmpty text="Aucune nouvelle confirmation" tokens={tokens} />
+              {proposalsEntries.length === 0 ? (
+                <VendorDropdownEmpty text="Aucune nouvelle proposition" tokens={tokens} />
               ) : (
-                propositionsEntries.map(entry => (
-                  <VendorConfirmedItem
+                proposalsEntries.map(entry => (
+                  <VendorProposalItem
                     key={entry.id}
                     entry={entry}
                     dropTokens={tokens.dropdown}
                     onClick={() => {
                       setProposDropdownOpen(false);
-                      onPropositionEntryClick?.(entry.id);
+                      onProposalEntryClick?.(entry.id);
+                    }}
+                  />
+                ))
+              )}
+            </div>
+          </VendorDropdownPanel>
+        )}
+      </div>
+      <div className="w-px h-5" style={{ background: tokens.topbar.notifDivider }} />
+      <div className="relative" ref={confirmedDropdownRef}>
+        <VendorBadgeButton icon={<CalendarCheck className="w-[15px] h-[15px]" />} label="RDV Confirmes" count={confirmedCount} {...badgeColors} onClick={() => setConfirmedDropdownOpen((prev: boolean) => !prev)} />
+        {confirmedDropdownOpen && (
+          <VendorDropdownPanel tokens={tokens} width="w-80" align="right">
+            <VendorDropdownHeader label="RDV Confirmes" tokens={tokens} />
+            <div className="max-h-64 overflow-y-auto">
+              {confirmedEntries.length === 0 ? (
+                <VendorDropdownEmpty text="Aucune nouvelle confirmation" tokens={tokens} />
+              ) : (
+                confirmedEntries.map(entry => (
+                  <VendorConfirmedItem
+                    key={entry.id}
+                    entry={entry}
+                    dropTokens={tokens.dropdown}
+                    onClick={() => {
+                      setConfirmedDropdownOpen(false);
+                      onConfirmedEntryClick?.(entry.id);
                     }}
                   />
                 ))

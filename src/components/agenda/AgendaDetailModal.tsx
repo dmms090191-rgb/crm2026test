@@ -166,13 +166,6 @@ export default function RdvDetailModal({ rdv, onClose, onDelete, onStatusChange,
             </div>
           )}
 
-          {rdv.notes && (
-            <div className="rounded-xl px-3.5 py-3" style={{ background: tokens.surface.secondary, border: `1px solid ${tokens.surface.borderLight}` }}>
-              <p className="text-[10px] font-bold tracking-wider uppercase mb-1" style={{ color: tokens.text.quaternary }}>Notes</p>
-              <p className="text-xs leading-relaxed" style={{ color: tokens.text.tertiary }}>{rdv.notes}</p>
-            </div>
-          )}
-
           {rdv.created_by_role && (
             <div className="flex items-center gap-2 pt-1" style={{ borderTop: `1px solid ${tokens.surface.borderLight}` }}>
               <UserPlus className="w-3.5 h-3.5" style={{ color: tokens.text.quaternary }} />

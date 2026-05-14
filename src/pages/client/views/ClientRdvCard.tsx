@@ -127,10 +127,6 @@ export default function ClientRdvCard({ rdv, tokens, timezone, todayStr, statusC
           <p className="text-xs mt-1.5" style={{ color: tokens.text.quaternary }}>{rdv.description}</p>
         )}
 
-        {rdv.notes && (
-          <p className="text-xs mt-1 italic" style={{ color: tokens.text.quaternary }}>{rdv.notes}</p>
-        )}
-
         {canRespond && (
           <div className="flex items-center gap-2 mt-3 flex-wrap">
             <button

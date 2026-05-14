@@ -1,7 +1,7 @@
 import { useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { MessageCircle, MessageSquare, CalendarDays, CalendarClock, ChevronRight, Bell } from 'lucide-react';
-import { AdminNotifRow, ClientNotifRow, VendorAgendaNotifItem, VendorConfirmedItem, VendorDropdownEmpty } from './index';
+import { MessageCircle, MessageSquare, CalendarDays, CalendarClock, CalendarCheck, ChevronRight, Bell } from 'lucide-react';
+import { AdminNotifRow, ClientNotifRow, VendorAgendaNotifItem, VendorProposalItem, VendorConfirmedItem, VendorDropdownEmpty } from './index';
 import type { VendorClientNotifEntry, ConfirmedProposalEntry } from '../../VendorTopBar';
 import type { AgendaNotifEntry } from '../../../../hooks/useAgendaNotifications';
 import type { ThemeTokens } from '../../../../lib/themeTokensTypes';
@@ -22,9 +22,12 @@ interface Props {
   agendaCount: number;
   agendaEntries: AgendaNotifEntry[];
   onAgendaEntryClick?: (rdvId: string, type?: 'starting' | 'untreated') => void;
-  propositionsCount: number;
-  propositionsEntries: ConfirmedProposalEntry[];
-  onPropositionEntryClick?: (proposalId: string) => void;
+  proposalsCount: number;
+  proposalsEntries: ConfirmedProposalEntry[];
+  onProposalEntryClick?: (proposalId: string) => void;
+  confirmedCount: number;
+  confirmedEntries: ConfirmedProposalEntry[];
+  onConfirmedEntryClick?: (proposalId: string) => void;
   timezone: string;
   tokens: ThemeTokens;
   containerRef: React.RefObject<HTMLDivElement>;
@@ -36,7 +39,8 @@ export default function VendorMobileBellMenu({
   unreadAdminCount, unreadAdminLatestAt, onAdminNotifClick,
   unreadClientCount, unreadClientEntries, onClientEntryClick,
   agendaCount, agendaEntries, onAgendaEntryClick,
-  propositionsCount, propositionsEntries, onPropositionEntryClick,
+  proposalsCount, proposalsEntries, onProposalEntryClick,
+  confirmedCount, confirmedEntries, onConfirmedEntryClick,
   timezone, tokens, containerRef, panelRef: externalPanelRef,
 }: Props) {
   const internalPanelRef = useRef<HTMLDivElement>(null);
@@ -85,7 +89,8 @@ export default function VendorMobileBellMenu({
                 { key: 'admin', icon: <MessageSquare className="w-4 h-4" />, label: 'Chat Admin', count: unreadAdminCount },
                 { key: 'client', icon: <MessageCircle className="w-4 h-4" />, label: 'Chat Client', count: unreadClientCount },
                 { key: 'agenda', icon: <CalendarDays className="w-4 h-4" />, label: 'Agenda', count: agendaCount },
-                { key: 'rdv', icon: <CalendarClock className="w-4 h-4" />, label: 'RDV Confirmes', count: propositionsCount },
+                { key: 'propositions', icon: <CalendarClock className="w-4 h-4" />, label: 'Propositions RDV', count: proposalsCount },
+                { key: 'rdv', icon: <CalendarCheck className="w-4 h-4" />, label: 'RDV Confirmes', count: confirmedCount },
               ] as const).map((item) => (
                 <button
                   key={item.key}
@@ -120,6 +125,7 @@ export default function VendorMobileBellMenu({
                   {category === 'admin' && 'Messages Admin'}
                   {category === 'client' && 'Messages clients'}
                   {category === 'agenda' && 'Agenda'}
+                  {category === 'propositions' && 'Propositions RDV'}
                   {category === 'rdv' && 'RDV Confirmes'}
                 </p>
               </div>
@@ -149,12 +155,21 @@ export default function VendorMobileBellMenu({
                     ))
                   )
                 )}
+                {category === 'propositions' && (
+                  proposalsEntries.length === 0 ? (
+                    <VendorDropdownEmpty text="Aucune nouvelle proposition" tokens={tokens} />
+                  ) : (
+                    proposalsEntries.map(entry => (
+                      <VendorProposalItem key={entry.id} entry={entry} dropTokens={tokens.dropdown} onClick={() => { onProposalEntryClick?.(entry.id); setOpen(false); setCategory(null); }} />
+                    ))
+                  )
+                )}
                 {category === 'rdv' && (
-                  propositionsEntries.length === 0 ? (
+                  confirmedEntries.length === 0 ? (
                     <VendorDropdownEmpty text="Aucune nouvelle confirmation" tokens={tokens} />
                   ) : (
-                    propositionsEntries.map(entry => (
-                      <VendorConfirmedItem key={entry.id} entry={entry} dropTokens={tokens.dropdown} onClick={() => { setOpen(false); setCategory(null); onPropositionEntryClick?.(entry.id); }} />
+                    confirmedEntries.map(entry => (
+                      <VendorConfirmedItem key={entry.id} entry={entry} dropTokens={tokens.dropdown} onClick={() => { onConfirmedEntryClick?.(entry.id); setOpen(false); setCategory(null); }} />
                     ))
                   )
                 )}

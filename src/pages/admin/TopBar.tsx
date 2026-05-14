@@ -34,6 +34,7 @@ export interface ConfirmedProposalEntry {
   lead_name: string;
   created_at: string;
   created_by_role?: string;
+  parent_proposal_id?: string | null;
 }
 
 interface TopBarProps {
@@ -52,12 +53,15 @@ interface TopBarProps {
   agendaEquipeCount?: number;
   agendaEquipeEntries?: AgendaEquipeNotifEntry[];
   onAgendaEquipeEntryClick?: (rdvId: string, type?: 'starting' | 'untreated') => void;
-  propositionsCount?: number;
-  propositionsEntries?: ConfirmedProposalEntry[];
-  onPropositionEntryClick?: (proposalId: string) => void;
+  proposalsCount?: number;
+  proposalsEntries?: ConfirmedProposalEntry[];
+  onProposalEntryClick?: (proposalId: string) => void;
+  confirmedCount?: number;
+  confirmedEntries?: ConfirmedProposalEntry[];
+  onConfirmedEntryClick?: (proposalId: string) => void;
 }
 
-export default function TopBar({ breadcrumb, onMobileMenuToggle, adminName = 'Administrateur', unreadClientCount = 0, unreadClientEntries = [], onClientEntryClick, unreadVendorCount = 0, unreadVendorEntries = [], onVendorEntryClick, agendaPersoCount = 0, agendaPersoEntries = [], onAgendaPersoEntryClick, agendaEquipeCount = 0, agendaEquipeEntries = [], onAgendaEquipeEntryClick, propositionsCount = 0, propositionsEntries = [], onPropositionEntryClick }: TopBarProps) {
+export default function TopBar({ breadcrumb, onMobileMenuToggle, adminName = 'Administrateur', unreadClientCount = 0, unreadClientEntries = [], onClientEntryClick, unreadVendorCount = 0, unreadVendorEntries = [], onVendorEntryClick, agendaPersoCount = 0, agendaPersoEntries = [], onAgendaPersoEntryClick, agendaEquipeCount = 0, agendaEquipeEntries = [], onAgendaEquipeEntryClick, proposalsCount = 0, proposalsEntries = [], onProposalEntryClick, confirmedCount = 0, confirmedEntries = [], onConfirmedEntryClick }: TopBarProps) {
   const { timezone, tzLabel, tzCode, setTimezone } = useTimezone();
   const t = useThemeTokens();
   const [clientDropdownOpen, setClientDropdownOpen] = useState(false);
@@ -65,6 +69,7 @@ export default function TopBar({ breadcrumb, onMobileMenuToggle, adminName = 'Ad
   const [agendaDropdownOpen, setAgendaDropdownOpen] = useState(false);
   const [equipeDropdownOpen, setEquipeDropdownOpen] = useState(false);
   const [proposDropdownOpen, setProposDropdownOpen] = useState(false);
+  const [confirmedDropdownOpen, setConfirmedDropdownOpen] = useState(false);
   const [mobileNotifOpen, setMobileNotifOpen] = useState(false);
   const [mobileNotifCategory, setMobileNotifCategory] = useState<string | null>(null);
   const [tzModalOpen, setTzModalOpen] = useState(false);
@@ -73,13 +78,14 @@ export default function TopBar({ breadcrumb, onMobileMenuToggle, adminName = 'Ad
   const agendaDropdownRef = useRef<HTMLDivElement>(null);
   const equipeDropdownRef = useRef<HTMLDivElement>(null);
   const proposDropdownRef = useRef<HTMLDivElement>(null);
+  const confirmedDropdownRef = useRef<HTMLDivElement>(null);
   const mobileNotifRef = useRef<HTMLDivElement>(null);
   const mobileNotifPanelRef = useRef<HTMLDivElement>(null);
   const [, setTick] = useState(0);
   useEffect(() => { const id = setInterval(() => setTick(v => v + 1), 60_000); return () => clearInterval(id); }, []);
   const clock = getCurrentTime(timezone);
 
-  const totalNotifCount = unreadClientCount + unreadVendorCount + agendaPersoCount + agendaEquipeCount + propositionsCount;
+  const totalNotifCount = unreadClientCount + unreadVendorCount + agendaPersoCount + agendaEquipeCount + proposalsCount + confirmedCount;
 
   useEffect(() => {
     const outside = (e: MouseEvent) => {
@@ -89,6 +95,7 @@ export default function TopBar({ breadcrumb, onMobileMenuToggle, adminName = 'Ad
       if (agendaDropdownRef.current && !agendaDropdownRef.current.contains(tgt)) setAgendaDropdownOpen(false);
       if (equipeDropdownRef.current && !equipeDropdownRef.current.contains(tgt)) setEquipeDropdownOpen(false);
       if (proposDropdownRef.current && !proposDropdownRef.current.contains(tgt)) setProposDropdownOpen(false);
+      if (confirmedDropdownRef.current && !confirmedDropdownRef.current.contains(tgt)) setConfirmedDropdownOpen(false);
       if (mobileNotifRef.current && !mobileNotifRef.current.contains(tgt) && (!mobileNotifPanelRef.current || !mobileNotifPanelRef.current.contains(tgt))) setMobileNotifOpen(false);
     };
     document.addEventListener('mousedown', outside);
@@ -139,9 +146,12 @@ export default function TopBar({ breadcrumb, onMobileMenuToggle, adminName = 'Ad
           agendaEquipeCount={agendaEquipeCount}
           agendaEquipeEntries={agendaEquipeEntries}
           onAgendaEquipeEntryClick={onAgendaEquipeEntryClick}
-          propositionsCount={propositionsCount}
-          propositionsEntries={propositionsEntries}
-          onPropositionEntryClick={onPropositionEntryClick}
+          proposalsCount={proposalsCount}
+          proposalsEntries={proposalsEntries}
+          onProposalEntryClick={onProposalEntryClick}
+          confirmedCount={confirmedCount}
+          confirmedEntries={confirmedEntries}
+          onConfirmedEntryClick={onConfirmedEntryClick}
           timezone={timezone}
           tokens={t}
           containerRef={mobileNotifRef}
@@ -159,11 +169,14 @@ export default function TopBar({ breadcrumb, onMobileMenuToggle, adminName = 'Ad
           setEquipeDropdownOpen={setEquipeDropdownOpen}
           proposDropdownOpen={proposDropdownOpen}
           setProposDropdownOpen={setProposDropdownOpen}
+          confirmedDropdownOpen={confirmedDropdownOpen}
+          setConfirmedDropdownOpen={setConfirmedDropdownOpen}
           clientDropdownRef={clientDropdownRef}
           vendorDropdownRef={vendorDropdownRef}
           agendaDropdownRef={agendaDropdownRef}
           equipeDropdownRef={equipeDropdownRef}
           proposDropdownRef={proposDropdownRef}
+          confirmedDropdownRef={confirmedDropdownRef}
           unreadClientCount={unreadClientCount}
           unreadClientEntries={unreadClientEntries}
           onClientEntryClick={onClientEntryClick}
@@ -176,9 +189,12 @@ export default function TopBar({ breadcrumb, onMobileMenuToggle, adminName = 'Ad
           agendaEquipeCount={agendaEquipeCount}
           agendaEquipeEntries={agendaEquipeEntries}
           onAgendaEquipeEntryClick={onAgendaEquipeEntryClick}
-          propositionsCount={propositionsCount}
-          propositionsEntries={propositionsEntries}
-          onPropositionEntryClick={onPropositionEntryClick}
+          proposalsCount={proposalsCount}
+          proposalsEntries={proposalsEntries}
+          onProposalEntryClick={onProposalEntryClick}
+          confirmedCount={confirmedCount}
+          confirmedEntries={confirmedEntries}
+          onConfirmedEntryClick={onConfirmedEntryClick}
           tokens={t}
         />
 

@@ -104,6 +104,10 @@ export default function TimePickerInline({ value, onChange, className, style }: 
     const formatted = formatTimeInput(e.target.value);
     setDraft(formatted);
     if (error) setError('');
+    const normalized = normalizeTime(formatted);
+    if (normalized) {
+      onChange(normalized);
+    }
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {

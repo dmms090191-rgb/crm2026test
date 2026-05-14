@@ -142,6 +142,20 @@ export function PropositionNotifItem({
 }) {
   const [hovered, setHovered] = useState(false);
   const isFromAdminOrVendor = entry.created_by_role !== 'client';
+  const isFromClient = entry.created_by_role === 'client';
+
+  let message: string;
+  if (isFromClient && entry.status === 'confirmed') {
+    message = 'Votre conseiller a accepte le rendez-vous';
+  } else if (isFromClient && entry.status === 'cancelled') {
+    message = 'Votre conseiller a refuse le rendez-vous';
+  } else if (isFromAdminOrVendor && !!entry.parent_proposal_id) {
+    message = 'Votre conseiller vous propose une nouvelle date ou un nouvel horaire de rendez-vous';
+  } else if (isFromAdminOrVendor) {
+    message = 'Votre conseiller vous propose un rendez-vous';
+  } else {
+    message = 'Votre proposition de rendez-vous a recu une reponse';
+  }
 
   return (
     <button
@@ -163,10 +177,7 @@ export function PropositionNotifItem({
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-[12px] font-medium whitespace-normal break-words" style={{ color: tokens.itemTextHover }}>
-          {isFromAdminOrVendor
-            ? 'Votre conseiller vous propose un rendez-vous'
-            : 'Votre proposition de rendez-vous a recu une reponse'
-          }
+          {message}
         </p>
         <p className="text-[10px] mt-0.5" style={{ color: tokens.itemText }}>
           {formatRelativeTime(entry.created_at)}

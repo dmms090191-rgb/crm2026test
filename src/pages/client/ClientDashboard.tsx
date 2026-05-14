@@ -87,14 +87,14 @@ export default function ClientDashboard({ onLogout, impersonatedClient, onBackTo
       const leadIds = leads.map(l => l.id);
       const { data: pendingProps } = await supabase
         .from('rdv_proposals')
-        .select('id, vendor_id, lead_id, lead_name, created_at, status, created_by_role')
+        .select('id, vendor_id, lead_id, lead_name, created_at, status, created_by_role, parent_proposal_id')
         .in('lead_id', leadIds)
         .eq('seen_by_client', false)
         .eq('status', 'pending')
         .neq('created_by_role', 'client');
       const { data: respondedProps } = await supabase
         .from('rdv_proposals')
-        .select('id, vendor_id, lead_id, lead_name, created_at, status, created_by_role')
+        .select('id, vendor_id, lead_id, lead_name, created_at, status, created_by_role, parent_proposal_id')
         .in('lead_id', leadIds)
         .eq('seen_by_client', false)
         .in('status', ['confirmed', 'cancelled'])
@@ -112,7 +112,7 @@ export default function ClientDashboard({ onLogout, impersonatedClient, onBackTo
         if (!leadVendorId) return !p.vendor_id;
         return p.vendor_id === leadVendorId;
       });
-      const entries = valid.map(p => ({ id: p.id, lead_name: p.lead_name || '', created_at: p.created_at, created_by_role: p.created_by_role || '' }));
+      const entries = valid.map(p => ({ id: p.id, lead_name: p.lead_name || '', created_at: p.created_at, created_by_role: p.created_by_role || '', parent_proposal_id: p.parent_proposal_id || null, status: p.status || '' }));
       setUnseenProposals(entries);
       unseenProposalsRef.current = entries;
     };

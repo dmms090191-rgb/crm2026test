@@ -178,7 +178,6 @@ export default function DayView({ dayDate, todayStr, rdvsByDate, canAdd, onAdd, 
                         </div>
                         {rdv.motif && <p className="text-[10px] mt-0.5 font-medium relative" style={{ color: tokens.text.secondary }}>{rdv.motif}</p>}
                         {rdv.lead_phone && <p className="text-[10px] mt-0.5 relative" style={{ color: isTreated ? '#94a3b8' : cfg.color, opacity: 0.7 }}>{rdv.lead_phone}</p>}
-                        {rdv.notes && <p className="text-[10px] truncate mt-0.5 relative" style={{ color: tokens.text.tertiary }}>{rdv.notes}</p>}
                       </button>
                     );
                   })}

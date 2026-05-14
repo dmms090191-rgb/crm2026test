@@ -165,7 +165,7 @@ export function AgendaNotifItem({
   );
 }
 
-export function ConfirmedProposalItem({
+export function ProposalNotifItem({
   entry,
   tokens,
   onClick,
@@ -175,10 +175,8 @@ export function ConfirmedProposalItem({
   onClick: () => void;
 }) {
   const [hovered, setHovered] = useState(false);
-  const isClientCounter = entry.created_by_role === 'client';
-  const message = isClientCounter
-    ? 'propose un autre rendez-vous'
-    : 'a accepte le rendez-vous';
+  const isCounterProposal = !!entry.parent_proposal_id;
+  const message = isCounterProposal ? 'propose un autre horaire' : 'demande un rendez-vous';
 
   return (
     <button
@@ -192,15 +190,15 @@ export function ConfirmedProposalItem({
       <div
         className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
         style={{
-          background: 'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)',
-          boxShadow: '0 0 8px rgba(6,182,212,0.3)',
+          background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+          boxShadow: '0 0 8px rgba(245,158,11,0.3)',
         }}
       >
         <CalendarClock className="w-3.5 h-3.5 text-white" />
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-[12px] font-medium whitespace-normal break-words" style={{ color: tokens.itemTextHover }}>
-          <span style={{ color: '#22d3ee' }}>{entry.lead_name}</span> {message}
+          <span style={{ color: '#f59e0b' }}>{entry.lead_name}</span> {message}
         </p>
         <p className="text-[10px] mt-0.5" style={{ color: tokens.itemText }}>
           {formatRelativeTime(entry.created_at)}
@@ -208,7 +206,52 @@ export function ConfirmedProposalItem({
       </div>
       <div
         className="w-2 h-2 rounded-full flex-shrink-0"
-        style={{ background: '#06b6d4', boxShadow: '0 0 6px rgba(6,182,212,0.5)' }}
+        style={{ background: '#f59e0b', boxShadow: '0 0 6px rgba(245,158,11,0.5)' }}
+      />
+    </button>
+  );
+}
+
+export function ConfirmedProposalItem({
+  entry,
+  tokens,
+  onClick,
+}: {
+  entry: ConfirmedProposalEntry;
+  tokens: DropdownTokens;
+  onClick: () => void;
+}) {
+  const [hovered, setHovered] = useState(false);
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      className="w-full flex items-center gap-3 px-3 py-2.5 transition-colors duration-150 text-left"
+      style={{ background: hovered ? tokens.itemBgHover : 'transparent' }}
+    >
+      <div
+        className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+        style={{
+          background: 'linear-gradient(135deg, #34d399 0%, #059669 100%)',
+          boxShadow: '0 0 8px rgba(52,211,153,0.3)',
+        }}
+      >
+        <CalendarClock className="w-3.5 h-3.5 text-white" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-[12px] font-medium whitespace-normal break-words" style={{ color: tokens.itemTextHover }}>
+          RDV confirme avec <span style={{ color: '#34d399' }}>{entry.lead_name}</span>
+        </p>
+        <p className="text-[10px] mt-0.5" style={{ color: tokens.itemText }}>
+          {formatRelativeTime(entry.created_at)}
+        </p>
+      </div>
+      <div
+        className="w-2 h-2 rounded-full flex-shrink-0"
+        style={{ background: '#34d399', boxShadow: '0 0 6px rgba(52,211,153,0.5)' }}
       />
     </button>
   );

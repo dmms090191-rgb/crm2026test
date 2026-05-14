@@ -90,10 +90,6 @@ export default function RdvAddForm({ form, leadName, onChange, onSubmit, onCance
         <label className="block text-[10px] font-bold tracking-[0.15em] uppercase mb-1.5" style={{ color: tokens.label.hint }}>Description</label>
         <textarea value={form.description} onChange={e => onChange('description', e.target.value)} rows={2} className={inputCls + ' resize-none'} style={inputStyle} placeholder="Details du rendez-vous..." />
       </div>
-      <div>
-        <label className="block text-[10px] font-bold tracking-[0.15em] uppercase mb-1.5" style={{ color: tokens.label.hint }}>Notes</label>
-        <textarea value={form.notes} onChange={e => onChange('notes', e.target.value)} rows={2} className={inputCls + ' resize-none'} style={inputStyle} placeholder="Informations complementaires..." />
-      </div>
       <div className="flex items-center gap-3 pt-3 pb-1">
         <button
           onClick={onSubmit}

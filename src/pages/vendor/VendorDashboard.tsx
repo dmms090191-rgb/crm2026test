@@ -52,7 +52,8 @@ export default function VendorDashboard({ onLogout, impersonatedVendor, onBackTo
   const { unreadCount: unreadAdminCount, latestAt: unreadAdminLatestAt, markAsRead: markAdminRead } = useUnreadVendorAdminMessages(vendorDbId);
   const { unreadCount: unreadClientCount, unreadEntries: unreadClientEntries, markAsRead: markClientRead } = useUnreadVendorClientMessages(vendorDbId);
   const { notifications: agendaNotifs, count: agendaCount, markAsSeen: markAgendaSeen } = useAgendaNotifications('vendor', vendorDbId);
-  const [confirmedUnseen, setConfirmedUnseen] = useState<{ id: string; lead_name: string; created_at: string }[]>([]);
+  const [proposalUnseen, setProposalUnseen] = useState<{ id: string; lead_name: string; created_at: string; created_by_role?: string; parent_proposal_id?: string | null }[]>([]);
+  const [confirmedUnseen, setConfirmedUnseen] = useState<{ id: string; lead_name: string; created_at: string; created_by_role?: string; parent_proposal_id?: string | null }[]>([]);
   const pendingScrollRef = useRef<{ leadId?: string; scrollY: number } | null>(null);
 
   useEffect(() => {
@@ -109,26 +110,23 @@ export default function VendorDashboard({ onLogout, impersonatedVendor, onBackTo
   useEffect(() => {
     if (!vendorDbId) return;
     const fetchUnseen = async () => {
-      const { data: confirmed } = await supabase
+      const { data: proposals } = await supabase
         .from('rdv_proposals')
-        .select('id, lead_name, created_at, created_by_role')
-        .eq('vendor_id', vendorDbId)
-        .eq('status', 'confirmed')
-        .eq('seen_by_vendor', false)
-        .order('created_at', { ascending: false });
-      const { data: counterProps } = await supabase
-        .from('rdv_proposals')
-        .select('id, lead_name, created_at, created_by_role')
+        .select('id, lead_name, created_at, created_by_role, parent_proposal_id')
         .eq('vendor_id', vendorDbId)
         .eq('seen_by_vendor', false)
         .eq('status', 'pending')
         .eq('created_by_role', 'client')
         .order('created_at', { ascending: false });
-      const all = [...(confirmed ?? []), ...(counterProps ?? [])];
-      const seen = new Set<string>();
-      const deduped = all.filter(p => { if (seen.has(p.id)) return false; seen.add(p.id); return true; });
-      deduped.sort((a, b) => b.created_at.localeCompare(a.created_at));
-      setConfirmedUnseen(deduped);
+      const { data: confirmed } = await supabase
+        .from('rdv_proposals')
+        .select('id, lead_name, created_at, created_by_role, parent_proposal_id')
+        .eq('vendor_id', vendorDbId)
+        .eq('status', 'confirmed')
+        .eq('seen_by_vendor', false)
+        .order('created_at', { ascending: false });
+      setProposalUnseen(proposals ?? []);
+      setConfirmedUnseen(confirmed ?? []);
     };
     fetchUnseen();
     const ch = supabase
@@ -154,6 +152,17 @@ export default function VendorDashboard({ onLogout, impersonatedVendor, onBackTo
   }, [markAgendaSeen]);
 
   const handleProposalEntryClick = useCallback((proposalId: string) => {
+    supabase
+      .from('rdv_proposals')
+      .update({ seen_by_vendor: true })
+      .eq('id', proposalId)
+      .then(() => {
+        setProposalUnseen(prev => prev.filter(p => p.id !== proposalId));
+      });
+    setActiveView('propositions-rdv');
+  }, []);
+
+  const handleConfirmedEntryClick = useCallback((proposalId: string) => {
     supabase
       .from('rdv_proposals')
       .update({ seen_by_vendor: true })
@@ -241,9 +250,12 @@ export default function VendorDashboard({ onLogout, impersonatedVendor, onBackTo
           agendaCount={agendaCount}
           agendaEntries={agendaNotifs}
           onAgendaEntryClick={handleAgendaNotifClick}
-          propositionsCount={confirmedUnseen.length}
-          propositionsEntries={confirmedUnseen}
-          onPropositionEntryClick={handleProposalEntryClick}
+          proposalsCount={proposalUnseen.length}
+          proposalsEntries={proposalUnseen}
+          onProposalEntryClick={handleProposalEntryClick}
+          confirmedCount={confirmedUnseen.length}
+          confirmedEntries={confirmedUnseen}
+          onConfirmedEntryClick={handleConfirmedEntryClick}
         />
         <main
           className={`flex-1 flex flex-col md:p-6 mobile-main-scroll ${(activeView === 'chat-admin' || activeView === 'chat-client') ? 'p-2 sm:p-3 overflow-hidden' : 'p-3 sm:p-4 overflow-auto'}`}
