@@ -1,35 +1,14 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const DEFAULT_ALLOWED_ORIGINS = [
-  "http://localhost:5173",
-  "http://localhost:3000",
-];
-
-function getAllowedOrigins(): string[] {
-  const envOrigins = Deno.env.get("ALLOWED_ORIGINS");
-  if (envOrigins) {
-    return envOrigins.split(",").map((o) => o.trim()).filter(Boolean);
-  }
-  return DEFAULT_ALLOWED_ORIGINS;
-}
-
-function getCorsHeaders(req: Request): Record<string, string> {
-  const origin = req.headers.get("Origin") || "";
-  const allowed = getAllowedOrigins();
-  const isAllowed = allowed.includes(origin);
-
-  return {
-    "Access-Control-Allow-Origin": isAllowed ? origin : "",
-    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-    "Access-Control-Allow-Headers":
-      "Content-Type, Authorization, X-Client-Info, Apikey",
-  };
-}
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+  "Access-Control-Allow-Headers":
+    "Content-Type, Authorization, X-Client-Info, Apikey",
+};
 
 Deno.serve(async (req: Request) => {
-  const corsHeaders = getCorsHeaders(req);
-
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 200, headers: corsHeaders });
   }
@@ -59,14 +38,17 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    if (caller.app_metadata?.role !== "admin") {
+    const callerRole = caller.app_metadata?.role;
+    if (callerRole !== "admin" && callerRole !== "vendor") {
       return new Response(
-        JSON.stringify({ error: "Forbidden: admin role required" }),
+        JSON.stringify({ error: "Forbidden: admin or vendor role required" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const { auth_user_id, email, password, role } = await req.json();
+    const { auth_user_id, email, password, role, lead_id } = await req.json();
+
+    console.log("[update-user-password] Request:", { callerRole, callerId: caller.id, email, lead_id, hasPassword: !!password });
 
     if ((!auth_user_id && !email) || !password) {
       return new Response(
@@ -83,6 +65,42 @@ Deno.serve(async (req: Request) => {
     }
 
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+
+    if (callerRole === "vendor") {
+      if (!lead_id) {
+        return new Response(
+          JSON.stringify({ error: "lead_id is required for vendor role" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const { data: vendor } = await supabaseAdmin
+        .from("vendors")
+        .select("id")
+        .eq("auth_user_id", caller.id)
+        .maybeSingle();
+
+      if (!vendor) {
+        return new Response(
+          JSON.stringify({ error: "Forbidden: vendor record not found" }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const { data: lead } = await supabaseAdmin
+        .from("leads")
+        .select("vendor_id")
+        .eq("id", lead_id)
+        .maybeSingle();
+
+      if (!lead || lead.vendor_id !== vendor.id) {
+        console.log("[update-user-password] Ownership check failed:", { vendorId: vendor.id, leadVendorId: lead?.vendor_id });
+        return new Response(
+          JSON.stringify({ error: "Forbidden: this lead is not assigned to you" }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
 
     let userId = auth_user_id;
 
@@ -106,12 +124,14 @@ Deno.serve(async (req: Request) => {
           });
 
         if (createErr) {
+          console.error("[update-user-password] Create user error:", createErr.message);
           return new Response(
             JSON.stringify({ error: createErr.message }),
             { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         }
 
+        console.log("[update-user-password] Created new user:", created.user.id);
         return new Response(
           JSON.stringify({ success: true, created: true, auth_user_id: created.user.id }),
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -124,17 +144,20 @@ Deno.serve(async (req: Request) => {
     });
 
     if (error) {
+      console.error("[update-user-password] Update password error:", error.message);
       return new Response(
         JSON.stringify({ error: error.message }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
+    console.log("[update-user-password] Password updated for userId:", userId);
     return new Response(
       JSON.stringify({ success: true, auth_user_id: userId }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
+    console.error("[update-user-password] Unhandled error:", (err as Error).message);
     return new Response(
       JSON.stringify({ error: (err as Error).message ?? "Internal server error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
