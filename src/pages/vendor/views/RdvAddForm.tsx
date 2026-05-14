@@ -2,6 +2,7 @@ import { Check, User, UserPlus, AlertCircle, Globe } from 'lucide-react';
 import { useThemeTokens } from '../../../hooks/useThemeTokens';
 import { useTimezone } from '../../../hooks/useTimezone';
 import { getTzLabel } from '../../../lib/timezoneUtils';
+import TimePickerInline from '../../../components/TimePickerInline';
 
 interface RdvAddFormProps {
   form: {
@@ -78,7 +79,7 @@ export default function RdvAddForm({ form, leadName, onChange, onSubmit, onCance
         </div>
         <div>
           <label className="block text-[10px] font-bold tracking-[0.15em] uppercase mb-1.5" style={{ color: tokens.label.hint }}>Heure</label>
-          <input type="time" value={form.proposed_time} onChange={e => onChange('proposed_time', e.target.value)} className={inputCls} style={inputStyle} />
+          <TimePickerInline value={form.proposed_time} onChange={v => onChange('proposed_time', v)} className={inputCls} style={inputStyle} />
         </div>
       </div>
       <div className="flex items-center gap-1.5 px-2 py-1 rounded-md w-fit" style={{ background: tokens.surface.secondary, border: `1px solid ${tokens.surface.border}` }}>
