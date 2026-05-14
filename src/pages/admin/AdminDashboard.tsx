@@ -121,14 +121,25 @@ export default function AdminDashboard({ onLogout, onConnectAsVendor, onConnectA
   }, []);
   useEffect(() => {
     const fetchUnseen = async () => {
-      const { data } = await supabase
+      const { data: confirmed } = await supabase
         .from('rdv_proposals')
-        .select('id, lead_name, created_at')
+        .select('id, lead_name, created_at, created_by_role')
         .eq('status', 'confirmed')
         .eq('seen_by_admin', false)
         .is('vendor_id', null)
         .order('created_at', { ascending: false });
-      setConfirmedUnseen(data ?? []);
+      const { data: counterProps } = await supabase
+        .from('rdv_proposals')
+        .select('id, lead_name, created_at, created_by_role')
+        .eq('seen_by_admin', false)
+        .eq('status', 'pending')
+        .eq('created_by_role', 'client')
+        .order('created_at', { ascending: false });
+      const all = [...(confirmed ?? []), ...(counterProps ?? [])];
+      const seen = new Set<string>();
+      const deduped = all.filter(p => { if (seen.has(p.id)) return false; seen.add(p.id); return true; });
+      deduped.sort((a, b) => b.created_at.localeCompare(a.created_at));
+      setConfirmedUnseen(deduped);
     };
     fetchUnseen();
     const ch = supabase
@@ -211,7 +222,7 @@ export default function AdminDashboard({ onLogout, onConnectAsVendor, onConnectA
       case 'chat-vendeur': return null;
       case 'agenda': return <Suspense fallback={lazyFallback}><Agenda /></Suspense>;
       case 'agenda-equipe': return <AgendaEquipe />;
-      case 'propositions-rdv': return <Suspense fallback={lazyFallback}><PropositionsRdv initialLead={rdvLead} onInitialLeadConsumed={() => setRdvLead(null)} onNavigateToCrm={() => handleNavigate('crm')} /></Suspense>;
+      case 'propositions-rdv': return <Suspense fallback={lazyFallback}><PropositionsRdv initialLead={rdvLead} onInitialLeadConsumed={() => setRdvLead(null)} onNavigateToCrm={(leadId?: string) => { if (leadId) pendingScrollRef.current = { leadId, scrollY: 0 }; handleNavigate('crm'); }} /></Suspense>;
       case 'statuts': return <Suspense fallback={lazyFallback}><Statuts /></Suspense>;
       case 'documentation-crm': return <Suspense fallback={lazyFallback}><DocumentationCrm initialTab={docInitialTab} onInitialTabConsumed={() => setDocInitialTab(undefined)} /></Suspense>;
       case 'system': return <Suspense fallback={lazyFallback}><SystemPage /></Suspense>;

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Clock, Check, X } from 'lucide-react';
+import { Clock, ChevronDown } from 'lucide-react';
 import { useThemeTokens } from '../hooks/useThemeTokens';
 
 interface TimePickerInlineProps {
@@ -9,37 +9,53 @@ interface TimePickerInlineProps {
   style?: React.CSSProperties;
 }
 
-const HOURS = Array.from({ length: 24 }, (_, i) => i);
-const MINUTES = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
+const PRESETS: string[] = [];
+for (let h = 0; h < 24; h++) {
+  PRESETS.push(`${h.toString().padStart(2, '0')}:00`);
+  PRESETS.push(`${h.toString().padStart(2, '0')}:30`);
+}
 
-function pad(n: number) {
-  return n.toString().padStart(2, '0');
+function formatTimeInput(raw: string): string {
+  const digits = raw.replace(/[^0-9]/g, '').slice(0, 4);
+  if (digits.length <= 2) return digits;
+  return digits.slice(0, digits.length - 2) + ':' + digits.slice(digits.length - 2);
+}
+
+function normalizeTime(raw: string): string | null {
+  const digits = raw.replace(/[^0-9]/g, '');
+  if (digits.length < 1) return null;
+
+  let h: number;
+  let m: number;
+
+  if (digits.length <= 2) {
+    h = parseInt(digits, 10);
+    m = 0;
+  } else if (digits.length === 3) {
+    h = parseInt(digits[0], 10);
+    m = parseInt(digits.slice(1), 10);
+  } else {
+    h = parseInt(digits.slice(0, 2), 10);
+    m = parseInt(digits.slice(2, 4), 10);
+  }
+
+  if (isNaN(h) || isNaN(m)) return null;
+  if (h < 0 || h > 23 || m < 0 || m > 59) return null;
+  return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
 }
 
 export default function TimePickerInline({ value, onChange, className, style }: TimePickerInlineProps) {
   const tokens = useThemeTokens();
+  const [draft, setDraft] = useState(value || '');
+  const [error, setError] = useState('');
+  const [focused, setFocused] = useState(false);
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-
-  const currentHour = value ? parseInt(value.split(':')[0], 10) : 9;
-  const currentMinute = value ? parseInt(value.split(':')[1], 10) : 0;
-
-  const [selHour, setSelHour] = useState(currentHour);
-  const [selMinute, setSelMinute] = useState(currentMinute);
-
-  const hourRef = useRef<HTMLDivElement>(null);
-  const minuteRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (open) {
-      setSelHour(currentHour);
-      setSelMinute(currentMinute);
-      setTimeout(() => {
-        hourRef.current?.querySelector('[data-selected="true"]')?.scrollIntoView({ block: 'center' });
-        minuteRef.current?.querySelector('[data-selected="true"]')?.scrollIntoView({ block: 'center' });
-      }, 50);
-    }
-  }, [open]);
+    if (!focused) setDraft(value || '');
+  }, [value, focused]);
 
   useEffect(() => {
     if (!open) return;
@@ -52,121 +68,126 @@ export default function TimePickerInline({ value, onChange, className, style }: 
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [open]);
 
-  function handleConfirm() {
-    const closest = MINUTES.reduce((prev, curr) =>
-      Math.abs(curr - selMinute) < Math.abs(prev - selMinute) ? curr : prev
-    );
-    onChange(`${pad(selHour)}:${pad(closest)}`);
+  useEffect(() => {
+    if (open && listRef.current && value) {
+      const idx = PRESETS.indexOf(value);
+      if (idx > -1) {
+        const item = listRef.current.children[idx] as HTMLElement;
+        if (item) item.scrollIntoView({ block: 'center' });
+      }
+    }
+  }, [open, value]);
+
+  function handleFocus() {
+    setDraft(value || '');
+    setError('');
+    setFocused(true);
+  }
+
+  function handleBlur() {
+    setFocused(false);
+    if (!draft.trim()) {
+      setError('');
+      return;
+    }
+    const normalized = normalizeTime(draft);
+    if (normalized) {
+      onChange(normalized);
+      setDraft(normalized);
+      setError('');
+    } else {
+      setError('Format invalide. Exemple : 14:30');
+    }
+  }
+
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const formatted = formatTimeInput(e.target.value);
+    setDraft(formatted);
+    if (error) setError('');
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      (e.target as HTMLInputElement).blur();
+    }
+  }
+
+  function handleSelect(t: string) {
+    onChange(t);
+    setDraft(t);
+    setError('');
     setOpen(false);
   }
 
-  const displayValue = value || '--:--';
+  const displayValue = focused ? draft : (value || '');
 
   return (
-    <div ref={containerRef} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen(!open)}
-        className={className}
-        style={style}
-      >
-        <span className="flex items-center gap-2">
-          <Clock className="w-3.5 h-3.5 opacity-60 flex-shrink-0" />
-          <span>{displayValue}</span>
-        </span>
-      </button>
+    <div className="relative" ref={containerRef}>
+      <div className="relative flex items-center">
+        <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 opacity-60 pointer-events-none" style={{ color: tokens.text.tertiary }} />
+        <input
+          type="text"
+          inputMode="numeric"
+          value={displayValue}
+          onChange={handleChange}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
+          onKeyDown={handleKeyDown}
+          placeholder="HH:mm"
+          maxLength={5}
+          className={className}
+          style={{ ...style, paddingLeft: '2rem', paddingRight: '2.2rem' }}
+          autoComplete="off"
+        />
+        <button
+          type="button"
+          tabIndex={-1}
+          onMouseDown={e => { e.preventDefault(); setOpen(o => !o); }}
+          className="absolute right-1 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center rounded-md transition-colors"
+          style={{ color: tokens.text.tertiary }}
+        >
+          <ChevronDown className="w-3.5 h-3.5" />
+        </button>
+      </div>
+
+      {error && (
+        <p className="text-[10px] mt-1 font-medium" style={{ color: '#ef4444' }}>
+          {error}
+        </p>
+      )}
 
       {open && (
         <div
-          className="absolute z-[60] mt-1 left-0 right-0 sm:left-auto sm:right-auto sm:w-56 rounded-xl overflow-hidden shadow-xl"
+          ref={listRef}
+          className="absolute z-50 left-0 right-0 mt-1 rounded-lg overflow-y-auto shadow-xl"
           style={{
-            background: tokens.modal.bg,
-            border: `1px solid ${tokens.modal.border}`,
-            minWidth: '100%',
+            maxHeight: '220px',
+            background: tokens.card.bg,
+            border: `1px solid ${tokens.card.border}`,
           }}
         >
-          <div className="flex items-center justify-between px-3 py-2" style={{ borderBottom: `1px solid ${tokens.card.border}` }}>
-            <span className="text-xs font-semibold" style={{ color: tokens.text.primary }}>
-              {pad(selHour)}:{pad(MINUTES.reduce((prev, curr) => Math.abs(curr - selMinute) < Math.abs(prev - selMinute) ? curr : prev))}
-            </span>
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              className="w-6 h-6 rounded flex items-center justify-center"
-              style={{ color: tokens.text.tertiary }}
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          </div>
-
-          <div className="flex" style={{ height: '160px' }}>
-            <div
-              ref={hourRef}
-              className="flex-1 overflow-y-auto overscroll-contain py-1 px-1"
-              style={{ borderRight: `1px solid ${tokens.card.border}` }}
-            >
-              <p className="text-[9px] font-bold uppercase tracking-wider text-center mb-1 sticky top-0 z-10 py-0.5" style={{ color: tokens.text.quaternary, background: tokens.modal.bg }}>H</p>
-              {HOURS.map(h => (
-                <button
-                  key={h}
-                  type="button"
-                  data-selected={h === selHour}
-                  onClick={() => setSelHour(h)}
-                  className="w-full text-center py-1.5 rounded-md text-sm font-medium transition-colors"
-                  style={{
-                    background: h === selHour ? tokens.accent.bg : 'transparent',
-                    color: h === selHour ? tokens.accent.text : tokens.text.secondary,
-                    border: h === selHour ? `1px solid ${tokens.accent.border}` : '1px solid transparent',
-                  }}
-                >
-                  {pad(h)}
-                </button>
-              ))}
-            </div>
-
-            <div
-              ref={minuteRef}
-              className="flex-1 overflow-y-auto overscroll-contain py-1 px-1"
-            >
-              <p className="text-[9px] font-bold uppercase tracking-wider text-center mb-1 sticky top-0 z-10 py-0.5" style={{ color: tokens.text.quaternary, background: tokens.modal.bg }}>Min</p>
-              {MINUTES.map(m => (
-                <button
-                  key={m}
-                  type="button"
-                  data-selected={m === selMinute}
-                  onClick={() => setSelMinute(m)}
-                  className="w-full text-center py-1.5 rounded-md text-sm font-medium transition-colors"
-                  style={{
-                    background: m === selMinute ? tokens.accent.bg : 'transparent',
-                    color: m === selMinute ? tokens.accent.text : tokens.text.secondary,
-                    border: m === selMinute ? `1px solid ${tokens.accent.border}` : '1px solid transparent',
-                  }}
-                >
-                  {pad(m)}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 px-3 py-2" style={{ borderTop: `1px solid ${tokens.card.border}` }}>
-            <button
-              type="button"
-              onClick={handleConfirm}
-              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-all hover:scale-105"
-              style={{ background: 'linear-gradient(90deg, #0ea5e9, #22d3ee)', color: tokens.text.primary }}
-            >
-              <Check className="w-3.5 h-3.5" />
-              Definir
-            </button>
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              className="flex-1 py-2 rounded-lg text-xs font-semibold transition-all"
-              style={{ background: tokens.surface.hover, border: `1px solid ${tokens.surface.borderLight}`, color: tokens.text.tertiary }}
-            >
-              Annuler
-            </button>
-          </div>
+          {PRESETS.map(t => {
+            const isActive = t === value;
+            return (
+              <button
+                key={t}
+                type="button"
+                onMouseDown={e => e.preventDefault()}
+                onClick={() => handleSelect(t)}
+                className="w-full text-left px-3 py-2 text-sm transition-colors"
+                style={{
+                  color: isActive ? tokens.accent.text : tokens.text.primary,
+                  background: isActive ? tokens.accent.bg : 'transparent',
+                  fontWeight: isActive ? 600 : 400,
+                }}
+                onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = tokens.surface.hover; }}
+                onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent'; }}
+              >
+                {t}
+              </button>
+            );
+          })}
         </div>
       )}
     </div>

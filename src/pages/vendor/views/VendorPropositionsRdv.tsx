@@ -15,7 +15,7 @@ interface VendorPropositionsRdvProps {
   vendorDbId?: string | null;
   initialLead?: RdvLeadRef | null;
   onInitialLeadConsumed?: () => void;
-  onNavigateToLeads?: () => void;
+  onNavigateToLeads?: (leadId?: string) => void;
 }
 
 export default function VendorPropositionsRdv({ vendorDbId, initialLead, onInitialLeadConsumed, onNavigateToLeads }: VendorPropositionsRdvProps) {
@@ -130,8 +130,9 @@ export default function VendorPropositionsRdv({ vendorDbId, initialLead, onIniti
                       selected={selected.has(rdv.id)}
                       onToggleSelect={() => toggleSelect(rdv.id)}
                       onAccept={() => handleAccept(rdv.id)}
-                      onRefuse={() => handleRefuse(rdv.id)}
+                      onCancel={() => handleRefuse(rdv.id)}
                       onEdit={() => setEditRdv(rdv)}
+                      onGoToLead={rdv.lead_id ? () => onNavigateToLeads?.(rdv.lead_id!) : undefined}
                     />
                   ))}
                 </tbody>
@@ -147,19 +148,21 @@ export default function VendorPropositionsRdv({ vendorDbId, initialLead, onIniti
               <span className="text-[11px] font-medium" style={{ color: tokens.text.quaternary }}>Tout ({filtered.length})</span>
             </div>
 
-            <div className="md:hidden divide-y" style={{ borderColor: tokens.table.rowBorder }}>
-              {filtered.map(rdv => (
-                <VendorRdvMobileCard
-                  key={rdv.id}
-                  rdv={rdv}
-                  timezone={timezone}
-                  selected={selected.has(rdv.id)}
-                  onToggleSelect={() => toggleSelect(rdv.id)}
-                  onAccept={() => handleAccept(rdv.id)}
-                  onRefuse={() => handleRefuse(rdv.id)}
-                  onEdit={() => setEditRdv(rdv)}
-                  onDetail={() => setDetailRdv(rdv)}
-                />
+            <div className="md:hidden">
+              {filtered.map((rdv, idx) => (
+                <div key={rdv.id} style={{ borderTop: idx > 0 ? `1px solid ${tokens.table.rowBorder}` : 'none' }}>
+                  <VendorRdvMobileCard
+                    rdv={rdv}
+                    timezone={timezone}
+                    selected={selected.has(rdv.id)}
+                    onToggleSelect={() => toggleSelect(rdv.id)}
+                    onAccept={() => handleAccept(rdv.id)}
+                    onCancel={() => handleRefuse(rdv.id)}
+                    onEdit={() => setEditRdv(rdv)}
+                    onDetail={() => setDetailRdv(rdv)}
+                    onGoToLead={rdv.lead_id ? () => onNavigateToLeads?.(rdv.lead_id!) : undefined}
+                  />
+                </div>
               ))}
             </div>
           </>
@@ -173,7 +176,7 @@ export default function VendorPropositionsRdv({ vendorDbId, initialLead, onIniti
       </div>
 
       {editRdv && (
-        <RdvEditModal rdv={editRdv} onClose={() => setEditRdv(null)} onSaved={load} />
+        <RdvEditModal rdv={editRdv} onClose={() => setEditRdv(null)} onSaved={load} callerRole="vendor" />
       )}
 
       {confirmDelete && (
@@ -192,8 +195,9 @@ export default function VendorPropositionsRdv({ vendorDbId, initialLead, onIniti
           timezone={timezone}
           onClose={() => setDetailRdv(null)}
           onAccept={() => { handleAccept(detailRdv.id); setDetailRdv(null); }}
-          onRefuse={() => { handleRefuse(detailRdv.id); setDetailRdv(null); }}
+          onCancel={() => { handleRefuse(detailRdv.id); setDetailRdv(null); }}
           onEdit={() => { setEditRdv(detailRdv); setDetailRdv(null); }}
+          onGoToLead={detailRdv.lead_id ? () => { setDetailRdv(null); onNavigateToLeads?.(detailRdv.lead_id!); } : undefined}
         />
       )}
     </div>

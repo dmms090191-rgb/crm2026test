@@ -84,7 +84,7 @@ export function ClientNotifRow({
         {initial}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-[12px] font-medium truncate" style={{ color: tokens.itemTextHover }}>
+        <p className="text-[12px] font-medium whitespace-normal break-words" style={{ color: tokens.itemTextHover }}>
           {displayName} <span style={{ color: tokens.itemText, fontWeight: 400 }}>vous a envoy&#233; un message</span>
         </p>
         <p className="text-[10px] mt-0.5" style={{ color: tokens.itemText }}>
@@ -135,7 +135,7 @@ export function VendorAgendaNotifItem({
         {isUntreated ? <AlertCircle className="w-3.5 h-3.5 text-white" /> : <CalendarDays className="w-3.5 h-3.5 text-white" />}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-[12px] font-medium truncate" style={{ color: tokens.itemTextHover }}>
+        <p className="text-[12px] font-medium whitespace-normal break-words" style={{ color: tokens.itemTextHover }}>
           {isUntreated ? (
             <>Le rendez-vous avec <span style={{ color: '#ef4444' }}>{entry.leadName || 'un client'}</span> n'a pas ete traite</>
           ) : (
@@ -164,6 +164,11 @@ export function VendorConfirmedItem({
   onClick: () => void;
 }) {
   const [hovered, setHovered] = useState(false);
+  const isClientCounter = entry.created_by_role === 'client';
+  const message = isClientCounter
+    ? 'propose un autre rendez-vous'
+    : 'a accepte le rendez-vous';
+
   return (
     <button
       type="button"
@@ -183,8 +188,8 @@ export function VendorConfirmedItem({
         <CalendarClock className="w-3.5 h-3.5 text-white" />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-[12px] font-medium" style={{ color: dropTokens.itemTextHover }}>
-          <span style={{ color: '#22d3ee' }}>{entry.lead_name}</span> a accepte le rendez-vous
+        <p className="text-[12px] font-medium whitespace-normal break-words" style={{ color: dropTokens.itemTextHover }}>
+          <span style={{ color: '#22d3ee' }}>{entry.lead_name}</span> {message}
         </p>
         <p className="text-[10px] mt-0.5" style={{ color: dropTokens.itemText }}>
           {formatRelativeTime(entry.created_at)}

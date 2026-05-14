@@ -109,14 +109,26 @@ export default function VendorDashboard({ onLogout, impersonatedVendor, onBackTo
   useEffect(() => {
     if (!vendorDbId) return;
     const fetchUnseen = async () => {
-      const { data } = await supabase
+      const { data: confirmed } = await supabase
         .from('rdv_proposals')
-        .select('id, lead_name, created_at')
+        .select('id, lead_name, created_at, created_by_role')
         .eq('vendor_id', vendorDbId)
         .eq('status', 'confirmed')
         .eq('seen_by_vendor', false)
         .order('created_at', { ascending: false });
-      setConfirmedUnseen(data ?? []);
+      const { data: counterProps } = await supabase
+        .from('rdv_proposals')
+        .select('id, lead_name, created_at, created_by_role')
+        .eq('vendor_id', vendorDbId)
+        .eq('seen_by_vendor', false)
+        .eq('status', 'pending')
+        .eq('created_by_role', 'client')
+        .order('created_at', { ascending: false });
+      const all = [...(confirmed ?? []), ...(counterProps ?? [])];
+      const seen = new Set<string>();
+      const deduped = all.filter(p => { if (seen.has(p.id)) return false; seen.add(p.id); return true; });
+      deduped.sort((a, b) => b.created_at.localeCompare(a.created_at));
+      setConfirmedUnseen(deduped);
     };
     fetchUnseen();
     const ch = supabase
@@ -187,7 +199,7 @@ export default function VendorDashboard({ onLogout, impersonatedVendor, onBackTo
       case 'chat-admin': return <VendorChatAdmin vendorName={vendorName} vendorDbId={vendorDbId} vendorAuthId={impersonatedVendor?.auth_user_id ?? undefined} onAdminMessageViewed={markAdminRead} isAdmin={!!impersonatedVendor} />;
       case 'chat-client': return <VendorChatClient vendorName={vendorName} vendorDbId={vendorDbId} initialLead={chatLead} onClientViewed={handleClientViewed} onReturnToLeads={handleReturnToLeads} isAdmin={!!impersonatedVendor} />;
       case 'agenda': return <VendorAgenda vendorId={vendorDbId} />;
-      case 'propositions-rdv': return <VendorPropositionsRdv vendorDbId={vendorDbId} initialLead={rdvLead} onInitialLeadConsumed={() => setRdvLead(null)} onNavigateToLeads={() => setActiveView('leads')} />;
+      case 'propositions-rdv': return <VendorPropositionsRdv vendorDbId={vendorDbId} initialLead={rdvLead} onInitialLeadConsumed={() => setRdvLead(null)} onNavigateToLeads={(leadId?: string) => { if (leadId) pendingScrollRef.current = { leadId, scrollY: 0 }; setActiveView('leads'); }} />;
       default: return <VendorVueEnsemble vendorId={vendorDbId} unreadConversations={unreadClientEntries.length} />;
     }
   };

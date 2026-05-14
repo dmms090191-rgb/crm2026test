@@ -116,7 +116,7 @@ export function ClientAgendaNotifItem({
         <CalendarCheck className="w-3.5 h-3.5 text-white" />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-[12px] font-medium truncate" style={{ color: tokens.itemTextHover }}>
+        <p className="text-[12px] font-medium whitespace-normal break-words" style={{ color: tokens.itemTextHover }}>
           Votre RDV avec <span style={{ color: '#34d399' }}>{entry.leadName || 'le support'}</span> commence maintenant
         </p>
         <p className="text-[10px] mt-0.5" style={{ color: tokens.itemText }}>
@@ -141,6 +141,8 @@ export function PropositionNotifItem({
   onClick: () => void;
 }) {
   const [hovered, setHovered] = useState(false);
+  const isFromAdminOrVendor = entry.created_by_role !== 'client';
+
   return (
     <button
       type="button"
@@ -160,12 +162,11 @@ export function PropositionNotifItem({
         <CalendarClock className="w-3.5 h-3.5 text-white" />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-[12px] font-medium truncate" style={{ color: tokens.itemTextHover }}>
-          {entry.lead_name ? (
-            <>Proposition de RDV avec <span style={{ color: '#06b6d4' }}>{entry.lead_name}</span></>
-          ) : (
-            'Vous avez re\u00e7u une proposition de rendez-vous'
-          )}
+        <p className="text-[12px] font-medium whitespace-normal break-words" style={{ color: tokens.itemTextHover }}>
+          {isFromAdminOrVendor
+            ? 'Votre conseiller vous propose un rendez-vous'
+            : 'Votre proposition de rendez-vous a recu une reponse'
+          }
         </p>
         <p className="text-[10px] mt-0.5" style={{ color: tokens.itemText }}>
           {formatRelativeTime(entry.created_at)}

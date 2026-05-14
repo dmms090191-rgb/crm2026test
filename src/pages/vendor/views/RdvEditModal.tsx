@@ -11,6 +11,7 @@ interface EditModalProps {
   rdv: RdvProposal;
   onClose: () => void;
   onSaved: () => void;
+  callerRole?: 'admin' | 'vendor';
 }
 
 function getInitialDateTime(rdv: RdvProposal, timezone: string) {
@@ -20,9 +21,9 @@ function getInitialDateTime(rdv: RdvProposal, timezone: string) {
   return { date: rdv.proposed_date, time: rdv.proposed_time };
 }
 
-export default function RdvEditModal({ rdv, onClose, onSaved }: EditModalProps) {
+export default function RdvEditModal({ rdv, onClose, onSaved, callerRole }: EditModalProps) {
   const tokens = useThemeTokens();
-  const { timezone } = useTimezone();
+  const { timezone, userName } = useTimezone();
   const localDt = getInitialDateTime(rdv, timezone);
   const [form, setForm] = useState({
     proposed_date: localDt.date,
@@ -34,6 +35,9 @@ export default function RdvEditModal({ rdv, onClose, onSaved }: EditModalProps) 
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+
+  const isClientCounter = rdv.created_by_role === 'client' && !!rdv.parent_proposal_id;
+  const role = callerRole || 'admin';
 
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
 
@@ -49,18 +53,67 @@ export default function RdvEditModal({ rdv, onClose, onSaved }: EditModalProps) 
     }
     setSaving(true);
     setError('');
-    const { error: err } = await supabase.from('rdv_proposals').update({
-      proposed_date: form.proposed_date,
-      proposed_time: form.proposed_time,
-      motif: form.motif.trim(),
-      description: form.description.trim(),
-      notes: form.notes.trim(),
-      status: form.status,
-      appointment_utc: appointmentUtc,
-      source_timezone: timezone,
-    }).eq('id', rdv.id);
+
+    if (isClientCounter && rdv.status === 'pending') {
+      const now = new Date().toISOString();
+      await supabase.from('rdv_proposals').update({
+        status: 'counter_proposed',
+        responded_at: now,
+        responded_by: role,
+      }).eq('id', rdv.id);
+
+      if (rdv.parent_proposal_id) {
+        await supabase.from('rdv_proposals').update({
+          status: 'counter_proposed',
+          responded_at: now,
+          responded_by: role,
+        }).eq('id', rdv.parent_proposal_id).in('status', ['pending', 'counter_proposed']);
+
+        await supabase.from('rdv_proposals').update({
+          status: 'counter_proposed',
+          responded_at: now,
+          responded_by: role,
+        }).eq('parent_proposal_id', rdv.parent_proposal_id).neq('id', rdv.id).in('status', ['pending']);
+      }
+
+      await supabase.from('rdv_proposals').insert({
+        lead_name: rdv.lead_name,
+        lead_phone: rdv.lead_phone,
+        lead_email: rdv.lead_email,
+        lead_id: rdv.lead_id || null,
+        vendor_id: rdv.vendor_id || null,
+        proposed_date: form.proposed_date,
+        proposed_time: form.proposed_time,
+        motif: form.motif.trim(),
+        description: form.description.trim(),
+        notes: form.notes.trim(),
+        status: 'pending',
+        created_by_role: role,
+        created_by_name: userName,
+        target_role: 'client',
+        appointment_utc: appointmentUtc,
+        source_timezone: timezone,
+        parent_proposal_id: rdv.id,
+        seen_by_client: false,
+        seen_by_admin: role === 'admin',
+        seen_by_vendor: role === 'vendor',
+      });
+    } else {
+      const { error: err } = await supabase.from('rdv_proposals').update({
+        proposed_date: form.proposed_date,
+        proposed_time: form.proposed_time,
+        motif: form.motif.trim(),
+        description: form.description.trim(),
+        notes: form.notes.trim(),
+        status: form.status,
+        appointment_utc: appointmentUtc,
+        source_timezone: timezone,
+        seen_by_client: false,
+      }).eq('id', rdv.id);
+      if (err) { setSaving(false); setError('Erreur lors de l\'enregistrement.'); return; }
+    }
+
     setSaving(false);
-    if (err) { setError('Erreur lors de l\'enregistrement.'); return; }
     onSaved();
     onClose();
   }
@@ -85,7 +138,9 @@ export default function RdvEditModal({ rdv, onClose, onSaved }: EditModalProps) 
       >
         <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 flex-shrink-0" style={{ borderBottom: `1px solid ${tokens.card.border}` }}>
           <div>
-            <p className="font-semibold text-sm" style={{ color: tokens.modal.title }}>Modifier le rendez-vous</p>
+            <p className="font-semibold text-sm" style={{ color: tokens.modal.title }}>
+              {isClientCounter && rdv.status === 'pending' ? 'Reproposer un horaire' : 'Modifier le rendez-vous'}
+            </p>
             <p className="text-xs" style={{ color: tokens.modal.subtitle }}>{rdv.lead_name}</p>
           </div>
           <button
@@ -100,6 +155,13 @@ export default function RdvEditModal({ rdv, onClose, onSaved }: EditModalProps) 
         </div>
 
         <div className="px-4 sm:px-6 py-4 sm:py-5 space-y-3 sm:space-y-4 overflow-y-auto flex-1 overscroll-contain">
+          {isClientCounter && rdv.status === 'pending' && (
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs" style={{ background: 'rgba(6,182,212,0.06)', border: '1px solid rgba(6,182,212,0.15)', color: '#06b6d4' }}>
+              <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+              Une nouvelle proposition sera envoyee au client. L'ancienne sera remplacee.
+            </div>
+          )}
+
           {error && (
             <div className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs" style={{ background: tokens.danger.bg, border: `1px solid ${tokens.danger.border}`, color: tokens.danger.text }}>
               <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
@@ -132,19 +194,21 @@ export default function RdvEditModal({ rdv, onClose, onSaved }: EditModalProps) 
             <textarea value={form.description} onChange={e => set('description', e.target.value)} rows={2} className={inputCls + ' resize-none'} style={inputStyle} placeholder="Details du rendez-vous..." />
           </div>
 
-          <div>
-            <label className="block text-[10px] font-bold tracking-[0.15em] uppercase mb-1.5" style={{ color: tokens.modal.fieldLabel }}>Statut</label>
-            <select
-              value={form.status}
-              onChange={e => set('status', e.target.value)}
-              className={inputCls + ' cursor-pointer'}
-              style={{ ...inputStyle, appearance: 'none' }}
-            >
-              {Object.entries(statusConfig).map(([k, v]) => (
-                <option key={k} value={k} style={{ background: tokens.selectBg }}>{v.label}</option>
-              ))}
-            </select>
-          </div>
+          {!(isClientCounter && rdv.status === 'pending') && (
+            <div>
+              <label className="block text-[10px] font-bold tracking-[0.15em] uppercase mb-1.5" style={{ color: tokens.modal.fieldLabel }}>Statut</label>
+              <select
+                value={form.status}
+                onChange={e => set('status', e.target.value)}
+                className={inputCls + ' cursor-pointer'}
+                style={{ ...inputStyle, appearance: 'none' }}
+              >
+                {Object.entries(statusConfig).map(([k, v]) => (
+                  <option key={k} value={k} style={{ background: tokens.selectBg }}>{v.label}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div>
             <label className="block text-[10px] font-bold tracking-[0.15em] uppercase mb-1.5" style={{ color: tokens.modal.fieldLabel }}>Notes</label>
@@ -167,7 +231,7 @@ export default function RdvEditModal({ rdv, onClose, onSaved }: EditModalProps) 
             style={{ background: 'linear-gradient(90deg, #0ea5e9, #22d3ee)', boxShadow: `0 0 16px ${tokens.accent.text}33`, color: tokens.text.primary }}
           >
             <Check className="w-3.5 h-3.5" />
-            {saving ? 'Enregistrement...' : 'Enregistrer'}
+            {saving ? 'Enregistrement...' : (isClientCounter && rdv.status === 'pending' ? 'Envoyer la proposition' : 'Enregistrer')}
           </button>
           <button
             onClick={onClose}

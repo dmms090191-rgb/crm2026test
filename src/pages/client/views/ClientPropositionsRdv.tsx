@@ -3,11 +3,14 @@ import { CalendarDays } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { useThemeTokens } from '../../../hooks/useThemeTokens';
 import { useTimezone } from '../../../hooks/useTimezone';
+import { localToUTC } from '../../../lib/timezoneUtils';
 import ClientRdvCard from './ClientRdvCard';
+import ClientCounterProposalModal from './ClientCounterProposalModal';
 
 interface RdvProposal {
   id: string;
   vendor_id?: string | null;
+  lead_id?: string | null;
   lead_name: string;
   lead_phone: string;
   lead_email: string;
@@ -26,13 +29,16 @@ interface RdvProposal {
   appointment_utc?: string | null;
   source_timezone?: string;
   created_by_name?: string;
+  parent_proposal_id?: string | null;
+  counter_message?: string;
 }
 
 const statusConfig: Record<string, { label: string; color: string; bg: string; border: string }> = {
-  pending:   { label: 'En attente',  color: '#fbbf24', bg: 'rgba(251,191,36,0.08)',  border: 'rgba(251,191,36,0.2)'  },
-  confirmed: { label: 'Confirme',    color: '#34d399', bg: 'rgba(52,211,153,0.08)',  border: 'rgba(52,211,153,0.2)'  },
-  cancelled: { label: 'Annule',      color: '#f87171', bg: 'rgba(248,113,113,0.08)', border: 'rgba(248,113,113,0.2)' },
-  done:      { label: 'Termine',     color: '#94a3b8', bg: 'rgba(148,163,184,0.08)', border: 'rgba(148,163,184,0.2)' },
+  pending:            { label: 'En attente',       color: '#fbbf24', bg: 'rgba(251,191,36,0.08)',  border: 'rgba(251,191,36,0.2)'  },
+  confirmed:         { label: 'Confirme',         color: '#34d399', bg: 'rgba(52,211,153,0.08)',  border: 'rgba(52,211,153,0.2)'  },
+  cancelled:         { label: 'Annule',           color: '#f87171', bg: 'rgba(248,113,113,0.08)', border: 'rgba(248,113,113,0.2)' },
+  done:              { label: 'Termine',          color: '#94a3b8', bg: 'rgba(148,163,184,0.08)', border: 'rgba(148,163,184,0.2)' },
+  counter_proposed:  { label: 'Contre-proposee',  color: '#64748b', bg: 'rgba(100,116,139,0.08)', border: 'rgba(100,116,139,0.2)' },
 };
 
 const FILTERS = ['Tous', 'En attente', 'Confirme', 'Annule', 'Termine'];
@@ -50,10 +56,13 @@ interface ClientPropositionsRdvProps {
 
 export default function ClientPropositionsRdv({ clientEmail, onMount }: ClientPropositionsRdvProps) {
   const tokens = useThemeTokens();
-  const { timezone: CLIENT_TZ } = useTimezone();
+  const { timezone: CLIENT_TZ, userName } = useTimezone();
   const [rdvs, setRdvs] = useState<RdvProposal[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('Tous');
+  const [counterTarget, setCounterTarget] = useState<RdvProposal | null>(null);
+  const [counterSaving, setCounterSaving] = useState(false);
+  const [counterError, setCounterError] = useState('');
 
   useEffect(() => {
     onMount?.();
@@ -79,7 +88,7 @@ export default function ClientPropositionsRdv({ clientEmail, onMount }: ClientPr
       .from('rdv_proposals')
       .select('*')
       .eq('lead_email', clientEmail)
-      .order('proposed_date', { ascending: true });
+      .order('created_at', { ascending: false });
     if (byEmail) results = byEmail as RdvProposal[];
 
     if (leadIds.length > 0) {
@@ -87,7 +96,7 @@ export default function ClientPropositionsRdv({ clientEmail, onMount }: ClientPr
         .from('rdv_proposals')
         .select('*')
         .in('lead_id', leadIds)
-        .order('proposed_date', { ascending: true });
+        .order('created_at', { ascending: false });
       if (byLeadId) {
         const existingIds = new Set(results.map(r => r.id));
         for (const r of byLeadId as RdvProposal[]) {
@@ -95,7 +104,7 @@ export default function ClientPropositionsRdv({ clientEmail, onMount }: ClientPr
         }
       }
     }
-    results.sort((a, b) => a.proposed_date.localeCompare(b.proposed_date));
+    results.sort((a, b) => b.created_at.localeCompare(a.created_at));
     setRdvs(results);
     setLoading(false);
   }, [clientEmail]);
@@ -121,16 +130,109 @@ export default function ClientPropositionsRdv({ clientEmail, onMount }: ClientPr
         .maybeSingle();
       if (lead?.vendor_id) vendorId = lead.vendor_id;
     }
-    const updatePayload: Record<string, unknown> = { status: 'confirmed', responded_at: now, responded_by: 'client' };
+    const updatePayload: Record<string, unknown> = {
+      status: 'confirmed',
+      responded_at: now,
+      responded_by: 'client',
+      seen_by_admin: false,
+      seen_by_vendor: false,
+    };
     if (vendorId) updatePayload.vendor_id = vendorId;
     await supabase.from('rdv_proposals').update(updatePayload).eq('id', id);
-    setRdvs(prev => prev.map(r => r.id === id ? { ...r, status: 'confirmed', responded_at: now, responded_by: 'client', ...(vendorId ? { vendor_id: vendorId } : {}) } : r));
+
+    if (rdv?.parent_proposal_id) {
+      await supabase.from('rdv_proposals').update({
+        status: 'counter_proposed',
+        responded_at: now,
+        responded_by: 'client',
+      }).eq('id', rdv.parent_proposal_id).in('status', ['pending', 'counter_proposed']);
+
+      await supabase.from('rdv_proposals').update({
+        status: 'counter_proposed',
+        responded_at: now,
+        responded_by: 'client',
+      }).eq('parent_proposal_id', rdv.parent_proposal_id).neq('id', id).in('status', ['pending']);
+    }
+
+    load();
   }
 
   async function handleRefuse(id: string) {
     const now = new Date().toISOString();
-    await supabase.from('rdv_proposals').update({ status: 'cancelled', responded_at: now, responded_by: 'client' }).eq('id', id);
+    await supabase.from('rdv_proposals').update({
+      status: 'cancelled',
+      responded_at: now,
+      responded_by: 'client',
+      seen_by_admin: false,
+      seen_by_vendor: false,
+    }).eq('id', id);
     setRdvs(prev => prev.map(r => r.id === id ? { ...r, status: 'cancelled', responded_at: now, responded_by: 'client' } : r));
+  }
+
+  function handleOpenCounter(id: string) {
+    const rdv = rdvs.find(r => r.id === id);
+    if (rdv && rdv.status === 'pending') {
+      setCounterTarget(rdv);
+      setCounterError('');
+    }
+  }
+
+  async function handleCancelOwn(id: string) {
+    const now = new Date().toISOString();
+    await supabase.from('rdv_proposals').update({
+      status: 'cancelled',
+      responded_at: now,
+      responded_by: 'client',
+      seen_by_admin: false,
+      seen_by_vendor: false,
+    }).eq('id', id);
+    setRdvs(prev => prev.map(r => r.id === id ? { ...r, status: 'cancelled', responded_at: now, responded_by: 'client' } : r));
+  }
+
+  async function handleCounterSubmit(date: string, time: string, message: string) {
+    if (!counterTarget) return;
+    const appointmentCheck = new Date(localToUTC(date, time, CLIENT_TZ));
+    if (appointmentCheck.getTime() <= Date.now()) {
+      setCounterError('Veuillez choisir une date et une heure futures.');
+      return;
+    }
+    setCounterError('');
+    setCounterSaving(true);
+
+    await supabase.from('rdv_proposals').update({
+      status: 'counter_proposed',
+      responded_at: new Date().toISOString(),
+      responded_by: 'client',
+    }).eq('id', counterTarget.id);
+
+    const appointmentUtc = localToUTC(date, time, CLIENT_TZ);
+    await supabase.from('rdv_proposals').insert({
+      lead_name: counterTarget.lead_name,
+      lead_phone: counterTarget.lead_phone,
+      lead_email: counterTarget.lead_email,
+      lead_id: counterTarget.lead_id || null,
+      vendor_id: counterTarget.vendor_id || null,
+      proposed_date: date,
+      proposed_time: time,
+      motif: counterTarget.motif,
+      description: counterTarget.description,
+      notes: '',
+      status: 'pending',
+      created_by_role: 'client',
+      created_by_name: userName || counterTarget.lead_name,
+      target_role: 'admin',
+      appointment_utc: appointmentUtc,
+      source_timezone: CLIENT_TZ,
+      parent_proposal_id: counterTarget.id,
+      counter_message: message,
+      seen_by_client: true,
+      seen_by_admin: false,
+      seen_by_vendor: false,
+    });
+
+    setCounterSaving(false);
+    setCounterTarget(null);
+    load();
   }
 
   return (
@@ -187,18 +289,21 @@ export default function ClientPropositionsRdv({ clientEmail, onMount }: ClientPr
             <p className="text-sm" style={{ color: tokens.text.quaternary }}>Aucune proposition pour ce filtre</p>
           </div>
         ) : (
-          <div className="divide-y" style={{ borderColor: tokens.surface.borderLight }}>
-            {filtered.map(rdv => (
-              <ClientRdvCard
-                key={rdv.id}
-                rdv={rdv}
-                tokens={tokens}
-                timezone={CLIENT_TZ}
-                todayStr={todayStr}
-                statusConfig={statusConfig}
-                onAccept={handleAccept}
-                onRefuse={handleRefuse}
-              />
+          <div>
+            {filtered.map((rdv, idx) => (
+              <div key={rdv.id} style={{ borderTop: idx > 0 ? `1px solid ${tokens.surface.borderLight}` : 'none' }}>
+                <ClientRdvCard
+                  rdv={rdv}
+                  tokens={tokens}
+                  timezone={CLIENT_TZ}
+                  todayStr={todayStr}
+                  statusConfig={statusConfig}
+                  onAccept={handleAccept}
+                  onRefuse={handleRefuse}
+                  onCounterPropose={handleOpenCounter}
+                  onCancelOwn={handleCancelOwn}
+                />
+              </div>
             ))}
           </div>
         )}
@@ -209,6 +314,17 @@ export default function ClientPropositionsRdv({ clientEmail, onMount }: ClientPr
           </div>
         )}
       </div>
+
+      {counterTarget && (
+        <ClientCounterProposalModal
+          currentDate={counterTarget.proposed_date}
+          currentTime={counterTarget.proposed_time}
+          onSubmit={handleCounterSubmit}
+          onCancel={() => setCounterTarget(null)}
+          saving={counterSaving}
+          error={counterError}
+        />
+      )}
     </div>
   );
 }

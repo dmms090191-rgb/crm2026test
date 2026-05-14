@@ -33,8 +33,7 @@ export function useVendorRdvData(vendorDbId?: string | null, initialLead?: RdvLe
     const { data } = await supabase
       .from('rdv_proposals')
       .select('*')
-      .order('proposed_date', { ascending: true })
-      .order('proposed_time', { ascending: true });
+      .order('created_at', { ascending: false });
     if (data) setRdvs(data as RdvProposal[]);
     setLoading(false);
   }, []);
@@ -65,13 +64,20 @@ export function useVendorRdvData(vendorDbId?: string | null, initialLead?: RdvLe
 
   async function handleAccept(id: string) {
     const now = new Date().toISOString();
-    await supabase.from('rdv_proposals').update({ status: 'confirmed', responded_at: now, responded_by: 'vendor' }).eq('id', id);
-    setRdvs(prev => prev.map(r => r.id === id ? { ...r, status: 'confirmed', responded_at: now, responded_by: 'vendor' } : r));
+    const rdv = rdvs.find(r => r.id === id);
+    await supabase.from('rdv_proposals').update({ status: 'confirmed', responded_at: now, responded_by: 'vendor', seen_by_client: false }).eq('id', id);
+    if (rdv?.parent_proposal_id) {
+      await supabase.from('rdv_proposals').update({ status: 'cancelled', responded_at: now, responded_by: 'vendor' }).eq('id', rdv.parent_proposal_id).in('status', ['pending', 'counter_proposed']);
+    }
+    if (rdv?.parent_proposal_id) {
+      await supabase.from('rdv_proposals').update({ status: 'cancelled', responded_at: now, responded_by: 'vendor' }).eq('parent_proposal_id', rdv.parent_proposal_id).neq('id', id).eq('status', 'pending');
+    }
+    load();
   }
 
   async function handleRefuse(id: string) {
     const now = new Date().toISOString();
-    await supabase.from('rdv_proposals').update({ status: 'cancelled', responded_at: now, responded_by: 'vendor' }).eq('id', id);
+    await supabase.from('rdv_proposals').update({ status: 'cancelled', responded_at: now, responded_by: 'vendor', seen_by_client: false }).eq('id', id);
     setRdvs(prev => prev.map(r => r.id === id ? { ...r, status: 'cancelled', responded_at: now, responded_by: 'vendor' } : r));
   }
 

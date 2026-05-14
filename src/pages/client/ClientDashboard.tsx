@@ -37,8 +37,8 @@ export default function ClientDashboard({ onLogout, impersonatedClient, onBackTo
   const [clientAuthId, setClientAuthId] = useState('');
   const { unreadCount: unreadMsgCount, latestAt: unreadLatestAt, markAsRead: markMsgRead } = useUnreadAdminMessages(clientAuthId);
   const { notifications: agendaNotifs, count: agendaCount, markAsSeen: markAgendaSeen } = useAgendaNotifications('client', clientEmail || null);
-  const [unseenProposals, setUnseenProposals] = useState<{ id: string; lead_name: string; created_at: string }[]>([]);
-  const unseenProposalsRef = useRef<{ id: string; lead_name: string; created_at: string }[]>([]);
+  const [unseenProposals, setUnseenProposals] = useState<{ id: string; lead_name: string; created_at: string; created_by_role: string }[]>([]);
+  const unseenProposalsRef = useRef<{ id: string; lead_name: string; created_at: string; created_by_role: string }[]>([]);
 
   useEffect(() => {
     if (impersonatedClient) {
@@ -85,13 +85,22 @@ export default function ClientDashboard({ onLogout, impersonatedClient, onBackTo
         return;
       }
       const leadIds = leads.map(l => l.id);
-      const { data: proposals } = await supabase
+      const { data: pendingProps } = await supabase
         .from('rdv_proposals')
-        .select('id, vendor_id, lead_id, lead_name, created_at')
+        .select('id, vendor_id, lead_id, lead_name, created_at, status, created_by_role')
         .in('lead_id', leadIds)
         .eq('seen_by_client', false)
-        .eq('status', 'pending');
-      if (!proposals) {
+        .eq('status', 'pending')
+        .neq('created_by_role', 'client');
+      const { data: respondedProps } = await supabase
+        .from('rdv_proposals')
+        .select('id, vendor_id, lead_id, lead_name, created_at, status, created_by_role')
+        .in('lead_id', leadIds)
+        .eq('seen_by_client', false)
+        .in('status', ['confirmed', 'cancelled'])
+        .eq('created_by_role', 'client');
+      const proposals = [...(pendingProps ?? []), ...(respondedProps ?? [])];
+      if (proposals.length === 0) {
         setUnseenProposals([]);
         unseenProposalsRef.current = [];
         return;
@@ -103,7 +112,7 @@ export default function ClientDashboard({ onLogout, impersonatedClient, onBackTo
         if (!leadVendorId) return !p.vendor_id;
         return p.vendor_id === leadVendorId;
       });
-      const entries = valid.map(p => ({ id: p.id, lead_name: p.lead_name || '', created_at: p.created_at }));
+      const entries = valid.map(p => ({ id: p.id, lead_name: p.lead_name || '', created_at: p.created_at, created_by_role: p.created_by_role || '' }));
       setUnseenProposals(entries);
       unseenProposalsRef.current = entries;
     };

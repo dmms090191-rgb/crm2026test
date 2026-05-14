@@ -12,7 +12,7 @@ import { useAdminRdvData } from './propositions-rdv/useAdminRdvData';
 import DualScrollWrapper from '../../../components/DualScrollWrapper';
 
 interface RdvLeadRef { id: string; nom: string; prenom: string; email: string; tel?: string; }
-interface PropositionsRdvProps { initialLead?: RdvLeadRef | null; onInitialLeadConsumed?: () => void; onNavigateToCrm?: () => void; }
+interface PropositionsRdvProps { initialLead?: RdvLeadRef | null; onInitialLeadConsumed?: () => void; onNavigateToCrm?: (leadId?: string) => void; }
 
 export default function PropositionsRdv({ initialLead, onInitialLeadConsumed, onNavigateToCrm }: PropositionsRdvProps) {
   const tokens = useThemeTokens();
@@ -137,8 +137,9 @@ export default function PropositionsRdv({ initialLead, onInitialLeadConsumed, on
                         vendorName={vendorName(rdv.vendor_id)}
                         onToggleSelect={() => toggleSelect(rdv.id)}
                         onAccept={() => handleAccept(rdv.id)}
-                        onRefuse={() => handleRefuse(rdv.id)}
+                        onCancel={() => handleRefuse(rdv.id)}
                         onEdit={() => setEditRdv(rdv)}
+                        onGoToLead={rdv.lead_id ? () => onNavigateToCrm?.(rdv.lead_id!) : undefined}
                       />
                     ))}
                   </tbody>
@@ -155,20 +156,22 @@ export default function PropositionsRdv({ initialLead, onInitialLeadConsumed, on
               <span className="text-[11px] font-medium" style={{ color: tokens.text.quaternary }}>Tout ({filtered.length})</span>
             </div>
 
-            <div className="md:hidden divide-y" style={{ borderColor: tokens.table.rowBorder }}>
-              {filtered.map(rdv => (
-                <AdminRdvMobileCard
-                  key={rdv.id}
-                  rdv={rdv}
-                  timezone={timezone}
-                  selected={selected.has(rdv.id)}
-                  vendorName={vendorName(rdv.vendor_id)}
-                  onToggleSelect={() => toggleSelect(rdv.id)}
-                  onAccept={() => handleAccept(rdv.id)}
-                  onRefuse={() => handleRefuse(rdv.id)}
-                  onEdit={() => setEditRdv(rdv)}
-                  onDetail={() => setDetailRdv(rdv)}
-                />
+            <div className="md:hidden">
+              {filtered.map((rdv, idx) => (
+                <div key={rdv.id} style={{ borderTop: idx > 0 ? `1px solid ${tokens.table.rowBorder}` : 'none' }}>
+                  <AdminRdvMobileCard
+                    rdv={rdv}
+                    timezone={timezone}
+                    selected={selected.has(rdv.id)}
+                    vendorName={vendorName(rdv.vendor_id)}
+                    onToggleSelect={() => toggleSelect(rdv.id)}
+                    onAccept={() => handleAccept(rdv.id)}
+                    onCancel={() => handleRefuse(rdv.id)}
+                    onEdit={() => setEditRdv(rdv)}
+                    onDetail={() => setDetailRdv(rdv)}
+                    onGoToLead={rdv.lead_id ? () => onNavigateToCrm?.(rdv.lead_id!) : undefined}
+                  />
+                </div>
               ))}
             </div>
           </>
@@ -185,7 +188,7 @@ export default function PropositionsRdv({ initialLead, onInitialLeadConsumed, on
       </div>
 
       {editRdv && (
-        <RdvEditModal rdv={editRdv} onClose={() => setEditRdv(null)} onSaved={load} />
+        <RdvEditModal rdv={editRdv} onClose={() => setEditRdv(null)} onSaved={load} callerRole="admin" />
       )}
 
       {confirmDelete && (
@@ -205,8 +208,9 @@ export default function PropositionsRdv({ initialLead, onInitialLeadConsumed, on
           vendorName={vendorName(detailRdv.vendor_id)}
           onClose={() => setDetailRdv(null)}
           onAccept={() => { handleAccept(detailRdv.id); setDetailRdv(null); }}
-          onRefuse={() => { handleRefuse(detailRdv.id); setDetailRdv(null); }}
+          onCancel={() => { handleRefuse(detailRdv.id); setDetailRdv(null); }}
           onEdit={() => { setEditRdv(detailRdv); setDetailRdv(null); }}
+          onGoToLead={detailRdv.lead_id ? () => { setDetailRdv(null); onNavigateToCrm?.(detailRdv.lead_id!); } : undefined}
         />
       )}
     </div>

@@ -1,4 +1,4 @@
-import { Pencil, CheckCircle, XCircle, X } from 'lucide-react';
+import { Pencil, XCircle, CheckCircle, ArrowUpRight, X } from 'lucide-react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 import { RdvProposal, statusConfig, formatDate } from '../../../vendor/views/rdvPropositionsConstants';
 import { getRdvLocalTime, getRdvLocalDate } from '../../../../lib/timezoneUtils';
@@ -9,11 +9,12 @@ interface Props {
   vendorName: string | null;
   onClose: () => void;
   onAccept: () => void;
-  onRefuse: () => void;
+  onCancel: () => void;
   onEdit: () => void;
+  onGoToLead?: () => void;
 }
 
-export default function AdminRdvDetailModal({ rdv, timezone, vendorName: vName, onClose, onAccept, onRefuse, onEdit }: Props) {
+export default function AdminRdvDetailModal({ rdv, timezone, vendorName: vName, onClose, onAccept, onCancel, onEdit, onGoToLead }: Props) {
   const tokens = useThemeTokens();
   const cfg = statusConfig[rdv.status] ?? statusConfig.pending;
 
@@ -92,20 +93,25 @@ export default function AdminRdvDetailModal({ rdv, timezone, vendorName: vName, 
             </div>
           )}
         </div>
-        <div className="px-5 py-3 flex items-center gap-2" style={{ borderTop: `1px solid ${tokens.card.border}` }}>
+        <div className="px-5 py-3 flex items-center gap-2 flex-wrap" style={{ borderTop: `1px solid ${tokens.card.border}` }}>
+          {rdv.status === 'pending' && rdv.created_by_role === 'client' && !!rdv.parent_proposal_id && (
+            <button onClick={onAccept} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.2)', color: '#34d399' }}>
+              <CheckCircle className="w-3 h-3" />Accepter
+            </button>
+          )}
           {rdv.status === 'pending' && (
-            <>
-              <button onClick={onAccept} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.2)', color: '#34d399' }}>
-                <CheckCircle className="w-3 h-3" />Accepter
-              </button>
-              <button onClick={onRefuse} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.2)', color: '#f87171' }}>
-                <XCircle className="w-3 h-3" />Refuser
-              </button>
-            </>
+            <button onClick={onCancel} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.2)', color: '#f87171' }}>
+              <XCircle className="w-3 h-3" />{rdv.created_by_role === 'client' && rdv.parent_proposal_id ? 'Refuser' : 'Annuler'}
+            </button>
           )}
           <button onClick={onEdit} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: 'rgba(96,165,250,0.08)', border: '1px solid rgba(96,165,250,0.15)', color: '#60a5fa' }}>
             <Pencil className="w-3 h-3" />Modifier
           </button>
+          {onGoToLead && (
+            <button onClick={onGoToLead} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: 'rgba(34,211,238,0.08)', border: '1px solid rgba(34,211,238,0.2)', color: '#22d3ee' }}>
+              <ArrowUpRight className="w-3 h-3" />CRM
+            </button>
+          )}
         </div>
       </div>
     </div>

@@ -33,6 +33,7 @@ export interface ConfirmedProposalEntry {
   id: string;
   lead_name: string;
   created_at: string;
+  created_by_role?: string;
 }
 
 interface TopBarProps {
