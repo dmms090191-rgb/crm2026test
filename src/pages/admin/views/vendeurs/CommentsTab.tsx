@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Trash2, MessageSquarePlus } from 'lucide-react';
 import { supabase } from '../../../../lib/supabase';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
+import { useCompanyId } from '../../../../hooks/useCompanyId';
 import type { VendorComment } from './vendeurTypes';
 
 function formatDate(iso: string) {
@@ -12,6 +13,7 @@ function formatDate(iso: string) {
 
 export default function CommentsTab({ vendorId }: { vendorId: string }) {
   const tokens = useThemeTokens();
+  const companyId = useCompanyId();
   const [comments, setComments] = useState<VendorComment[]>([]);
   const [newComment, setNewComment] = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -33,7 +35,7 @@ export default function CommentsTab({ vendorId }: { vendorId: string }) {
   async function addComment() {
     if (!newComment.trim()) return;
     setLoading(true);
-    await supabase.from('vendor_comments').insert({ vendor_id: vendorId, content: newComment.trim() });
+    await supabase.from('vendor_comments').insert({ vendor_id: vendorId, content: newComment.trim(), ...(companyId ? { company_id: companyId } : {}) });
     setNewComment('');
     await fetchComments();
     setLoading(false);

@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 
 export type Theme = 'dark' | 'light' | 'graphite' | 'beige' | 'rose' | 'emerald' | 'luxury' | 'pink' | 'red' | 'orange' | 'yellow';
 
-type PanelRole = 'admin' | 'vendor' | 'client';
+type PanelRole = 'admin' | 'vendor' | 'client' | 'super_admin';
 
 interface ThemeContextValue {
   theme: Theme;
@@ -126,7 +126,7 @@ export function ThemeProvider({ children, panelRole, effectiveUserId }: ThemePro
     const key = buildLocalKey(panelRole, resolvedId, isLeadFallback);
     localStorage.setItem(key, t);
 
-    if (isOwnAccount && sessionUserId) {
+    if (isOwnAccount && sessionUserId && panelRole !== 'super_admin') {
       if (!savingRef.current) {
         savingRef.current = true;
         supabase

@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '../../../../lib/supabase';
+import { useCompanyId } from '../../../../hooks/useCompanyId';
 
 export interface OrphanScanResult {
   orphanIds: string[];
@@ -21,6 +22,7 @@ export interface LiveCheckResult {
 type CleanupStatus = 'idle' | 'scanning' | 'scanned' | 'deleting' | 'done' | 'error';
 
 export function useOrphanCleanup() {
+  const companyId = useCompanyId();
   const [status, setStatus] = useState<CleanupStatus>('idle');
   const [scanResult, setScanResult] = useState<OrphanScanResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -30,6 +32,7 @@ export function useOrphanCleanup() {
   const [liveCheckLoading, setLiveCheckLoading] = useState(false);
 
   const scan = useCallback(async () => {
+    if (!companyId) return;
     setStatus('scanning');
     setError(null);
     setScanResult(null);
@@ -40,10 +43,12 @@ export function useOrphanCleanup() {
         supabase
           .from('client_messages')
           .select('id, client_auth_id')
+          .eq('company_id', companyId)
           .or('deleted.is.null,deleted.eq.false'),
         supabase
           .from('client_messages')
           .select('id')
+          .eq('company_id', companyId)
           .eq('deleted', true),
       ]);
 
@@ -70,6 +75,7 @@ export function useOrphanCleanup() {
         const { data: leadsData } = await supabase
           .from('leads')
           .select('id, data')
+          .eq('company_id', companyId)
           .eq('actif', true);
 
         const leadAuthIds = new Set(
@@ -96,15 +102,17 @@ export function useOrphanCleanup() {
       setError(e instanceof Error ? e.message : 'Erreur lors de l\'analyse.');
       setStatus('error');
     }
-  }, []);
+  }, [companyId]);
 
   const verifyDeletion = useCallback(async (): Promise<number> => {
+    if (!companyId) return 0;
     const { count } = await supabase
       .from('client_messages')
       .select('*', { count: 'exact', head: true })
+      .eq('company_id', companyId)
       .or('deleted.is.null,deleted.eq.false');
     return count ?? 0;
-  }, []);
+  }, [companyId]);
 
   const deleteOrphans = useCallback(async () => {
     if (!scanResult || scanResult.orphanIds.length === 0) return;
@@ -169,16 +177,17 @@ export function useOrphanCleanup() {
   }, [scanResult, verifyDeletion]);
 
   const performLiveCheck = useCallback(async () => {
+    if (!companyId) return;
     setLiveCheckLoading(true);
     try {
       const [r1, r2, r3, r4, r5, r6, r7] = await Promise.all([
-        supabase.from('client_messages').select('*', { count: 'exact', head: true }).or('deleted.is.null,deleted.eq.false'),
-        supabase.from('client_messages').select('*', { count: 'exact', head: true }).eq('deleted', true),
-        supabase.from('vendor_admin_messages').select('*', { count: 'exact', head: true }).or('deleted.is.null,deleted.eq.false'),
+        supabase.from('client_messages').select('*', { count: 'exact', head: true }).eq('company_id', companyId).or('deleted.is.null,deleted.eq.false'),
+        supabase.from('client_messages').select('*', { count: 'exact', head: true }).eq('company_id', companyId).eq('deleted', true),
+        supabase.from('vendor_admin_messages').select('*', { count: 'exact', head: true }).eq('company_id', companyId).or('deleted.is.null,deleted.eq.false'),
         supabase.from('messages').select('*', { count: 'exact', head: true }),
-        supabase.from('conversations').select('*', { count: 'exact', head: true }),
-        supabase.from('leads').select('*', { count: 'exact', head: true }),
-        supabase.from('vendors').select('*', { count: 'exact', head: true }),
+        supabase.from('conversations').select('*', { count: 'exact', head: true }).eq('company_id', companyId),
+        supabase.from('leads').select('*', { count: 'exact', head: true }).eq('company_id', companyId),
+        supabase.from('vendors').select('*', { count: 'exact', head: true }).eq('company_id', companyId),
       ]);
       setLiveCheck({
         clientMessagesActive: r1.count ?? 0,
@@ -193,7 +202,7 @@ export function useOrphanCleanup() {
       setLiveCheck(null);
     }
     setLiveCheckLoading(false);
-  }, []);
+  }, [companyId]);
 
   const reset = useCallback(() => {
     setStatus('idle');

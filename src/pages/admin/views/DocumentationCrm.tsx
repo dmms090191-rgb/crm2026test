@@ -8,6 +8,7 @@ import { Amelioration, AmeliorationCategory } from './ameliorations/Amelioration
 import { ContextCard } from './documentation/ContextCardsView';
 import ImportExportPanel from './documentation/ImportExportPanel';
 import { useThemeTokens } from '../../../hooks/useThemeTokens';
+import { useCompanyId } from '../../../hooks/useCompanyId';
 import { TabId, Tab, SaveStatus, ActiveSection, TABS_DEFAULT, PLACEHOLDER, CONTEXTE_CHATGPT_INITIAL, SidebarItem, SidebarSeparator, SEPARATOR_ID, isSeparator } from './documentation/docCrmTypes';
 import DocSidebarSections from './documentation/DocSidebarSections';
 import DocContentPanel from './documentation/DocContentPanel';
@@ -16,9 +17,10 @@ interface DocumentationCrmProps { initialTab?: string; onInitialTabConsumed?: ()
 
 export default function DocumentationCrm({ initialTab, onInitialTabConsumed }: DocumentationCrmProps) {
   const tokens = useThemeTokens();
+  const companyId = useCompanyId();
   const [activeSection, setActiveSection] = useState<ActiveSection>(() => {
     if (initialTab && TABS_DEFAULT.some((t) => t.id === initialTab)) return { kind: 'doc', tabId: initialTab as TabId };
-    return { kind: 'doc', tabId: 'contexte-chatgpt' };
+    return { kind: 'doc', tabId: 'ameliorations' };
   });
   const activeTab: TabId | null = activeSection.kind === 'doc' ? activeSection.tabId : null;
   const [contents, setContents] = useState<Record<TabId, string>>(() => Object.fromEntries(TABS_DEFAULT.map((t) => [t.id, ''])) as Record<TabId, string>);
@@ -38,15 +40,25 @@ export default function DocumentationCrm({ initialTab, onInitialTabConsumed }: D
 
   const loadAllData = useCallback(async () => {
     setLoading(true);
+    const docQuery = supabase.from('crm_documentation').select('tab_id, content');
+    if (companyId) docQuery.eq('company_id', companyId);
+    const notesQuery = supabase.from('crm_notes').select('*');
+    if (companyId) notesQuery.eq('company_id', companyId);
+    notesQuery.order('note_date', { ascending: false }).order('time_start', { ascending: false });
+    const orderQuery = supabase.from('sidebar_order').select('group_id, item_key, position').eq('group_id', 'docs');
+    if (companyId) orderQuery.eq('company_id', companyId);
+    orderQuery.order('position', { ascending: true });
+    const labelQuery = supabase.from('doc_tab_labels').select('tab_id, label');
+    if (companyId) labelQuery.eq('company_id', companyId);
     const [{ data: docData }, { data: notesData }, { data: orderData }, { data: ideasData }, { data: ameliorationsData }, { data: ameliorationCatsData }, { data: contextCardsData }, { data: labelData }] = await Promise.all([
-      supabase.from('crm_documentation').select('tab_id, content'),
-      supabase.from('crm_notes').select('*').order('note_date', { ascending: false }).order('time_start', { ascending: false }),
-      supabase.from('sidebar_order').select('group_id, item_key, position').eq('group_id', 'docs').order('position', { ascending: true }),
+      docQuery,
+      notesQuery,
+      orderQuery,
       supabase.from('crm_ideas').select('*').order('position', { ascending: true }).order('created_at', { ascending: true }),
       supabase.from('crm_ameliorations').select('*').order('position', { ascending: true }),
       supabase.from('crm_amelioration_categories').select('*').order('position', { ascending: true }),
       supabase.from('crm_context_cards').select('*').order('position', { ascending: true }).order('created_at', { ascending: true }),
-      supabase.from('doc_tab_labels').select('tab_id, label'),
+      labelQuery,
     ]);
     const customLabels: Record<string, string> = {};
     if (labelData) for (const row of labelData) { if (row.label) customLabels[row.tab_id] = row.label; }
@@ -83,7 +95,7 @@ export default function DocumentationCrm({ initialTab, onInitialTabConsumed }: D
     if (ameliorationCatsData) setAmeliorationCategories(ameliorationCatsData as AmeliorationCategory[]);
     if (contextCardsData) setContextCards(contextCardsData as ContextCard[]);
     setLoading(false);
-  }, []);
+  }, [companyId]);
 
   useEffect(() => { loadAllData(); }, [loadAllData]);
   useEffect(() => { if (initialTab && TABS_DEFAULT.some((t) => t.id === initialTab)) { setActiveSection({ kind: 'doc', tabId: initialTab as TabId }); onInitialTabConsumed?.(); } }, [initialTab, onInitialTabConsumed]);
@@ -92,7 +104,7 @@ export default function DocumentationCrm({ initialTab, onInitialTabConsumed }: D
     setContents((prev) => ({ ...prev, [tabId]: value })); setSaveStatus((prev) => ({ ...prev, [tabId]: 'saving' }));
     if (saveTimers.current[tabId]) clearTimeout(saveTimers.current[tabId]);
     saveTimers.current[tabId] = setTimeout(async () => {
-      const { error } = await supabase.from('crm_documentation').upsert({ tab_id: tabId, content: value }, { onConflict: 'tab_id' });
+      const { error } = await supabase.from('crm_documentation').upsert({ tab_id: tabId, content: value, ...(companyId ? { company_id: companyId } : {}) }, { onConflict: 'tab_id' });
       setSaveStatus((prev) => ({ ...prev, [tabId]: error ? 'error' : 'saved' }));
       if (!error) setTimeout(() => { setSaveStatus((prev) => prev[tabId] === 'saved' ? { ...prev, [tabId]: 'idle' } : prev); }, 2000);
     }, 900);
@@ -103,14 +115,14 @@ export default function DocumentationCrm({ initialTab, onInitialTabConsumed }: D
   const sortNotes = (a: Note, b: Note) => { if (b.note_date !== a.note_date) return b.note_date.localeCompare(a.note_date); return (b.time_start || '').localeCompare(a.time_start || ''); };
   const handleSaveNote = useCallback(async (data: NoteFormData) => {
     if (editingNote) { const { data: updated, error } = await supabase.from('crm_notes').update({ ...data, updated_at: new Date().toISOString() }).eq('id', editingNote.id).select().single(); if (!error && updated) setNotes((prev) => prev.map((n) => n.id === editingNote.id ? (updated as Note) : n).sort(sortNotes)); }
-    else { const { data: inserted, error } = await supabase.from('crm_notes').insert(data).select().single(); if (!error && inserted) setNotes((prev) => [inserted as Note, ...prev].sort(sortNotes)); }
+    else { const { data: inserted, error } = await supabase.from('crm_notes').insert({ ...data, ...(companyId ? { company_id: companyId } : {}) }).select().single(); if (!error && inserted) setNotes((prev) => [inserted as Note, ...prev].sort(sortNotes)); }
     setNoteModalOpen(false); setEditingNote(null);
   }, [editingNote]);
   const handleDeleteNote = useCallback(async (id: string) => { await supabase.from('crm_notes').delete().eq('id', id); setNotes((prev) => prev.filter((n) => n.id !== id)); }, []);
 
   const handleReorder = useCallback(async (reordered: SidebarItem[]) => {
     setSidebarItems(reordered);
-    const rows = reordered.map((item, i) => ({ group_id: 'docs', item_key: item.id, position: i }));
+    const rows = reordered.map((item, i) => ({ group_id: 'docs', item_key: item.id, position: i, ...(companyId ? { company_id: companyId } : {}) }));
     await supabase.from('sidebar_order').delete().eq('group_id', 'docs');
     await supabase.from('sidebar_order').insert(rows);
   }, []);
@@ -165,14 +177,22 @@ export default function DocumentationCrm({ initialTab, onInitialTabConsumed }: D
             <ChevronLeft className="w-4 h-4" />
             Fermer
           </button>
-          <DocSidebarSections
-            items={sidebarItems}
-            activeSection={activeSection}
-            saveStatus={saveStatus}
-            setActiveSection={(section) => { setActiveSection(section); setMobileDocOpen(false); }}
-            onReorder={handleReorder}
-            tokens={tokens}
-          />
+          {loading ? (
+            <div className="flex flex-col gap-2 px-3">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="h-8 rounded-lg animate-pulse" style={{ background: tokens.surface.secondary, opacity: 0.5 }} />
+              ))}
+            </div>
+          ) : (
+            <DocSidebarSections
+              items={sidebarItems}
+              activeSection={activeSection}
+              saveStatus={saveStatus}
+              setActiveSection={(section) => { setActiveSection(section); setMobileDocOpen(false); }}
+              onReorder={handleReorder}
+              tokens={tokens}
+            />
+          )}
         </div>
 
         <div className="flex flex-col flex-1 min-h-0 overflow-y-auto p-3 pt-14 md:p-5 md:pt-5">

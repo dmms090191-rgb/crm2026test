@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
+import { useCompanyId } from './useCompanyId';
 
 interface UnreadEntry {
   clientAuthId: string;
@@ -12,15 +13,18 @@ interface UnreadEntry {
 }
 
 export function useUnreadClientMessages() {
+  const companyId = useCompanyId();
   const [unreadCount, setUnreadCount] = useState(0);
   const [unreadEntries, setUnreadEntries] = useState<UnreadEntry[]>([]);
   const justMarked = useRef(false);
 
   const load = useCallback(async () => {
     if (justMarked.current) { justMarked.current = false; return; }
+    if (!companyId) return;
     const { data: msgs } = await supabase
       .from('client_messages')
       .select('client_auth_id, created_at')
+      .eq('company_id', companyId)
       .eq('sender', 'client')
       .eq('read', false)
       .eq('deleted', false)
@@ -48,6 +52,7 @@ export function useUnreadClientMessages() {
     const { data: leads } = await supabase
       .from('leads')
       .select('id, data, vendor_id, prenom, nom, email')
+      .eq('company_id', companyId)
       .eq('actif', true)
       .is('vendor_id', null);
 
@@ -71,7 +76,7 @@ export function useUnreadClientMessages() {
     entries.sort((a, b) => b.latestAt.localeCompare(a.latestAt));
     setUnreadEntries(entries);
     setUnreadCount(entries.reduce((acc, e) => acc + e.count, 0));
-  }, []);
+  }, [companyId]);
 
   useEffect(() => {
     load();

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { ChevronRight, Menu } from 'lucide-react';
+import { ChevronRight, Menu, ArrowLeft } from 'lucide-react';
 import { useTimezone } from '../../hooks/useTimezone';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
 import { getCurrentTime } from '../../lib/timezone';
@@ -9,6 +9,7 @@ import AdminMobileBellMenu from './components/topbar/AdminMobileBellMenu';
 import AdminDesktopNotifPill from './components/topbar/AdminDesktopNotifPill';
 import type { AgendaNotifEntry } from '../../hooks/useAgendaNotifications';
 import type { AgendaEquipeNotifEntry } from '../../hooks/useAgendaEquipeNotifications';
+import type { ImpersonatedAdminInfo } from './AdminDashboard';
 
 export interface ClientNotifEntry {
   clientAuthId: string;
@@ -47,6 +48,8 @@ interface TopBarProps {
   unreadVendorCount?: number;
   unreadVendorEntries?: VendorNotifEntry[];
   onVendorEntryClick?: (entry: VendorNotifEntry) => void;
+  unreadSuperAdminCount?: number;
+  onSuperAdminClick?: () => void;
   agendaPersoCount?: number;
   agendaPersoEntries?: AgendaNotifEntry[];
   onAgendaPersoEntryClick?: (rdvId: string, type?: 'starting' | 'untreated') => void;
@@ -59,13 +62,16 @@ interface TopBarProps {
   confirmedCount?: number;
   confirmedEntries?: ConfirmedProposalEntry[];
   onConfirmedEntryClick?: (proposalId: string) => void;
+  impersonatedAdmin?: ImpersonatedAdminInfo | null;
+  onBackToSuperAdmin?: () => void;
 }
 
-export default function TopBar({ breadcrumb, onMobileMenuToggle, adminName = 'Administrateur', unreadClientCount = 0, unreadClientEntries = [], onClientEntryClick, unreadVendorCount = 0, unreadVendorEntries = [], onVendorEntryClick, agendaPersoCount = 0, agendaPersoEntries = [], onAgendaPersoEntryClick, agendaEquipeCount = 0, agendaEquipeEntries = [], onAgendaEquipeEntryClick, proposalsCount = 0, proposalsEntries = [], onProposalEntryClick, confirmedCount = 0, confirmedEntries = [], onConfirmedEntryClick }: TopBarProps) {
+export default function TopBar({ breadcrumb, onMobileMenuToggle, adminName = 'Administrateur', unreadClientCount = 0, unreadClientEntries = [], onClientEntryClick, unreadVendorCount = 0, unreadVendorEntries = [], onVendorEntryClick, unreadSuperAdminCount = 0, onSuperAdminClick, agendaPersoCount = 0, agendaPersoEntries = [], onAgendaPersoEntryClick, agendaEquipeCount = 0, agendaEquipeEntries = [], onAgendaEquipeEntryClick, proposalsCount = 0, proposalsEntries = [], onProposalEntryClick, confirmedCount = 0, confirmedEntries = [], onConfirmedEntryClick, impersonatedAdmin, onBackToSuperAdmin }: TopBarProps) {
   const { timezone, tzLabel, tzCode, setTimezone } = useTimezone();
   const t = useThemeTokens();
   const [clientDropdownOpen, setClientDropdownOpen] = useState(false);
   const [vendorDropdownOpen, setVendorDropdownOpen] = useState(false);
+  const [superAdminDropdownOpen, setSuperAdminDropdownOpen] = useState(false);
   const [agendaDropdownOpen, setAgendaDropdownOpen] = useState(false);
   const [equipeDropdownOpen, setEquipeDropdownOpen] = useState(false);
   const [proposDropdownOpen, setProposDropdownOpen] = useState(false);
@@ -75,6 +81,7 @@ export default function TopBar({ breadcrumb, onMobileMenuToggle, adminName = 'Ad
   const [tzModalOpen, setTzModalOpen] = useState(false);
   const clientDropdownRef = useRef<HTMLDivElement>(null);
   const vendorDropdownRef = useRef<HTMLDivElement>(null);
+  const superAdminDropdownRef = useRef<HTMLDivElement>(null);
   const agendaDropdownRef = useRef<HTMLDivElement>(null);
   const equipeDropdownRef = useRef<HTMLDivElement>(null);
   const proposDropdownRef = useRef<HTMLDivElement>(null);
@@ -85,13 +92,14 @@ export default function TopBar({ breadcrumb, onMobileMenuToggle, adminName = 'Ad
   useEffect(() => { const id = setInterval(() => setTick(v => v + 1), 60_000); return () => clearInterval(id); }, []);
   const clock = getCurrentTime(timezone);
 
-  const totalNotifCount = unreadClientCount + unreadVendorCount + agendaPersoCount + agendaEquipeCount + proposalsCount + confirmedCount;
+  const totalNotifCount = unreadClientCount + unreadVendorCount + unreadSuperAdminCount + agendaPersoCount + agendaEquipeCount + proposalsCount + confirmedCount;
 
   useEffect(() => {
     const outside = (e: MouseEvent) => {
       const tgt = e.target as Node;
       if (clientDropdownRef.current && !clientDropdownRef.current.contains(tgt)) setClientDropdownOpen(false);
       if (vendorDropdownRef.current && !vendorDropdownRef.current.contains(tgt)) setVendorDropdownOpen(false);
+      if (superAdminDropdownRef.current && !superAdminDropdownRef.current.contains(tgt)) setSuperAdminDropdownOpen(false);
       if (agendaDropdownRef.current && !agendaDropdownRef.current.contains(tgt)) setAgendaDropdownOpen(false);
       if (equipeDropdownRef.current && !equipeDropdownRef.current.contains(tgt)) setEquipeDropdownOpen(false);
       if (proposDropdownRef.current && !proposDropdownRef.current.contains(tgt)) setProposDropdownOpen(false);
@@ -102,8 +110,31 @@ export default function TopBar({ breadcrumb, onMobileMenuToggle, adminName = 'Ad
     return () => document.removeEventListener('mousedown', outside);
   }, []);
 
+  const impersonatingAdmin = !!(impersonatedAdmin && onBackToSuperAdmin);
+  const impersonatedAdminName = impersonatedAdmin
+    ? [impersonatedAdmin.first_name, impersonatedAdmin.last_name].filter(Boolean).join(' ') || impersonatedAdmin.email
+    : '';
+
   return (
     <>
+    {impersonatingAdmin && (
+      <div
+        className="flex items-center justify-between px-4 sm:px-6 py-2 flex-shrink-0"
+        style={{ background: 'rgba(245,158,11,0.08)', borderBottom: '1px solid rgba(245,158,11,0.18)' }}
+      >
+        <span className="text-xs font-medium" style={{ color: '#f59e0b' }}>
+          Mode Super Admin — vous visualisez le panel de <span className="font-bold">{impersonatedAdminName}</span>
+        </span>
+        <button
+          onClick={onBackToSuperAdmin}
+          className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition-all hover:scale-105"
+          style={{ background: 'rgba(245,158,11,0.12)', color: '#f59e0b' }}
+        >
+          <ArrowLeft className="w-3 h-3" />
+          Retour Super Admin
+        </button>
+      </div>
+    )}
     <header
       className="relative z-30 flex items-center justify-between px-3 sm:px-4 md:px-6 h-14 md:h-16 flex-shrink-0"
       style={{
@@ -140,6 +171,8 @@ export default function TopBar({ breadcrumb, onMobileMenuToggle, adminName = 'Ad
           unreadVendorCount={unreadVendorCount}
           unreadVendorEntries={unreadVendorEntries}
           onVendorEntryClick={onVendorEntryClick}
+          unreadSuperAdminCount={unreadSuperAdminCount}
+          onSuperAdminClick={onSuperAdminClick}
           agendaPersoCount={agendaPersoCount}
           agendaPersoEntries={agendaPersoEntries}
           onAgendaPersoEntryClick={onAgendaPersoEntryClick}
@@ -195,6 +228,11 @@ export default function TopBar({ breadcrumb, onMobileMenuToggle, adminName = 'Ad
           confirmedCount={confirmedCount}
           confirmedEntries={confirmedEntries}
           onConfirmedEntryClick={onConfirmedEntryClick}
+          unreadSuperAdminCount={unreadSuperAdminCount}
+          superAdminDropdownOpen={superAdminDropdownOpen}
+          setSuperAdminDropdownOpen={setSuperAdminDropdownOpen}
+          superAdminDropdownRef={superAdminDropdownRef}
+          onSuperAdminClick={onSuperAdminClick}
           tokens={t}
         />
 

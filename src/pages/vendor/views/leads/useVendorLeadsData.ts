@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '../../../../lib/supabase';
 import { useWorkMode } from '../../../../hooks/useWorkMode';
+import { useCompanyId } from '../../../../hooks/useCompanyId';
 import type { ImportedLead, StatutDef } from '../vendorLeadsTypes';
 
 export function useVendorLeadsData(vendorId: string | null) {
+  const companyId = useCompanyId();
   const [leads, setLeads] = useState<ImportedLead[]>([]);
   const [statutDefs, setStatutDefs] = useState<StatutDef[]>([]);
   const [loading, setLoading] = useState(true);
@@ -29,6 +31,12 @@ export function useVendorLeadsData(vendorId: string | null) {
 
     if (!hasFetched.current) setLoading(true);
 
+    const statutsQuery = supabase
+      .from('statuts')
+      .select('id, nom, couleur');
+    if (companyId) statutsQuery.eq('company_id', companyId);
+    statutsQuery.order('created_at', { ascending: true });
+
     const [leadsRes, statutsRes] = await Promise.all([
       supabase
         .from('leads')
@@ -36,10 +44,7 @@ export function useVendorLeadsData(vendorId: string | null) {
         .eq('vendor_id', vendorId)
         .order('imported_at', { ascending: false })
         .order('id', { ascending: true }),
-      supabase
-        .from('statuts')
-        .select('id, nom, couleur')
-        .order('created_at', { ascending: true }),
+      statutsQuery,
     ]);
 
     if (thisLoad !== loadId.current) return;
@@ -53,7 +58,7 @@ export function useVendorLeadsData(vendorId: string | null) {
     setStatutDefs((statutsRes.data ?? []) as StatutDef[]);
     hasFetched.current = true;
     setLoading(false);
-  }, [vendorId]);
+  }, [vendorId, companyId]);
 
   useEffect(() => {
     if (!vendorId) return;

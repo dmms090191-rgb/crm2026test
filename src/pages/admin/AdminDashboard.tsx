@@ -14,6 +14,7 @@ const AjouterVendeur = lazy(() => import('./views/AjouterVendeur'));
 const ListeVendeurs = lazy(() => import('./views/ListeVendeurs'));
 const ChatClient = lazy(() => import('./views/ChatClient'));
 const ChatVendeur = lazy(() => import('./views/ChatVendeur'));
+const ChatSuperAdmin = lazy(() => import('./views/ChatSuperAdmin'));
 const Agenda = lazy(() => import('./views/Agenda'));
 const PropositionsRdv = lazy(() => import('./views/PropositionsRdv'));
 const Statuts = lazy(() => import('./views/Statuts'));
@@ -24,19 +25,32 @@ const DocumentationCrm = lazy(importDocumentationCrm);
 const SauvegardeRestauration = lazy(() => import('./views/SauvegardeRestauration'));
 const SystemPage = lazy(() => import('./views/SystemPage'));
 import { supabase } from '../../lib/supabase';
-import { saveConnectReturnContext, consumeConnectReturnContext, saveChatReturnContext, consumeChatReturnContext } from '../../lib/connectReturnContext';
+import { saveConnectReturnContext, consumeConnectReturnContext, saveChatReturnContext } from '../../lib/connectReturnContext';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
 import { useUnreadClientMessages } from '../../hooks/useUnreadClientMessages';
 import { useUnreadVendorMessages } from '../../hooks/useUnreadVendorMessages';
+import { useUnreadFromSuperAdmin } from '../../hooks/useUnreadFromSuperAdmin';
 import { useAgendaNotifications } from '../../hooks/useAgendaNotifications';
 import { useAgendaEquipeNotifications } from '../../hooks/useAgendaEquipeNotifications';
 import { BREADCRUMB_LABELS } from './adminDashboardConstants';
-import type { VendorNotifEntry } from './TopBar';
+import { useAdminProposalNotifs } from './dashboard/useAdminProposalNotifs';
+import { useAdminNavHandlers } from './dashboard/useAdminNavHandlers';
+
+export interface ImpersonatedAdminInfo {
+  id: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  pin?: string;
+  company_id?: string;
+}
 
 interface AdminDashboardProps {
   onLogout: () => void;
   onConnectAsVendor?: (vendor: Vendor) => void;
   onConnectAsClient?: (client: ImpersonatedClient) => void;
+  impersonatedAdmin?: ImpersonatedAdminInfo | null;
+  onBackToSuperAdmin?: () => void;
 }
 
 export type ActiveView =
@@ -48,6 +62,7 @@ export type ActiveView =
   | 'crm'
   | 'ajouter-vendeur'
   | 'liste-vendeurs'
+  | 'chat-super-admin'
   | 'chat-client'
   | 'chat-vendeur'
   | 'agenda'
@@ -58,15 +73,15 @@ export type ActiveView =
   | 'system'
   | 'sauvegarde';
 
-export default function AdminDashboard({ onLogout, onConnectAsVendor, onConnectAsClient }: AdminDashboardProps) {
+export default function AdminDashboard({ onLogout, onConnectAsVendor, onConnectAsClient, impersonatedAdmin, onBackToSuperAdmin }: AdminDashboardProps) {
   const t = useThemeTokens();
   const { unreadCount: unreadClientCount, unreadEntries, markAsRead: markClientRead } = useUnreadClientMessages();
   const { unreadCount: unreadVendorCount, unreadEntries: unreadVendorEntries, markAsRead: markVendorRead } = useUnreadVendorMessages();
   const [adminAuthId, setAdminAuthId] = useState<string | null>(null);
+  const effectiveAdminId = impersonatedAdmin?.id ?? adminAuthId;
   const { notifications: agendaNotifs, count: agendaPersoCount, markAsSeen: markAgendaSeen } = useAgendaNotifications('admin', adminAuthId);
   const { notifications: agendaEquipeNotifs, count: agendaEquipeCount, markAsSeen: markAgendaEquipeSeen } = useAgendaEquipeNotifications(adminAuthId);
-  const [proposalUnseen, setProposalUnseen] = useState<{ id: string; lead_name: string; created_at: string; created_by_role?: string; parent_proposal_id?: string | null }[]>([]);
-  const [confirmedUnseen, setConfirmedUnseen] = useState<{ id: string; lead_name: string; created_at: string; created_by_role?: string; parent_proposal_id?: string | null }[]>([]);
+  const { unreadCount: unreadSuperAdminCount, markAsRead: markSuperAdminRead } = useUnreadFromSuperAdmin(effectiveAdminId);
   const [activeView, setActiveView] = useState<ActiveView>('vue-ensemble');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -78,6 +93,20 @@ export default function AdminDashboard({ onLogout, onConnectAsVendor, onConnectA
   const [chatVendorMessageSent, setChatVendorMessageSent] = useState(false);
   const [docInitialTab, setDocInitialTab] = useState<string | undefined>(undefined);
   const pendingScrollRef = useRef<{ leadId?: string; vendorId?: string; scrollY: number } | null>(null);
+
+  const { proposalUnseen, confirmedUnseen, handleProposalEntryClick, handleConfirmedEntryClick } =
+    useAdminProposalNotifs(setActiveView);
+
+  const {
+    handleClientEntryClick, handleVendorEntryClick, handleVendorViewed,
+    handleAgendaPersoClick, handleAgendaEquipeClick, handleNavigate, handleReturnToCrm,
+  } = useAdminNavHandlers({
+    activeView, chatClientMessageSent, chatVendorMessageSent,
+    setChatLead, setChatVendor, setChatClientMessageSent, setChatVendorMessageSent,
+    setActiveView, setDocInitialTab,
+    markClientRead, markVendorRead, markAgendaSeen, markAgendaEquipeSeen,
+    pendingScrollRef,
+  });
 
   useEffect(() => {
     const ctx = consumeConnectReturnContext('admin');
@@ -104,8 +133,8 @@ export default function AdminDashboard({ onLogout, onConnectAsVendor, onConnectA
         el.classList.add('scroll-highlight'); setTimeout(() => el.classList.remove('scroll-highlight'), 2000);
       });
     };
-    const t = setTimeout(poll, 200);
-    return () => clearTimeout(t);
+    const tm = setTimeout(poll, 200);
+    return () => clearTimeout(tm);
   }, [activeView]);
 
   useEffect(() => {
@@ -120,102 +149,16 @@ export default function AdminDashboard({ onLogout, onConnectAsVendor, onConnectA
       }
     });
   }, []);
-  useEffect(() => {
-    const fetchUnseen = async () => {
-      const { data: proposals } = await supabase
-        .from('rdv_proposals')
-        .select('id, lead_name, created_at, created_by_role, parent_proposal_id')
-        .eq('seen_by_admin', false)
-        .eq('status', 'pending')
-        .eq('created_by_role', 'client')
-        .order('created_at', { ascending: false });
-      const { data: confirmed } = await supabase
-        .from('rdv_proposals')
-        .select('id, lead_name, created_at, created_by_role, parent_proposal_id')
-        .eq('status', 'confirmed')
-        .eq('seen_by_admin', false)
-        .is('vendor_id', null)
-        .order('created_at', { ascending: false });
-      setProposalUnseen(proposals ?? []);
-      setConfirmedUnseen(confirmed ?? []);
-    };
-    fetchUnseen();
-    const ch = supabase
-      .channel('admin-confirmed-unseen')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'rdv_proposals' }, fetchUnseen)
-      .subscribe();
-    return () => { supabase.removeChannel(ch); };
-  }, []);
 
   useEffect(() => {
     const id = requestIdleCallback(() => { importDocumentationCrm(); });
     return () => cancelIdleCallback(id);
   }, []);
+
   const handleNameChange = useCallback((firstName: string, lastName: string) => {
     setAdminName([firstName, lastName].filter(Boolean).join(' ') || 'Administrateur');
   }, []);
-  const handleClientEntryClick = useCallback((entry: { leadId: string; nom: string; prenom: string; email: string; clientAuthId: string }) => {
-    setChatLead({ id: entry.leadId, nom: entry.nom, prenom: entry.prenom, email: entry.email });
-    setChatClientMessageSent(false);
-    setActiveView('chat-client');
-    markClientRead(entry.clientAuthId);
-  }, [markClientRead]);
 
-  const handleVendorEntryClick = useCallback((entry: VendorNotifEntry) => {
-    const v: Vendor = { id: entry.vendorId, first_name: entry.firstName, last_name: entry.lastName, email: entry.email, auth_user_id: null, password: '', phone: '', created_at: '' };
-    setChatVendor(v);
-    setChatVendorMessageSent(false);
-    setActiveView('chat-vendeur');
-    markVendorRead(entry.vendorId);
-  }, [markVendorRead]);
-  const handleVendorViewed = useCallback((vendorId: string) => {
-    markVendorRead(vendorId);
-  }, [markVendorRead]);
-  const handleAgendaPersoClick = useCallback((rdvId: string, type?: 'starting' | 'untreated') => {
-    markAgendaSeen(rdvId, type);
-    setActiveView('agenda');
-  }, [markAgendaSeen]);
-
-  const handleAgendaEquipeClick = useCallback((rdvId: string, type?: 'starting' | 'untreated') => {
-    markAgendaEquipeSeen(rdvId, type);
-    setActiveView('agenda-equipe');
-  }, [markAgendaEquipeSeen]);
-
-  const handleProposalEntryClick = useCallback((proposalId: string) => {
-    supabase
-      .from('rdv_proposals')
-      .update({ seen_by_admin: true })
-      .eq('id', proposalId)
-      .then(() => {
-        setProposalUnseen(prev => prev.filter(p => p.id !== proposalId));
-      });
-    setActiveView('propositions-rdv');
-  }, []);
-
-  const handleConfirmedEntryClick = useCallback((proposalId: string) => {
-    supabase
-      .from('rdv_proposals')
-      .update({ seen_by_admin: true })
-      .eq('id', proposalId)
-      .then(() => {
-        setConfirmedUnseen(prev => prev.filter(p => p.id !== proposalId));
-      });
-    setActiveView('propositions-rdv');
-  }, []);
-
-  const handleNavigate = useCallback((view: ActiveView, options?: { docTab?: string }) => {
-    if (activeView === 'chat-client' && !chatClientMessageSent) setChatLead(null);
-    if (activeView === 'chat-vendeur' && !chatVendorMessageSent) setChatVendor(null);
-    if (view === 'chat-client') sessionStorage.removeItem('crm_chat_return_context');
-    setDocInitialTab(view === 'documentation-crm' && options?.docTab ? options.docTab : undefined);
-    setActiveView(view);
-  }, [activeView, chatClientMessageSent, chatVendorMessageSent]);
-
-  const handleReturnToCrm = useCallback(() => {
-    const ctx = consumeChatReturnContext();
-    setChatLead(null); setActiveView('crm');
-    if (ctx) pendingScrollRef.current = { leadId: ctx.leadId, scrollY: 0 };
-  }, []);
   const lazyFallback = <div className="flex items-center justify-center py-12"><div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" /></div>;
 
   const renderView = () => {
@@ -229,6 +172,7 @@ export default function AdminDashboard({ onLogout, onConnectAsVendor, onConnectA
       case 'liste-vendeurs': return <Suspense fallback={lazyFallback}><ListeVendeurs onConnectAsVendor={(vendor) => { saveConnectReturnContext({ fromRole: 'admin', fromTab: 'liste-vendeurs', vendorId: vendor.id, scrollY: window.scrollY }); onConnectAsVendor?.(vendor); }} onOpenChat={(vendor) => { setChatVendor(vendor); setChatVendorMessageSent(false); setActiveView('chat-vendeur'); }} /></Suspense>;
       case 'chat-client': return null;
       case 'chat-vendeur': return null;
+      case 'chat-super-admin': return null;
       case 'agenda': return <Suspense fallback={lazyFallback}><Agenda /></Suspense>;
       case 'agenda-equipe': return <AgendaEquipe />;
       case 'propositions-rdv': return <Suspense fallback={lazyFallback}><PropositionsRdv initialLead={rdvLead} onInitialLeadConsumed={() => setRdvLead(null)} onNavigateToCrm={(leadId?: string) => { if (leadId) pendingScrollRef.current = { leadId, scrollY: 0 }; handleNavigate('crm'); }} /></Suspense>;
@@ -274,6 +218,8 @@ export default function AdminDashboard({ onLogout, onConnectAsVendor, onConnectA
           unreadVendorCount={unreadVendorCount}
           unreadVendorEntries={unreadVendorEntries}
           onVendorEntryClick={handleVendorEntryClick}
+          unreadSuperAdminCount={unreadSuperAdminCount}
+          onSuperAdminClick={() => { markSuperAdminRead(); setActiveView('chat-super-admin'); }}
           agendaPersoCount={agendaPersoCount}
           agendaPersoEntries={agendaNotifs}
           onAgendaPersoEntryClick={handleAgendaPersoClick}
@@ -286,17 +232,19 @@ export default function AdminDashboard({ onLogout, onConnectAsVendor, onConnectA
           confirmedCount={confirmedUnseen.length}
           confirmedEntries={confirmedUnseen}
           onConfirmedEntryClick={handleConfirmedEntryClick}
+          impersonatedAdmin={impersonatedAdmin}
+          onBackToSuperAdmin={onBackToSuperAdmin}
         />
         <SimulationBanner />
         <main
-          className={`flex-1 flex flex-col md:p-6 mobile-main-scroll ${(activeView === 'chat-client' || activeView === 'chat-vendeur') ? 'p-2 sm:p-3' : 'p-3 sm:p-4'}`}
+          className={`flex-1 flex flex-col md:p-6 mobile-main-scroll ${(activeView === 'chat-client' || activeView === 'chat-vendeur' || activeView === 'chat-super-admin') ? 'p-2 sm:p-3' : 'p-3 sm:p-4'}`}
           style={{
             minHeight: 0,
-            overflow: (activeView === 'chat-client' || activeView === 'chat-vendeur') ? 'hidden' : 'auto',
+            overflow: (activeView === 'chat-client' || activeView === 'chat-vendeur' || activeView === 'chat-super-admin') ? 'hidden' : 'auto',
           }}
         >
           <div style={{ display: activeView === 'info-admin' ? 'block' : 'none' }}>
-            <InfoAdmin onNameChange={handleNameChange} />
+            <InfoAdmin onNameChange={handleNameChange} impersonatedAdmin={impersonatedAdmin} />
           </div>
           {activeView === 'chat-client' && (
             <Suspense fallback={lazyFallback}>
@@ -312,7 +260,14 @@ export default function AdminDashboard({ onLogout, onConnectAsVendor, onConnectA
               </div>
             </Suspense>
           )}
-          {activeView !== 'info-admin' && activeView !== 'chat-client' && activeView !== 'chat-vendeur' && renderView()}
+          {activeView === 'chat-super-admin' && (
+            <Suspense fallback={lazyFallback}>
+              <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+                <ChatSuperAdmin adminIdOverride={effectiveAdminId} onSuperAdminViewed={markSuperAdminRead} />
+              </div>
+            </Suspense>
+          )}
+          {activeView !== 'info-admin' && activeView !== 'chat-client' && activeView !== 'chat-vendeur' && activeView !== 'chat-super-admin' && renderView()}
         </main>
       </div>
     </div>

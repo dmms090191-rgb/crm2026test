@@ -39,9 +39,9 @@ Deno.serve(async (req: Request) => {
     }
 
     const callerRole = caller.app_metadata?.role;
-    if (callerRole !== "admin" && callerRole !== "vendor") {
+    if (callerRole !== "admin" && callerRole !== "vendor" && callerRole !== "super_admin") {
       return new Response(
-        JSON.stringify({ error: "Forbidden: admin or vendor role required" }),
+        JSON.stringify({ error: "Forbidden: admin, vendor, or super_admin role required" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -141,6 +141,7 @@ Deno.serve(async (req: Request) => {
 
     const { error } = await supabaseAdmin.auth.admin.updateUserById(userId, {
       password,
+      user_metadata: { pin: password },
     });
 
     if (error) {

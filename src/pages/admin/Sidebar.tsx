@@ -9,13 +9,11 @@ import {
   List,
   MessageCircle,
   MessageSquare,
+  Shield,
   Calendar,
   CalendarRange,
   CalendarCheck,
   Settings,
-  BookOpen,
-  Monitor,
-  HardDriveDownload,
   LogOut,
   ChevronLeft,
   Hexagon,
@@ -71,6 +69,7 @@ const sections: NavSection[] = [
     items: [
       { id: 'chat-client', label: 'Chat Client', icon: <MessageCircle className="w-4 h-4" /> },
       { id: 'chat-vendeur', label: 'Chat Vendeur', icon: <MessageSquare className="w-4 h-4" /> },
+      { id: 'chat-super-admin', label: 'Super Admin', icon: <Shield className="w-4 h-4" /> },
     ],
   },
   {
@@ -85,14 +84,6 @@ const sections: NavSection[] = [
     title: 'Configuration',
     items: [
       { id: 'statuts', label: 'Statuts', icon: <Settings className="w-4 h-4" /> },
-    ],
-  },
-  {
-    title: 'Ressources',
-    items: [
-      { id: 'documentation-crm', label: 'Documentation CRM', icon: <BookOpen className="w-4 h-4" /> },
-      { id: 'system', label: 'System', icon: <Monitor className="w-4 h-4" /> },
-      { id: 'sauvegarde', label: 'Sauvegarde & restauration', icon: <HardDriveDownload className="w-4 h-4" /> },
     ],
   },
 ];

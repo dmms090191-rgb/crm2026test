@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { MessageSquareText, CalendarDays, CalendarClock, CalendarCheck, ChevronRight, Bell } from 'lucide-react';
+import { MessageSquareText, CalendarDays, CalendarClock, CalendarCheck, ChevronRight, Bell, Shield } from 'lucide-react';
 import { ClientNotifItem, VendorNotifItem, AgendaNotifItem, AgendaEquipeNotifItem, ProposalNotifItem, ConfirmedProposalItem, DropdownEmpty } from './index';
 import type { ClientNotifEntry, VendorNotifEntry, ConfirmedProposalEntry } from '../../TopBar';
 import type { AgendaNotifEntry } from '../../../../hooks/useAgendaNotifications';
@@ -32,6 +32,8 @@ interface Props {
   confirmedCount: number;
   confirmedEntries: ConfirmedProposalEntry[];
   onConfirmedEntryClick?: (proposalId: string) => void;
+  unreadSuperAdminCount?: number;
+  onSuperAdminClick?: () => void;
   timezone: string;
   tokens: ThemeTokens;
   containerRef: React.RefObject<HTMLDivElement>;
@@ -46,6 +48,7 @@ export default function AdminMobileBellMenu({
   agendaEquipeCount, agendaEquipeEntries, onAgendaEquipeEntryClick,
   proposalsCount, proposalsEntries, onProposalEntryClick,
   confirmedCount, confirmedEntries, onConfirmedEntryClick,
+  unreadSuperAdminCount = 0, onSuperAdminClick,
   timezone, tokens: t, containerRef, panelRef: externalPanelRef,
 }: Props) {
   const internalPanelRef = useRef<HTMLDivElement>(null);
@@ -93,6 +96,7 @@ export default function AdminMobileBellMenu({
               {([
                 { key: 'client', icon: <MessageSquareText className="w-4 h-4" />, label: 'Client', count: unreadClientCount },
                 { key: 'vendeur', icon: <MessageSquareText className="w-4 h-4" />, label: 'Vendeur', count: unreadVendorCount },
+                { key: 'super-admin', icon: <Shield className="w-4 h-4" />, label: 'Super Admin', count: unreadSuperAdminCount },
                 { key: 'agenda', icon: <CalendarDays className="w-4 h-4" />, label: 'Agenda perso', count: agendaPersoCount },
                 { key: 'equipe', icon: <CalendarDays className="w-4 h-4" />, label: 'Agenda equipe', count: agendaEquipeCount },
                 { key: 'propositions', icon: <CalendarClock className="w-4 h-4" />, label: 'Propositions RDV', count: proposalsCount },
@@ -130,6 +134,7 @@ export default function AdminMobileBellMenu({
                 <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: t.topbar.notifIcon }}>
                   {category === 'client' && 'Messages clients'}
                   {category === 'vendeur' && 'Messages vendeurs'}
+                  {category === 'super-admin' && 'Notifications Super Admin'}
                   {category === 'agenda' && 'Agenda perso'}
                   {category === 'equipe' && 'Agenda equipe'}
                   {category === 'propositions' && 'Propositions RDV'}
@@ -153,6 +158,23 @@ export default function AdminMobileBellMenu({
                     unreadVendorEntries.map(entry => (
                       <VendorNotifItem key={entry.vendorId} entry={entry} tokens={t.dropdown} onClick={() => { onVendorEntryClick?.(entry); setOpen(false); setCategory(null); }} />
                     ))
+                  )
+                )}
+                {category === 'super-admin' && (
+                  unreadSuperAdminCount === 0 ? (
+                    <DropdownEmpty text="Aucun nouveau message du Super Admin." tokens={t} />
+                  ) : (
+                    <button
+                      className="flex items-center gap-3 w-full px-3 py-3 text-left transition-colors"
+                      style={{ color: t.dropdown.itemText }}
+                      onClick={() => { onSuperAdminClick?.(); setOpen(false); setCategory(null); }}
+                    >
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0" style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}>S</div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium" style={{ color: t.dropdown.itemText }}>Vous avez reçu un message du Super Admin.</p>
+                        <p className="text-[10px] mt-0.5" style={{ color: t.dropdown.itemTextHover }}>{unreadSuperAdminCount} message{unreadSuperAdminCount > 1 ? 's' : ''} non lu{unreadSuperAdminCount > 1 ? 's' : ''}</p>
+                      </div>
+                    </button>
                   )
                 )}
                 {category === 'agenda' && (

@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useWorkMode } from '../../../../hooks/useWorkMode';
 import { useSimulation } from '../../../../contexts/SimulationContext';
+import { useCompanyId } from '../../../../hooks/useCompanyId';
 import { supabase } from '../../../../lib/supabase';
 import type { ImportedLead, Vendor, StatutDef } from './types';
 
 export function useCrmData() {
   const { isSimulating } = useSimulation();
+  const companyId = useCompanyId();
   const [leads, setLeads] = useState<ImportedLead[]>([]);
   const [statutDefs, setStatutDefs] = useState<StatutDef[]>([]);
   const [loading, setLoading] = useState(true);
@@ -63,14 +65,16 @@ export function useCrmData() {
   };
 
   const loadStatuts = useCallback(async () => {
-    const { data } = await supabase.from('statuts').select('id, nom, couleur').order('created_at', { ascending: true });
+    if (!companyId) return;
+    const { data } = await supabase.from('statuts').select('id, nom, couleur').eq('company_id', companyId).order('created_at', { ascending: true });
     setStatutDefs((data ?? []) as StatutDef[]);
-  }, []);
+  }, [companyId]);
 
   const loadVendors = useCallback(async () => {
-    const { data } = await supabase.from('vendors').select('id, first_name, last_name, email').order('last_name', { ascending: true });
+    if (!companyId) return;
+    const { data } = await supabase.from('vendors').select('id, first_name, last_name, email').eq('company_id', companyId).order('last_name', { ascending: true });
     setVendors((data ?? []) as Vendor[]);
-  }, []);
+  }, [companyId]);
 
   const handleTransfer = async (vendorId: string | null) => {
     if (isSimulating) return;
@@ -82,14 +86,16 @@ export function useCrmData() {
   };
 
   const load = useCallback(async () => {
+    if (!companyId) return;
     const { data } = await supabase
       .from('leads')
       .select('id, data, imported_at, statut, actif, vendor_id')
+      .eq('company_id', companyId)
       .order('imported_at', { ascending: false })
       .order('id', { ascending: true });
     setLeads((data ?? []) as ImportedLead[]);
     setLoading(false);
-  }, []);
+  }, [companyId]);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => { if (data.user) setAuthUserId(data.user.id); });
@@ -110,7 +116,8 @@ export function useCrmData() {
     const leadsChannel = supabase
       .channel('leads-crm')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'leads' }, (payload) => {
-        const inserted = payload.new as ImportedLead;
+        const inserted = payload.new as ImportedLead & { company_id?: string };
+        if (companyId && inserted.company_id !== companyId) return;
         setLeads(prev => prev.some(l => l.id === inserted.id) ? prev : [inserted, ...prev]);
       })
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'leads' }, (payload) => {

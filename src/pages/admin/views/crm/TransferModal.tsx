@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Search, X, ArrowRightLeft, UserCheck, ShieldCheck } from 'lucide-react';
 import { supabase } from '../../../../lib/supabase';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
+import { useCompanyId } from '../../../../hooks/useCompanyId';
 import type { Vendor } from './types';
 
 interface TransferModalProps {
@@ -12,6 +13,7 @@ interface TransferModalProps {
 
 export default function TransferModal({ count, onClose, onConfirm }: TransferModalProps) {
   const tokens = useThemeTokens();
+  const companyId = useCompanyId();
 
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [search, setSearch] = useState('');
@@ -21,11 +23,12 @@ export default function TransferModal({ count, onClose, onConfirm }: TransferMod
   const overlayRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    supabase.from('vendors').select('id, first_name, last_name, email').order('last_name', { ascending: true }).then(({ data }) => {
+    if (!companyId) return;
+    supabase.from('vendors').select('id, first_name, last_name, email').eq('company_id', companyId).order('last_name', { ascending: true }).then(({ data }) => {
       setVendors((data ?? []) as Vendor[]);
       setLoading(false);
     });
-  }, []);
+  }, [companyId]);
 
   const q = search.toLowerCase();
   const filtered = vendors.filter(v => {

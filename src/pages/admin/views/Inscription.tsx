@@ -1,27 +1,31 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Clock, CheckCircle, XCircle, Users, UserPlus, Eye, EyeOff } from 'lucide-react';
+import { Clock, CheckCircle, XCircle, Users, UserPlus } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { useThemeTokens } from '../../../hooks/useThemeTokens';
+import { useCompanyId } from '../../../hooks/useCompanyId';
 import type { Registration } from './inscription/inscriptionTypes';
-import { formatDate, formatTime } from './inscription/inscriptionTypes';
 import HistoryModal from './inscription/HistoryModal';
 import PendingMobileCards from './inscription/PendingMobileCards';
+import PendingDesktopTable from './inscription/PendingDesktopTable';
 
 export default function Inscription() {
   const tokens = useThemeTokens();
+  const companyId = useCompanyId();
   const [registrations, setRegistrations] = useState<Registration[]>([]);
   const [loading, setLoading] = useState(true);
   const [historyModal, setHistoryModal] = useState<'accepted' | 'refused' | null>(null);
   const [revealedIds, setRevealedIds] = useState<Set<string>>(new Set());
 
   const fetch = useCallback(async () => {
+    if (!companyId) return;
     const { data } = await supabase
       .from('registrations')
       .select('*')
+      .eq('company_id', companyId)
       .order('registered_at', { ascending: false });
     setRegistrations((data ?? []) as Registration[]);
     setLoading(false);
-  }, []);
+  }, [companyId]);
 
   useEffect(() => { fetch(); }, [fetch]);
 
@@ -64,6 +68,7 @@ export default function Inscription() {
             },
             import_id: null,
             source: 'inscription',
+            ...(companyId ? { company_id: companyId } : {}),
           });
           if (insertErr) console.log('Lead insert error:', insertErr);
         }
@@ -199,68 +204,13 @@ export default function Inscription() {
             </div>
           ) : (
             <>
-              {/* Desktop table */}
-              <div className="hidden md:block overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead style={{ background: tokens.table.headerBg }}>
-                    <tr style={{ borderBottom: tokens.table.rowBorder }}>
-                      {['Prenom', 'Nom', 'Adresse email', 'Mot de passe', 'Telephone', 'Date', 'Heure', 'Actions'].map(h => (
-                        <th key={h} className="text-left px-4 py-3 text-[10px] font-bold tracking-[0.12em] uppercase whitespace-nowrap" style={{ color: tokens.table.headerText }}>
-                          {h}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {pending.map(r => (
-                      <tr key={r.id} style={{ borderBottom: tokens.table.rowBorder }} className="group transition-colors" onMouseEnter={(e) => e.currentTarget.style.background = tokens.table.rowHover} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
-                        <td className="px-4 py-3 font-medium" style={{ color: tokens.text.secondary }}>{r.first_name}</td>
-                        <td className="px-4 py-3" style={{ color: tokens.text.secondary }}>{r.last_name}</td>
-                        <td className="px-4 py-3 text-xs" style={{ color: tokens.text.tertiary }}>{r.email}</td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-xs font-mono tracking-widest" style={{ color: tokens.text.tertiary }}>
-                              {revealedIds.has(r.id) ? r.password : '••••••'}
-                            </span>
-                            <button
-                              onClick={() => toggleReveal(r.id)}
-                              className="transition-colors"
-                              style={{ color: tokens.text.quaternary }}
-                            >
-                              {revealedIds.has(r.id) ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
-                            </button>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-xs" style={{ color: tokens.text.tertiary }}>{r.phone || '—'}</td>
-                        <td className="px-4 py-3 text-xs whitespace-nowrap" style={{ color: tokens.text.tertiary }}>{formatDate(r.registered_at)}</td>
-                        <td className="px-4 py-3 text-xs whitespace-nowrap" style={{ color: tokens.text.tertiary }}>{formatTime(r.registered_at)}</td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-1.5">
-                            <button
-                              onClick={() => updateStatus(r.id, 'accepted')}
-                              className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all hover:brightness-110"
-                              style={{ background: tokens.success.bg, color: tokens.success.text, border: tokens.success.border }}
-                            >
-                              <CheckCircle className="w-3 h-3" />
-                              Valider
-                            </button>
-                            <button
-                              onClick={() => updateStatus(r.id, 'refused')}
-                              className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all hover:brightness-110"
-                              style={{ background: tokens.danger.bg, color: tokens.danger.text, border: tokens.danger.border }}
-                            >
-                              <XCircle className="w-3 h-3" />
-                              Refuser
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Mobile cards */}
+              <PendingDesktopTable
+                pending={pending}
+                tokens={tokens}
+                revealedIds={revealedIds}
+                onToggleReveal={toggleReveal}
+                onUpdateStatus={updateStatus}
+              />
               <PendingMobileCards
                 pending={pending}
                 tokens={tokens}

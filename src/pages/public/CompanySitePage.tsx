@@ -1,0 +1,163 @@
+import { useState, useEffect } from 'react';
+import { LogIn, Loader2, AlertCircle } from 'lucide-react';
+import LoginModal from '../../components/LoginModal';
+import { getHomePageBySlug, type CompanyHomePage } from '../../lib/companyHomePages';
+
+interface Props {
+  slug: string;
+}
+
+export default function CompanySitePage({ slug }: Props) {
+  const [page, setPage] = useState<CompanyHomePage | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
+  const [loginOpen, setLoginOpen] = useState(false);
+
+  useEffect(() => {
+    getHomePageBySlug(slug)
+      .then(data => {
+        if (data) setPage(data);
+        else setNotFound(true);
+      })
+      .catch(() => setNotFound(true))
+      .finally(() => setLoading(false));
+  }, [slug]);
+
+  const handleLogin = () => {
+    window.location.href = '/';
+  };
+
+  if (loading) return <LoadingScreen />;
+  if (notFound || !page) return <NotFoundScreen />;
+
+  const mainColor = page.main_color || '#0ea5e9';
+  const secondaryColor = page.secondary_color || '#10b981';
+
+  return (
+    <div className="min-h-screen flex flex-col" style={{ background: `linear-gradient(160deg, #0f172a 0%, #1e293b 50%, ${mainColor}08 100%)` }}>
+      {/* Header */}
+      <header className="w-full px-4 sm:px-6 py-4 sm:py-5 border-b border-white/5">
+        <div className="max-w-5xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-3 min-w-0">
+            {page.logo_url && (
+              <img
+                src={page.logo_url}
+                alt=""
+                className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl object-cover flex-shrink-0"
+                style={{ border: `1px solid ${mainColor}40`, boxShadow: `0 2px 16px ${mainColor}20` }}
+              />
+            )}
+            <span className="text-lg sm:text-xl font-bold text-white truncate">
+              {page.title || 'Bienvenue'}
+            </span>
+          </div>
+          <button
+            onClick={() => setLoginOpen(true)}
+            className="flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl text-sm sm:text-base font-semibold text-white transition-all duration-200 hover:scale-105 hover:shadow-lg flex-shrink-0"
+            style={{ background: `linear-gradient(135deg, ${mainColor}, ${secondaryColor})`, boxShadow: `0 4px 20px ${mainColor}30` }}
+          >
+            <LogIn className="w-4 h-4" />
+            Connexion
+          </button>
+        </div>
+      </header>
+
+      {/* Hero section */}
+      <main className="flex-1 flex items-center justify-center px-4 sm:px-6 py-12 sm:py-20">
+        <div className="max-w-4xl w-full">
+          {/* Hero image */}
+          {page.hero_image_url && (
+            <div className="relative mb-8 sm:mb-12 rounded-2xl overflow-hidden aspect-[21/9] max-h-[320px]">
+              <img
+                src={page.hero_image_url}
+                alt=""
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute inset-0" style={{ background: `linear-gradient(to top, #0f172aee 0%, transparent 60%)` }} />
+            </div>
+          )}
+
+          <div className="text-center space-y-5 sm:space-y-6">
+            {/* Logo centered (when no hero) */}
+            {page.logo_url && !page.hero_image_url && (
+              <div className="flex justify-center mb-4">
+                <img
+                  src={page.logo_url}
+                  alt=""
+                  className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover"
+                  style={{ border: `2px solid ${mainColor}30`, boxShadow: `0 4px 32px ${mainColor}20` }}
+                />
+              </div>
+            )}
+
+            {/* Title */}
+            <h1 className="text-3xl sm:text-5xl md:text-6xl font-bold text-white leading-tight">
+              {page.title || 'Bienvenue'}
+            </h1>
+
+            {/* Subtitle */}
+            {page.subtitle && (
+              <p className="text-lg sm:text-xl md:text-2xl font-medium" style={{ color: mainColor }}>
+                {page.subtitle}
+              </p>
+            )}
+
+            {/* Welcome message */}
+            {page.welcome_message && (
+              <p className="max-w-2xl mx-auto text-base sm:text-lg text-slate-400 leading-relaxed">
+                {page.welcome_message}
+              </p>
+            )}
+
+            {/* CTA */}
+            <div className="pt-6 sm:pt-8">
+              <button
+                onClick={() => setLoginOpen(true)}
+                className="group inline-flex items-center gap-2.5 px-8 sm:px-10 py-3.5 sm:py-4 rounded-xl text-base sm:text-lg font-semibold text-white transition-all duration-200 hover:scale-105 hover:shadow-xl"
+                style={{ background: `linear-gradient(135deg, ${mainColor}, ${secondaryColor})`, boxShadow: `0 4px 24px ${mainColor}35` }}
+              >
+                <LogIn className="w-5 h-5 group-hover:translate-x-0.5 transition-transform" />
+                Connexion
+              </button>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      {/* Footer */}
+      <footer className="py-4 sm:py-6 text-center text-xs sm:text-sm text-slate-500 px-4">
+        &copy; {new Date().getFullYear()} {page.title || 'Bienvenue'}. Tous droits r&eacute;serv&eacute;s.
+      </footer>
+
+      {/* Login modal */}
+      <LoginModal isOpen={loginOpen} onClose={() => setLoginOpen(false)} onLogin={handleLogin} />
+    </div>
+  );
+}
+
+function LoadingScreen() {
+  return (
+    <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+      <Loader2 className="w-8 h-8 text-sky-400 animate-spin" />
+    </div>
+  );
+}
+
+function NotFoundScreen() {
+  return (
+    <div className="min-h-screen bg-slate-900 flex items-center justify-center px-4">
+      <div className="text-center space-y-4">
+        <div className="w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto">
+          <AlertCircle className="w-8 h-8 text-red-400" />
+        </div>
+        <h1 className="text-2xl font-bold text-white">Page introuvable</h1>
+        <p className="text-slate-400 text-sm max-w-sm">
+          Ce site n'existe pas ou n'est pas encore actif.
+        </p>
+        <a href="/" className="inline-block mt-4 px-5 py-2.5 rounded-lg bg-slate-800 border border-slate-700 text-sm font-medium text-white hover:bg-slate-700 transition-colors">
+          Retour à l'accueil
+        </a>
+      </div>
+    </div>
+  );
+}

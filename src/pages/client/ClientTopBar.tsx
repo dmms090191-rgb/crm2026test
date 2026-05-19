@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { MessageCircle, CalendarCheck, CalendarClock, ChevronRight, ChevronDown, Sun, Moon, Monitor, Palette, Heart, Leaf, Crown, Cherry, Flame, Droplets, Zap, Menu } from 'lucide-react';
-import { useTheme, type Theme } from '../../contexts/ThemeContext';
+import { MessageCircle, CalendarCheck, CalendarClock, ChevronRight, ChevronDown, Menu } from 'lucide-react';
+import { useTheme } from '../../contexts/ThemeContext';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
 import { useTimezone } from '../../hooks/useTimezone';
 import { getCurrentTime } from '../../lib/timezone';
@@ -18,6 +18,7 @@ import {
   PropositionNotifItem,
 } from './components/topbar';
 import ClientMobileBellMenu from './components/topbar/ClientMobileBellMenu';
+import { themeOptions } from './components/topbar/clientTopBarConstants';
 
 export interface PropositionNotifEntry {
   id: string;
@@ -42,19 +43,6 @@ interface ClientTopBarProps {
   onPropositionEntryClick?: (proposalId: string) => void;
 }
 
-const themeOptions: { value: Theme; label: string; icon: React.ReactNode }[] = [
-  { value: 'dark', label: 'Sombre', icon: <Moon className="w-3.5 h-3.5" /> },
-  { value: 'light', label: 'Clair', icon: <Sun className="w-3.5 h-3.5" /> },
-  { value: 'graphite', label: 'Graphite', icon: <Monitor className="w-3.5 h-3.5" /> },
-  { value: 'beige', label: 'Beige Premium', icon: <Palette className="w-3.5 h-3.5" /> },
-  { value: 'rose', label: 'Violet Royal Premium', icon: <Heart className="w-3.5 h-3.5" /> },
-  { value: 'emerald', label: 'Vert Émeraude Premium', icon: <Leaf className="w-3.5 h-3.5" /> },
-  { value: 'luxury', label: 'Blanc Luxe', icon: <Crown className="w-3.5 h-3.5" /> },
-  { value: 'pink', label: 'Rose Premium', icon: <Cherry className="w-3.5 h-3.5" /> },
-  { value: 'red', label: 'Rouge Premium', icon: <Droplets className="w-3.5 h-3.5" /> },
-  { value: 'orange', label: 'Orange Premium', icon: <Flame className="w-3.5 h-3.5" /> },
-  { value: 'yellow', label: 'Jaune Premium', icon: <Zap className="w-3.5 h-3.5" /> },
-];
 
 export default function ClientTopBar({ breadcrumb, onMobileMenuToggle, clientName = 'Client', unreadMessageCount = 0, unreadLatestAt, onMessageNotifClick, agendaCount = 0, agendaEntries = [], onAgendaEntryClick, propositionsCount = 0, propositionsEntries = [], onPropositionEntryClick }: ClientTopBarProps) {
   const { theme, setTheme } = useTheme();

@@ -47,20 +47,27 @@ export default function ClientDashboard({ onLogout, impersonatedClient, onBackTo
       setClientAuthId(impersonatedClient.id);
       return;
     }
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) return;
-      setClientAuthId(user.id);
-      setClientEmail(user.email ?? '');
+      const email = user.email ?? '';
+      setClientEmail(email);
       if (user.user_metadata) {
         const { first_name, last_name } = user.user_metadata;
         if (first_name || last_name) {
           setClientName([first_name, last_name].filter(Boolean).join(' '));
-        } else if (user.email) {
-          setClientName(user.email.split('@')[0]);
+        } else if (email) {
+          setClientName(email.split('@')[0]);
         }
-      } else if (user.email) {
-        setClientName(user.email.split('@')[0]);
+      } else if (email) {
+        setClientName(email.split('@')[0]);
       }
+      if (email) {
+        const { data: byCol } = await supabase.from('leads').select('id').eq('email', email).eq('actif', true).limit(1).maybeSingle();
+        if (byCol) { setClientAuthId(byCol.id); return; }
+        const { data: byJson } = await supabase.from('leads').select('id').is('email', null).eq('data->>Email', email).eq('actif', true).limit(1).maybeSingle();
+        if (byJson) { setClientAuthId(byJson.id); return; }
+      }
+      setClientAuthId(user.id);
     });
   }, [impersonatedClient]);
 

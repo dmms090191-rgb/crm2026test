@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { CheckCircle, Circle, Plus, Trash2, Loader2 } from 'lucide-react';
 import { supabase } from '../../../../lib/supabase';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
+import { useCompanyId } from '../../../../hooks/useCompanyId';
 import { ChecklistItem, SECTIONS, SECTION_COLORS } from './pageChecklistConstants';
 
 interface Props {
@@ -10,6 +11,7 @@ interface Props {
 
 export default function PageChecklistView({ pageKey }: Props) {
   const tokens = useThemeTokens();
+  const companyId = useCompanyId();
 
   const [items, setItems] = useState<ChecklistItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -17,15 +19,17 @@ export default function PageChecklistView({ pageKey }: Props) {
   const [addingSection, setAddingSection] = useState<string | null>(null);
 
   const fetchItems = useCallback(async () => {
+    if (!companyId) return;
     setLoading(true);
     const { data } = await supabase
       .from('crm_page_checklist_items')
       .select('*')
       .eq('page_key', pageKey)
+      .eq('company_id', companyId)
       .order('position', { ascending: true });
     if (data) setItems(data as ChecklistItem[]);
     setLoading(false);
-  }, [pageKey]);
+  }, [pageKey, companyId]);
 
   useEffect(() => {
     fetchItems();
@@ -56,6 +60,7 @@ export default function PageChecklistView({ pageKey }: Props) {
         label,
         position: maxPos + 1,
         is_custom: true,
+        ...(companyId ? { company_id: companyId } : {}),
       })
       .select()
       .maybeSingle();

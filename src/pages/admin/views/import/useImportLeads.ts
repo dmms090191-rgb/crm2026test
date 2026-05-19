@@ -9,6 +9,7 @@ import {
 import { decodeCsvFile } from '../../../../lib/csvEncoding';
 import { parseExcelFile } from '../../../../lib/excelImport';
 import { useSimulation } from '../../../../contexts/SimulationContext';
+import { useCompanyId } from '../../../../hooks/useCompanyId';
 import type { ImportMode } from './ImportModeSelector';
 import type { ImportRecord, Phase, ImportResultState } from './importLeadsTypes';
 
@@ -16,6 +17,7 @@ const ACCEPTED_EXTENSIONS = ['.csv', '.xlsx', '.xls'];
 
 export function useImportLeads(activeTab: 'import' | 'history') {
   const { isSimulating } = useSimulation();
+  const companyId = useCompanyId();
   const [phase, setPhase] = useState<Phase>('upload');
   const [dragOver, setDragOver] = useState(false);
   const [parseError, setParseError] = useState('');
@@ -31,10 +33,12 @@ export function useImportLeads(activeTab: 'import' | 'history') {
   const [previewRecord, setPreviewRecord] = useState<ImportRecord | null>(null);
 
   const loadHistory = useCallback(async () => {
+    if (!companyId) return;
     setHistoryLoading(true);
     const { data } = await supabase
       .from('import_history')
       .select('*')
+      .eq('company_id', companyId)
       .order('imported_at', { ascending: false });
     setHistory((data ?? []).map((d: ImportRecord & { columns: unknown }) => ({
       ...d,
@@ -45,7 +49,7 @@ export function useImportLeads(activeTab: 'import' | 'history') {
       import_mode: d.import_mode ?? '',
     })));
     setHistoryLoading(false);
-  }, []);
+  }, [companyId]);
 
   useEffect(() => {
     if (activeTab === 'history') loadHistory();
@@ -152,6 +156,7 @@ export function useImportLeads(activeTab: 'import' | 'history') {
         file_name: file.name, lead_count: processedRows.length, columns: allColumns,
         new_leads_count: newLeadsCount, duplicates_count: counts.dup_file + counts.dup_crm,
         errors_count: counts.error, import_mode: importMode, source_file: file.name, imported_by: userId,
+        ...(companyId ? { company_id: companyId } : {}),
       })
       .select()
       .single();
@@ -168,6 +173,7 @@ export function useImportLeads(activeTab: 'import' | 'history') {
         import_id: importRow.id, prenom: r.prenom || null, nom: r.nom || null,
         email: r.email, telephone: r.telephone, statut: 'Nouveau', source: 'csv_import',
         source_file: file.name, data,
+        ...(companyId ? { company_id: companyId } : {}),
       };
     });
 

@@ -77,7 +77,7 @@ export default function ProfileMenu({ adminName, tokens }: ProfileMenuProps) {
           {initials}
         </div>
         <div className="hidden lg:block text-left">
-          <p className="text-xs font-semibold leading-tight" style={{ color: t.profileName }}>{adminName}</p>
+          <p data-testid="topbar-admin-name" className="text-xs font-semibold leading-tight" style={{ color: t.profileName }}>{adminName}</p>
           <p className="text-[9px] tracking-wider uppercase" style={{ color: t.profileRole }}>Super Admin</p>
         </div>
         <ChevronDown

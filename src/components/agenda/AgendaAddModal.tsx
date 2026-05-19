@@ -3,6 +3,7 @@ import { X, AlertCircle, Check } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
 import { useTimezone } from '../../hooks/useTimezone';
+import { useCompanyId } from '../../hooks/useCompanyId';
 import { STATUS_CFG } from './agendaTypes';
 import { toIso } from './agendaHelpers';
 import { localToUTC } from '../../lib/timezoneUtils';
@@ -17,6 +18,7 @@ interface AddRdvModalProps {
 export default function AddRdvModal({ defaultDate, onClose, onSaved }: AddRdvModalProps) {
   const tokens = useThemeTokens();
   const { timezone, userRole, userName } = useTimezone();
+  const companyId = useCompanyId();
 
   const [form, setForm] = useState({
     proposed_date: defaultDate ?? toIso(new Date()),
@@ -54,6 +56,7 @@ export default function AddRdvModal({ defaultDate, onClose, onSaved }: AddRdvMod
       source_timezone: timezone,
       created_by_role: userRole ?? 'admin',
       created_by_name: userName,
+      ...(companyId ? { company_id: companyId } : {}),
     });
     setSaving(false);
     if (err) { setError("Erreur lors de l'enregistrement."); return; }

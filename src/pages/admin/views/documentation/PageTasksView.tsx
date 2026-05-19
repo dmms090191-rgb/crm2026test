@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Plus, Pencil, Trash2, Loader2, X, Check } from 'lucide-react';
 import { supabase } from '../../../../lib/supabase';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
+import { useCompanyId } from '../../../../hooks/useCompanyId';
 import { Task, TaskStatus, NewTaskForm, STATUS_CONFIG, STATUS_ORDER } from './pageTasksConstants';
 import TaskAddForm from './TaskAddForm';
 
@@ -11,6 +12,7 @@ interface Props {
 
 export default function PageTasksView({ pageKey }: Props) {
   const tokens = useThemeTokens();
+  const companyId = useCompanyId();
 
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
@@ -21,15 +23,17 @@ export default function PageTasksView({ pageKey }: Props) {
   const [editData, setEditData] = useState<{ title: string; description: string }>({ title: '', description: '' });
 
   const fetchTasks = useCallback(async () => {
+    if (!companyId) return;
     setLoading(true);
     const { data } = await supabase
       .from('crm_tasks')
       .select('*')
       .eq('page_key', pageKey)
+      .eq('company_id', companyId)
       .order('created_at', { ascending: false });
     if (data) setTasks(data as Task[]);
     setLoading(false);
-  }, [pageKey]);
+  }, [pageKey, companyId]);
 
   useEffect(() => {
     fetchTasks();
@@ -45,6 +49,7 @@ export default function PageTasksView({ pageKey }: Props) {
         title: formData.title.trim(),
         description: formData.description.trim(),
         status: formData.status,
+        ...(companyId ? { company_id: companyId } : {}),
       })
       .select()
       .maybeSingle();

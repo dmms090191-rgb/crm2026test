@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 import { supabase } from '../../../../lib/supabase';
+import { useCompanyId } from '../../../../hooks/useCompanyId';
 import {
   RESTORE_ORDER,
   TABLE_PRIMARY_KEYS,
@@ -7,6 +8,13 @@ import {
   BATCH_SIZE,
 } from './restoreConstants';
 import type { ImportedBackup } from './types';
+
+const TABLES_WITH_COMPANY_ID = new Set([
+  'leads', 'vendors', 'import_history', 'statuts', 'registrations',
+  'rdv_proposals', 'client_messages', 'vendor_admin_messages', 'conversations',
+  'crm_notes', 'crm_tasks', 'crm_documentation', 'doc_tab_labels',
+  'crm_custom_pages', 'crm_page_checklist_items', 'sidebar_order', 'vendor_comments',
+]);
 
 export type RestoreStatus = 'idle' | 'simulating' | 'restoring' | 'done' | 'error';
 
@@ -43,6 +51,7 @@ export interface RestoreReport {
 }
 
 export function useRestoreCrm() {
+  const companyId = useCompanyId();
   const [status, setStatus] = useState<RestoreStatus>('idle');
   const [currentTable, setCurrentTable] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
@@ -201,7 +210,10 @@ export function useRestoreCrm() {
 
       for (let batch = 0; batch < rows.length; batch += BATCH_SIZE) {
         if (abortRef.current) break;
-        const chunk = rows.slice(batch, batch + BATCH_SIZE);
+        const rawChunk = rows.slice(batch, batch + BATCH_SIZE);
+        const chunk = (companyId && TABLES_WITH_COMPANY_ID.has(table))
+          ? rawChunk.map(row => ({ ...row, company_id: companyId }))
+          : rawChunk;
 
         const { error, data } = await supabase
           .from(table)

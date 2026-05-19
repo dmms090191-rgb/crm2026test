@@ -2,11 +2,13 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Plus, Pipette, Star } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { useThemeTokens } from '../../../hooks/useThemeTokens';
+import { useCompanyId } from '../../../hooks/useCompanyId';
 import { Statut, PRESET_COLORS, MAX_FAVORITES, FAVORITES_KEY, colorWithAlpha } from './statuts/colorUtils';
 import StatutsList from './statuts/StatutsList';
 
 export default function Statuts() {
   const tokens = useThemeTokens();
+  const companyId = useCompanyId();
   const [statuts, setStatuts] = useState<Statut[]>([]);
   const [loading, setLoading] = useState(true);
   const [nom, setNom] = useState('');
@@ -19,10 +21,11 @@ export default function Statuts() {
   const colorInputRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
-    const { data } = await supabase.from('statuts').select('*').order('created_at', { ascending: true });
+    if (!companyId) return;
+    const { data } = await supabase.from('statuts').select('*').eq('company_id', companyId).order('created_at', { ascending: true });
     setStatuts((data ?? []) as Statut[]);
     setLoading(false);
-  }, []);
+  }, [companyId]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -47,7 +50,7 @@ export default function Statuts() {
     const duplicate = statuts.some(s => s.nom.toLowerCase() === nom.trim().toLowerCase());
     if (duplicate) { setError('Un statut avec ce nom existe déjà.'); return; }
     setSaving(true);
-    const { error: err } = await supabase.from('statuts').insert({ nom: nom.trim(), couleur });
+    const { error: err } = await supabase.from('statuts').insert({ nom: nom.trim(), couleur, ...(companyId ? { company_id: companyId } : {}) });
     if (err) { setError('Erreur lors de la création.'); setSaving(false); return; }
     setNom('');
     setSaving(false);

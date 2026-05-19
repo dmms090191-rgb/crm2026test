@@ -3,6 +3,7 @@ import { List, ChevronDown, LogIn, MessageSquare, Mail, Phone, CheckSquare, Tras
 import { supabase } from '../../../lib/supabase';
 import { useThemeTokens } from '../../../hooks/useThemeTokens';
 import { useSimulation } from '../../../contexts/SimulationContext';
+import { useCompanyId } from '../../../hooks/useCompanyId';
 import type { Vendor } from './vendeurs/vendeurTypes';
 import VendorDetailModal from './vendeurs/VendorDetailModal';
 import VendorDeleteModal from './vendeurs/VendorDeleteModal';
@@ -20,6 +21,7 @@ interface ListeVendeursProps {
 export default function ListeVendeurs({ onConnectAsVendor, onOpenChat }: ListeVendeursProps) {
   const tokens = useThemeTokens();
   const { isSimulating } = useSimulation();
+  const companyId = useCompanyId();
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
@@ -27,12 +29,13 @@ export default function ListeVendeurs({ onConnectAsVendor, onOpenChat }: ListeVe
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
-  useEffect(() => { fetchVendors(); }, []);
+  useEffect(() => { if (companyId) fetchVendors(); }, [companyId]);
 
   async function fetchVendors() {
+    if (!companyId) return;
     setLoading(true);
     try {
-      const { data } = await supabase.from('vendors').select('*').order('created_at', { ascending: false });
+      const { data } = await supabase.from('vendors').select('*').eq('company_id', companyId).order('created_at', { ascending: false });
       if (data) setVendors(data);
     } finally {
       setLoading(false);

@@ -16,6 +16,7 @@ export default function MessagingPanel({
   isAdmin, loading, contactLoading, returnContactId, onReturnClick,
   sidebarSelectable, sidebarSelectMode, onSidebarToggleSelectMode,
   sidebarSelectedIds, onSidebarToggleSelect, onSidebarSelectAll, onSidebarDeleteSelected,
+  emptyText,
 }: MessagingPanelProps) {
   const tokens = useThemeTokens();
   const { timezone } = useTimezone();
@@ -103,7 +104,8 @@ export default function MessagingPanel({
 
   const canDelete = useCallback((msg: ChatMessage) => {
     if (msg.deleted || msg._pending || msg._failed) return false;
-    if (isAdmin || currentRole === 'admin') return true;
+    if (isAdmin) return true;
+    if (currentRole === 'admin') return msg.sender === 'admin';
     if (currentRole === 'vendor') return msg.sender === 'vendor';
     return false;
   }, [currentRole, isAdmin]);
@@ -164,7 +166,7 @@ export default function MessagingPanel({
                 </div>
               ) : displayMessages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full gap-3">
-                  <p className="text-xs" style={{ color: tokens.chat.emptyText }}>Aucun message pour l'instant</p>
+                  <p className="text-xs" style={{ color: tokens.chat.emptyText }}>{emptyText || 'Aucun message pour l\'instant'}</p>
                 </div>
               ) : (
                 displayMessages.map(msg => {
@@ -195,10 +197,11 @@ export default function MessagingPanel({
                           {showTrash && !isConfirming && (
                             <button
                               onClick={() => handleDeleteClick(msg.id)}
-                              className="absolute -top-2 -right-1 md:right-1 w-5 h-5 rounded-full flex items-center justify-center transition-all hover:scale-110 md:opacity-0 md:group-hover:opacity-100 opacity-100"
-                              style={{ background: 'rgba(248,113,113,0.15)', border: '1px solid rgba(248,113,113,0.3)' }}
+                              title="Supprimer"
+                              className="absolute -top-2.5 -right-1 md:right-1 w-6 h-6 rounded-full flex items-center justify-center transition-all hover:scale-110 hover:bg-red-500/25 md:opacity-0 md:group-hover:opacity-100 opacity-100"
+                              style={{ background: 'rgba(239,68,68,0.18)', border: '1px solid rgba(239,68,68,0.4)' }}
                             >
-                              <Trash2 className="w-3 h-3 text-rose-400" />
+                              <Trash2 className="w-3.5 h-3.5 text-red-400" />
                             </button>
                           )}
                           {isConfirming && (

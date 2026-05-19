@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { FileText, X } from 'lucide-react';
 import { supabase } from '../../../../lib/supabase';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
+import { useCompanyId } from '../../../../hooks/useCompanyId';
 import type { ImportRecord } from './importLeadsTypes';
 
 interface HistoryPreviewProps {
@@ -11,14 +12,17 @@ interface HistoryPreviewProps {
 
 export default function HistoryPreview({ record, onClose }: HistoryPreviewProps) {
   const tokens = useThemeTokens();
+  const companyId = useCompanyId();
   const [leads, setLeads] = useState<Record<string, string>[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!companyId) return;
     (async () => {
       const { data } = await supabase
         .from('leads')
         .select('data, prenom, nom, email, telephone')
+        .eq('company_id', companyId)
         .eq('import_id', record.id)
         .order('imported_at', { ascending: true });
 
@@ -32,7 +36,7 @@ export default function HistoryPreview({ record, onClose }: HistoryPreviewProps)
       }));
       setLoading(false);
     })();
-  }, [record.id]);
+  }, [record.id, companyId]);
 
   const cols = record.columns.length > 0 ? record.columns : ['Prenom', 'Nom', 'Email', 'Telephone'];
 

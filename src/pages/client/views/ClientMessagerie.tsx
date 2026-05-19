@@ -3,6 +3,7 @@ import { MessageCircle } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import MessagingPanel, { ChatMessage, ChatContact } from '../../../components/chat/ChatView';
 import { useThemeTokens } from '../../../hooks/useThemeTokens';
+import { useCompanyId } from '../../../hooks/useCompanyId';
 
 interface ClientMessagerieProps {
   clientName: string;
@@ -21,22 +22,27 @@ const ADMIN_CONTACT_ID = '__admin__';
 
 export default function ClientMessagerie({ clientName, clientAuthId, isAdmin }: ClientMessagerieProps) {
   const tokens = useThemeTokens();
+  const ctxCompanyId = useCompanyId();
   const [vendor, setVendor] = useState<VendorRow | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [contactLoading, setContactLoading] = useState(true);
   const [leadVendorId, setLeadVendorId] = useState<string | null>(null);
+  const [leadCompanyId, setLeadCompanyId] = useState<string | null>(null);
+
+  const companyId = ctxCompanyId || leadCompanyId;
 
   useEffect(() => {
     if (!clientAuthId) { setContactLoading(false); return; }
     supabase
       .from('leads')
-      .select('id, vendor_id, vendors:vendor_id(id, first_name, last_name, email)')
+      .select('id, vendor_id, company_id, vendors:vendor_id(id, first_name, last_name, email)')
       .eq('id', clientAuthId)
       .eq('actif', true)
       .maybeSingle()
       .then(({ data }) => {
+        if (data) setLeadCompanyId(data.company_id ?? null);
         if (data && data.vendors && data.vendor_id) {
           const v = data.vendors as unknown as VendorRow;
           setVendor(v);
@@ -85,6 +91,7 @@ export default function ClientMessagerie({ clientName, clientAuthId, isAdmin }: 
       client_auth_id: clientAuthId,
       vendor_id: leadVendorId,
       ...(file ? { file_url: file.url, file_name: file.name, file_type: file.type } : {}),
+      ...(companyId ? { company_id: companyId } : {}),
     };
 
     setMessages(prev => [...prev, {

@@ -68,6 +68,7 @@ export default function LoginModal({ isOpen, onClose, onLogin }: LoginModalProps
       setDigits(['', '', '', '', '', '']);
       setTimeout(() => pinRefs.current[0]?.focus(), 0);
     } else {
+      supabase.auth.updateUser({ data: { pin } });
       onLogin();
     }
   }, [email, digits, onLogin, setDigits, pinRefs]);

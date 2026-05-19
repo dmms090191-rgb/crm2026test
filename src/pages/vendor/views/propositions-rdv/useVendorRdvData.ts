@@ -3,6 +3,7 @@ import { supabase } from '../../../../lib/supabase';
 import { RdvProposal, filterToStatus } from '../rdvPropositionsConstants';
 import { getVisibleRdvProposals, getChainIdsForSelected } from '../rdvChainFilter';
 import { useTimezone } from '../../../../hooks/useTimezone';
+import { useCompanyId } from '../../../../hooks/useCompanyId';
 import { localToUTC } from '../../../../lib/timezoneUtils';
 
 interface RdvLeadRef { id: string; nom: string; prenom: string; email: string; tel?: string; }
@@ -14,6 +15,7 @@ const emptyForm = () => ({
 
 export function useVendorRdvData(vendorDbId?: string | null, initialLead?: RdvLeadRef | null, onInitialLeadConsumed?: () => void) {
   const { timezone, userName } = useTimezone();
+  const companyId = useCompanyId();
   const [rdvs, setRdvs] = useState<RdvProposal[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('Tous');
@@ -125,6 +127,7 @@ export function useVendorRdvData(vendorDbId?: string | null, initialLead?: RdvLe
       source_timezone: timezone,
       ...(vendorDbId ? { vendor_id: vendorDbId } : {}),
       ...(pendingLeadId ? { lead_id: pendingLeadId } : {}),
+      ...(companyId ? { company_id: companyId } : {}),
     });
     setSaving(false);
     setShowAdd(false);

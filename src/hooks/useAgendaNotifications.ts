@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
+import { useCompanyId } from './useCompanyId';
 
 export interface AgendaNotifEntry {
   rdvId: string;
@@ -49,6 +50,7 @@ interface RdvRow {
 }
 
 export function useAgendaNotifications(role: Role, userId: string | null) {
+  const companyId = useCompanyId();
   const [notifications, setNotifications] = useState<AgendaNotifEntry[]>([]);
   const [count, setCount] = useState(0);
   const rdvsRef = useRef<RdvRow[]>([]);
@@ -100,6 +102,7 @@ export function useAgendaNotifications(role: Role, userId: string | null) {
 
   const load = useCallback(async () => {
     if (!userId) { rdvsRef.current = []; return; }
+    if (role === 'admin' && !companyId) { rdvsRef.current = []; return; }
 
     if (role === 'client') {
       const { data: byCol } = await supabase
@@ -143,7 +146,7 @@ export function useAgendaNotifications(role: Role, userId: string | null) {
         .eq('status', 'confirmed');
 
       if (role === 'admin') {
-        query = query.is('vendor_id', null);
+        query = query.is('vendor_id', null).eq('company_id', companyId);
       } else {
         query = query.eq('vendor_id', userId);
       }
@@ -152,7 +155,7 @@ export function useAgendaNotifications(role: Role, userId: string | null) {
       rdvsRef.current = (data ?? []) as RdvRow[];
     }
     evaluateRef.current();
-  }, [role, userId]);
+  }, [role, userId, companyId]);
 
   useEffect(() => { load(); }, [load]);
 

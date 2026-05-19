@@ -3,6 +3,7 @@ import { supabase } from '../../../../lib/supabase';
 import { RdvProposal, filterToStatus } from '../../../vendor/views/rdvPropositionsConstants';
 import { getVisibleRdvProposals, getChainIdsForSelected } from '../../../vendor/views/rdvChainFilter';
 import { useTimezone } from '../../../../hooks/useTimezone';
+import { useCompanyId } from '../../../../hooks/useCompanyId';
 import { localToUTC } from '../../../../lib/timezoneUtils';
 import { useSimulation } from '../../../../contexts/SimulationContext';
 
@@ -17,6 +18,7 @@ const emptyForm = () => ({
 export function useAdminRdvData(initialLead?: RdvLeadRef | null, onInitialLeadConsumed?: () => void) {
   const { isSimulating } = useSimulation();
   const { timezone, userName } = useTimezone();
+  const companyId = useCompanyId();
   const [rdvs, setRdvs] = useState<RdvProposal[]>([]);
   const [vendors, setVendors] = useState<VendorOption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -35,15 +37,16 @@ export function useAdminRdvData(initialLead?: RdvLeadRef | null, onInitialLeadCo
   const [detailRdv, setDetailRdv] = useState<RdvProposal | null>(null);
 
   const load = useCallback(async () => {
+    if (!companyId) return;
     setLoading(true);
     const [{ data: rdvData }, { data: vendorData }] = await Promise.all([
-      supabase.from('rdv_proposals').select('*').order('created_at', { ascending: false }),
-      supabase.from('vendors').select('id, first_name, last_name').order('first_name'),
+      supabase.from('rdv_proposals').select('*').eq('company_id', companyId).order('created_at', { ascending: false }),
+      supabase.from('vendors').select('id, first_name, last_name').eq('company_id', companyId).order('first_name'),
     ]);
     if (rdvData) setRdvs(rdvData as RdvProposal[]);
     if (vendorData) setVendors(vendorData as VendorOption[]);
     setLoading(false);
-  }, []);
+  }, [companyId]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -105,6 +108,7 @@ export function useAdminRdvData(initialLead?: RdvLeadRef | null, onInitialLeadCo
       const { data: lead } = await supabase
         .from('leads')
         .select('prenom, nom, email, telephone, vendor_id, data')
+        .eq('company_id', companyId)
         .eq('id', pendingLeadId)
         .maybeSingle();
       if (lead) {
@@ -132,6 +136,7 @@ export function useAdminRdvData(initialLead?: RdvLeadRef | null, onInitialLeadCo
       source_timezone: timezone,
       ...(pendingLeadId ? { lead_id: pendingLeadId } : {}),
       ...(leadVendorId ? { vendor_id: leadVendorId } : {}),
+      ...(companyId ? { company_id: companyId } : {}),
     });
     setSaving(false);
     setShowAdd(false);

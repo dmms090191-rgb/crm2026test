@@ -52,7 +52,7 @@ export interface DocumentationExport {
   }[];
 }
 
-export async function exportDocumentation(): Promise<DocumentationExport> {
+export async function exportDocumentation(companyId: string): Promise<DocumentationExport> {
   const [
     { data: docs },
     { data: labels },
@@ -63,10 +63,10 @@ export async function exportDocumentation(): Promise<DocumentationExport> {
     { data: categories },
     { data: ameliorations },
   ] = await Promise.all([
-    supabase.from('crm_documentation').select('tab_id, content'),
-    supabase.from('doc_tab_labels').select('tab_id, label'),
-    supabase.from('sidebar_order').select('group_id, item_key, position').order('position', { ascending: true }),
-    supabase.from('crm_notes').select('*').order('note_date', { ascending: false }),
+    supabase.from('crm_documentation').select('tab_id, content').eq('company_id', companyId),
+    supabase.from('doc_tab_labels').select('tab_id, label').eq('company_id', companyId),
+    supabase.from('sidebar_order').select('group_id, item_key, position').eq('company_id', companyId).order('position', { ascending: true }),
+    supabase.from('crm_notes').select('*').eq('company_id', companyId).order('note_date', { ascending: false }),
     supabase.from('crm_ideas').select('*').order('position', { ascending: true }),
     supabase.from('crm_context_cards').select('*').order('position', { ascending: true }),
     supabase.from('crm_amelioration_categories').select('*').order('position', { ascending: true }),

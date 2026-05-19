@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Check, X, AlertCircle, Globe } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { useThemeTokens } from '../../../hooks/useThemeTokens';
+import { useCompanyId } from '../../../hooks/useCompanyId';
 import { RdvProposal, statusConfig } from './rdvPropositionsConstants';
 import { useTimezone } from '../../../hooks/useTimezone';
 import { localToUTC, utcToLocal, getTzLabel } from '../../../lib/timezoneUtils';
@@ -24,6 +25,7 @@ function getInitialDateTime(rdv: RdvProposal, timezone: string) {
 export default function RdvEditModal({ rdv, onClose, onSaved, callerRole }: EditModalProps) {
   const tokens = useThemeTokens();
   const { timezone, userName } = useTimezone();
+  const companyId = useCompanyId();
   const localDt = getInitialDateTime(rdv, timezone);
   const [form, setForm] = useState({
     proposed_date: localDt.date,
@@ -96,6 +98,7 @@ export default function RdvEditModal({ rdv, onClose, onSaved, callerRole }: Edit
         seen_by_client: false,
         seen_by_admin: role === 'admin',
         seen_by_vendor: role === 'vendor',
+        ...(companyId ? { company_id: companyId } : {}),
       });
     } else {
       const { error: err } = await supabase.from('rdv_proposals').update({

@@ -4,6 +4,7 @@ import { supabase } from '../../../lib/supabase';
 import MessagingPanel, { ChatMessage, ChatContact } from '../../../components/chat/ChatView';
 import type { VendorChatLead } from '../VendorDashboard';
 import { useThemeTokens } from '../../../hooks/useThemeTokens';
+import { useCompanyId } from '../../../hooks/useCompanyId';
 import { peekChatReturnContext } from '../../../lib/connectReturnContext';
 
 interface LeadRow {
@@ -23,6 +24,7 @@ interface VendorChatClientProps {
 
 export default function VendorChatClient({ vendorName, vendorDbId, initialLead, onClientViewed, onReturnToLeads, isAdmin }: VendorChatClientProps) {
   const tokens = useThemeTokens();
+  const companyId = useCompanyId();
   const chatReturnCtx = onReturnToLeads ? peekChatReturnContext() : null;
   const [leads, setLeads] = useState<LeadRow[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(initialLead?.id ?? null);
@@ -134,6 +136,7 @@ export default function VendorChatClient({ vendorName, vendorDbId, initialLead, 
       client_auth_id: clientAuthId,
       vendor_id: vendorDbId,
       ...(file ? { file_url: file.url, file_name: file.name, file_type: file.type } : {}),
+      ...(companyId ? { company_id: companyId } : {}),
     };
 
     setMessages(prev => [...prev, {

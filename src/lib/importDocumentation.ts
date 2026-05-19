@@ -36,7 +36,7 @@ function normalizeV1(data: unknown): DocumentationExport {
   };
 }
 
-export async function importDocumentation(raw: DocumentationExport): Promise<ImportResult> {
+export async function importDocumentation(raw: DocumentationExport, companyId?: string | null): Promise<ImportResult> {
   const data = normalizeV1(raw);
 
   const result: ImportResult = {
@@ -54,7 +54,7 @@ export async function importDocumentation(raw: DocumentationExport): Promise<Imp
   for (const row of data.crm_documentation) {
     const { error } = await supabase
       .from('crm_documentation')
-      .upsert({ tab_id: row.tab_id, content: row.content }, { onConflict: 'tab_id' });
+      .upsert({ tab_id: row.tab_id, content: row.content, ...(companyId ? { company_id: companyId } : {}) }, { onConflict: 'tab_id' });
     if (!error) result.crm_documentation.imported++;
     else result.crm_documentation.skipped++;
   }
@@ -63,7 +63,7 @@ export async function importDocumentation(raw: DocumentationExport): Promise<Imp
   for (const row of data.doc_tab_labels) {
     const { error } = await supabase
       .from('doc_tab_labels')
-      .upsert({ tab_id: row.tab_id, label: row.label }, { onConflict: 'tab_id' });
+      .upsert({ tab_id: row.tab_id, label: row.label, ...(companyId ? { company_id: companyId } : {}) }, { onConflict: 'tab_id' });
     if (!error) result.doc_tab_labels.imported++;
     else result.doc_tab_labels.skipped++;
   }
@@ -71,7 +71,10 @@ export async function importDocumentation(raw: DocumentationExport): Promise<Imp
   // sidebar_order - replace all docs entries for consistent ordering
   if (data.sidebar_order.length > 0) {
     await supabase.from('sidebar_order').delete().eq('group_id', 'docs');
-    const { error } = await supabase.from('sidebar_order').insert(data.sidebar_order);
+    const rows = companyId
+      ? data.sidebar_order.map(r => ({ ...r, company_id: companyId }))
+      : data.sidebar_order;
+    const { error } = await supabase.from('sidebar_order').insert(rows);
     if (!error) result.sidebar_order.imported = data.sidebar_order.length;
     else result.sidebar_order.skipped = data.sidebar_order.length;
   }
@@ -85,6 +88,7 @@ export async function importDocumentation(raw: DocumentationExport): Promise<Imp
       note_date: row.note_date,
       time_start: row.time_start,
       time_end: row.time_end,
+      ...(companyId ? { company_id: companyId } : {}),
     }, { onConflict: 'id' });
     if (!error) result.crm_notes.imported++;
     else result.crm_notes.skipped++;

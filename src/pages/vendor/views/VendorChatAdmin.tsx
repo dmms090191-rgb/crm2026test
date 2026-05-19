@@ -3,6 +3,7 @@ import { MessageSquare } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import MessagingPanel, { ChatMessage, ChatContact } from '../../../components/chat/ChatView';
 import { useThemeTokens } from '../../../hooks/useThemeTokens';
+import { useCompanyId } from '../../../hooks/useCompanyId';
 
 interface VendorChatAdminProps {
   vendorName: string;
@@ -21,6 +22,7 @@ const ADMIN_CONTACT_BASE = {
 
 export default function VendorChatAdmin({ vendorName, vendorDbId, vendorAuthId, onAdminMessageViewed, isAdmin }: VendorChatAdminProps) {
   const tokens = useThemeTokens();
+  const companyId = useCompanyId();
   const [userId, setUserId] = useState<string | null>(vendorAuthId ?? null);
   const [vendorId, setVendorId] = useState<string | null>(vendorDbId ?? null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -103,6 +105,7 @@ export default function VendorChatAdmin({ vendorName, vendorDbId, vendorAuthId, 
       vendor_auth_id: userId,
       vendor_id: vendorId ?? null,
       ...(file ? { file_url: file.url, file_name: file.name, file_type: file.type } : {}),
+      ...(companyId ? { company_id: companyId } : {}),
     };
 
     setMessages(prev => [...prev, {

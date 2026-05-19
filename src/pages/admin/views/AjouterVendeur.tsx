@@ -2,12 +2,14 @@ import { useState, useRef } from 'react';
 import { UserCheck, Eye, EyeOff } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { useThemeTokens } from '../../../hooks/useThemeTokens';
+import { useCompanyId } from '../../../hooks/useCompanyId';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 export default function AjouterVendeur() {
   const tokens = useThemeTokens();
+  const companyId = useCompanyId();
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
@@ -76,6 +78,7 @@ export default function AjouterVendeur() {
           role: 'vendor',
           first_name: firstName.trim(),
           last_name: lastName.trim(),
+          ...(companyId ? { company_id: companyId } : {}),
         }),
       });
       const json = await res.json();
@@ -88,6 +91,7 @@ export default function AjouterVendeur() {
         password,
         phone: phone.trim(),
         auth_user_id: authUserId,
+        ...(companyId ? { company_id: companyId } : {}),
       });
       if (dbError) throw dbError;
       setSuccess('Vendeur créé avec succès. Il peut maintenant se connecter avec son email et mot de passe.');

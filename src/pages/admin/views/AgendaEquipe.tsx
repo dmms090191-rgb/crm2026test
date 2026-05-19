@@ -3,6 +3,7 @@ import { supabase } from '../../../lib/supabase';
 import AgendaView from '../../../components/agenda/AgendaView';
 import type { RdvProposal } from '../../../components/agenda/agendaTypes';
 import { useTimezone } from '../../../hooks/useTimezone';
+import { useCompanyId } from '../../../hooks/useCompanyId';
 
 interface VendorRow {
   id: string;
@@ -12,19 +13,23 @@ interface VendorRow {
 
 export default function AgendaEquipe() {
   const { timezone } = useTimezone();
+  const companyId = useCompanyId();
   const [rdvs, setRdvs] = useState<RdvProposal[]>([]);
 
   const load = useCallback(async () => {
+    if (!companyId) return;
     const [rdvRes, vendorRes] = await Promise.all([
       supabase
         .from('rdv_proposals')
         .select('*')
+        .eq('company_id', companyId)
         .eq('status', 'confirmed')
         .order('proposed_date', { ascending: true })
         .order('proposed_time', { ascending: true }),
       supabase
         .from('vendors')
-        .select('id, first_name, last_name'),
+        .select('id, first_name, last_name')
+        .eq('company_id', companyId),
     ]);
 
     const vendorMap = new Map<string, string>();
@@ -41,7 +46,7 @@ export default function AgendaEquipe() {
       }));
       setRdvs(enriched);
     }
-  }, []);
+  }, [companyId]);
 
   useEffect(() => { load(); }, [load]);
 

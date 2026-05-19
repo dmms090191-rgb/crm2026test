@@ -1,38 +1,17 @@
 {
-  "generatedAt": "2026-05-14T15:36:44.267Z",
+  "generatedAt": "2026-05-19T08:27:21.551Z",
   "anyCount": 0,
   "anyOccurrences": [],
   "unusedImportCount": 0,
   "unusedImports": [],
-  "largeFileCount": 4,
-  "largeFiles": [
-    {
-      "file": "src/pages/client/ClientTopBar.tsx",
-      "lines": 303,
-      "overflow": 3
-    },
-    {
-      "file": "src/pages/admin/components/topbar/NotificationDropdown.tsx",
-      "lines": 312,
-      "overflow": 12
-    },
-    {
-      "file": "src/pages/admin/AdminDashboard.tsx",
-      "lines": 322,
-      "overflow": 22
-    },
-    {
-      "file": "src/pages/client/views/ClientPropositionsRdv.tsx",
-      "lines": 423,
-      "overflow": 123
-    }
-  ],
+  "largeFileCount": 0,
+  "largeFiles": [],
   "tscErrorCount": 0,
   "tscErrors": [],
   "eslintErrorCount": 0,
   "eslintWarningCount": 0,
   "eslintIssues": [],
-  "totalFilesAnalyzed": 298,
-  "totalLinesAnalyzed": 43474,
-  "totalOverflowLines": 160
+  "totalFilesAnalyzed": 360,
+  "totalLinesAnalyzed": 50829,
+  "totalOverflowLines": 0
 }

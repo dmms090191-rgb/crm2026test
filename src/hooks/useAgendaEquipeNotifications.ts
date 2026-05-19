@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
+import { useCompanyId } from './useCompanyId';
 
 export interface AgendaEquipeNotifEntry {
   rdvId: string;
@@ -55,6 +56,7 @@ interface VendorRow {
 }
 
 export function useAgendaEquipeNotifications(userId: string | null) {
+  const companyId = useCompanyId();
   const [notifications, setNotifications] = useState<AgendaEquipeNotifEntry[]>([]);
   const [count, setCount] = useState(0);
   const rdvsRef = useRef<RdvRow[]>([]);
@@ -108,16 +110,19 @@ export function useAgendaEquipeNotifications(userId: string | null) {
 
   const load = useCallback(async () => {
     if (!userId) { rdvsRef.current = []; return; }
+    if (!companyId) return;
 
     const [rdvRes, vendorRes] = await Promise.all([
       supabase
         .from('rdv_proposals')
         .select('id, lead_name, proposed_date, proposed_time, appointment_utc, vendor_id, status, treated_at')
         .eq('status', 'confirmed')
-        .not('vendor_id', 'is', null),
+        .not('vendor_id', 'is', null)
+        .eq('company_id', companyId),
       supabase
         .from('vendors')
-        .select('id, first_name, last_name'),
+        .select('id, first_name, last_name')
+        .eq('company_id', companyId),
     ]);
 
     const vendorMap = new Map<string, string>();
@@ -130,7 +135,7 @@ export function useAgendaEquipeNotifications(userId: string | null) {
 
     rdvsRef.current = (rdvRes.data ?? []) as RdvRow[];
     evaluateRef.current();
-  }, [userId]);
+  }, [userId, companyId]);
 
   useEffect(() => { load(); }, [load]);
 

@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { UserPlus, Check } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { useThemeTokens } from '../../../hooks/useThemeTokens';
+import { useCompanyId } from '../../../hooks/useCompanyId';
 import type { ThemeTokens } from '../../../lib/themeTokens';
 
 
@@ -114,6 +115,7 @@ function FocusInput({
 
 export default function AjouterLeads() {
   const tokens = useThemeTokens();
+  const companyId = useCompanyId();
 
   const [prenom, setPrenom] = useState('');
   const [nom, setNom] = useState('');
@@ -144,6 +146,7 @@ export default function AjouterLeads() {
     const { error: dbError } = await supabase.from('leads').insert({
       data,
       import_id: null,
+      ...(companyId ? { company_id: companyId } : {}),
     });
 
     setSaving(false);

@@ -5,7 +5,8 @@ import { useTheme } from '../../../contexts/ThemeContext';
 import { useThemeTokens } from '../../../hooks/useThemeTokens';
 import { useSansStatutStats } from '../../../hooks/useSansStatutStats';
 import SansStatutModal from '../../../components/SansStatutModal';
-import AuditSummaryCard from './AuditSummaryCard';
+import { useCompanyId } from '../../../hooks/useCompanyId';
+import HomeWelcomeBanner from './HomeWelcomeBanner';
 import type { ActiveView } from '../AdminDashboard';
 
 interface StatCardProps {
@@ -108,16 +109,19 @@ export default function VueEnsemble({ onNavigate, unreadClientConversations = 0,
   const t = useThemeTokens();
   const [pendingCount, setPendingCount] = useState(0);
   const [modalOpen, setModalOpen] = useState(false);
+  const companyId = useCompanyId();
 
   const sansStatut = useSansStatutStats('admin');
 
   const fetchPending = useCallback(async () => {
+    if (!companyId) return;
     const { count } = await supabase
       .from('registrations')
       .select('*', { count: 'exact', head: true })
+      .eq('company_id', companyId)
       .eq('status', 'pending');
     setPendingCount(count ?? 0);
-  }, []);
+  }, [companyId]);
 
   useEffect(() => {
     fetchPending();
@@ -154,6 +158,8 @@ export default function VueEnsemble({ onNavigate, unreadClientConversations = 0,
 
   return (
     <div className="space-y-6 sm:space-y-6">
+      <HomeWelcomeBanner />
+
       {/* Header */}
       <div className="flex items-start justify-between gap-3 pt-1 sm:pt-0">
         <div className="min-w-0">
@@ -208,9 +214,6 @@ export default function VueEnsemble({ onNavigate, unreadClientConversations = 0,
         />
       </div>
 
-      <AuditSummaryCard
-        onNavigateToAudit={onNavigate ? () => onNavigate('documentation-crm', { docTab: 'audit-technique' }) : undefined}
-      />
 
       <SansStatutModal
         open={modalOpen}

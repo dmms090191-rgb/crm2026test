@@ -2,7 +2,7 @@ import { createContext, useState, useEffect, useCallback, type ReactNode } from 
 import { supabase } from '../lib/supabase';
 import { getUserTimezone, setUserTimezone, getTzCountryLabel, getTzCountryCode } from '../lib/timezone';
 
-type PanelRole = 'admin' | 'vendor' | 'client';
+type PanelRole = 'admin' | 'vendor' | 'client' | 'super_admin';
 
 export interface TimezoneContextValue {
   timezone: string;

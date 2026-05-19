@@ -1,34 +1,13 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const DEFAULT_ALLOWED_ORIGINS = [
-  "http://localhost:5173",
-  "http://localhost:3000",
-];
-
-function getAllowedOrigins(): string[] {
-  const envOrigins = Deno.env.get("ALLOWED_ORIGINS");
-  if (envOrigins) {
-    return envOrigins.split(",").map((o) => o.trim()).filter(Boolean);
-  }
-  return DEFAULT_ALLOWED_ORIGINS;
-}
-
-function getCorsHeaders(req: Request): Record<string, string> {
-  const origin = req.headers.get("Origin") || "";
-  const allowed = getAllowedOrigins();
-  const isAllowed = allowed.includes(origin);
-
-  return {
-    "Access-Control-Allow-Origin": isAllowed ? origin : "",
-    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
-  };
-}
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
+};
 
 Deno.serve(async (req: Request) => {
-  const corsHeaders = getCorsHeaders(req);
-
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 200, headers: corsHeaders });
   }
@@ -58,14 +37,15 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    if (caller.app_metadata?.role !== "admin") {
+    const callerRole = caller.app_metadata?.role;
+    if (callerRole !== "admin" && callerRole !== "super_admin") {
       return new Response(
-        JSON.stringify({ error: "Forbidden: admin role required" }),
+        JSON.stringify({ error: "Forbidden: admin or super_admin role required" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const { email, password, role, first_name, last_name } = await req.json();
+    const { email, password, role, first_name, last_name, phone, company, company_id: bodyCompanyId } = await req.json();
 
     if (!role) {
       return new Response(
@@ -83,12 +63,87 @@ Deno.serve(async (req: Request) => {
 
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
 
+    // --- Admin creation: new company + company_id in app_metadata ---
+    if (role === "admin") {
+      if (callerRole !== "super_admin") {
+        return new Response(
+          JSON.stringify({ error: "Forbidden: seul super_admin peut creer un admin" }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      if (!company || !company.trim()) {
+        return new Response(
+          JSON.stringify({ error: "Le champ Societe est obligatoire pour creer un admin" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const { data: companyData, error: companyError } = await supabaseAdmin
+        .from("companies")
+        .insert({ name: company.trim() })
+        .select("id")
+        .single();
+
+      if (companyError || !companyData) {
+        return new Response(
+          JSON.stringify({ error: "Erreur creation societe: " + (companyError?.message || "unknown") }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const newCompanyId = companyData.id;
+
+      const { data, error } = await supabaseAdmin.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: {
+          first_name,
+          last_name,
+          role,
+          pin: password,
+          ...(phone ? { phone } : {}),
+          company: company.trim(),
+        },
+        app_metadata: {
+          role: "admin",
+          company_id: newCompanyId,
+        },
+      });
+
+      if (error) {
+        await supabaseAdmin.from("companies").delete().eq("id", newCompanyId);
+        return new Response(JSON.stringify({ error: error.message }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      return new Response(JSON.stringify({ user: data.user }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // --- Vendor / Client / other roles: inherit company_id from caller or body ---
+    const callerCompanyId = caller.app_metadata?.company_id || bodyCompanyId || null;
+
     const { data, error } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
       email_confirm: true,
-      user_metadata: { first_name, last_name, role },
-      app_metadata: { role },
+      user_metadata: {
+        first_name,
+        last_name,
+        role,
+        pin: password,
+        ...(phone ? { phone } : {}),
+        ...(company ? { company } : {}),
+      },
+      app_metadata: {
+        role,
+        ...(callerCompanyId ? { company_id: callerCompanyId } : {}),
+      },
     });
 
     if (error) {

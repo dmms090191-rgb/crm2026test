@@ -9,7 +9,15 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
-    "analyze": "tsx scripts/analyze.ts"
+    "analyze": "tsx scripts/analyze.ts",
+    "test:e2e": "playwright test",
+    "test:e2e:fast": "playwright test",
+    "test:e2e:headed": "cross-env PW_HEADED=1 playwright test",
+    "test:e2e:normal": "cross-env PW_HEADED=1 PW_SLOWMO=300 playwright test",
+    "test:e2e:slow": "cross-env PW_HEADED=1 PW_SLOWMO=1000 playwright test",
+    "test:e2e:debug": "cross-env PW_HEADED=1 playwright test --debug",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:report": "playwright show-report"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",
@@ -21,10 +29,12 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.9.1",
+    "@playwright/test": "^1.60.0",
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
     "autoprefixer": "^10.4.18",
+    "cross-env": "^10.1.0",
     "eslint": "^9.9.1",
     "eslint-plugin-react-hooks": "^5.1.0-rc.0",
     "eslint-plugin-react-refresh": "^0.4.11",

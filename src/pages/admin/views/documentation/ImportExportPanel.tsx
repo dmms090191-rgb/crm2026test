@@ -3,6 +3,7 @@ import { Download, Upload, CheckCircle, AlertTriangle, Loader2, X, FileJson, Shi
 import { exportDocumentation, downloadJson } from '../../../../lib/exportDocumentation';
 import { importDocumentation, validateExportFile, type ImportResult } from '../../../../lib/importDocumentation';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
+import { useCompanyId } from '../../../../hooks/useCompanyId';
 
 interface Props {
   onImportComplete: () => void;
@@ -23,6 +24,7 @@ const SECTION_LABELS: Record<string, string> = {
 
 export default function ImportExportPanel({ onImportComplete }: Props) {
   const tokens = useThemeTokens();
+  const companyId = useCompanyId();
   const [step, setStep] = useState<Step>('idle');
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
@@ -31,14 +33,14 @@ export default function ImportExportPanel({ onImportComplete }: Props) {
   const handleExport = useCallback(async () => {
     setStep('exporting');
     try {
-      const data = await exportDocumentation();
+      const data = await exportDocumentation(companyId);
       downloadJson(data);
       setStep('idle');
     } catch {
       setErrorMsg('Erreur lors de l\'export.');
       setStep('error');
     }
-  }, []);
+  }, [companyId]);
 
   const handleFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -65,7 +67,7 @@ export default function ImportExportPanel({ onImportComplete }: Props) {
         return;
       }
 
-      const result = await importDocumentation(parsed);
+      const result = await importDocumentation(parsed, companyId);
       setImportResult(result);
       setStep('result');
     } catch {

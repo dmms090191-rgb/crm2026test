@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
+import { useCompanyId } from './useCompanyId';
 
 export interface VendorNotifEntry {
   vendorId: string;
@@ -11,6 +12,7 @@ export interface VendorNotifEntry {
 }
 
 export function useUnreadVendorMessages() {
+  const companyId = useCompanyId();
   const [unreadCount, setUnreadCount] = useState(0);
   const [unreadEntries, setUnreadEntries] = useState<VendorNotifEntry[]>([]);
   const entriesRef = useRef<VendorNotifEntry[]>([]);
@@ -21,10 +23,12 @@ export function useUnreadVendorMessages() {
       justMarked.current = false;
       return;
     }
+    if (!companyId) return;
 
     const { data: msgs } = await supabase
       .from('vendor_admin_messages')
       .select('vendor_id, created_at')
+      .eq('company_id', companyId)
       .eq('sender', 'vendor')
       .eq('read', false)
       .eq('deleted', false);
@@ -51,6 +55,7 @@ export function useUnreadVendorMessages() {
     const { data: vendors } = await supabase
       .from('vendors')
       .select('id, first_name, last_name, email')
+      .eq('company_id', companyId)
       .in('id', vendorIds);
 
     const entries: VendorNotifEntry[] = [];
@@ -72,7 +77,7 @@ export function useUnreadVendorMessages() {
     entriesRef.current = entries;
     setUnreadEntries(entries);
     setUnreadCount(entries.reduce((acc, e) => acc + e.count, 0));
-  }, []);
+  }, [companyId]);
 
   useEffect(() => { load(); }, [load]);
 

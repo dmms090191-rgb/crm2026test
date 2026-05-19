@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { MessageSquare } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import MessagingPanel, { ChatMessage, ChatContact } from '../../../components/chat/ChatView';
 import type { Vendor } from './ListeVendeurs';
 import { useThemeTokens } from '../../../hooks/useThemeTokens';
+import { useCompanyId } from '../../../hooks/useCompanyId';
 import { useSimulation } from '../../../contexts/SimulationContext';
+import ChatVendeurHeader from './chat-vendeur/ChatVendeurHeader';
+import ChatVendeurDeleteModal from './chat-vendeur/ChatVendeurDeleteModal';
 
 interface ChatVendeurProps {
   initialVendor?: Vendor | null;
@@ -14,6 +16,7 @@ interface ChatVendeurProps {
 
 export default function ChatVendeur({ initialVendor, onMessageSent, onVendorViewed }: ChatVendeurProps) {
   const tokens = useThemeTokens();
+  const companyId = useCompanyId();
   const { isSimulating } = useSimulation();
 
   const [allVendors, setAllVendors] = useState<Vendor[]>([]);
@@ -28,10 +31,11 @@ export default function ChatVendeur({ initialVendor, onMessageSent, onVendorView
     let cancelled = false;
     setContactLoading(true);
     (async () => {
+      if (!companyId) return;
       try {
         const [{ data: vendorData }, { data: msgData }] = await Promise.all([
-          supabase.from('vendors').select('id,first_name,last_name,email,auth_user_id,password,phone,created_at').order('last_name'),
-          supabase.from('vendor_admin_messages').select('vendor_id').not('vendor_id', 'is', null).or('deleted.is.null,deleted.eq.false'),
+          supabase.from('vendors').select('id,first_name,last_name,email,auth_user_id,password,phone,created_at').eq('company_id', companyId).order('last_name'),
+          supabase.from('vendor_admin_messages').select('vendor_id').eq('company_id', companyId).not('vendor_id', 'is', null).or('deleted.is.null,deleted.eq.false'),
         ]);
         if (cancelled) return;
         if (vendorData) setAllVendors(vendorData as Vendor[]);
@@ -56,7 +60,7 @@ export default function ChatVendeur({ initialVendor, onMessageSent, onVendorView
       }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [companyId]);
 
   const onVendorViewedRef = useRef(onVendorViewed);
   onVendorViewedRef.current = onVendorViewed;
@@ -125,6 +129,7 @@ export default function ChatVendeur({ initialVendor, onMessageSent, onVendorView
       vendor_id: selectedVendorId,
       vendor_auth_id: vendor?.auth_user_id ?? null,
       ...(file ? { file_url: file.url, file_name: file.name, file_type: file.type } : {}),
+      ...(companyId ? { company_id: companyId } : {}),
     };
 
     setMessages(prev => [...prev, {
@@ -236,18 +241,7 @@ export default function ChatVendeur({ initialVendor, onMessageSent, onVendorView
 
   return (
     <div className="flex flex-col flex-1 space-y-2 md:space-y-4" style={{ minHeight: 0 }}>
-      <div className="flex items-center justify-between flex-shrink-0">
-        <div>
-          <h2 className="text-base md:text-xl font-bold" style={{ color: tokens.text.primary }}>Chat Vendeurs</h2>
-          <p className="text-[11px] md:text-xs mt-0.5 hidden sm:block" style={{ color: tokens.text.quaternary }}>Chat avec les vendeurs</p>
-        </div>
-        <div
-          className="w-8 h-8 md:w-9 md:h-9 rounded-xl flex items-center justify-center"
-          style={{ background: 'rgba(34,211,238,0.08)', boxShadow: '0 0 16px rgba(34,211,238,0.15)' }}
-        >
-          <MessageSquare className="w-4 h-4 text-cyan-400" />
-        </div>
-      </div>
+      <ChatVendeurHeader tokens={tokens} />
 
       <div className="flex-1 overflow-hidden" style={{ minHeight: 0 }}>
         <MessagingPanel
@@ -277,20 +271,12 @@ export default function ChatVendeur({ initialVendor, onMessageSent, onVendorView
       </div>
 
       {confirmDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.5)' }}>
-          <div className="rounded-2xl p-6 max-w-sm w-full mx-4 space-y-4" style={{ background: tokens.surface.primary, border: `1px solid ${tokens.surface.border}` }}>
-            <p className="text-sm font-semibold" style={{ color: tokens.text.primary }}>
-              {selectedConvos.size > 1 ? 'Voulez-vous vraiment supprimer ces conversations ?' : 'Voulez-vous vraiment supprimer cette conversation ?'}
-            </p>
-            <p className="text-xs" style={{ color: tokens.text.tertiary }}>
-              Les messages seront supprimés définitivement.
-            </p>
-            <div className="flex items-center gap-3 justify-end">
-              <button onClick={() => setConfirmDelete(false)} className="px-4 py-2 rounded-lg text-xs font-semibold" style={{ background: tokens.surface.hover, color: tokens.text.secondary }}>Annuler</button>
-              <button onClick={handleConfirmDeleteConvos} className="px-4 py-2 rounded-lg text-xs font-semibold text-white" style={{ background: '#ef4444' }}>Supprimer</button>
-            </div>
-          </div>
-        </div>
+        <ChatVendeurDeleteModal
+          count={selectedConvos.size}
+          tokens={tokens}
+          onCancel={() => setConfirmDelete(false)}
+          onConfirm={handleConfirmDeleteConvos}
+        />
       )}
     </div>
   );

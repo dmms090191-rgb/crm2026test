@@ -2,10 +2,11 @@ const STORAGE_KEY = 'crm_connect_return_context';
 const CHAT_RETURN_KEY = 'crm_chat_return_context';
 
 export interface ConnectReturnContext {
-  fromRole: 'admin' | 'vendor';
+  fromRole: 'admin' | 'vendor' | 'super_admin';
   fromTab: string;
   leadId?: string;
   vendorId?: string;
+  adminId?: string;
   scrollY: number;
   timestamp: number;
 }
@@ -14,7 +15,7 @@ export function saveConnectReturnContext(ctx: Omit<ConnectReturnContext, 'timest
   sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ ...ctx, timestamp: Date.now() }));
 }
 
-export function consumeConnectReturnContext(forRole: 'admin' | 'vendor'): ConnectReturnContext | null {
+export function consumeConnectReturnContext(forRole: 'admin' | 'vendor' | 'super_admin'): ConnectReturnContext | null {
   const raw = sessionStorage.getItem(STORAGE_KEY);
   if (!raw) return null;
   try {

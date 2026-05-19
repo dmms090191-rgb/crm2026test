@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
+import { useCompanyId } from '../hooks/useCompanyId';
 
 const STATUT_NOUVEAU = 'Nouveau';
 
@@ -38,6 +39,7 @@ interface SansStatutStatsVendor {
 export function useSansStatutStats(role: 'admin'): SansStatutStatsAdmin;
 export function useSansStatutStats(role: 'vendor', vendorId: string | null): SansStatutStatsVendor;
 export function useSansStatutStats(role: 'admin' | 'vendor', vendorId?: string | null): SansStatutStatsAdmin | SansStatutStatsVendor {
+  const companyId = useCompanyId();
   const [count, setCount] = useState(0);
   const [adminCount, setAdminCount] = useState(0);
   const [byVendor, setByVendor] = useState<VendorCount[]>([]);
@@ -67,14 +69,17 @@ export function useSansStatutStats(role: 'admin' | 'vendor', vendorId?: string |
       return;
     }
 
+    if (!companyId) { setLoading(false); return; }
     const [leadsRes, vendorsRes] = await Promise.all([
       supabase
         .from('leads')
         .select('id, prenom, nom, email, telephone, vendor_id')
+        .eq('company_id', companyId)
         .in('statut', [STATUT_NOUVEAU, '']),
       supabase
         .from('vendors')
-        .select('id, first_name, last_name'),
+        .select('id, first_name, last_name')
+        .eq('company_id', companyId),
     ]);
 
     const allLeads = (leadsRes.data ?? []) as SansStatutLead[];
@@ -101,7 +106,7 @@ export function useSansStatutStats(role: 'admin' | 'vendor', vendorId?: string |
     );
 
     setLoading(false);
-  }, [role, vendorId]);
+  }, [role, vendorId, companyId]);
 
   useEffect(() => { load(); }, [load]);
 
