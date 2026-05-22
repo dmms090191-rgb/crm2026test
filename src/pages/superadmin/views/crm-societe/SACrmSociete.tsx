@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { Building2, FileText } from 'lucide-react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 import { useWorkMode } from '../../../../hooks/useWorkMode';
 import SAArgumentaireModal from './SAArgumentaireModal';
@@ -12,6 +13,8 @@ import SACrmProspectsPanel from './SACrmProspectsPanel';
 import useCrmSocieteData from './useCrmSocieteData';
 import type { Argumentaire } from './types';
 
+type Tab = 'prospects' | 'argumentaires';
+
 export default function SACrmSociete() {
   const t = useThemeTokens();
   const {
@@ -22,6 +25,7 @@ export default function SACrmSociete() {
   } = useCrmSocieteData();
 
   const workMode = useWorkMode('sa_crm_societe_workmode');
+  const [activeTab, setActiveTab] = useState<Tab>('prospects');
 
   const [argModal, setArgModal] = useState<{ open: boolean; existing?: Argumentaire | null }>({ open: false });
   const [prospectModal, setProspectModal] = useState<{ open: boolean; existing?: Prospect | null }>({ open: false });
@@ -89,21 +93,58 @@ export default function SACrmSociete() {
   const someProspectsChecked = selectedProspects.size > 0 && !allProspectsChecked;
   const activeProspect = statutDropdownId ? prospects.find(p => p.id === statutDropdownId) : null;
 
+  const tabs: { key: Tab; label: string; icon: typeof Building2; count: number }[] = [
+    { key: 'prospects', label: 'Societes prospects', icon: Building2, count: prospects.length },
+    { key: 'argumentaires', label: 'Argumentaires', icon: FileText, count: args.length },
+  ];
+
   return (
     <div className="p-4 md:p-6 h-full overflow-auto">
-      <div className="mb-6">
+      <div className="mb-5">
         <h1 className="text-xl font-bold" style={{ color: t.text.primary }}>CRM Societe</h1>
         <p className="text-xs mt-1" style={{ color: t.text.tertiary }}>Prospection manuelle de societes</p>
       </div>
 
-      <div className="flex flex-col xl:flex-row gap-6">
-        <SAArgumentairesPanel
-          args={args} loading={loadingArgs} selectedArgs={selectedArgs}
-          onToggleSel={toggleArgSel} onToggleAll={toggleAllArgs}
-          onAdd={() => setArgModal({ open: true, existing: null })}
-          onEdit={arg => setArgModal({ open: true, existing: arg })}
-          onDelete={handleDeleteArgs} onFloat={setFloatingArg} t={t}
-        />
+      {/* Sub-tabs */}
+      <div className="flex items-center gap-1.5 mb-5 overflow-x-auto pb-0.5">
+        {tabs.map(tab => {
+          const active = activeTab === tab.key;
+          const Icon = tab.icon;
+          return (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all flex-shrink-0 active:scale-[0.97]"
+              style={active ? {
+                background: 'rgba(14,165,233,0.1)',
+                border: '1px solid rgba(14,165,233,0.2)',
+                color: '#0ea5e9',
+                boxShadow: '0 1px 4px rgba(14,165,233,0.1)',
+              } : {
+                background: t.surface.primary,
+                border: `1px solid ${t.surface.border}`,
+                color: t.text.secondary,
+              }}
+            >
+              <Icon className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">{tab.label}</span>
+              <span className="sm:hidden">{tab.key === 'prospects' ? 'Societes' : 'Arguments'}</span>
+              <span
+                className="text-[10px] font-bold px-1.5 py-0.5 rounded-full ml-0.5"
+                style={active
+                  ? { background: 'rgba(14,165,233,0.15)', color: '#0ea5e9' }
+                  : { background: t.surface.hover, color: t.text.tertiary }
+                }
+              >
+                {tab.count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Tab content */}
+      {activeTab === 'prospects' && (
         <SACrmProspectsPanel
           prospects={prospects} filteredProspects={filteredProspects} loadingProspects={loadingProspects}
           saStatuts={saStatuts} filterStatut={filterStatut} selectedProspects={selectedProspects}
@@ -122,8 +163,19 @@ export default function SACrmSociete() {
           cardRefCallback={(id, el) => { if (el) cardRefsMap.current.set(id, el); else cardRefsMap.current.delete(id); }}
           t={t}
         />
-      </div>
+      )}
 
+      {activeTab === 'argumentaires' && (
+        <SAArgumentairesPanel
+          args={args} loading={loadingArgs} selectedArgs={selectedArgs}
+          onToggleSel={toggleArgSel} onToggleAll={toggleAllArgs}
+          onAdd={() => setArgModal({ open: true, existing: null })}
+          onEdit={arg => setArgModal({ open: true, existing: arg })}
+          onDelete={handleDeleteArgs} onFloat={setFloatingArg} t={t}
+        />
+      )}
+
+      {/* Modals & dropdowns (always mounted regardless of tab) */}
       {argModal.open && <SAArgumentaireModal existing={argModal.existing} onSave={handleSaveArg} onClose={() => setArgModal({ open: false })} />}
       {prospectModal.open && <SAProspectModal existing={prospectModal.existing} onSave={handleSaveProspect} onClose={() => setProspectModal({ open: false })} />}
       {floatingArg && <SAArgumentaireFloatingWindow title={floatingArg.title} content={floatingArg.content} onClose={() => setFloatingArg(null)} />}

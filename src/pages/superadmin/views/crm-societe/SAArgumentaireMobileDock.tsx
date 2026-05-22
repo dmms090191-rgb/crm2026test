@@ -2,9 +2,9 @@ import { useState, useRef, useCallback } from 'react';
 import { X, GripHorizontal, ChevronUp, ChevronDown, RotateCcw } from 'lucide-react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 
-const MOBILE_MIN_H = 120;
-const MOBILE_DEFAULT_H = 260;
-const MOBILE_MAX_H_RATIO = 0.7;
+const MOBILE_MIN_H = 100;
+const MOBILE_DEFAULT_H = 180;
+const MOBILE_MAX_H_RATIO = 0.65;
 
 const STORAGE_KEY = 'sa_arg_float_mobile_h';
 
@@ -47,21 +47,14 @@ export default function SAArgumentaireMobileDock({ title, content, onClose, coll
     if (!resizing.current) return;
     const curMax = Math.floor(window.innerHeight * MOBILE_MAX_H_RATIO);
     const delta = startY.current - e.clientY;
-    const newH = Math.min(Math.max(startH.current + delta, MOBILE_MIN_H), curMax);
-    setHeight(newH);
+    setHeight(Math.min(Math.max(startH.current + delta, MOBILE_MIN_H), curMax));
   }, []);
 
   const onPointerUp = useCallback(() => {
-    if (resizing.current) {
-      resizing.current = false;
-      saveH(height);
-    }
+    if (resizing.current) { resizing.current = false; saveH(height); }
   }, [height]);
 
-  const handleReset = () => {
-    setHeight(MOBILE_DEFAULT_H);
-    saveH(MOBILE_DEFAULT_H);
-  };
+  const handleReset = () => { setHeight(MOBILE_DEFAULT_H); saveH(MOBILE_DEFAULT_H); };
 
   return (
     <div
@@ -69,24 +62,26 @@ export default function SAArgumentaireMobileDock({ title, content, onClose, coll
       style={{
         zIndex: 9998,
         height: collapsed ? 'auto' : height,
-        maxHeight: collapsed ? 'auto' : `${Math.floor(window.innerHeight * MOBILE_MAX_H_RATIO)}px`,
+        maxHeight: collapsed ? 'auto' : `${maxH}px`,
         background: t.surface.secondary,
         borderTop: `1px solid ${t.surface.border}`,
         boxShadow: '0 -4px 24px rgba(0,0,0,0.18)',
         borderRadius: '16px 16px 0 0',
       }}
     >
+      {/* Resize handle */}
       {!collapsed && (
         <div
-          className="flex items-center justify-center h-3 cursor-ns-resize flex-shrink-0 touch-none"
+          className="flex items-center justify-center h-5 cursor-ns-resize flex-shrink-0 touch-none"
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
         >
-          <div className="w-10 h-1 rounded-full" style={{ background: t.text.tertiary, opacity: 0.3 }} />
+          <div className="w-10 h-1 rounded-full" style={{ background: t.text.tertiary, opacity: 0.35 }} />
         </div>
       )}
 
+      {/* Title bar */}
       <div
         className="flex items-center justify-between px-3 py-2 flex-shrink-0"
         style={{ borderBottom: collapsed ? 'none' : `1px solid ${t.surface.borderLight}` }}
@@ -108,6 +103,7 @@ export default function SAArgumentaireMobileDock({ title, content, onClose, coll
         </div>
       </div>
 
+      {/* Content with internal scroll */}
       {!collapsed && (
         <div
           className="flex-1 overflow-y-auto px-4 py-3 text-sm leading-relaxed min-h-0"

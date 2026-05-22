@@ -20,7 +20,7 @@ export default function SAArgumentairesPanel({
   onAdd, onEdit, onDelete, onFloat, t,
 }: Props) {
   return (
-    <div className="xl:w-[380px] flex-shrink-0">
+    <div className="w-full">
       <div className="rounded-2xl overflow-hidden" style={{ background: t.surface.secondary, border: `1px solid ${t.surface.border}` }}>
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: `1px solid ${t.surface.border}` }}>
