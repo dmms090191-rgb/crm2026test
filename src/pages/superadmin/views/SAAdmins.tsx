@@ -1,14 +1,13 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import { createPortal } from 'react-dom';
-import { List, ChevronDown, ChevronUp, LogIn, Plus, RefreshCw, MessageSquare, Trash2, X, Megaphone, MoreHorizontal, Eye } from 'lucide-react';
+import { List, Plus, RefreshCw, Trash2, X } from 'lucide-react';
 import { useThemeTokens } from '../../../hooks/useThemeTokens';
-import CopyButton from '../../../components/CopyButton';
 import AdminDetailModal from './admins/AdminDetailModal';
 import SAAdminsCreateModal from './admins/SAAdminsCreateModal';
-import SAAdminsAccessSwitch from './admins/SAAdminsAccessSwitch';
 import SAAdminsBulkDeleteModal from './admins/SAAdminsBulkDeleteModal';
 import AdminHomePageModal from './admins/AdminHomePageModal';
 import SAAdminMobileCard from './admins/SAAdminMobileCard';
+import SAAdminsDesktopTable from './admins/SAAdminsDesktopTable';
+import SAAdminsActionsPopover from './admins/SAAdminsActionsPopover';
 import { supabase } from '../../../lib/supabase';
 
 export interface AdminUser {
@@ -55,13 +54,12 @@ export default function SAAdmins({ onConnectAsAdmin, onOpenChat, cachedAdmins, r
   const error = cachedError || '';
 
   const admins = useMemo(() => {
-    const sorted = [...rawAdmins].sort((a, b) => {
+    return [...rawAdmins].sort((a, b) => {
       const pa = orderMap[a.id] ?? Number.MAX_SAFE_INTEGER;
       const pb = orderMap[b.id] ?? Number.MAX_SAFE_INTEGER;
       if (pa !== pb) return pa - pb;
       return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
     });
-    return sorted;
   }, [rawAdmins, orderMap]);
 
   const loadOrder = useCallback(async () => {
@@ -74,12 +72,7 @@ export default function SAAdmins({ onConnectAsAdmin, onOpenChat, cachedAdmins, r
   }, []);
 
   useEffect(() => { loadOrder(); }, [loadOrder]);
-
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) setCurrentUserId(user.id);
-    });
-  }, []);
+  useEffect(() => { supabase.auth.getUser().then(({ data: { user } }) => { if (user) setCurrentUserId(user.id); }); }, []);
 
   const fetchAdmins = useCallback(() => { onRefresh?.(); }, [onRefresh]);
   const handleUpdate = useCallback(() => { fetchAdmins(); }, [fetchAdmins]);
@@ -89,15 +82,11 @@ export default function SAAdmins({ onConnectAsAdmin, onOpenChat, cachedAdmins, r
     if (idx < 0) return;
     const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
     if (swapIdx < 0 || swapIdx >= admins.length) return;
-
     const currentAdmin = admins[idx];
     const swapAdmin = admins[swapIdx];
     const currentPos = orderMap[currentAdmin.id] ?? idx;
     const swapPos = orderMap[swapAdmin.id] ?? swapIdx;
-
-    const newMap = { ...orderMap, [currentAdmin.id]: swapPos, [swapAdmin.id]: currentPos };
-    setOrderMap(newMap);
-
+    setOrderMap(prev => ({ ...prev, [currentAdmin.id]: swapPos, [swapAdmin.id]: currentPos }));
     await supabase.from('sa_admin_order').upsert([
       { admin_id: currentAdmin.id, position: swapPos, updated_at: new Date().toISOString() },
       { admin_id: swapAdmin.id, position: currentPos, updated_at: new Date().toISOString() },
@@ -113,8 +102,7 @@ export default function SAAdmins({ onConnectAsAdmin, onOpenChat, cachedAdmins, r
     const btn = actionsBtnRefs.current[actionsOpenId];
     if (!btn) { setPopoverPos(null); return; }
     const rect = btn.getBoundingClientRect();
-    const popW = 220;
-    const popH = 260;
+    const popW = 220, popH = 260;
     let top = rect.bottom + 6;
     let left = rect.left + rect.width / 2 - popW / 2;
     if (left < 8) left = 8;
@@ -125,7 +113,6 @@ export default function SAAdmins({ onConnectAsAdmin, onOpenChat, cachedAdmins, r
 
   const selectableAdmins = admins.filter(a => a.id !== currentUserId);
   const allSelected = selectableAdmins.length > 0 && selectableAdmins.every(a => selectedIds.has(a.id));
-
   const enterSelectionMode = () => { setSelectionMode(true); setSelectedIds(new Set()); };
   const exitSelectionMode = () => { setSelectionMode(false); setSelectedIds(new Set()); };
   const toggleSelectAll = () => { setSelectedIds(allSelected ? new Set() : new Set(selectableAdmins.map(a => a.id))); };
@@ -155,6 +142,8 @@ export default function SAAdmins({ onConnectAsAdmin, onOpenChat, cachedAdmins, r
     ? ['', 'Prenom', 'Nom', 'Email', 'Societe', 'Telephone', 'Role', 'Cree le', 'Acces', 'Actions']
     : ['Prenom', 'Nom', 'Email', 'Societe', 'Telephone', 'Role', 'Cree le', 'Acces', 'Actions'];
 
+  const actionsAdmin = actionsOpenId ? admins.find(a => a.id === actionsOpenId) : null;
+
   return (
     <div className="p-4 md:p-8 space-y-6 w-full">
       {/* Header */}
@@ -166,40 +155,24 @@ export default function SAAdmins({ onConnectAsAdmin, onOpenChat, cachedAdmins, r
         <div className="flex items-center gap-2 flex-wrap">
           {selectionMode ? (
             <>
-              <button data-testid="admins-cancel-selection-button" onClick={exitSelectionMode} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105" style={{ background: tokens.surface.secondary, border: `1px solid ${tokens.surface.border}`, color: tokens.text.secondary }}>
-                <X className="w-3.5 h-3.5" />Annuler
-              </button>
-              <button data-testid="admins-select-all-button" onClick={toggleSelectAll} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105" style={{ background: tokens.surface.secondary, border: `1px solid ${tokens.surface.border}`, color: tokens.text.secondary }}>
-                {allSelected ? 'Tout deselectionner' : 'Tout'}
-              </button>
+              <button data-testid="admins-cancel-selection-button" onClick={exitSelectionMode} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105" style={{ background: tokens.surface.secondary, border: `1px solid ${tokens.surface.border}`, color: tokens.text.secondary }}><X className="w-3.5 h-3.5" />Annuler</button>
+              <button data-testid="admins-select-all-button" onClick={toggleSelectAll} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105" style={{ background: tokens.surface.secondary, border: `1px solid ${tokens.surface.border}`, color: tokens.text.secondary }}>{allSelected ? 'Tout deselectionner' : 'Tout'}</button>
               {selectedIds.size > 0 && (
-                <button data-testid="admins-delete-selected-button" onClick={() => setShowDeleteModal(true)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105 text-white" style={{ background: '#ef4444', boxShadow: '0 2px 12px rgba(239,68,68,0.3)' }}>
-                  <Trash2 className="w-3.5 h-3.5" />Supprimer selection ({selectedIds.size})
-                </button>
+                <button data-testid="admins-delete-selected-button" onClick={() => setShowDeleteModal(true)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105 text-white" style={{ background: '#ef4444', boxShadow: '0 2px 12px rgba(239,68,68,0.3)' }}><Trash2 className="w-3.5 h-3.5" />Supprimer selection ({selectedIds.size})</button>
               )}
             </>
           ) : (
             <>
-              <button data-testid="admins-delete-mode-button" onClick={enterSelectionMode} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105" style={{ background: tokens.surface.secondary, border: `1px solid ${tokens.surface.border}`, color: tokens.text.secondary }}>
-                <Trash2 className="w-3.5 h-3.5" />Selection
-              </button>
-              <button onClick={fetchAdmins} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105" style={{ background: tokens.surface.secondary, border: `1px solid ${tokens.surface.border}`, color: tokens.text.secondary }}>
-                <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />Actualiser
-              </button>
-              <button onClick={() => setShowCreateModal(true)} data-testid="create-admin-button" className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105 text-white" style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', boxShadow: '0 2px 12px rgba(245,158,11,0.3)' }}>
-                <Plus className="w-3.5 h-3.5" />Creer un admin
-              </button>
+              <button data-testid="admins-delete-mode-button" onClick={enterSelectionMode} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105" style={{ background: tokens.surface.secondary, border: `1px solid ${tokens.surface.border}`, color: tokens.text.secondary }}><Trash2 className="w-3.5 h-3.5" />Selection</button>
+              <button onClick={fetchAdmins} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105" style={{ background: tokens.surface.secondary, border: `1px solid ${tokens.surface.border}`, color: tokens.text.secondary }}><RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />Actualiser</button>
+              <button onClick={() => setShowCreateModal(true)} data-testid="create-admin-button" className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105 text-white" style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', boxShadow: '0 2px 12px rgba(245,158,11,0.3)' }}><Plus className="w-3.5 h-3.5" />Creer un admin</button>
             </>
           )}
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: tokens.accent.bg, boxShadow: `0 0 16px ${tokens.accent.border}` }}>
-            <List className="w-4 h-4" style={{ color: tokens.accent.text }} />
-          </div>
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: tokens.accent.bg, boxShadow: `0 0 16px ${tokens.accent.border}` }}><List className="w-4 h-4" style={{ color: tokens.accent.text }} /></div>
         </div>
       </div>
 
-      {error && (
-        <div className="px-4 py-3 rounded-lg text-xs font-medium" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', color: '#f87171' }}>{error}</div>
-      )}
+      {error && <div className="px-4 py-3 rounded-lg text-xs font-medium" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', color: '#f87171' }}>{error}</div>}
 
       <div className="rounded-2xl overflow-hidden" data-testid="admins-list" style={{ background: tokens.card.bg, border: `1px solid ${tokens.card.border}` }}>
         {admins.length === 0 && loading ? (
@@ -216,139 +189,27 @@ export default function SAAdmins({ onConnectAsAdmin, onOpenChat, cachedAdmins, r
           </div>
         ) : (
           <>
-            {/* Desktop table */}
-            <div className="hidden md:block overflow-x-auto">
-              <table className="w-full table-auto" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
-                <thead>
-                  <tr style={{ borderBottom: `1px solid ${tokens.table.headerBorder}` }}>
-                    {selectionMode && (
-                      <th className="px-3 py-3 w-10" style={{ borderRight: `1px solid ${tokens.table.rowBorder}` }}>
-                        <input type="checkbox" data-testid="admins-select-all-checkbox" checked={allSelected} onChange={toggleSelectAll} className="w-4 h-4 rounded accent-amber-500 cursor-pointer" />
-                      </th>
-                    )}
-                    {TABLE_COLS.filter(c => c !== '').map((col, ci) => (
-                      <th key={col} className={`px-3 py-3 text-left text-[10px] font-bold tracking-[0.15em] uppercase ${col === 'Actions' ? 'whitespace-nowrap' : ''}`} style={{ color: tokens.table.headerText, borderRight: ci < TABLE_COLS.filter(c => c !== '').length - 1 ? `1px solid ${tokens.table.rowBorder}` : 'none' }}>{col}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {admins.map((admin, idx) => {
-                    const isSelf = admin.id === currentUserId;
-                    return (
-                      <tr key={admin.id} data-row-id={admin.id} data-testid="admin-row" className="group transition-all duration-150" style={{ borderBottom: idx < admins.length - 1 ? `1px solid ${tokens.table.rowBorder}` : 'none' }}>
-                        {selectionMode && (
-                          <td className="px-3 py-3.5" style={{ borderRight: `1px solid ${tokens.table.rowBorder}` }}>
-                            {isSelf ? <span className="text-[9px] font-medium px-1.5 py-0.5 rounded" style={{ background: 'rgba(100,116,139,0.15)', color: '#94a3b8' }}>vous</span> : (
-                              <input type="checkbox" data-testid="admin-row-checkbox" checked={selectedIds.has(admin.id)} onChange={() => toggleSelect(admin.id)} className="w-4 h-4 rounded accent-amber-500 cursor-pointer" />
-                            )}
-                          </td>
-                        )}
-                        <td className="px-3 py-3.5" style={{ borderRight: `1px solid ${tokens.table.rowBorder}` }}><span className="text-sm font-medium" style={{ color: tokens.table.cellText }}>{admin.first_name || '\u2014'}</span></td>
-                        <td className="px-3 py-3.5" style={{ borderRight: `1px solid ${tokens.table.rowBorder}` }}><span className="text-sm font-medium" style={{ color: tokens.table.cellText }}>{admin.last_name || '\u2014'}</span></td>
-                        <td className="px-3 py-3.5" style={{ borderRight: `1px solid ${tokens.table.rowBorder}` }}>
-                          <div className="flex items-center gap-1"><span className="text-sm truncate max-w-[180px]" style={{ color: tokens.table.cellTextMuted }}>{admin.email || '\u2014'}</span>{admin.email && <CopyButton value={admin.email} />}</div>
-                        </td>
-                        <td className="px-3 py-3.5" style={{ borderRight: `1px solid ${tokens.table.rowBorder}` }}><span className="text-sm" style={{ color: tokens.table.cellTextMuted }}>{admin.company || '\u2014'}</span></td>
-                        <td className="px-3 py-3.5" style={{ borderRight: `1px solid ${tokens.table.rowBorder}` }}><span className="text-sm" style={{ color: tokens.table.cellTextMuted }}>{admin.phone || '\u2014'}</span></td>
-                        <td className="px-3 py-3.5" style={{ borderRight: `1px solid ${tokens.table.rowBorder}` }}><span className="text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full whitespace-nowrap" style={{ background: 'rgba(245,158,11,0.12)', color: '#f59e0b' }}>{admin.role}</span></td>
-                        <td className="px-3 py-3.5 whitespace-nowrap" style={{ borderRight: `1px solid ${tokens.table.rowBorder}` }}><span className="text-sm" style={{ color: tokens.table.cellTextMuted }}>{formatDate(admin.created_at)}</span></td>
-                        <td className="px-3 py-3.5 whitespace-nowrap" style={{ borderRight: `1px solid ${tokens.table.rowBorder}` }}><SAAdminsAccessSwitch adminId={admin.id} enabled={admin.access_enabled} onToggled={fetchAdmins} /></td>
-                        <td className="px-3 py-3.5 whitespace-nowrap">
-                          <div className="flex items-center gap-1.5">
-                            <div className="flex flex-col gap-0.5 mr-1">
-                              <button onClick={() => moveAdmin(admin.id, 'up')} disabled={idx === 0} className="w-5 h-5 rounded flex items-center justify-center transition-all disabled:opacity-20" style={{ background: tokens.surface.secondary, border: `1px solid ${tokens.surface.border}`, color: tokens.text.secondary }} title="Monter"><ChevronUp className="w-3 h-3" /></button>
-                              <button onClick={() => moveAdmin(admin.id, 'down')} disabled={idx === admins.length - 1} className="w-5 h-5 rounded flex items-center justify-center transition-all disabled:opacity-20" style={{ background: tokens.surface.secondary, border: `1px solid ${tokens.surface.border}`, color: tokens.text.secondary }} title="Descendre"><ChevronDown className="w-3 h-3" /></button>
-                            </div>
-                            <button
-                              ref={el => { actionsBtnRefs.current[admin.id] = el; }}
-                              onClick={() => openActionsPopover(admin.id)}
-                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105"
-                              style={{ background: tokens.accent.bg, border: `1px solid ${tokens.accent.border}`, color: tokens.accent.text }}
-                            >
-                              <MoreHorizontal className="w-3.5 h-3.5" />
-                              Actions
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Mobile cards */}
+            <SAAdminsDesktopTable
+              admins={admins} selectionMode={selectionMode} selectedIds={selectedIds}
+              currentUserId={currentUserId} allSelected={allSelected}
+              onToggleSelectAll={toggleSelectAll} onToggleSelect={toggleSelect}
+              onMoveAdmin={moveAdmin} onOpenActions={openActionsPopover} onAccessToggled={fetchAdmins}
+              formatDate={formatDate} tokens={tokens} actionsBtnRefs={actionsBtnRefs}
+            />
             <div className="md:hidden divide-y" style={{ borderColor: tokens.table.rowBorder }}>
               {admins.map((admin, idx) => (
-                <SAAdminMobileCard
-                  key={admin.id}
-                  admin={admin}
-                  idx={idx}
-                  total={admins.length}
-                  isSelf={admin.id === currentUserId}
-                  selectionMode={selectionMode}
-                  selected={selectedIds.has(admin.id)}
-                  onToggleSelect={toggleSelect}
-                  onMove={moveAdmin}
-                  onDetail={setSelectedAdmin}
-                  onHomePage={setHomePageAdmin}
-                  onChat={a => onOpenChat?.(a)}
-                  onConnect={a => onConnectAsAdmin?.(a)}
-                  onAccessToggled={fetchAdmins}
-                  formatDate={formatDate}
-                  tokens={tokens}
-                />
+                <SAAdminMobileCard key={admin.id} admin={admin} idx={idx} total={admins.length} isSelf={admin.id === currentUserId}
+                  selectionMode={selectionMode} selected={selectedIds.has(admin.id)} onToggleSelect={toggleSelect}
+                  onMove={moveAdmin} onDetail={setSelectedAdmin} onHomePage={setHomePageAdmin}
+                  onChat={a => onOpenChat?.(a)} onConnect={a => onConnectAsAdmin?.(a)}
+                  onAccessToggled={fetchAdmins} formatDate={formatDate} tokens={tokens} />
               ))}
             </div>
           </>
         )}
       </div>
 
-      {actionsOpenId && (() => {
-        const admin = admins.find(a => a.id === actionsOpenId);
-        if (!admin) return null;
-        return createPortal(
-          <div className="fixed inset-0" style={{ zIndex: 99998 }} onClick={() => setActionsOpenId(null)}>
-            {popoverPos && (
-              <div
-                className="absolute rounded-xl p-3 w-[220px]"
-                style={{
-                  top: popoverPos.top, left: popoverPos.left, zIndex: 99999,
-                  background: tokens.modal.bg, border: `1px solid ${tokens.modal.border}`,
-                  boxShadow: '0 8px 32px rgba(0,0,0,0.35), 0 2px 8px rgba(0,0,0,0.2)',
-                  backdropFilter: 'blur(12px)',
-                }}
-                onClick={e => e.stopPropagation()}
-              >
-                <div className="flex items-center justify-between mb-2.5">
-                  <p className="text-xs font-bold truncate" style={{ color: tokens.heading.primary }}>
-                    {admin.first_name || admin.last_name ? `${admin.first_name} ${admin.last_name}`.trim() : admin.email}
-                  </p>
-                  <button onClick={() => setActionsOpenId(null)} className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0" style={{ background: tokens.modal.closeBtnBg, color: tokens.modal.closeBtnText }}>
-                    <X className="w-3 h-3" />
-                  </button>
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <button onClick={() => { setActionsOpenId(null); setSelectedAdmin(admin); }} className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-xs font-semibold transition-all hover:scale-[1.02]" style={{ background: tokens.accent.bg, border: `1px solid ${tokens.accent.border}`, color: tokens.accent.text }}>
-                    <Eye className="w-3.5 h-3.5" />Detail
-                  </button>
-                  <button onClick={() => { setActionsOpenId(null); setHomePageAdmin(admin); }} className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-xs font-semibold transition-all hover:scale-[1.02]" style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)', color: '#f59e0b' }}>
-                    <Megaphone className="w-3.5 h-3.5" />Annonce
-                  </button>
-                  <button onClick={() => { setActionsOpenId(null); onOpenChat?.(admin); }} className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-xs font-semibold transition-all hover:scale-[1.02]" style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.25)', color: '#f59e0b' }}>
-                    <MessageSquare className="w-3.5 h-3.5" />MSG
-                  </button>
-                  <button onClick={() => { setActionsOpenId(null); onConnectAsAdmin?.(admin); }} className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-xs font-semibold transition-all hover:scale-[1.02]" style={{ background: tokens.success.bg, border: `1px solid ${tokens.success.border}`, color: tokens.success.text }}>
-                    <LogIn className="w-3.5 h-3.5" />Connecter
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>,
-          document.body
-        );
-      })()}
-
+      {actionsAdmin && <SAAdminsActionsPopover admin={actionsAdmin} popoverPos={popoverPos} onClose={() => setActionsOpenId(null)} onDetail={setSelectedAdmin} onHomePage={setHomePageAdmin} onChat={a => onOpenChat?.(a)} onConnect={a => onConnectAsAdmin?.(a)} tokens={tokens} />}
       {selectedAdmin && <AdminDetailModal admin={selectedAdmin} mode="detail" onClose={() => setSelectedAdmin(null)} onUpdate={handleUpdate} onSwitchMode={() => {}} />}
       {showCreateModal && <SAAdminsCreateModal onClose={() => setShowCreateModal(false)} onCreated={() => { setShowCreateModal(false); fetchAdmins(); }} tokens={tokens} />}
       {showDeleteModal && <SAAdminsBulkDeleteModal count={selectedIds.size} loading={deleting} onConfirm={handleBulkDelete} onCancel={() => setShowDeleteModal(false)} />}

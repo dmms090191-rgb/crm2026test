@@ -1,28 +1,17 @@
 {
-  "generatedAt": "2026-05-22T19:40:03.444Z",
+  "generatedAt": "2026-05-22T20:07:14.575Z",
   "anyCount": 0,
   "anyOccurrences": [],
   "unusedImportCount": 0,
   "unusedImports": [],
-  "largeFileCount": 2,
-  "largeFiles": [
-    {
-      "file": "src/pages/superadmin/views/SAAdmins.tsx",
-      "lines": 359,
-      "overflow": 59
-    },
-    {
-      "file": "src/pages/superadmin/views/crm-societe/SACrmSociete.tsx",
-      "lines": 404,
-      "overflow": 104
-    }
-  ],
+  "largeFileCount": 0,
+  "largeFiles": [],
   "tscErrorCount": 0,
   "tscErrors": [],
   "eslintErrorCount": 0,
   "eslintWarningCount": 0,
   "eslintIssues": [],
-  "totalFilesAnalyzed": 398,
-  "totalLinesAnalyzed": 57507,
-  "totalOverflowLines": 163
+  "totalFilesAnalyzed": 403,
+  "totalLinesAnalyzed": 57696,
+  "totalOverflowLines": 0
 }
