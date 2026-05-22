@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pencil, Trash2, FileCode2, Copy, ClipboardCheck } from 'lucide-react';
+import { Pencil, Trash2, FileCode2, Copy, ClipboardCheck, Code2, ChevronDown, ChevronRight } from 'lucide-react';
 import type { FinishedTest } from './SATestFinishedModal';
 
 interface Props {
@@ -10,8 +10,11 @@ interface Props {
 
 export default function SATestFinishedItem({ test, onEdit, onDelete }: Props) {
   const commands = (test.commands || '').split('\n').filter(l => l.trim());
+  const hasCode = !!(test.test_code || '').trim();
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
   const [copiedAll, setCopiedAll] = useState(false);
+  const [copiedCode, setCopiedCode] = useState(false);
+  const [codeExpanded, setCodeExpanded] = useState(false);
 
   const copyOne = (cmd: string, idx: number) => {
     navigator.clipboard.writeText(cmd);
@@ -23,6 +26,12 @@ export default function SATestFinishedItem({ test, onEdit, onDelete }: Props) {
     navigator.clipboard.writeText(commands.join('\n'));
     setCopiedAll(true);
     setTimeout(() => setCopiedAll(false), 1500);
+  };
+
+  const copyCode = () => {
+    navigator.clipboard.writeText(test.test_code);
+    setCopiedCode(true);
+    setTimeout(() => setCopiedCode(false), 1500);
   };
 
   return (
@@ -71,6 +80,31 @@ export default function SATestFinishedItem({ test, onEdit, onDelete }: Props) {
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+
+          {hasCode && (
+            <div className="mt-2.5 rounded-lg overflow-hidden" style={{ background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(51,65,85,0.4)' }}>
+              <div className="flex items-center justify-between px-2.5 py-1.5" style={{ borderBottom: codeExpanded ? '1px solid rgba(51,65,85,0.3)' : 'none' }}>
+                <button onClick={() => setCodeExpanded(p => !p)} className="flex items-center gap-1.5 text-[10px] font-medium text-slate-500 hover:text-slate-300 transition-colors">
+                  {codeExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+                  <Code2 className="w-3 h-3" />
+                  Code du test
+                </button>
+                <button
+                  onClick={copyCode}
+                  className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium transition-all"
+                  style={{ background: copiedCode ? 'rgba(16,185,129,0.15)' : 'rgba(51,65,85,0.4)', color: copiedCode ? '#34d399' : '#94a3b8' }}
+                >
+                  {copiedCode ? <ClipboardCheck className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                  {copiedCode ? 'Copie !' : 'Copier le code'}
+                </button>
+              </div>
+              {codeExpanded && (
+                <pre className="p-3 overflow-auto text-[11px] font-mono leading-relaxed text-emerald-200/90" style={{ maxHeight: '400px' }}>
+                  <code>{test.test_code}</code>
+                </pre>
+              )}
             </div>
           )}
         </div>

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Send, Trash2, X, RefreshCw, ArrowLeft, AlertCircle } from 'lucide-react';
+import { Send, Trash2, X, RefreshCw, ArrowLeft, AlertCircle, Bot } from 'lucide-react';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
 import { useTimezone } from '../../hooks/useTimezone';
 import FilePreview from './FilePreview';
@@ -102,13 +102,21 @@ export default function MessagingPanel({
   const selectedContact = contacts.find(c => c.id === selectedContactId);
   const myCfg = SENDER_STYLES[currentRole] ?? SENDER_STYLES.admin;
 
+  const lastClientMsgId = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].sender === 'client' && !messages[i].deleted) return messages[i].id;
+    }
+    return null;
+  }, [messages]);
+
   const canDelete = useCallback((msg: ChatMessage) => {
     if (msg.deleted || msg._pending || msg._failed) return false;
+    if (currentRole === 'client') return msg.id === lastClientMsgId;
     if (isAdmin) return true;
     if (currentRole === 'admin') return msg.sender === 'admin';
     if (currentRole === 'vendor') return msg.sender === 'vendor';
     return false;
-  }, [currentRole, isAdmin]);
+  }, [currentRole, isAdmin, lastClientMsgId]);
 
   const showSidebar = contacts.length >= 1;
 
@@ -181,8 +189,13 @@ export default function MessagingPanel({
                   return (
                     <div key={msg.id} className={`flex items-end gap-1 md:gap-2 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`} onMouseEnter={() => setHoveredId(msg.id)} onMouseLeave={() => { setHoveredId(null); if (confirmDeleteId === msg.id) setConfirmDeleteId(null); }}>
                       <div className={`flex flex-col max-w-[82%] md:max-w-xs ${isOwn ? 'items-end' : 'items-start'}`}>
-                        <span className={`text-[9px] md:text-[11px] font-medium mb-px md:mb-1 px-0.5 md:px-1 ${isOwn ? 'text-right' : 'text-left'}`} style={{ color: isOwn ? `rgba(${accentRgb},0.8)` : tokens.text.tertiary }}>
+                        <span className={`text-[9px] md:text-[11px] font-medium mb-px md:mb-1 px-0.5 md:px-1 flex items-center gap-1 ${isOwn ? 'justify-end' : 'justify-start'}`} style={{ color: isOwn ? `rgba(${accentRgb},0.8)` : tokens.text.tertiary }}>
                           {senderLabel}
+                          {msg.is_ai_reply && (
+                            <span className="inline-flex items-center gap-0.5 px-1 py-px rounded text-[8px] md:text-[9px] font-semibold" style={{ background: 'rgba(14,165,233,0.12)', color: '#38bdf8', border: '1px solid rgba(14,165,233,0.2)' }}>
+                              <Bot className="w-2.5 h-2.5" />IA
+                            </span>
+                          )}
                         </span>
                         <div className={`relative group px-2.5 md:px-4 py-1 md:py-2.5 rounded-xl md:rounded-2xl ${isPending ? 'opacity-60' : ''}`} style={isOwn ? { background: myCfg.bubbleGradient, boxShadow: `0 2px 12px ${myCfg.glow}` } : senderCfg.bubbleSolid(tokens)}>
                           {msg.deleted ? (

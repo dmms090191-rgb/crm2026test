@@ -27,6 +27,7 @@ export interface PropositionNotifEntry {
   created_by_role?: string;
   parent_proposal_id?: string | null;
   status?: string;
+  reschedule_status?: string | null;
 }
 interface ClientTopBarProps {
   breadcrumb: string;

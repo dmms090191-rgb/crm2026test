@@ -14,37 +14,65 @@ interface CrmPinDisplayProps {
 export default function CrmPinDisplay({ password, leadId, leadData, onPasswordUpdate, readOnly }: CrmPinDisplayProps) {
   const tokens = useThemeTokens();
   const [show, setShow] = useState(false);
-  const [editPin, setEditPin] = useState(password.padEnd(6, '').split('').slice(0, 6));
+  const [editPin, setEditPin] = useState(() => {
+    const chars = password.split('').slice(0, 6);
+    return Array.from({ length: 6 }, (_, i) => chars[i] ?? '');
+  });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
   const pinRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   useEffect(() => {
-    setEditPin(password.padEnd(6, '').split('').slice(0, 6));
+    const chars = password.split('').slice(0, 6);
+    setEditPin(Array.from({ length: 6 }, (_, i) => chars[i] ?? ''));
   }, [password]);
 
   function handleChange(index: number, value: string) {
-    const digit = value.replace(/\D/g, '').slice(-1);
-    const next = [...editPin];
-    next[index] = digit;
-    setEditPin(next);
-    if (digit && index < 5) pinRefs.current[index + 1]?.focus();
+    const raw = value.replace(/\D/g, '');
+    if (!raw) return;
+    if (raw.length > 1) {
+      const digits = raw.slice(0, 6 - index).split('');
+      setEditPin(prev => {
+        const next = [...prev];
+        digits.forEach((d, offset) => { next[index + offset] = d; });
+        return next;
+      });
+      pinRefs.current[Math.min(index + digits.length, 5)]?.focus();
+      return;
+    }
+    const digit = raw;
+    setEditPin(prev => {
+      const next = [...prev];
+      next[index] = digit;
+      return next;
+    });
+    if (index < 5) {
+      pinRefs.current[index + 1]?.focus();
+    }
   }
 
   function handleKeyDown(index: number, e: React.KeyboardEvent<HTMLInputElement>) {
+    if (/^\d$/.test(e.key)) {
+      e.preventDefault();
+      setEditPin(prev => {
+        const next = [...prev];
+        next[index] = e.key;
+        return next;
+      });
+      if (index < 5) {
+        pinRefs.current[index + 1]?.focus();
+      }
+      return;
+    }
     if (e.key === 'Backspace') {
+      e.preventDefault();
       if (editPin[index]) {
-        const next = [...editPin];
-        next[index] = '';
-        setEditPin(next);
+        setEditPin(prev => { const n = [...prev]; n[index] = ''; return n; });
       } else if (index > 0) {
         pinRefs.current[index - 1]?.focus();
-        const next = [...editPin];
-        next[index - 1] = '';
-        setEditPin(next);
+        setEditPin(prev => { const n = [...prev]; n[index - 1] = ''; return n; });
       }
-      e.preventDefault();
     } else if (e.key === 'ArrowLeft' && index > 0) {
       pinRefs.current[index - 1]?.focus();
       e.preventDefault();

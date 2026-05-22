@@ -1,7 +1,8 @@
-import { MessageSquareText, CalendarDays, CalendarClock, CalendarCheck, Shield } from 'lucide-react';
+import { MessageSquareText, CalendarDays, CalendarClock, CalendarCheck, Shield, RefreshCw } from 'lucide-react';
 import { ClientNotifItem, VendorNotifItem, AgendaNotifItem, AgendaEquipeNotifItem, ProposalNotifItem, ConfirmedProposalItem } from './index';
-import { NotifDropdownSection, SuperAdminNotifItem } from './NotificationItems';
+import { NotifDropdownSection, SuperAdminNotifItem, RescheduleResponseItem, RescheduleRequestItem } from './NotificationItems';
 import type { ClientNotifEntry, VendorNotifEntry, ConfirmedProposalEntry } from '../../TopBar';
+import type { ProposalNotifEntry } from '../../dashboard/useAdminProposalNotifs';
 import type { AgendaNotifEntry } from '../../../../hooks/useAgendaNotifications';
 import type { AgendaEquipeNotifEntry } from '../../../../hooks/useAgendaEquipeNotifications';
 import type { ThemeTokens } from '../../../../lib/themeTokensTypes';
@@ -21,6 +22,10 @@ interface Props {
   setProposDropdownOpen: (v: boolean | ((p: boolean) => boolean)) => void;
   confirmedDropdownOpen: boolean;
   setConfirmedDropdownOpen: (v: boolean | ((p: boolean) => boolean)) => void;
+  rescheduleDropdownOpen: boolean;
+  setRescheduleDropdownOpen: (v: boolean | ((p: boolean) => boolean)) => void;
+  rescheduleReqDropdownOpen: boolean;
+  setRescheduleReqDropdownOpen: (v: boolean | ((p: boolean) => boolean)) => void;
   clientDropdownRef: React.RefObject<HTMLDivElement>;
   vendorDropdownRef: React.RefObject<HTMLDivElement>;
   superAdminDropdownRef: React.RefObject<HTMLDivElement>;
@@ -28,6 +33,8 @@ interface Props {
   equipeDropdownRef: React.RefObject<HTMLDivElement>;
   proposDropdownRef: React.RefObject<HTMLDivElement>;
   confirmedDropdownRef: React.RefObject<HTMLDivElement>;
+  rescheduleDropdownRef: React.RefObject<HTMLDivElement>;
+  rescheduleReqDropdownRef: React.RefObject<HTMLDivElement>;
   unreadClientCount: number;
   unreadClientEntries: ClientNotifEntry[];
   onClientEntryClick?: (entry: ClientNotifEntry) => void;
@@ -46,6 +53,12 @@ interface Props {
   confirmedCount: number;
   confirmedEntries: ConfirmedProposalEntry[];
   onConfirmedEntryClick?: (proposalId: string) => void;
+  rescheduleCount: number;
+  rescheduleEntries: ProposalNotifEntry[];
+  onRescheduleEntryClick?: (proposalId: string) => void;
+  rescheduleRequestCount?: number;
+  rescheduleRequestEntries?: ProposalNotifEntry[];
+  onRescheduleRequestEntryClick?: (proposalId: string) => void;
   unreadSuperAdminCount?: number;
   onSuperAdminClick?: () => void;
   tokens: ThemeTokens;
@@ -59,13 +72,17 @@ export default function AdminDesktopNotifPill({
   equipeDropdownOpen, setEquipeDropdownOpen,
   proposDropdownOpen, setProposDropdownOpen,
   confirmedDropdownOpen, setConfirmedDropdownOpen,
-  clientDropdownRef, vendorDropdownRef, superAdminDropdownRef, agendaDropdownRef, equipeDropdownRef, proposDropdownRef, confirmedDropdownRef,
+  rescheduleDropdownOpen, setRescheduleDropdownOpen,
+  rescheduleReqDropdownOpen, setRescheduleReqDropdownOpen,
+  clientDropdownRef, vendorDropdownRef, superAdminDropdownRef, agendaDropdownRef, equipeDropdownRef, proposDropdownRef, confirmedDropdownRef, rescheduleDropdownRef, rescheduleReqDropdownRef,
   unreadClientCount, unreadClientEntries, onClientEntryClick,
   unreadVendorCount, unreadVendorEntries, onVendorEntryClick,
   agendaPersoCount, agendaPersoEntries, onAgendaPersoEntryClick,
   agendaEquipeCount, agendaEquipeEntries, onAgendaEquipeEntryClick,
   proposalsCount, proposalsEntries, onProposalEntryClick,
   confirmedCount, confirmedEntries, onConfirmedEntryClick,
+  rescheduleCount, rescheduleEntries, onRescheduleEntryClick,
+  rescheduleRequestCount = 0, rescheduleRequestEntries = [], onRescheduleRequestEntryClick,
   unreadSuperAdminCount = 0, onSuperAdminClick,
   tokens: t,
 }: Props) {
@@ -129,6 +146,22 @@ export default function AdminDesktopNotifPill({
       <NotifDropdownSection dropdownRef={confirmedDropdownRef} open={confirmedDropdownOpen} setOpen={setConfirmedDropdownOpen} icon={<CalendarCheck className="w-[15px] h-[15px]" />} label="RDV Confirmes" count={confirmedCount} iconColor={iconColor} iconHoverColor={iconHover} labelColor={labelColor} labelHoverColor={labelHover} hoverBg={hoverBg} dropdownWidth="w-80" dropdownAlign="right" headerLabel="RDV Confirmes" emptyText="Aucune nouvelle confirmation" tokens={t}>
         {confirmedEntries.map(entry => (
           <ConfirmedProposalItem key={entry.id} entry={entry} tokens={t.dropdown} onClick={() => { setConfirmedDropdownOpen(false); onConfirmedEntryClick?.(entry.id); }} />
+        ))}
+      </NotifDropdownSection>
+
+      <div className="w-px h-5" style={{ background: t.topbar.notifDivider }} />
+
+      <NotifDropdownSection dropdownRef={rescheduleDropdownRef} open={rescheduleDropdownOpen} setOpen={setRescheduleDropdownOpen} icon={<RefreshCw className="w-[15px] h-[15px]" />} label="Decalages" count={rescheduleCount} iconColor={iconColor} iconHoverColor={iconHover} labelColor={labelColor} labelHoverColor={labelHover} hoverBg={hoverBg} dropdownWidth="w-80" dropdownAlign="right" headerLabel="Reponses decalages" emptyText="Aucune reponse de decalage" tokens={t}>
+        {rescheduleEntries.map(entry => (
+          <RescheduleResponseItem key={entry.id} entry={entry} tokens={t.dropdown} onClick={() => { setRescheduleDropdownOpen(false); onRescheduleEntryClick?.(entry.id); }} />
+        ))}
+      </NotifDropdownSection>
+
+      <div className="w-px h-5" style={{ background: t.topbar.notifDivider }} />
+
+      <NotifDropdownSection dropdownRef={rescheduleReqDropdownRef} open={rescheduleReqDropdownOpen} setOpen={setRescheduleReqDropdownOpen} icon={<RefreshCw className="w-[15px] h-[15px]" />} label="Demandes decalage" count={rescheduleRequestCount} iconColor={iconColor} iconHoverColor="#f59e0b" labelColor={labelColor} labelHoverColor="#f59e0b" hoverBg={hoverBg} dropdownWidth="w-80" dropdownAlign="right" headerLabel="Demandes de decalage" emptyText="Aucune demande de decalage" tokens={t}>
+        {rescheduleRequestEntries.map(entry => (
+          <RescheduleRequestItem key={entry.id} entry={entry} tokens={t.dropdown} onClick={() => { setRescheduleReqDropdownOpen(false); onRescheduleRequestEntryClick?.(entry.id); }} />
         ))}
       </NotifDropdownSection>
     </div>

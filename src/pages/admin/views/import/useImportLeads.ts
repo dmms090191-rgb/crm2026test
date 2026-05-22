@@ -115,6 +115,7 @@ export function useImportLeads(activeTab: 'import' | 'history') {
       const { data: matches } = await supabase.rpc('find_duplicate_leads', {
         p_emails: validEmails.length > 0 ? validEmails : ['__no_match__'],
         p_telephones: validTels.length > 0 ? validTels : ['__no_match__'],
+        p_company_id: companyId,
       });
       if (matches && matches.length > 0) finalRows = applyDuplicateMatches(allRows, matches);
     }

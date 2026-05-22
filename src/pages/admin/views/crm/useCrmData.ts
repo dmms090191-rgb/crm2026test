@@ -89,7 +89,7 @@ export function useCrmData() {
     if (!companyId) return;
     const { data } = await supabase
       .from('leads')
-      .select('id, data, imported_at, statut, actif, vendor_id')
+      .select('id, data, imported_at, statut, actif, vendor_id, ai_enabled')
       .eq('company_id', companyId)
       .order('imported_at', { ascending: false })
       .order('id', { ascending: true });
@@ -159,6 +159,20 @@ export function useCrmData() {
     if (error) setLeads(ls => ls.map(l => l.id === id ? { ...l, actif: current } : l));
   };
 
+  const handleToggleAi = async (id: string, current: boolean) => {
+    if (isSimulating) return;
+    setLeads(ls => ls.map(l => l.id === id ? { ...l, ai_enabled: !current } : l));
+    const { error } = await supabase.from('leads').update({ ai_enabled: !current }).eq('id', id);
+    if (error) setLeads(ls => ls.map(l => l.id === id ? { ...l, ai_enabled: current } : l));
+  };
+
+  const handleGlobalAiToggle = async (enabled: boolean) => {
+    if (isSimulating || !companyId) return;
+    setLeads(ls => ls.map(l => ({ ...l, ai_enabled: enabled })));
+    const { error } = await supabase.from('leads').update({ ai_enabled: enabled }).eq('company_id', companyId);
+    if (error) load();
+  };
+
   const handleDeleteSelected = async () => {
     if (isSimulating) return;
     if (selected.size === 0) return;
@@ -223,6 +237,6 @@ export function useCrmData() {
     workMode, cardRefsMap, rowRefsMap,
     topScrollRef, bottomScrollRef, topInnerRef,
     handleTopScroll, handleBottomScroll,
-    handleStatut, handleToggleActif, handleDeleteSelected, handleTransfer,
+    handleStatut, handleToggleActif, handleToggleAi, handleGlobalAiToggle, handleDeleteSelected, handleTransfer,
   };
 }

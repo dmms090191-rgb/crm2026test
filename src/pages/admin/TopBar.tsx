@@ -36,6 +36,7 @@ export interface ConfirmedProposalEntry {
   created_at: string;
   created_by_role?: string;
   parent_proposal_id?: string | null;
+  reschedule_status?: string | null;
 }
 
 interface TopBarProps {
@@ -62,11 +63,17 @@ interface TopBarProps {
   confirmedCount?: number;
   confirmedEntries?: ConfirmedProposalEntry[];
   onConfirmedEntryClick?: (proposalId: string) => void;
+  rescheduleCount?: number;
+  rescheduleEntries?: ConfirmedProposalEntry[];
+  onRescheduleEntryClick?: (proposalId: string) => void;
+  rescheduleRequestCount?: number;
+  rescheduleRequestEntries?: ConfirmedProposalEntry[];
+  onRescheduleRequestEntryClick?: (proposalId: string) => void;
   impersonatedAdmin?: ImpersonatedAdminInfo | null;
   onBackToSuperAdmin?: () => void;
 }
 
-export default function TopBar({ breadcrumb, onMobileMenuToggle, adminName = 'Administrateur', unreadClientCount = 0, unreadClientEntries = [], onClientEntryClick, unreadVendorCount = 0, unreadVendorEntries = [], onVendorEntryClick, unreadSuperAdminCount = 0, onSuperAdminClick, agendaPersoCount = 0, agendaPersoEntries = [], onAgendaPersoEntryClick, agendaEquipeCount = 0, agendaEquipeEntries = [], onAgendaEquipeEntryClick, proposalsCount = 0, proposalsEntries = [], onProposalEntryClick, confirmedCount = 0, confirmedEntries = [], onConfirmedEntryClick, impersonatedAdmin, onBackToSuperAdmin }: TopBarProps) {
+export default function TopBar({ breadcrumb, onMobileMenuToggle, adminName = 'Administrateur', unreadClientCount = 0, unreadClientEntries = [], onClientEntryClick, unreadVendorCount = 0, unreadVendorEntries = [], onVendorEntryClick, unreadSuperAdminCount = 0, onSuperAdminClick, agendaPersoCount = 0, agendaPersoEntries = [], onAgendaPersoEntryClick, agendaEquipeCount = 0, agendaEquipeEntries = [], onAgendaEquipeEntryClick, proposalsCount = 0, proposalsEntries = [], onProposalEntryClick, confirmedCount = 0, confirmedEntries = [], onConfirmedEntryClick, rescheduleCount = 0, rescheduleEntries = [], onRescheduleEntryClick, rescheduleRequestCount = 0, rescheduleRequestEntries = [], onRescheduleRequestEntryClick, impersonatedAdmin, onBackToSuperAdmin }: TopBarProps) {
   const { timezone, tzLabel, tzCode, setTimezone } = useTimezone();
   const t = useThemeTokens();
   const [clientDropdownOpen, setClientDropdownOpen] = useState(false);
@@ -76,6 +83,8 @@ export default function TopBar({ breadcrumb, onMobileMenuToggle, adminName = 'Ad
   const [equipeDropdownOpen, setEquipeDropdownOpen] = useState(false);
   const [proposDropdownOpen, setProposDropdownOpen] = useState(false);
   const [confirmedDropdownOpen, setConfirmedDropdownOpen] = useState(false);
+  const [rescheduleDropdownOpen, setRescheduleDropdownOpen] = useState(false);
+  const [rescheduleReqDropdownOpen, setRescheduleReqDropdownOpen] = useState(false);
   const [mobileNotifOpen, setMobileNotifOpen] = useState(false);
   const [mobileNotifCategory, setMobileNotifCategory] = useState<string | null>(null);
   const [tzModalOpen, setTzModalOpen] = useState(false);
@@ -86,13 +95,15 @@ export default function TopBar({ breadcrumb, onMobileMenuToggle, adminName = 'Ad
   const equipeDropdownRef = useRef<HTMLDivElement>(null);
   const proposDropdownRef = useRef<HTMLDivElement>(null);
   const confirmedDropdownRef = useRef<HTMLDivElement>(null);
+  const rescheduleDropdownRef = useRef<HTMLDivElement>(null);
+  const rescheduleReqDropdownRef = useRef<HTMLDivElement>(null);
   const mobileNotifRef = useRef<HTMLDivElement>(null);
   const mobileNotifPanelRef = useRef<HTMLDivElement>(null);
   const [, setTick] = useState(0);
   useEffect(() => { const id = setInterval(() => setTick(v => v + 1), 60_000); return () => clearInterval(id); }, []);
   const clock = getCurrentTime(timezone);
 
-  const totalNotifCount = unreadClientCount + unreadVendorCount + unreadSuperAdminCount + agendaPersoCount + agendaEquipeCount + proposalsCount + confirmedCount;
+  const totalNotifCount = unreadClientCount + unreadVendorCount + unreadSuperAdminCount + agendaPersoCount + agendaEquipeCount + proposalsCount + confirmedCount + rescheduleCount + rescheduleRequestCount;
 
   useEffect(() => {
     const outside = (e: MouseEvent) => {
@@ -104,6 +115,8 @@ export default function TopBar({ breadcrumb, onMobileMenuToggle, adminName = 'Ad
       if (equipeDropdownRef.current && !equipeDropdownRef.current.contains(tgt)) setEquipeDropdownOpen(false);
       if (proposDropdownRef.current && !proposDropdownRef.current.contains(tgt)) setProposDropdownOpen(false);
       if (confirmedDropdownRef.current && !confirmedDropdownRef.current.contains(tgt)) setConfirmedDropdownOpen(false);
+      if (rescheduleDropdownRef.current && !rescheduleDropdownRef.current.contains(tgt)) setRescheduleDropdownOpen(false);
+      if (rescheduleReqDropdownRef.current && !rescheduleReqDropdownRef.current.contains(tgt)) setRescheduleReqDropdownOpen(false);
       if (mobileNotifRef.current && !mobileNotifRef.current.contains(tgt) && (!mobileNotifPanelRef.current || !mobileNotifPanelRef.current.contains(tgt))) setMobileNotifOpen(false);
     };
     document.addEventListener('mousedown', outside);
@@ -185,6 +198,12 @@ export default function TopBar({ breadcrumb, onMobileMenuToggle, adminName = 'Ad
           confirmedCount={confirmedCount}
           confirmedEntries={confirmedEntries}
           onConfirmedEntryClick={onConfirmedEntryClick}
+          rescheduleCount={rescheduleCount}
+          rescheduleEntries={rescheduleEntries}
+          onRescheduleEntryClick={onRescheduleEntryClick}
+          rescheduleRequestCount={rescheduleRequestCount}
+          rescheduleRequestEntries={rescheduleRequestEntries}
+          onRescheduleRequestEntryClick={onRescheduleRequestEntryClick}
           timezone={timezone}
           tokens={t}
           containerRef={mobileNotifRef}
@@ -204,12 +223,18 @@ export default function TopBar({ breadcrumb, onMobileMenuToggle, adminName = 'Ad
           setProposDropdownOpen={setProposDropdownOpen}
           confirmedDropdownOpen={confirmedDropdownOpen}
           setConfirmedDropdownOpen={setConfirmedDropdownOpen}
+          rescheduleDropdownOpen={rescheduleDropdownOpen}
+          setRescheduleDropdownOpen={setRescheduleDropdownOpen}
           clientDropdownRef={clientDropdownRef}
           vendorDropdownRef={vendorDropdownRef}
           agendaDropdownRef={agendaDropdownRef}
           equipeDropdownRef={equipeDropdownRef}
           proposDropdownRef={proposDropdownRef}
           confirmedDropdownRef={confirmedDropdownRef}
+          rescheduleDropdownRef={rescheduleDropdownRef}
+          rescheduleReqDropdownOpen={rescheduleReqDropdownOpen}
+          setRescheduleReqDropdownOpen={setRescheduleReqDropdownOpen}
+          rescheduleReqDropdownRef={rescheduleReqDropdownRef}
           unreadClientCount={unreadClientCount}
           unreadClientEntries={unreadClientEntries}
           onClientEntryClick={onClientEntryClick}
@@ -228,6 +253,12 @@ export default function TopBar({ breadcrumb, onMobileMenuToggle, adminName = 'Ad
           confirmedCount={confirmedCount}
           confirmedEntries={confirmedEntries}
           onConfirmedEntryClick={onConfirmedEntryClick}
+          rescheduleCount={rescheduleCount}
+          rescheduleEntries={rescheduleEntries}
+          onRescheduleEntryClick={onRescheduleEntryClick}
+          rescheduleRequestCount={rescheduleRequestCount}
+          rescheduleRequestEntries={rescheduleRequestEntries}
+          onRescheduleRequestEntryClick={onRescheduleRequestEntryClick}
           unreadSuperAdminCount={unreadSuperAdminCount}
           superAdminDropdownOpen={superAdminDropdownOpen}
           setSuperAdminDropdownOpen={setSuperAdminDropdownOpen}

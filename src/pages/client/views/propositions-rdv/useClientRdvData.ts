@@ -2,10 +2,11 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '../../../../lib/supabase';
 import { useTimezone } from '../../../../hooks/useTimezone';
 import { useCompanyId } from '../../../../hooks/useCompanyId';
-import { localToUTC } from '../../../../lib/timezoneUtils';
 import { getVisibleRdvProposals } from '../../../vendor/views/rdvChainFilter';
 import type { RdvProposal } from './clientRdvConstants';
 import { filterToStatus } from './clientRdvConstants';
+import { acceptRdv, refuseRdv, cancelOwnRdv, acceptReschedule, refuseReschedule } from './clientRdvActions';
+import { submitCounter, submitNewRdv } from './clientRdvSubmit';
 
 interface UseClientRdvDataOptions {
   clientEmail: string;
@@ -25,39 +26,26 @@ export function useClientRdvData({ clientEmail, onMount }: UseClientRdvDataOptio
   const [newRdvSaving, setNewRdvSaving] = useState(false);
   const [newRdvError, setNewRdvError] = useState('');
 
-  useEffect(() => {
-    onMount?.();
-  }, [onMount]);
+  useEffect(() => { onMount?.(); }, [onMount]);
 
   const load = useCallback(async () => {
     setLoading(true);
     const { data: byCol } = await supabase
-      .from('leads')
-      .select('id')
-      .eq('email', clientEmail);
+      .from('leads').select('id').eq('email', clientEmail);
     const { data: byJson } = await supabase
-      .from('leads')
-      .select('id')
-      .is('email', null)
-      .eq('data->>Email', clientEmail);
+      .from('leads').select('id').is('email', null).eq('data->>Email', clientEmail);
     const allLeads = [...(byCol ?? []), ...(byJson ?? [])];
     const seenIds = new Set<string>();
     const leadIds = allLeads.filter(l => { if (seenIds.has(l.id)) return false; seenIds.add(l.id); return true; }).map(l => l.id);
 
     let results: RdvProposal[] = [];
     const { data: byEmail } = await supabase
-      .from('rdv_proposals')
-      .select('*')
-      .eq('lead_email', clientEmail)
-      .order('created_at', { ascending: false });
+      .from('rdv_proposals').select('*').eq('lead_email', clientEmail).order('created_at', { ascending: false });
     if (byEmail) results = byEmail as RdvProposal[];
 
     if (leadIds.length > 0) {
       const { data: byLeadId } = await supabase
-        .from('rdv_proposals')
-        .select('*')
-        .in('lead_id', leadIds)
-        .order('created_at', { ascending: false });
+        .from('rdv_proposals').select('*').in('lead_id', leadIds).order('created_at', { ascending: false });
       if (byLeadId) {
         const existingIds = new Set(results.map(r => r.id));
         for (const r of byLeadId as RdvProposal[]) {
@@ -80,190 +68,47 @@ export function useClientRdvData({ clientEmail, onMount }: UseClientRdvDataOptio
 
   const todayStr = new Date().toISOString().split('T')[0];
 
-  async function handleAccept(id: string) {
-    const now = new Date().toISOString();
-    const rdv = rdvs.find(r => r.id === id);
-    let vendorId: string | null = null;
-    if (rdv && !rdv.vendor_id) {
-      const { data: lead } = await supabase
-        .from('leads')
-        .select('vendor_id')
-        .eq('email', clientEmail)
-        .maybeSingle();
-      if (lead?.vendor_id) vendorId = lead.vendor_id;
-    }
-    const updatePayload: Record<string, unknown> = {
-      status: 'confirmed',
-      responded_at: now,
-      responded_by: 'client',
-      seen_by_admin: false,
-      seen_by_vendor: false,
-    };
-    if (vendorId) updatePayload.vendor_id = vendorId;
-    await supabase.from('rdv_proposals').update(updatePayload).eq('id', id);
-
-    if (rdv?.parent_proposal_id) {
-      await supabase.from('rdv_proposals').update({
-        status: 'counter_proposed',
-        responded_at: now,
-        responded_by: 'client',
-      }).eq('id', rdv.parent_proposal_id).in('status', ['pending', 'counter_proposed']);
-
-      await supabase.from('rdv_proposals').update({
-        status: 'counter_proposed',
-        responded_at: now,
-        responded_by: 'client',
-      }).eq('parent_proposal_id', rdv.parent_proposal_id).neq('id', id).in('status', ['pending']);
-    }
-
-    load();
-  }
-
-  async function handleRefuse(id: string) {
-    const now = new Date().toISOString();
-    await supabase.from('rdv_proposals').update({
-      status: 'cancelled',
-      responded_at: now,
-      responded_by: 'client',
-      seen_by_admin: false,
-      seen_by_vendor: false,
-    }).eq('id', id);
-    setRdvs(prev => prev.map(r => r.id === id ? { ...r, status: 'cancelled', responded_at: now, responded_by: 'client' } : r));
-  }
+  const handleAccept = (id: string) => acceptRdv(id, rdvs, clientEmail, load);
+  const handleRefuse = (id: string) => refuseRdv(id, setRdvs);
+  const handleCancelOwn = (id: string) => cancelOwnRdv(id, setRdvs);
+  const handleAcceptReschedule = (id: string) => acceptReschedule(id, rdvs, load);
+  const handleRefuseReschedule = (id: string) => refuseReschedule(id, rdvs, load);
 
   function handleOpenCounter(id: string) {
     const rdv = rdvs.find(r => r.id === id);
-    if (rdv && rdv.status === 'pending') {
-      setCounterTarget(rdv);
+    if (rdv && rdv.status === 'pending') { setCounterTarget(rdv); setCounterError(''); }
+  }
+
+  function handleOpenCounterReschedule(id: string) {
+    const rdv = rdvs.find(r => r.id === id);
+    if (rdv && rdv.reschedule_status === 'pending' && rdv.reschedule_date && rdv.reschedule_time) {
+      setCounterTarget({ ...rdv, proposed_date: rdv.reschedule_date, proposed_time: rdv.reschedule_time, appointment_utc: rdv.reschedule_utc ?? null } as typeof rdv);
       setCounterError('');
     }
   }
 
-  async function handleCancelOwn(id: string) {
-    const now = new Date().toISOString();
-    await supabase.from('rdv_proposals').update({
-      status: 'cancelled',
-      responded_at: now,
-      responded_by: 'client',
-      seen_by_admin: false,
-      seen_by_vendor: false,
-    }).eq('id', id);
-    setRdvs(prev => prev.map(r => r.id === id ? { ...r, status: 'cancelled', responded_at: now, responded_by: 'client' } : r));
+  function handleRequestReschedule(id: string) {
+    const rdv = rdvs.find(r => r.id === id);
+    if (rdv && rdv.status === 'confirmed' && !rdv.reschedule_status) { setCounterTarget(rdv); setCounterError(''); }
   }
 
   async function handleCounterSubmit(date: string, time: string, message: string) {
     if (!counterTarget) return;
-    const appointmentCheck = new Date(localToUTC(date, time, CLIENT_TZ));
-    if (appointmentCheck.getTime() <= Date.now()) {
-      setCounterError('Veuillez choisir une date et une heure futures.');
-      return;
-    }
     setCounterError('');
     setCounterSaving(true);
-
-    await supabase.from('rdv_proposals').update({
-      status: 'counter_proposed',
-      responded_at: new Date().toISOString(),
-      responded_by: 'client',
-    }).eq('id', counterTarget.id);
-
-    const appointmentUtc = localToUTC(date, time, CLIENT_TZ);
-    await supabase.from('rdv_proposals').insert({
-      lead_name: counterTarget.lead_name,
-      lead_phone: counterTarget.lead_phone,
-      lead_email: counterTarget.lead_email,
-      lead_id: counterTarget.lead_id || null,
-      vendor_id: counterTarget.vendor_id || null,
-      proposed_date: date,
-      proposed_time: time,
-      motif: counterTarget.motif,
-      description: counterTarget.description,
-      notes: '',
-      status: 'pending',
-      created_by_role: 'client',
-      created_by_name: userName || counterTarget.lead_name,
-      target_role: 'admin',
-      appointment_utc: appointmentUtc,
-      source_timezone: CLIENT_TZ,
-      parent_proposal_id: counterTarget.id,
-      counter_message: message,
-      seen_by_client: true,
-      seen_by_admin: false,
-      seen_by_vendor: false,
-      ...(companyId ? { company_id: companyId } : {}),
-    });
-
+    const err = await submitCounter(counterTarget, rdvs, date, time, message, CLIENT_TZ, userName, companyId, load);
     setCounterSaving(false);
+    if (err) { setCounterError(err); return; }
     setCounterTarget(null);
-    load();
   }
 
   async function handleNewRdvSubmit(date: string, time: string, description: string) {
-    const appointmentCheck = new Date(localToUTC(date, time, CLIENT_TZ));
-    if (appointmentCheck.getTime() <= Date.now()) {
-      setNewRdvError('Veuillez choisir une date et une heure futures.');
-      return;
-    }
     setNewRdvError('');
     setNewRdvSaving(true);
-
-    const { data: leadByCol } = await supabase
-      .from('leads')
-      .select('id, prenom, nom, email, telephone, vendor_id, data')
-      .eq('email', clientEmail)
-      .limit(1)
-      .maybeSingle();
-    const { data: leadByJson } = !leadByCol
-      ? await supabase
-          .from('leads')
-          .select('id, prenom, nom, email, telephone, vendor_id, data')
-          .is('email', null)
-          .eq('data->>Email', clientEmail)
-          .limit(1)
-          .maybeSingle()
-      : { data: null };
-
-    const lead = leadByCol || leadByJson;
-    if (!lead) {
-      setNewRdvError('Impossible de trouver vos informations.');
-      setNewRdvSaving(false);
-      return;
-    }
-
-    const d = (lead.data && typeof lead.data === 'object') ? lead.data as Record<string, string> : {};
-    const leadName = [lead.prenom || d.Prenom || d.prenom, lead.nom || d.Nom || d.nom].filter(Boolean).join(' ') || clientEmail;
-    const leadPhone = lead.telephone || d.Telephone || d.telephone || '';
-    const leadEmail = lead.email || d.Email || d.email || clientEmail;
-    const leadVendorId = lead.vendor_id || null;
-
-    const appointmentUtc = localToUTC(date, time, CLIENT_TZ);
-
-    await supabase.from('rdv_proposals').insert({
-      lead_name: leadName,
-      lead_phone: leadPhone,
-      lead_email: leadEmail,
-      lead_id: lead.id,
-      vendor_id: leadVendorId,
-      proposed_date: date,
-      proposed_time: time,
-      motif: '',
-      description,
-      notes: '',
-      status: 'pending',
-      created_by_role: 'client',
-      created_by_name: userName || leadName,
-      target_role: leadVendorId ? 'vendor' : 'admin',
-      appointment_utc: appointmentUtc,
-      source_timezone: CLIENT_TZ,
-      seen_by_client: true,
-      seen_by_admin: false,
-      seen_by_vendor: false,
-      ...(companyId ? { company_id: companyId } : {}),
-    });
-
+    const err = await submitNewRdv(clientEmail, date, time, description, CLIENT_TZ, userName, companyId, load);
     setNewRdvSaving(false);
+    if (err) { setNewRdvError(err); return; }
     setShowNewRdv(false);
-    load();
   }
 
   return {
@@ -271,7 +116,8 @@ export function useClientRdvData({ clientEmail, onMount }: UseClientRdvDataOptio
     counterTarget, setCounterTarget, counterSaving, counterError,
     showNewRdv, setShowNewRdv, newRdvSaving, newRdvError, setNewRdvError,
     handleAccept, handleRefuse, handleOpenCounter, handleCancelOwn,
-    handleCounterSubmit, handleNewRdvSubmit,
+    handleAcceptReschedule, handleRefuseReschedule, handleOpenCounterReschedule,
+    handleRequestReschedule, handleCounterSubmit, handleNewRdvSubmit,
     CLIENT_TZ,
   };
 }

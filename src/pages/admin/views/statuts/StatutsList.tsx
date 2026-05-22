@@ -6,9 +6,10 @@ interface Props {
   loading: boolean;
   onDelete: (id: string) => void;
   tokens: ReturnType<typeof import('../../../../lib/themeTokens').getThemeTokens>;
+  protectedNames?: string[];
 }
 
-export default function StatutsList({ statuts, loading, onDelete, tokens }: Props) {
+export default function StatutsList({ statuts, loading, onDelete, tokens, protectedNames = [] }: Props) {
   return (
     <div
       className="rounded-2xl p-6"
@@ -71,14 +72,20 @@ export default function StatutsList({ statuts, loading, onDelete, tokens }: Prop
                 </span>
                 <span className="font-mono text-[10px]" style={{ color: tokens.text.quaternary }}>{s.couleur}</span>
               </div>
-              <button
-                onClick={() => onDelete(s.id)}
-                className="w-6 h-6 rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all"
-                style={{ background: tokens.danger.bg, color: tokens.danger.text, border: `1px solid ${tokens.danger.border}` }}
-                title="Supprimer"
-              >
-                <Trash2 className="w-3 h-3" />
-              </button>
+              {protectedNames.includes(s.nom) ? (
+                <span className="text-[9px] font-medium px-2 py-1 rounded-lg" style={{ color: tokens.text.quaternary, background: tokens.surface.primary }}>
+                  Par defaut
+                </span>
+              ) : (
+                <button
+                  onClick={() => onDelete(s.id)}
+                  className="w-6 h-6 rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all"
+                  style={{ background: tokens.danger.bg, color: tokens.danger.text, border: `1px solid ${tokens.danger.border}` }}
+                  title="Supprimer"
+                >
+                  <Trash2 className="w-3 h-3" />
+                </button>
+              )}
             </div>
           ))}
         </div>

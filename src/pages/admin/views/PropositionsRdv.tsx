@@ -2,12 +2,14 @@ import { CalendarDays, Plus, Globe } from 'lucide-react';
 import { useThemeTokens } from '../../../hooks/useThemeTokens';
 import { getTzLabel } from '../../../lib/timezoneUtils';
 import { statusConfig } from '../../vendor/views/rdvPropositionsConstants';
+import type { RdvProposal } from '../../vendor/views/rdvPropositionsConstants';
 import RdvEditModal from '../../vendor/views/RdvEditModal';
 import RdvAddForm from '../../vendor/views/RdvAddForm';
 import CheckBox from './crm/CheckBox';
 import { AdminRdvFilters, AdminRdvRow, AdminRdvBulkBar, AdminRdvDeleteModal } from './propositions-rdv';
 import AdminRdvMobileCard from './propositions-rdv/AdminRdvMobileCard';
 import AdminRdvDetailModal from './propositions-rdv/AdminRdvDetailModal';
+import AdminRdvRescheduleModal from './propositions-rdv/AdminRdvRescheduleModal';
 import { useAdminRdvData } from './propositions-rdv/useAdminRdvData';
 import DualScrollWrapper from '../../../components/DualScrollWrapper';
 
@@ -23,8 +25,14 @@ export default function PropositionsRdv({ initialLead, onInitialLeadConsumed, on
     saving, addError, selected, setSelected, deleting, confirmDelete, setConfirmDelete,
     detailRdv, setDetailRdv, filtered, todayStr, statusCounts, timezone,
     handleAccept, handleRefuse, handleAdd, handleBulkDelete,
+    handleAcceptReschedule, handleRefuseReschedule, handleCounterReschedule,
     vendorName, toggleSelect, toggleAll, load,
+    rescheduleTarget, setRescheduleTarget,
   } = useAdminRdvData(initialLead, onInitialLeadConsumed);
+
+  function openRescheduleEdit(rdv: RdvProposal) {
+    setRescheduleTarget(rdv);
+  }
 
   return (
     <div className="space-y-6">
@@ -75,23 +83,11 @@ export default function PropositionsRdv({ initialLead, onInitialLeadConsumed, on
       )}
 
       {selected.size > 0 && (
-        <AdminRdvBulkBar
-          count={selected.size}
-          onClear={() => setSelected(new Set())}
-          onDelete={() => setConfirmDelete(true)}
-          tokens={tokens}
-        />
+        <AdminRdvBulkBar count={selected.size} onClear={() => setSelected(new Set())} onDelete={() => setConfirmDelete(true)} tokens={tokens} />
       )}
 
       <div className="rounded-2xl overflow-hidden" style={{ background: tokens.card.bg, border: `1px solid ${tokens.card.border}` }}>
-        <AdminRdvFilters
-          filter={filter}
-          setFilter={setFilter}
-          vendorFilter={vendorFilter}
-          setVendorFilter={setVendorFilter}
-          vendors={vendors}
-          tokens={tokens}
-        />
+        <AdminRdvFilters filter={filter} setFilter={setFilter} vendorFilter={vendorFilter} setVendorFilter={setVendorFilter} vendors={vendors} tokens={tokens} />
 
         {loading ? (
           <div className="flex items-center justify-center py-16">
@@ -112,11 +108,7 @@ export default function PropositionsRdv({ initialLead, onInitialLeadConsumed, on
                   <thead>
                     <tr style={{ borderBottom: `1px solid ${tokens.table.headerBorder}`, background: tokens.table.headerBg }}>
                       <th className="pl-5 pr-1 py-3 w-8">
-                        <CheckBox
-                          checked={filtered.length > 0 && selected.size === filtered.length}
-                          indeterminate={selected.size > 0 && selected.size < filtered.length}
-                          onChange={toggleAll}
-                        />
+                        <CheckBox checked={filtered.length > 0 && selected.size === filtered.length} indeterminate={selected.size > 0 && selected.size < filtered.length} onChange={toggleAll} />
                       </th>
                       {['Contact', 'Vendeur', 'Date & Heure', 'Coordonnees', 'Motif', 'Statut', 'Actions'].map(col => (
                         <th key={col} className="px-5 py-3 text-left text-[10px] font-bold tracking-[0.15em] uppercase" style={{ color: tokens.table.headerText }}>{col}</th>
@@ -125,22 +117,7 @@ export default function PropositionsRdv({ initialLead, onInitialLeadConsumed, on
                   </thead>
                   <tbody>
                     {filtered.map((rdv, idx) => (
-                      <AdminRdvRow
-                        key={rdv.id}
-                        rdv={rdv}
-                        idx={idx}
-                        filteredLength={filtered.length}
-                        tokens={tokens}
-                        timezone={timezone}
-                        todayStr={todayStr}
-                        selected={selected.has(rdv.id)}
-                        vendorName={vendorName(rdv.vendor_id)}
-                        onToggleSelect={() => toggleSelect(rdv.id)}
-                        onAccept={() => handleAccept(rdv.id)}
-                        onCancel={() => handleRefuse(rdv.id)}
-                        onEdit={() => setEditRdv(rdv)}
-                        onGoToLead={rdv.lead_id ? () => onNavigateToCrm?.(rdv.lead_id!) : undefined}
-                      />
+                      <AdminRdvRow key={rdv.id} rdv={rdv} idx={idx} filteredLength={filtered.length} tokens={tokens} timezone={timezone} todayStr={todayStr} selected={selected.has(rdv.id)} vendorName={vendorName(rdv.vendor_id)} onToggleSelect={() => toggleSelect(rdv.id)} onAccept={() => handleAccept(rdv.id)} onCancel={() => handleRefuse(rdv.id)} onEdit={() => setEditRdv(rdv)} onGoToLead={rdv.lead_id ? () => onNavigateToCrm?.(rdv.lead_id!) : undefined} onAcceptReschedule={() => handleAcceptReschedule(rdv.id)} onRefuseReschedule={() => handleRefuseReschedule(rdv.id)} onEditReschedule={() => openRescheduleEdit(rdv)} />
                     ))}
                   </tbody>
                 </table>
@@ -148,29 +125,14 @@ export default function PropositionsRdv({ initialLead, onInitialLeadConsumed, on
             </div>
 
             <div className="md:hidden flex items-center gap-2 px-3 py-2" style={{ borderBottom: `1px solid ${tokens.table.rowBorder}` }}>
-              <CheckBox
-                checked={filtered.length > 0 && selected.size === filtered.length}
-                indeterminate={selected.size > 0 && selected.size < filtered.length}
-                onChange={toggleAll}
-              />
+              <CheckBox checked={filtered.length > 0 && selected.size === filtered.length} indeterminate={selected.size > 0 && selected.size < filtered.length} onChange={toggleAll} />
               <span className="text-[11px] font-medium" style={{ color: tokens.text.quaternary }}>Tout ({filtered.length})</span>
             </div>
 
             <div className="md:hidden">
               {filtered.map((rdv, idx) => (
                 <div key={rdv.id} style={{ borderTop: idx > 0 ? `1px solid ${tokens.table.rowBorder}` : 'none' }}>
-                  <AdminRdvMobileCard
-                    rdv={rdv}
-                    timezone={timezone}
-                    selected={selected.has(rdv.id)}
-                    vendorName={vendorName(rdv.vendor_id)}
-                    onToggleSelect={() => toggleSelect(rdv.id)}
-                    onAccept={() => handleAccept(rdv.id)}
-                    onCancel={() => handleRefuse(rdv.id)}
-                    onEdit={() => setEditRdv(rdv)}
-                    onDetail={() => setDetailRdv(rdv)}
-                    onGoToLead={rdv.lead_id ? () => onNavigateToCrm?.(rdv.lead_id!) : undefined}
-                  />
+                  <AdminRdvMobileCard rdv={rdv} timezone={timezone} selected={selected.has(rdv.id)} vendorName={vendorName(rdv.vendor_id)} onToggleSelect={() => toggleSelect(rdv.id)} onAccept={() => handleAccept(rdv.id)} onCancel={() => handleRefuse(rdv.id)} onEdit={() => setEditRdv(rdv)} onDetail={() => setDetailRdv(rdv)} onGoToLead={rdv.lead_id ? () => onNavigateToCrm?.(rdv.lead_id!) : undefined} onAcceptReschedule={() => handleAcceptReschedule(rdv.id)} onRefuseReschedule={() => handleRefuseReschedule(rdv.id)} onEditReschedule={() => openRescheduleEdit(rdv)} />
                 </div>
               ))}
             </div>
@@ -187,31 +149,26 @@ export default function PropositionsRdv({ initialLead, onInitialLeadConsumed, on
         )}
       </div>
 
-      {editRdv && (
-        <RdvEditModal rdv={editRdv} onClose={() => setEditRdv(null)} onSaved={load} callerRole="admin" />
-      )}
+      {editRdv && <RdvEditModal rdv={editRdv} onClose={() => setEditRdv(null)} onSaved={load} callerRole="admin" />}
 
-      {confirmDelete && (
-        <AdminRdvDeleteModal
-          count={selected.size}
-          deleting={deleting}
-          onConfirm={handleBulkDelete}
-          onCancel={() => setConfirmDelete(false)}
-          tokens={tokens}
-        />
-      )}
+      {confirmDelete && <AdminRdvDeleteModal count={selected.size} deleting={deleting} onConfirm={handleBulkDelete} onCancel={() => setConfirmDelete(false)} tokens={tokens} />}
 
       {detailRdv && (
         <AdminRdvDetailModal
-          rdv={detailRdv}
-          timezone={timezone}
-          vendorName={vendorName(detailRdv.vendor_id)}
+          rdv={detailRdv} timezone={timezone} vendorName={vendorName(detailRdv.vendor_id)}
           onClose={() => setDetailRdv(null)}
           onAccept={() => { handleAccept(detailRdv.id); setDetailRdv(null); }}
           onCancel={() => { handleRefuse(detailRdv.id); setDetailRdv(null); }}
           onEdit={() => { setEditRdv(detailRdv); setDetailRdv(null); }}
           onGoToLead={detailRdv.lead_id ? () => { setDetailRdv(null); onNavigateToCrm?.(detailRdv.lead_id!); } : undefined}
+          onAcceptReschedule={() => { handleAcceptReschedule(detailRdv.id); setDetailRdv(null); }}
+          onRefuseReschedule={() => { handleRefuseReschedule(detailRdv.id); setDetailRdv(null); }}
+          onEditReschedule={() => { const r = detailRdv; setDetailRdv(null); openRescheduleEdit(r); }}
         />
+      )}
+
+      {rescheduleTarget && (
+        <AdminRdvRescheduleModal rdv={rescheduleTarget} timezone={timezone} onSubmit={handleCounterReschedule} onClose={() => setRescheduleTarget(null)} />
       )}
     </div>
   );

@@ -16,6 +16,10 @@ const DocumentationCrm = lazy(() => import('../admin/views/DocumentationCrm'));
 const SystemPage = lazy(() => import('../admin/views/SystemPage'));
 const SauvegardeRestauration = lazy(() => import('../admin/views/SauvegardeRestauration'));
 const SATestsSysteme = lazy(() => import('./views/tests-systeme/SATestsSysteme'));
+const SACrmSociete = lazy(() => import('./views/crm-societe/SACrmSociete'));
+const SAStatuts = lazy(() => import('./views/SAStatuts'));
+const SAApiIa = lazy(() => import('./views/SAApiIa'));
+const SASites = lazy(() => import('./views/sites/SASites'));
 
 interface SuperAdminDashboardProps {
   onLogout: () => void;
@@ -135,6 +139,10 @@ export default function SuperAdminDashboard({ onLogout, onConnectAsAdmin }: Supe
       case 'sauvegarde': return <SimulationProvider><SauvegardeRestauration /></SimulationProvider>;
       case 'mon-compte': return <SAMonCompte onNameChange={(fn, ln) => { setSaFirstName(fn); setSaLastName(ln); }} />;
       case 'tests-systeme': return <SATestsSysteme />;
+      case 'crm-societe': return <SACrmSociete />;
+      case 'statuts': return <SAStatuts />;
+      case 'api-ia': return <SAApiIa />;
+      case 'sites': return <SASites />;
       default: return <SADashboard onNavigate={handleNavigate} />;
     }
   }

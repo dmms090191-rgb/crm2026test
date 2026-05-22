@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { UserPlus, Check } from 'lucide-react';
+import { UserPlus, Check, Eye, EyeOff } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { useThemeTokens } from '../../../hooks/useThemeTokens';
 import { useCompanyId } from '../../../hooks/useCompanyId';
@@ -10,6 +10,7 @@ const inputClass = "w-full px-3.5 py-2.5 rounded-xl text-sm outline-none transit
 
 function PinInput({ value, onChange, tokens }: { value: string[]; onChange: (v: string[]) => void; tokens: ThemeTokens }) {
   const refs = useRef<(HTMLInputElement | null)[]>([]);
+  const [visible, setVisible] = useState(false);
 
   function handleChange(i: number, raw: string) {
     const digit = raw.replace(/\D/g, '').slice(-1);
@@ -35,12 +36,12 @@ function PinInput({ value, onChange, tokens }: { value: string[]; onChange: (v: 
   }
 
   return (
-    <div className="flex gap-2.5">
+    <div className="flex items-center gap-2.5">
       {value.map((digit, i) => (
         <input
           key={i}
           ref={el => { refs.current[i] = el; }}
-          type="password"
+          type={visible ? 'text' : 'password'}
           inputMode="numeric"
           maxLength={1}
           value={digit}
@@ -57,6 +58,15 @@ function PinInput({ value, onChange, tokens }: { value: string[]; onChange: (v: 
           } as React.CSSProperties}
         />
       ))}
+      <button
+        type="button"
+        onClick={() => setVisible(v => !v)}
+        className="w-9 h-9 rounded-lg flex items-center justify-center transition-colors ml-1"
+        style={{ background: tokens.surface.secondary, border: `1px solid ${tokens.surface.border}`, color: tokens.text.tertiary }}
+        title={visible ? 'Masquer' : 'Afficher'}
+      >
+        {visible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+      </button>
     </div>
   );
 }

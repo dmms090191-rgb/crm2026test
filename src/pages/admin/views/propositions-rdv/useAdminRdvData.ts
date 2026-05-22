@@ -4,7 +4,7 @@ import { RdvProposal, filterToStatus } from '../../../vendor/views/rdvPropositio
 import { getVisibleRdvProposals, getChainIdsForSelected } from '../../../vendor/views/rdvChainFilter';
 import { useTimezone } from '../../../../hooks/useTimezone';
 import { useCompanyId } from '../../../../hooks/useCompanyId';
-import { localToUTC } from '../../../../lib/timezoneUtils';
+import { localToUTC, utcToLocal } from '../../../../lib/timezoneUtils';
 import { useSimulation } from '../../../../contexts/SimulationContext';
 
 interface RdvLeadRef { id: string; nom: string; prenom: string; email: string; tel?: string; }
@@ -35,6 +35,7 @@ export function useAdminRdvData(initialLead?: RdvLeadRef | null, onInitialLeadCo
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [detailRdv, setDetailRdv] = useState<RdvProposal | null>(null);
+  const [rescheduleTarget, setRescheduleTarget] = useState<RdvProposal | null>(null);
 
   const load = useCallback(async () => {
     if (!companyId) return;
@@ -158,6 +159,68 @@ export function useAdminRdvData(initialLead?: RdvLeadRef | null, onInitialLeadCo
     setSelected(selected.size === filtered.length ? new Set() : new Set(filtered.map(r => r.id)));
   }
 
+  async function handleAcceptReschedule(id: string) {
+    if (isSimulating) return;
+    const rdv = rdvs.find(r => r.id === id);
+    if (!rdv || rdv.reschedule_status !== 'pending') return;
+    await supabase.from('rdv_proposals').update({
+      proposed_date: rdv.reschedule_date,
+      proposed_time: rdv.reschedule_time,
+      appointment_utc: rdv.reschedule_utc,
+      reschedule_status: 'accepted',
+      reschedule_date: null,
+      reschedule_time: null,
+      reschedule_utc: null,
+      reschedule_reason: null,
+      reschedule_requested_at: null,
+      reschedule_requested_by: null,
+      seen_by_client: false,
+      seen_by_vendor: false,
+    }).eq('id', id);
+    load();
+  }
+
+  async function handleRefuseReschedule(id: string) {
+    if (isSimulating) return;
+    const rdv = rdvs.find(r => r.id === id);
+    if (!rdv || rdv.reschedule_status !== 'pending') return;
+    await supabase.from('rdv_proposals').update({
+      reschedule_status: 'refused',
+      reschedule_date: null,
+      reschedule_time: null,
+      reschedule_utc: null,
+      reschedule_reason: null,
+      reschedule_requested_at: null,
+      reschedule_requested_by: null,
+      seen_by_client: false,
+      seen_by_vendor: false,
+    }).eq('id', id);
+    load();
+  }
+
+  async function handleCounterReschedule(id: string, date: string, time: string) {
+    if (isSimulating) return;
+    const rdv = rdvs.find(r => r.id === id);
+    if (!rdv || rdv.reschedule_status !== 'pending') return;
+    const appointmentUtc = localToUTC(date, time, timezone);
+    await supabase.from('rdv_proposals').update({
+      proposed_date: date,
+      proposed_time: time,
+      appointment_utc: appointmentUtc,
+      source_timezone: timezone,
+      reschedule_status: null,
+      reschedule_date: null,
+      reschedule_time: null,
+      reschedule_utc: null,
+      reschedule_reason: null,
+      reschedule_requested_at: null,
+      reschedule_requested_by: null,
+      seen_by_client: false,
+      seen_by_vendor: false,
+    }).eq('id', id);
+    load();
+  }
+
   async function handleBulkDelete() {
     if (isSimulating) return;
     if (selected.size === 0) return;
@@ -178,6 +241,8 @@ export function useAdminRdvData(initialLead?: RdvLeadRef | null, onInitialLeadCo
     saving, addError, selected, setSelected, deleting, confirmDelete, setConfirmDelete,
     detailRdv, setDetailRdv, filtered, todayStr, statusCounts, timezone,
     handleAccept, handleRefuse, handleAdd, handleBulkDelete,
+    handleAcceptReschedule, handleRefuseReschedule, handleCounterReschedule,
     vendorName, toggleSelect, toggleAll, load,
+    rescheduleTarget, setRescheduleTarget,
   };
 }

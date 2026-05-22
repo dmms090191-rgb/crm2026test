@@ -1,8 +1,10 @@
 import { useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { MessageSquareText, CalendarDays, CalendarClock, CalendarCheck, ChevronRight, Bell, Shield } from 'lucide-react';
+import { MessageSquareText, CalendarDays, CalendarClock, CalendarCheck, ChevronRight, Bell, Shield, RefreshCw } from 'lucide-react';
 import { ClientNotifItem, VendorNotifItem, AgendaNotifItem, AgendaEquipeNotifItem, ProposalNotifItem, ConfirmedProposalItem, DropdownEmpty } from './index';
+import { RescheduleResponseItem, RescheduleRequestItem } from './NotificationItems';
 import type { ClientNotifEntry, VendorNotifEntry, ConfirmedProposalEntry } from '../../TopBar';
+import type { ProposalNotifEntry } from '../../dashboard/useAdminProposalNotifs';
 import type { AgendaNotifEntry } from '../../../../hooks/useAgendaNotifications';
 import type { AgendaEquipeNotifEntry } from '../../../../hooks/useAgendaEquipeNotifications';
 import type { ThemeTokens } from '../../../../lib/themeTokensTypes';
@@ -32,6 +34,12 @@ interface Props {
   confirmedCount: number;
   confirmedEntries: ConfirmedProposalEntry[];
   onConfirmedEntryClick?: (proposalId: string) => void;
+  rescheduleCount: number;
+  rescheduleEntries: ProposalNotifEntry[];
+  onRescheduleEntryClick?: (proposalId: string) => void;
+  rescheduleRequestCount?: number;
+  rescheduleRequestEntries?: ProposalNotifEntry[];
+  onRescheduleRequestEntryClick?: (proposalId: string) => void;
   unreadSuperAdminCount?: number;
   onSuperAdminClick?: () => void;
   timezone: string;
@@ -48,6 +56,8 @@ export default function AdminMobileBellMenu({
   agendaEquipeCount, agendaEquipeEntries, onAgendaEquipeEntryClick,
   proposalsCount, proposalsEntries, onProposalEntryClick,
   confirmedCount, confirmedEntries, onConfirmedEntryClick,
+  rescheduleCount, rescheduleEntries, onRescheduleEntryClick,
+  rescheduleRequestCount = 0, rescheduleRequestEntries = [], onRescheduleRequestEntryClick,
   unreadSuperAdminCount = 0, onSuperAdminClick,
   timezone, tokens: t, containerRef, panelRef: externalPanelRef,
 }: Props) {
@@ -101,6 +111,8 @@ export default function AdminMobileBellMenu({
                 { key: 'equipe', icon: <CalendarDays className="w-4 h-4" />, label: 'Agenda equipe', count: agendaEquipeCount },
                 { key: 'propositions', icon: <CalendarClock className="w-4 h-4" />, label: 'Propositions RDV', count: proposalsCount },
                 { key: 'rdv', icon: <CalendarCheck className="w-4 h-4" />, label: 'RDV Confirmes', count: confirmedCount },
+                { key: 'decalages', icon: <RefreshCw className="w-4 h-4" />, label: 'Decalages', count: rescheduleCount },
+                { key: 'demandes-decalage', icon: <RefreshCw className="w-4 h-4" />, label: 'Demandes decalage', count: rescheduleRequestCount },
               ] as const).map((item) => (
                 <button
                   key={item.key}
@@ -139,6 +151,8 @@ export default function AdminMobileBellMenu({
                   {category === 'equipe' && 'Agenda equipe'}
                   {category === 'propositions' && 'Propositions RDV'}
                   {category === 'rdv' && 'RDV Confirmes'}
+                  {category === 'decalages' && 'Reponses decalages'}
+                  {category === 'demandes-decalage' && 'Demandes de decalage'}
                 </p>
               </div>
               <div className="max-h-64 overflow-y-auto">
@@ -210,6 +224,24 @@ export default function AdminMobileBellMenu({
                   ) : (
                     confirmedEntries.map(entry => (
                       <ConfirmedProposalItem key={entry.id} entry={entry} tokens={t.dropdown} onClick={() => { onConfirmedEntryClick?.(entry.id); setOpen(false); setCategory(null); }} />
+                    ))
+                  )
+                )}
+                {category === 'decalages' && (
+                  rescheduleEntries.length === 0 ? (
+                    <DropdownEmpty text="Aucune reponse de decalage" tokens={t} />
+                  ) : (
+                    rescheduleEntries.map(entry => (
+                      <RescheduleResponseItem key={entry.id} entry={entry} tokens={t.dropdown} onClick={() => { onRescheduleEntryClick?.(entry.id); setOpen(false); setCategory(null); }} />
+                    ))
+                  )
+                )}
+                {category === 'demandes-decalage' && (
+                  rescheduleRequestEntries.length === 0 ? (
+                    <DropdownEmpty text="Aucune demande de decalage" tokens={t} />
+                  ) : (
+                    rescheduleRequestEntries.map(entry => (
+                      <RescheduleRequestItem key={entry.id} entry={entry} tokens={t.dropdown} onClick={() => { onRescheduleRequestEntryClick?.(entry.id); setOpen(false); setCategory(null); }} />
                     ))
                   )
                 )}

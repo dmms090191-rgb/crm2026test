@@ -241,6 +241,7 @@ export default function ChatClient({ initialLead, onMessageSent, onClientViewed,
       <ChatClientHeader
         tokens={tokens}
         subtitle={selectedContact ? `Conversation avec ${selectedContact.displayName}` : 'Sélectionnez un client'}
+        trailing={null}
       />
 
       <div className="flex-1 overflow-hidden" style={{ minHeight: 0 }}>

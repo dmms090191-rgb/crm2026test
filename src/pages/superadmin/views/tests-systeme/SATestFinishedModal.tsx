@@ -7,6 +7,7 @@ export interface FinishedTest {
   filename: string;
   description: string;
   commands: string;
+  test_code: string;
   subcategoryId: string;
   order: number;
 }
@@ -37,6 +38,7 @@ export default function SATestFinishedModal({ open, initial, subcategoryId, cate
   const [filename, setFilename] = useState('');
   const [description, setDescription] = useState('');
   const [commands, setCommands] = useState('');
+  const [testCode, setTestCode] = useState('');
   const [selectedSubcatId, setSelectedSubcatId] = useState(subcategoryId);
 
   useEffect(() => {
@@ -45,12 +47,14 @@ export default function SATestFinishedModal({ open, initial, subcategoryId, cate
       setFilename(initial.filename || '');
       setDescription(initial.description || '');
       setCommands(initial.commands || '');
+      setTestCode(initial.test_code || '');
       setSelectedSubcatId(initial.subcategoryId);
     } else {
       setTitle('');
       setFilename('');
       setDescription('');
       setCommands('');
+      setTestCode('');
       setSelectedSubcatId(subcategoryId || subcategories[0]?.id || '');
     }
   }, [initial, open, subcategoryId, subcategories]);
@@ -66,6 +70,7 @@ export default function SATestFinishedModal({ open, initial, subcategoryId, cate
       filename: filename.trim(),
       description: description.trim(),
       commands: commands.trim(),
+      test_code: testCode.trim(),
       subcategoryId: selectedSubcatId,
       order: initial?.order ?? Date.now(),
     });
@@ -155,6 +160,19 @@ export default function SATestFinishedModal({ open, initial, subcategoryId, cate
               rows={4}
               className="w-full px-3 py-2 rounded-lg text-sm text-slate-100 placeholder:text-slate-500 outline-none focus:ring-1 focus:ring-amber-500/50 transition-all resize-none font-mono"
               style={{ background: 'rgba(30,41,59,0.8)', border: '1px solid rgba(71,85,105,0.5)' }}
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-slate-300 mb-1.5">Code du test</label>
+            <p className="text-[10px] text-slate-500 mb-1.5">Collez le code complet du fichier Playwright (TypeScript).</p>
+            <textarea
+              value={testCode}
+              onChange={e => setTestCode(e.target.value)}
+              placeholder={"import { test, expect } from '@playwright/test';\n\ntest('mon test', async ({ page }) => {\n  await page.goto('/');\n  // ...\n});"}
+              rows={10}
+              className="w-full px-3 py-2 rounded-lg text-[12px] text-slate-100 placeholder:text-slate-500 outline-none focus:ring-1 focus:ring-amber-500/50 transition-all resize-y font-mono leading-relaxed"
+              style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(71,85,105,0.5)', maxHeight: '50vh' }}
             />
           </div>
         </div>

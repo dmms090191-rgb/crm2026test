@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { Users } from 'lucide-react';
 import { useThemeTokens } from '../../../hooks/useThemeTokens';
 import { useTimezone } from '../../../hooks/useTimezone';
@@ -26,6 +26,8 @@ export default function Crm({ onConnectAsClient, onOpenChat, onOpenRdv }: CrmPro
   const d = useCrmData();
   const colSep = { borderRight: `1px solid ${tokens.table.colSep}` };
   const cardStyle = { background: tokens.card.bg, border: tokens.card.border };
+
+  const allAiEnabled = useMemo(() => d.leads.length > 0 && d.leads.every(l => l.ai_enabled === true), [d.leads]);
 
   const [selectMode, setSelectMode] = useState(false);
   const handleToggleSelectMode = useCallback(() => {
@@ -83,6 +85,8 @@ export default function Crm({ onConnectAsClient, onOpenChat, onOpenRdv }: CrmPro
                 onLocate={() => { if (d.workMode.activeId) d.rowRefsMap.current.get(d.workMode.activeId)?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }}
                 canLocate={!!d.workMode.activeId && d.filtered.some(l => l.id === d.workMode.activeId)}
                 onResetHistory={d.workMode.resetHistory}
+                allAiEnabled={allAiEnabled}
+                onGlobalAiToggle={d.handleGlobalAiToggle}
               />
               <div ref={d.topScrollRef} onScroll={d.handleTopScroll} className="dual-scroll-top">
                 <div ref={d.topInnerRef} className="dual-scroll-top-inner" />
@@ -101,6 +105,7 @@ export default function Crm({ onConnectAsClient, onOpenChat, onOpenRdv }: CrmPro
                       <th className="text-left px-5 py-3 text-[10px] font-bold tracking-[0.12em] uppercase" style={{ ...colSep, color: tokens.table.headerText }}>Statut</th>
                       <th className="text-left px-5 py-3 text-[10px] font-bold tracking-[0.12em] uppercase" style={{ ...colSep, color: tokens.table.headerText }}>Actions</th>
                       <th className="text-left px-5 py-3 text-[10px] font-bold tracking-[0.12em] uppercase" style={{ ...colSep, color: tokens.table.headerText }}>Acces</th>
+                      <th className="text-left px-5 py-3 text-[10px] font-bold tracking-[0.12em] uppercase" style={{ ...colSep, color: tokens.table.headerText }}>IA</th>
                       <th className="text-left px-5 py-3 text-[10px] font-bold tracking-[0.12em] uppercase" style={{ ...colSep, color: tokens.table.headerText }}>Vendeur</th>
                     </tr>
                   </thead>
@@ -111,7 +116,7 @@ export default function Crm({ onConnectAsClient, onOpenChat, onOpenRdv }: CrmPro
                         ref={el => { if (el) d.rowRefsMap.current.set(lead.id, el); else d.rowRefsMap.current.delete(lead.id); }}
                         lead={lead} index={i} isSelected={d.selected.has(lead.id)}
                         statutDefs={d.statutDefs} vendors={d.vendors} tokens={tokens} timezone={timezone} colSep={colSep}
-                        onToggle={d.toggleOne} onStatutChange={d.handleStatut} onToggleActif={d.handleToggleActif}
+                        onToggle={d.toggleOne} onStatutChange={d.handleStatut} onToggleActif={d.handleToggleActif} onToggleAi={d.handleToggleAi}
                         onDetail={(l, idx) => d.setDetailLead({ lead: l, index: idx })}
                         onConnectAsClient={onConnectAsClient} onOpenChat={onOpenChat} onOpenRdv={onOpenRdv}
                         selectMode={selectMode}
@@ -137,6 +142,8 @@ export default function Crm({ onConnectAsClient, onOpenChat, onOpenRdv }: CrmPro
                 onLocate={() => { if (d.workMode.activeId) d.cardRefsMap.current.get(d.workMode.activeId)?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }}
                 canLocate={!!d.workMode.activeId && d.filtered.some(l => l.id === d.workMode.activeId)}
                 onResetHistory={d.workMode.resetHistory}
+                allAiEnabled={allAiEnabled}
+                onGlobalAiToggle={d.handleGlobalAiToggle}
               />
               <div className="divide-y" style={{ borderColor: tokens.table.rowBorder }}>
                 {d.filtered.map((lead, i) => (
@@ -148,7 +155,7 @@ export default function Crm({ onConnectAsClient, onOpenChat, onOpenRdv }: CrmPro
                     workHistoryLength={d.workMode.historyLength} workHistoryPosition={d.workMode.historyPosition}
                     canUndo={d.workMode.canUndo} canRedo={d.workMode.canRedo}
                     onWorkSelect={d.workMode.select} onWorkUndo={d.workMode.undo} onWorkRedo={d.workMode.redo} onWorkReset={d.workMode.resetHistory}
-                    onToggle={d.toggleOne} onStatutChange={d.handleStatut} onToggleActif={d.handleToggleActif}
+                    onToggle={d.toggleOne} onStatutChange={d.handleStatut} onToggleActif={d.handleToggleActif} onToggleAi={d.handleToggleAi}
                     onDetail={(l, idx) => d.setDetailLead({ lead: l, index: idx })}
                     onOpenChat={onOpenChat} onOpenRdv={onOpenRdv} onConnectAsClient={onConnectAsClient}
                     selectMode={selectMode}

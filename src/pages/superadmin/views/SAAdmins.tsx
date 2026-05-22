@@ -1,5 +1,6 @@
-import { useState, useCallback, useEffect } from 'react';
-import { List, ChevronDown, LogIn, Mail, Phone, Calendar, Plus, RefreshCw, MessageSquare, Trash2, X, Home } from 'lucide-react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
+import { List, ChevronDown, ChevronUp, LogIn, Plus, RefreshCw, MessageSquare, Trash2, X, Megaphone, MoreHorizontal, Eye } from 'lucide-react';
 import { useThemeTokens } from '../../../hooks/useThemeTokens';
 import CopyButton from '../../../components/CopyButton';
 import AdminDetailModal from './admins/AdminDetailModal';
@@ -7,6 +8,7 @@ import SAAdminsCreateModal from './admins/SAAdminsCreateModal';
 import SAAdminsAccessSwitch from './admins/SAAdminsAccessSwitch';
 import SAAdminsBulkDeleteModal from './admins/SAAdminsBulkDeleteModal';
 import AdminHomePageModal from './admins/AdminHomePageModal';
+import SAAdminMobileCard from './admins/SAAdminMobileCard';
 import { supabase } from '../../../lib/supabase';
 
 export interface AdminUser {
@@ -43,10 +45,35 @@ export default function SAAdmins({ onConnectAsAdmin, onOpenChat, cachedAdmins, r
   const [deleting, setDeleting] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [homePageAdmin, setHomePageAdmin] = useState<AdminUser | null>(null);
+  const [orderMap, setOrderMap] = useState<Record<string, number>>({});
+  const [actionsOpenId, setActionsOpenId] = useState<string | null>(null);
+  const [popoverPos, setPopoverPos] = useState<{ top: number; left: number } | null>(null);
+  const actionsBtnRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
-  const admins = cachedAdmins || [];
+  const rawAdmins = cachedAdmins || [];
   const loading = refreshing ?? false;
   const error = cachedError || '';
+
+  const admins = useMemo(() => {
+    const sorted = [...rawAdmins].sort((a, b) => {
+      const pa = orderMap[a.id] ?? Number.MAX_SAFE_INTEGER;
+      const pb = orderMap[b.id] ?? Number.MAX_SAFE_INTEGER;
+      if (pa !== pb) return pa - pb;
+      return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+    });
+    return sorted;
+  }, [rawAdmins, orderMap]);
+
+  const loadOrder = useCallback(async () => {
+    const { data } = await supabase.from('sa_admin_order').select('admin_id, position');
+    if (data) {
+      const map: Record<string, number> = {};
+      data.forEach(r => { map[r.admin_id] = r.position; });
+      setOrderMap(map);
+    }
+  }, []);
+
+  useEffect(() => { loadOrder(); }, [loadOrder]);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -57,27 +84,52 @@ export default function SAAdmins({ onConnectAsAdmin, onOpenChat, cachedAdmins, r
   const fetchAdmins = useCallback(() => { onRefresh?.(); }, [onRefresh]);
   const handleUpdate = useCallback(() => { fetchAdmins(); }, [fetchAdmins]);
 
+  const moveAdmin = useCallback(async (adminId: string, direction: 'up' | 'down') => {
+    const idx = admins.findIndex(a => a.id === adminId);
+    if (idx < 0) return;
+    const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
+    if (swapIdx < 0 || swapIdx >= admins.length) return;
+
+    const currentAdmin = admins[idx];
+    const swapAdmin = admins[swapIdx];
+    const currentPos = orderMap[currentAdmin.id] ?? idx;
+    const swapPos = orderMap[swapAdmin.id] ?? swapIdx;
+
+    const newMap = { ...orderMap, [currentAdmin.id]: swapPos, [swapAdmin.id]: currentPos };
+    setOrderMap(newMap);
+
+    await supabase.from('sa_admin_order').upsert([
+      { admin_id: currentAdmin.id, position: swapPos, updated_at: new Date().toISOString() },
+      { admin_id: swapAdmin.id, position: currentPos, updated_at: new Date().toISOString() },
+    ]);
+  }, [admins, orderMap]);
+
+  const openActionsPopover = useCallback((adminId: string) => {
+    setActionsOpenId(prev => prev === adminId ? null : adminId);
+  }, []);
+
+  useEffect(() => {
+    if (!actionsOpenId) { setPopoverPos(null); return; }
+    const btn = actionsBtnRefs.current[actionsOpenId];
+    if (!btn) { setPopoverPos(null); return; }
+    const rect = btn.getBoundingClientRect();
+    const popW = 220;
+    const popH = 260;
+    let top = rect.bottom + 6;
+    let left = rect.left + rect.width / 2 - popW / 2;
+    if (left < 8) left = 8;
+    if (left + popW > window.innerWidth - 8) left = window.innerWidth - 8 - popW;
+    if (top + popH > window.innerHeight - 8) top = rect.top - popH - 6;
+    setPopoverPos({ top, left });
+  }, [actionsOpenId]);
+
   const selectableAdmins = admins.filter(a => a.id !== currentUserId);
   const allSelected = selectableAdmins.length > 0 && selectableAdmins.every(a => selectedIds.has(a.id));
 
-  const enterSelectionMode = () => {
-    setSelectionMode(true);
-    setSelectedIds(new Set());
-  };
-
-  const exitSelectionMode = () => {
-    setSelectionMode(false);
-    setSelectedIds(new Set());
-  };
-
-  const toggleSelectAll = () => {
-    if (allSelected) { setSelectedIds(new Set()); }
-    else { setSelectedIds(new Set(selectableAdmins.map(a => a.id))); }
-  };
-
-  const toggleSelect = (id: string) => {
-    setSelectedIds(prev => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next; });
-  };
+  const enterSelectionMode = () => { setSelectionMode(true); setSelectedIds(new Set()); };
+  const exitSelectionMode = () => { setSelectionMode(false); setSelectedIds(new Set()); };
+  const toggleSelectAll = () => { setSelectedIds(allSelected ? new Set() : new Set(selectableAdmins.map(a => a.id))); };
+  const toggleSelect = (id: string) => setSelectedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
   const handleBulkDelete = useCallback(async () => {
     if (selectedIds.size === 0) return;
@@ -85,27 +137,13 @@ export default function SAAdmins({ onConnectAsAdmin, onOpenChat, cachedAdmins, r
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
-      const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-admins`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`,
-            'Content-Type': 'application/json',
-            'Apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-          },
-          body: JSON.stringify({ admin_ids: Array.from(selectedIds) }),
-        }
-      );
-      if (res.ok) {
-        setSelectedIds(new Set());
-        setSelectionMode(false);
-        fetchAdmins();
-      }
-    } finally {
-      setDeleting(false);
-      setShowDeleteModal(false);
-    }
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-admins`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${session.access_token}`, 'Content-Type': 'application/json', 'Apikey': import.meta.env.VITE_SUPABASE_ANON_KEY },
+        body: JSON.stringify({ admin_ids: Array.from(selectedIds) }),
+      });
+      if (res.ok) { setSelectedIds(new Set()); setSelectionMode(false); fetchAdmins(); }
+    } finally { setDeleting(false); setShowDeleteModal(false); }
   }, [selectedIds, fetchAdmins]);
 
   const formatDate = (d: string | null) => {
@@ -217,10 +255,19 @@ export default function SAAdmins({ onConnectAsAdmin, onOpenChat, cachedAdmins, r
                         <td className="px-3 py-3.5 whitespace-nowrap" style={{ borderRight: `1px solid ${tokens.table.rowBorder}` }}><SAAdminsAccessSwitch adminId={admin.id} enabled={admin.access_enabled} onToggled={fetchAdmins} /></td>
                         <td className="px-3 py-3.5 whitespace-nowrap">
                           <div className="flex items-center gap-1.5">
-                            <button onClick={() => setSelectedAdmin(admin)} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105" style={{ background: tokens.accent.bg, border: `1px solid ${tokens.accent.border}`, color: tokens.accent.text }}><ChevronDown className="w-3 h-3" />Detail</button>
-                            <button onClick={() => setHomePageAdmin(admin)} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105" style={{ background: 'rgba(14,165,233,0.1)', border: '1px solid rgba(14,165,233,0.25)', color: '#0ea5e9' }}><Home className="w-3 h-3" />Accueil</button>
-                            <button onClick={() => onOpenChat?.(admin)} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105" style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.25)', color: '#f59e0b' }}><MessageSquare className="w-3 h-3" />MSG</button>
-                            <button onClick={() => onConnectAsAdmin?.(admin)} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105" style={{ background: tokens.success.bg, border: `1px solid ${tokens.success.border}`, color: tokens.success.text }}><LogIn className="w-3 h-3" />Connecter</button>
+                            <div className="flex flex-col gap-0.5 mr-1">
+                              <button onClick={() => moveAdmin(admin.id, 'up')} disabled={idx === 0} className="w-5 h-5 rounded flex items-center justify-center transition-all disabled:opacity-20" style={{ background: tokens.surface.secondary, border: `1px solid ${tokens.surface.border}`, color: tokens.text.secondary }} title="Monter"><ChevronUp className="w-3 h-3" /></button>
+                              <button onClick={() => moveAdmin(admin.id, 'down')} disabled={idx === admins.length - 1} className="w-5 h-5 rounded flex items-center justify-center transition-all disabled:opacity-20" style={{ background: tokens.surface.secondary, border: `1px solid ${tokens.surface.border}`, color: tokens.text.secondary }} title="Descendre"><ChevronDown className="w-3 h-3" /></button>
+                            </div>
+                            <button
+                              ref={el => { actionsBtnRefs.current[admin.id] = el; }}
+                              onClick={() => openActionsPopover(admin.id)}
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105"
+                              style={{ background: tokens.accent.bg, border: `1px solid ${tokens.accent.border}`, color: tokens.accent.text }}
+                            >
+                              <MoreHorizontal className="w-3.5 h-3.5" />
+                              Actions
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -232,41 +279,75 @@ export default function SAAdmins({ onConnectAsAdmin, onOpenChat, cachedAdmins, r
 
             {/* Mobile cards */}
             <div className="md:hidden divide-y" style={{ borderColor: tokens.table.rowBorder }}>
-              {admins.map((admin) => {
-                const initials = `${(admin.first_name?.[0] ?? '').toUpperCase()}${(admin.last_name?.[0] ?? '').toUpperCase()}`;
-                const isSelf = admin.id === currentUserId;
-                return (
-                  <div key={admin.id} data-row-id={admin.id} data-testid="admin-row" className="px-4 py-4" style={{ borderColor: tokens.table.rowBorder }}>
-                    <div className="flex items-start gap-3 mb-3">
-                      {selectionMode && !isSelf && <input type="checkbox" data-testid="admin-row-checkbox" checked={selectedIds.has(admin.id)} onChange={() => toggleSelect(admin.id)} className="w-4 h-4 rounded accent-amber-500 cursor-pointer mt-3" />}
-                      {selectionMode && isSelf && <span className="text-[9px] font-medium px-1.5 py-0.5 rounded mt-3" style={{ background: 'rgba(100,116,139,0.15)', color: '#94a3b8' }}>vous</span>}
-                      <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0" style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)', boxShadow: '0 2px 8px rgba(0,0,0,0.3)', color: '#fff' }}>{initials || '?'}</div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm font-semibold truncate" style={{ color: tokens.table.cellText }}>{admin.first_name || admin.last_name ? `${admin.first_name} ${admin.last_name}`.trim() : '\u2014'}</p>
-                          <span className="text-[9px] font-semibold uppercase px-1.5 py-0.5 rounded-full flex-shrink-0" style={{ background: 'rgba(245,158,11,0.12)', color: '#f59e0b' }}>{admin.role}</span>
-                        </div>
-                        {admin.email && (<div className="flex items-center gap-1 mt-1"><Mail className="w-3 h-3 flex-shrink-0" style={{ color: tokens.table.cellIcon }} /><span className="text-xs truncate flex-1 min-w-0" style={{ color: tokens.table.cellTextMuted }}>{admin.email}</span><CopyButton value={admin.email} /></div>)}
-                        {admin.phone && (<div className="flex items-center gap-1.5 mt-0.5"><Phone className="w-3 h-3 flex-shrink-0" style={{ color: tokens.table.cellIcon }} /><span className="text-xs" style={{ color: tokens.table.cellTextMuted }}>{admin.phone}</span></div>)}
-                        <div className="flex items-center gap-4 mt-1">
-                          <div className="flex items-center gap-1"><Calendar className="w-3 h-3" style={{ color: tokens.table.cellIcon }} /><span className="text-[11px]" style={{ color: tokens.table.cellTextMuted }}>{formatDate(admin.created_at)}</span></div>
-                          <SAAdminsAccessSwitch adminId={admin.id} enabled={admin.access_enabled} onToggled={fetchAdmins} />
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <button onClick={() => setSelectedAdmin(admin)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: tokens.accent.bg, border: `1px solid ${tokens.accent.border}`, color: tokens.accent.text }}><ChevronDown className="w-3 h-3" />Detail</button>
-                      <button onClick={() => setHomePageAdmin(admin)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: 'rgba(14,165,233,0.1)', border: '1px solid rgba(14,165,233,0.25)', color: '#0ea5e9' }}><Home className="w-3 h-3" />Accueil</button>
-                      <button onClick={() => onOpenChat?.(admin)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.25)', color: '#f59e0b' }}><MessageSquare className="w-3 h-3" />MSG</button>
-                      <button onClick={() => onConnectAsAdmin?.(admin)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: tokens.success.bg, border: `1px solid ${tokens.success.border}`, color: tokens.success.text }}><LogIn className="w-3 h-3" />Connecter</button>
-                    </div>
-                  </div>
-                );
-              })}
+              {admins.map((admin, idx) => (
+                <SAAdminMobileCard
+                  key={admin.id}
+                  admin={admin}
+                  idx={idx}
+                  total={admins.length}
+                  isSelf={admin.id === currentUserId}
+                  selectionMode={selectionMode}
+                  selected={selectedIds.has(admin.id)}
+                  onToggleSelect={toggleSelect}
+                  onMove={moveAdmin}
+                  onDetail={setSelectedAdmin}
+                  onHomePage={setHomePageAdmin}
+                  onChat={a => onOpenChat?.(a)}
+                  onConnect={a => onConnectAsAdmin?.(a)}
+                  onAccessToggled={fetchAdmins}
+                  formatDate={formatDate}
+                  tokens={tokens}
+                />
+              ))}
             </div>
           </>
         )}
       </div>
+
+      {actionsOpenId && (() => {
+        const admin = admins.find(a => a.id === actionsOpenId);
+        if (!admin) return null;
+        return createPortal(
+          <div className="fixed inset-0" style={{ zIndex: 99998 }} onClick={() => setActionsOpenId(null)}>
+            {popoverPos && (
+              <div
+                className="absolute rounded-xl p-3 w-[220px]"
+                style={{
+                  top: popoverPos.top, left: popoverPos.left, zIndex: 99999,
+                  background: tokens.modal.bg, border: `1px solid ${tokens.modal.border}`,
+                  boxShadow: '0 8px 32px rgba(0,0,0,0.35), 0 2px 8px rgba(0,0,0,0.2)',
+                  backdropFilter: 'blur(12px)',
+                }}
+                onClick={e => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-between mb-2.5">
+                  <p className="text-xs font-bold truncate" style={{ color: tokens.heading.primary }}>
+                    {admin.first_name || admin.last_name ? `${admin.first_name} ${admin.last_name}`.trim() : admin.email}
+                  </p>
+                  <button onClick={() => setActionsOpenId(null)} className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0" style={{ background: tokens.modal.closeBtnBg, color: tokens.modal.closeBtnText }}>
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <button onClick={() => { setActionsOpenId(null); setSelectedAdmin(admin); }} className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-xs font-semibold transition-all hover:scale-[1.02]" style={{ background: tokens.accent.bg, border: `1px solid ${tokens.accent.border}`, color: tokens.accent.text }}>
+                    <Eye className="w-3.5 h-3.5" />Detail
+                  </button>
+                  <button onClick={() => { setActionsOpenId(null); setHomePageAdmin(admin); }} className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-xs font-semibold transition-all hover:scale-[1.02]" style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)', color: '#f59e0b' }}>
+                    <Megaphone className="w-3.5 h-3.5" />Annonce
+                  </button>
+                  <button onClick={() => { setActionsOpenId(null); onOpenChat?.(admin); }} className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-xs font-semibold transition-all hover:scale-[1.02]" style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.25)', color: '#f59e0b' }}>
+                    <MessageSquare className="w-3.5 h-3.5" />MSG
+                  </button>
+                  <button onClick={() => { setActionsOpenId(null); onConnectAsAdmin?.(admin); }} className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-xs font-semibold transition-all hover:scale-[1.02]" style={{ background: tokens.success.bg, border: `1px solid ${tokens.success.border}`, color: tokens.success.text }}>
+                    <LogIn className="w-3.5 h-3.5" />Connecter
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>,
+          document.body
+        );
+      })()}
 
       {selectedAdmin && <AdminDetailModal admin={selectedAdmin} mode="detail" onClose={() => setSelectedAdmin(null)} onUpdate={handleUpdate} onSwitchMode={() => {}} />}
       {showCreateModal && <SAAdminsCreateModal onClose={() => setShowCreateModal(false)} onCreated={() => { setShowCreateModal(false); fetchAdmins(); }} tokens={tokens} />}

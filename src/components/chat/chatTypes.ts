@@ -13,6 +13,9 @@ export interface ChatMessage {
   vendor_auth_id?: string;
   client_auth_id?: string;
   vendor_id?: string;
+  is_ai_reply?: boolean;
+  ai_source?: string | null;
+  replied_to_message_id?: string | null;
   _pending?: boolean;
   _failed?: boolean;
 }

@@ -1,5 +1,6 @@
-import { forwardRef, useState } from 'react';
-import { Phone, Mail, ChevronDown, LogIn, MessageCircle, CalendarClock, CheckCircle2, Undo2, Redo2 } from 'lucide-react';
+import { forwardRef, useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
+import { Phone, Mail, ChevronDown, LogIn, MessageCircle, CalendarClock, CheckCircle2, Undo2, Redo2, Bot, MoreHorizontal, X, Eye } from 'lucide-react';
 import type { ImportedLead, Vendor, StatutDef, ImpersonatedClient, ChatLead } from './types';
 import type { ThemeTokens } from '../../../../lib/themeTokens';
 import { getStatutCfg, FALLBACK_COLOR } from './utils';
@@ -27,6 +28,7 @@ interface Props {
   onToggle: (id: string) => void;
   onStatutChange: (id: string, statut: string) => void;
   onToggleActif: (id: string, current: boolean) => void;
+  onToggleAi: (id: string, current: boolean) => void;
   onDetail: (lead: ImportedLead, index: number) => void;
   onConnectAsClient?: (client: ImpersonatedClient) => void;
   onOpenChat?: (lead: ChatLead) => void;
@@ -43,8 +45,24 @@ interface Props {
   workHistoryLength?: number;
 }
 
-const CrmTableRow = forwardRef<HTMLTableRowElement, Props>(function CrmTableRow({ lead, index, isSelected, statutDefs, vendors, tokens, timezone, colSep, onToggle, onStatutChange, onToggleActif, onDetail, onConnectAsClient, onOpenChat, onOpenRdv, selectMode, workModeEnabled, isWorkActive, onWorkSelect, onWorkUndo, onWorkRedo, canWorkUndo, canWorkRedo, workHistoryPosition, workHistoryLength }, ref) {
+const CrmTableRow = forwardRef<HTMLTableRowElement, Props>(function CrmTableRow({ lead, index, isSelected, statutDefs, vendors, tokens, timezone, colSep, onToggle, onStatutChange, onToggleActif, onToggleAi, onDetail, onConnectAsClient, onOpenChat, onOpenRdv, selectMode, workModeEnabled, isWorkActive, onWorkSelect, onWorkUndo, onWorkRedo, canWorkUndo, canWorkRedo, workHistoryPosition, workHistoryLength }, ref) {
   const [statutModalOpen, setStatutModalOpen] = useState(false);
+  const [actionsOpen, setActionsOpen] = useState(false);
+  const actionsBtnRef = useRef<HTMLButtonElement>(null);
+  const [popoverPos, setPopoverPos] = useState<{ top: number; left: number } | null>(null);
+
+  useEffect(() => {
+    if (!actionsOpen || !actionsBtnRef.current) { setPopoverPos(null); return; }
+    const rect = actionsBtnRef.current.getBoundingClientRect();
+    const popW = 220;
+    const popH = 240;
+    let top = rect.bottom + 6;
+    let left = rect.left + rect.width / 2 - popW / 2;
+    if (left < 8) left = 8;
+    if (left + popW > window.innerWidth - 8) left = window.innerWidth - 8 - popW;
+    if (top + popH > window.innerHeight - 8) top = rect.top - popH - 6;
+    setPopoverPos({ top, left });
+  }, [actionsOpen]);
   const nom = lead.data['Nom'] ?? '';
   const prenom = lead.data['Prenom'] ?? '';
   const email = lead.data['Email'] ?? '';
@@ -54,6 +72,7 @@ const CrmTableRow = forwardRef<HTMLTableRowElement, Props>(function CrmTableRow(
   const statutDef = statutDefs.find(s => s.nom === statut);
   const cfg = getStatutCfg(statutDef?.couleur ?? FALLBACK_COLOR, isNeutral);
   const actif = lead.actif !== false;
+  const aiEnabled = lead.ai_enabled === true;
   const assignedVendor = lead.vendor_id ? vendors.find(v => v.id === lead.vendor_id) : null;
   const statutLabel = statut === 'Nouveau' ? 'Sans statut' : statut;
 
@@ -153,20 +172,82 @@ const CrmTableRow = forwardRef<HTMLTableRowElement, Props>(function CrmTableRow(
         )}
       </td>
       <td className="px-5 py-3.5" style={colSep}>
-        <div className="flex items-center gap-2">
-          <button onClick={() => onDetail(lead, index)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105" style={{ background: tokens.accent.bg, border: `1px solid ${tokens.accent.border}`, color: tokens.accent.text }}>
-            <ChevronDown className="w-3 h-3" />Detail
-          </button>
-          <button onClick={() => onConnectAsClient?.({ id: lead.id, nom, prenom, email })} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105" style={{ background: tokens.success.bg, border: `1px solid ${tokens.success.border}`, color: tokens.success.text }}>
-            <LogIn className="w-3 h-3" />Connect
-          </button>
-          <button onClick={() => onOpenChat?.({ id: lead.id, nom, prenom, email, tel })} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105" style={{ background: tokens.warning.bg, border: `1px solid ${tokens.warning.border}`, color: tokens.warning.text }}>
-            <MessageCircle className="w-3 h-3" />Chat
-          </button>
-          <button onClick={() => onOpenRdv?.({ id: lead.id, nom, prenom, email, tel })} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105" style={{ background: 'rgba(34,211,238,0.08)', border: '1px solid rgba(34,211,238,0.18)', color: '#22d3ee' }}>
-            <CalendarClock className="w-3 h-3" />RDV
-          </button>
-        </div>
+        <button
+          ref={actionsBtnRef}
+          onClick={() => setActionsOpen(v => !v)}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105"
+          style={{ background: tokens.accent.bg, border: `1px solid ${tokens.accent.border}`, color: tokens.accent.text }}
+        >
+          <MoreHorizontal className="w-3.5 h-3.5" />
+          Actions
+        </button>
+        {actionsOpen && createPortal(
+          <div
+            className="fixed inset-0"
+            style={{ zIndex: 99998 }}
+            onClick={() => setActionsOpen(false)}
+          >
+            {popoverPos && (
+              <div
+                className="absolute rounded-xl p-3 w-[220px]"
+                style={{
+                  top: popoverPos.top,
+                  left: popoverPos.left,
+                  zIndex: 99999,
+                  background: tokens.modal.bg,
+                  border: `1px solid ${tokens.modal.border}`,
+                  boxShadow: '0 8px 32px rgba(0,0,0,0.35), 0 2px 8px rgba(0,0,0,0.2)',
+                  backdropFilter: 'blur(12px)',
+                }}
+                onClick={e => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-between mb-2.5">
+                  <p className="text-xs font-bold truncate" style={{ color: tokens.heading.primary }}>
+                    {prenom ? `${prenom} ${nom}` : nom || 'Lead'}
+                  </p>
+                  <button
+                    onClick={() => setActionsOpen(false)}
+                    className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0"
+                    style={{ background: tokens.modal.closeBtnBg, color: tokens.modal.closeBtnText }}
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <button
+                    onClick={() => { setActionsOpen(false); onDetail(lead, index); }}
+                    className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-xs font-semibold transition-all hover:scale-[1.02]"
+                    style={{ background: tokens.accent.bg, border: `1px solid ${tokens.accent.border}`, color: tokens.accent.text }}
+                  >
+                    <Eye className="w-3.5 h-3.5" />Detail
+                  </button>
+                  <button
+                    onClick={() => { setActionsOpen(false); onConnectAsClient?.({ id: lead.id, nom, prenom, email }); }}
+                    className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-xs font-semibold transition-all hover:scale-[1.02]"
+                    style={{ background: tokens.success.bg, border: `1px solid ${tokens.success.border}`, color: tokens.success.text }}
+                  >
+                    <LogIn className="w-3.5 h-3.5" />Connect
+                  </button>
+                  <button
+                    onClick={() => { setActionsOpen(false); onOpenChat?.({ id: lead.id, nom, prenom, email, tel }); }}
+                    className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-xs font-semibold transition-all hover:scale-[1.02]"
+                    style={{ background: tokens.warning.bg, border: `1px solid ${tokens.warning.border}`, color: tokens.warning.text }}
+                  >
+                    <MessageCircle className="w-3.5 h-3.5" />Chat
+                  </button>
+                  <button
+                    onClick={() => { setActionsOpen(false); onOpenRdv?.({ id: lead.id, nom, prenom, email, tel }); }}
+                    className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-xs font-semibold transition-all hover:scale-[1.02]"
+                    style={{ background: 'rgba(34,211,238,0.08)', border: '1px solid rgba(34,211,238,0.18)', color: '#22d3ee' }}
+                  >
+                    <CalendarClock className="w-3.5 h-3.5" />RDV
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>,
+          document.body
+        )}
       </td>
       <td className="px-5 py-3.5" style={colSep}>
         <button
@@ -176,6 +257,16 @@ const CrmTableRow = forwardRef<HTMLTableRowElement, Props>(function CrmTableRow(
           title={actif ? 'Desactiver' : 'Activer'}
         >
           <span className="absolute rounded-full transition-all duration-300" style={{ width: 12, height: 12, left: actif ? 20 : 3, background: actif ? tokens.success.text : 'rgba(255,255,255,0.3)', boxShadow: actif ? '0 0 6px rgba(52,211,153,0.8)' : 'none' }} />
+        </button>
+      </td>
+      <td className="px-5 py-3.5" style={colSep}>
+        <button
+          onClick={() => onToggleAi(lead.id, aiEnabled)}
+          className="relative inline-flex items-center gap-1.5 rounded-full transition-all duration-300 focus:outline-none"
+          style={{ width: 36, height: 20, background: aiEnabled ? 'rgba(59,130,246,0.25)' : 'rgba(255,255,255,0.08)', border: aiEnabled ? '1px solid rgba(59,130,246,0.4)' : '1px solid rgba(255,255,255,0.1)' }}
+          title={aiEnabled ? 'Mode IA' : 'Mode manuel'}
+        >
+          <span className="absolute rounded-full transition-all duration-300" style={{ width: 12, height: 12, left: aiEnabled ? 20 : 3, background: aiEnabled ? '#3b82f6' : 'rgba(255,255,255,0.3)', boxShadow: aiEnabled ? '0 0 6px rgba(59,130,246,0.8)' : 'none' }} />
         </button>
       </td>
       <td className="px-5 py-3.5" style={colSep}>

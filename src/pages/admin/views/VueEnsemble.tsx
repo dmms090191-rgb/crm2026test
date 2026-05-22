@@ -1,4 +1,4 @@
-import { UserPlus, Tag, MessageCircle } from 'lucide-react';
+import { UserPlus, Tag, MessageCircle, Megaphone } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { useTheme } from '../../../contexts/ThemeContext';
@@ -6,7 +6,6 @@ import { useThemeTokens } from '../../../hooks/useThemeTokens';
 import { useSansStatutStats } from '../../../hooks/useSansStatutStats';
 import SansStatutModal from '../../../components/SansStatutModal';
 import { useCompanyId } from '../../../hooks/useCompanyId';
-import HomeWelcomeBanner from './HomeWelcomeBanner';
 import type { ActiveView } from '../AdminDashboard';
 
 interface StatCardProps {
@@ -104,12 +103,20 @@ interface VueEnsembleProps {
   unreadVendorConversations?: number;
 }
 
+interface AnnouncementItem {
+  id: string;
+  title: string;
+  message: string;
+  created_at: string;
+}
+
 export default function VueEnsemble({ onNavigate, unreadClientConversations = 0, unreadVendorConversations = 0 }: VueEnsembleProps) {
   const { theme } = useTheme();
   const t = useThemeTokens();
   const [pendingCount, setPendingCount] = useState(0);
   const [modalOpen, setModalOpen] = useState(false);
   const companyId = useCompanyId();
+  const [announcements, setAnnouncements] = useState<AnnouncementItem[]>([]);
 
   const sansStatut = useSansStatutStats('admin');
 
@@ -126,6 +133,19 @@ export default function VueEnsemble({ onNavigate, unreadClientConversations = 0,
   useEffect(() => {
     fetchPending();
   }, [fetchPending]);
+
+  useEffect(() => {
+    if (!companyId) return;
+    supabase
+      .from('admin_announcements')
+      .select('id, title, message, created_at')
+      .eq('company_id', companyId)
+      .eq('is_active', true)
+      .order('created_at', { ascending: false })
+      .then(({ data }) => {
+        if (data) setAnnouncements(data.filter(a => a.title || a.message));
+      });
+  }, [companyId]);
 
   useEffect(() => {
     const ts = Date.now();
@@ -156,10 +176,11 @@ export default function VueEnsemble({ onNavigate, unreadClientConversations = 0,
   const accentEn = theme === 'dark' ? '#22d3ee' : '#0284c7';
   const accentSans = theme === 'dark' ? '#2dd4bf' : '#0891b2';
 
+  const formatAnnouncementDate = (d: string) =>
+    new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
   return (
     <div className="space-y-6 sm:space-y-6">
-      <HomeWelcomeBanner />
-
       {/* Header */}
       <div className="flex items-start justify-between gap-3 pt-1 sm:pt-0">
         <div className="min-w-0">
@@ -214,6 +235,38 @@ export default function VueEnsemble({ onNavigate, unreadClientConversations = 0,
         />
       </div>
 
+      {/* Announcements */}
+      {announcements.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'rgba(245,158,11,0.12)', color: '#f59e0b' }}>
+              <Megaphone className="w-3.5 h-3.5" />
+            </div>
+            <h3 className="text-sm font-bold" style={{ color: t.heading.primary }}>Annonces</h3>
+          </div>
+          {announcements.map(a => (
+            <div
+              key={a.id}
+              className="relative overflow-hidden rounded-xl p-4 sm:p-5"
+              style={{
+                background: 'linear-gradient(135deg, rgba(245,158,11,0.07) 0%, rgba(251,191,36,0.03) 100%)',
+                border: '1px solid rgba(245,158,11,0.16)',
+              }}
+            >
+              <div className="absolute -top-8 -right-8 w-32 h-32 rounded-full blur-3xl opacity-10 pointer-events-none" style={{ background: '#f59e0b' }} />
+              <div className="relative">
+                {a.title && (
+                  <p className="text-sm font-bold leading-tight" style={{ color: t.heading.primary }}>{a.title}</p>
+                )}
+                {a.message && (
+                  <p className="text-xs sm:text-sm mt-1.5 leading-relaxed whitespace-pre-line" style={{ color: t.text.secondary }}>{a.message}</p>
+                )}
+                <p className="text-[10px] mt-2" style={{ color: t.label.hint }}>{formatAnnouncementDate(a.created_at)}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       <SansStatutModal
         open={modalOpen}

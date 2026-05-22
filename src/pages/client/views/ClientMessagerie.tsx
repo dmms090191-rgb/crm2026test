@@ -104,17 +104,41 @@ export default function ClientMessagerie({ clientName, clientAuthId, isAdmin }: 
       ...(file ? { file_url: file.url, file_name: file.name, file_type: file.type } : {}),
     } as ChatMessage]);
 
-    supabase.from('client_messages').insert(payload).then(({ error }) => {
-      if (error) console.error('[ClientMessagerie] insert error:', error.message);
+    supabase.from('client_messages').insert(payload).select('id').single().then(({ data: inserted, error }) => {
+      if (error) { console.error('[ClientMessagerie] insert error:', error.message); return; }
       loadMessages(false).catch(() => {});
+      if (inserted?.id) {
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          if (!session) return;
+          fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat-auto-reply`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${session.access_token}`,
+              'Content-Type': 'application/json',
+              'Apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+            },
+            body: JSON.stringify({ message_id: inserted.id }),
+          }).then(async (res) => {
+            const body = await res.json().catch(() => null);
+            console.log('[ClientMessagerie] chat-auto-reply response:', res.status, body);
+          }).catch((err) => { console.error('[ClientMessagerie] chat-auto-reply fetch error:', err); });
+        });
+      }
     });
   }, [clientAuthId, leadVendorId, loadMessages]);
 
   const handleDelete = useCallback(async (id: string) => {
-    if (!isAdmin) return;
-    setMessages(prev => prev.filter(m => m.id !== id));
-    supabase.from('client_messages').delete().eq('id', id);
-  }, [isAdmin]);
+    setMessages(prev => prev.map(m => m.id === id ? { ...m, deleted: true } : m));
+    const { error } = await supabase
+      .from('client_messages')
+      .update({ deleted: true })
+      .eq('id', id)
+      .eq('client_auth_id', clientAuthId);
+    if (error) {
+      console.error('[ClientMessagerie] delete error:', error.message);
+      setMessages(prev => prev.map(m => m.id === id ? { ...m, deleted: false } : m));
+    }
+  }, [clientAuthId]);
 
 
   const lastMsg = useMemo(() => {

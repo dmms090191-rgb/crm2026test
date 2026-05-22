@@ -18,7 +18,8 @@ export default function ClientPropositionsRdv({ clientEmail, onMount }: ClientPr
     counterTarget, setCounterTarget, counterSaving, counterError,
     showNewRdv, setShowNewRdv, newRdvSaving, newRdvError, setNewRdvError,
     handleAccept, handleRefuse, handleOpenCounter, handleCancelOwn,
-    handleCounterSubmit, handleNewRdvSubmit,
+    handleAcceptReschedule, handleRefuseReschedule, handleOpenCounterReschedule,
+    handleRequestReschedule, handleCounterSubmit, handleNewRdvSubmit,
     CLIENT_TZ,
   } = useClientRdvData({ clientEmail, onMount });
 
@@ -99,6 +100,10 @@ export default function ClientPropositionsRdv({ clientEmail, onMount }: ClientPr
                   onRefuse={handleRefuse}
                   onCounterPropose={handleOpenCounter}
                   onCancelOwn={handleCancelOwn}
+                  onAcceptReschedule={handleAcceptReschedule}
+                  onRefuseReschedule={handleRefuseReschedule}
+                  onCounterReschedule={handleOpenCounterReschedule}
+                  onRequestReschedule={handleRequestReschedule}
                 />
               </div>
             ))}

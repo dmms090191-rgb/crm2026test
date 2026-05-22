@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CalendarCheck, CalendarClock } from 'lucide-react';
+import { CalendarCheck, CalendarClock, RefreshCw } from 'lucide-react';
 import type { ThemeTokens } from '../../../../lib/themeTokensTypes';
 import type { AgendaNotifEntry } from '../../../../hooks/useAgendaNotifications';
 import type { PropositionNotifEntry } from '../../ClientTopBar';
@@ -145,7 +145,13 @@ export function PropositionNotifItem({
   const isFromClient = entry.created_by_role === 'client';
 
   let message: string;
-  if (isFromClient && entry.status === 'confirmed') {
+  if (entry.reschedule_status === 'accepted') {
+    message = 'Votre demande de decalage a ete acceptee';
+  } else if (entry.reschedule_status === 'refused') {
+    message = 'Votre demande de decalage a ete refusee';
+  } else if (entry.reschedule_status === 'pending') {
+    message = 'Votre conseiller souhaite decaler le rendez-vous';
+  } else if (isFromClient && entry.status === 'confirmed') {
     message = 'Votre conseiller a accepte le rendez-vous';
   } else if (isFromClient && entry.status === 'cancelled') {
     message = 'Votre conseiller a refuse le rendez-vous';
@@ -156,6 +162,15 @@ export function PropositionNotifItem({
   } else {
     message = 'Votre proposition de rendez-vous a recu une reponse';
   }
+
+  const isRescheduleResponse = entry.reschedule_status === 'accepted' || entry.reschedule_status === 'refused';
+  const isAccepted = entry.reschedule_status === 'accepted';
+  const iconGradient = isRescheduleResponse
+    ? (isAccepted ? 'linear-gradient(135deg, #34d399 0%, #059669 100%)' : 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)')
+    : 'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)';
+  const dotColor = isRescheduleResponse
+    ? (isAccepted ? '#34d399' : '#f59e0b')
+    : '#06b6d4';
 
   return (
     <button
@@ -168,12 +183,9 @@ export function PropositionNotifItem({
     >
       <div
         className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
-        style={{
-          background: 'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)',
-          boxShadow: '0 0 8px rgba(6,182,212,0.3)',
-        }}
+        style={{ background: iconGradient, boxShadow: `0 0 8px ${dotColor}4d` }}
       >
-        <CalendarClock className="w-3.5 h-3.5 text-white" />
+        {isRescheduleResponse ? <RefreshCw className="w-3.5 h-3.5 text-white" /> : <CalendarClock className="w-3.5 h-3.5 text-white" />}
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-[12px] font-medium whitespace-normal break-words" style={{ color: tokens.itemTextHover }}>
@@ -185,7 +197,7 @@ export function PropositionNotifItem({
       </div>
       <div
         className="w-2 h-2 rounded-full flex-shrink-0"
-        style={{ background: '#06b6d4', boxShadow: '0 0 6px rgba(6,182,212,0.5)' }}
+        style={{ background: dotColor, boxShadow: `0 0 6px ${dotColor}80` }}
       />
     </button>
   );

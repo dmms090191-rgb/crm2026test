@@ -94,7 +94,7 @@ export default function AdminDashboard({ onLogout, onConnectAsVendor, onConnectA
   const [docInitialTab, setDocInitialTab] = useState<string | undefined>(undefined);
   const pendingScrollRef = useRef<{ leadId?: string; vendorId?: string; scrollY: number } | null>(null);
 
-  const { proposalUnseen, confirmedUnseen, handleProposalEntryClick, handleConfirmedEntryClick } =
+  const { proposalUnseen, confirmedUnseen, rescheduleUnseen, rescheduleRequestUnseen, handleProposalEntryClick, handleConfirmedEntryClick, handleRescheduleEntryClick, handleRescheduleRequestEntryClick } =
     useAdminProposalNotifs(setActiveView);
 
   const {
@@ -232,6 +232,12 @@ export default function AdminDashboard({ onLogout, onConnectAsVendor, onConnectA
           confirmedCount={confirmedUnseen.length}
           confirmedEntries={confirmedUnseen}
           onConfirmedEntryClick={handleConfirmedEntryClick}
+          rescheduleCount={rescheduleUnseen.length}
+          rescheduleEntries={rescheduleUnseen}
+          onRescheduleEntryClick={handleRescheduleEntryClick}
+          rescheduleRequestCount={rescheduleRequestUnseen.length}
+          rescheduleRequestEntries={rescheduleRequestUnseen}
+          onRescheduleRequestEntryClick={handleRescheduleRequestEntryClick}
           impersonatedAdmin={impersonatedAdmin}
           onBackToSuperAdmin={onBackToSuperAdmin}
         />

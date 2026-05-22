@@ -37,8 +37,8 @@ export default function ClientDashboard({ onLogout, impersonatedClient, onBackTo
   const [clientAuthId, setClientAuthId] = useState('');
   const { unreadCount: unreadMsgCount, latestAt: unreadLatestAt, markAsRead: markMsgRead } = useUnreadAdminMessages(clientAuthId);
   const { notifications: agendaNotifs, count: agendaCount, markAsSeen: markAgendaSeen } = useAgendaNotifications('client', clientEmail || null);
-  const [unseenProposals, setUnseenProposals] = useState<{ id: string; lead_name: string; created_at: string; created_by_role: string }[]>([]);
-  const unseenProposalsRef = useRef<{ id: string; lead_name: string; created_at: string; created_by_role: string }[]>([]);
+  const [unseenProposals, setUnseenProposals] = useState<{ id: string; lead_name: string; created_at: string; created_by_role: string; reschedule_status?: string | null }[]>([]);
+  const unseenProposalsRef = useRef<{ id: string; lead_name: string; created_at: string; created_by_role: string; reschedule_status?: string | null }[]>([]);
 
   useEffect(() => {
     if (impersonatedClient) {
@@ -94,19 +94,33 @@ export default function ClientDashboard({ onLogout, impersonatedClient, onBackTo
       const leadIds = leads.map(l => l.id);
       const { data: pendingProps } = await supabase
         .from('rdv_proposals')
-        .select('id, vendor_id, lead_id, lead_name, created_at, status, created_by_role, parent_proposal_id')
+        .select('id, vendor_id, lead_id, lead_name, created_at, status, created_by_role, parent_proposal_id, reschedule_status')
         .in('lead_id', leadIds)
         .eq('seen_by_client', false)
         .eq('status', 'pending')
         .neq('created_by_role', 'client');
       const { data: respondedProps } = await supabase
         .from('rdv_proposals')
-        .select('id, vendor_id, lead_id, lead_name, created_at, status, created_by_role, parent_proposal_id')
+        .select('id, vendor_id, lead_id, lead_name, created_at, status, created_by_role, parent_proposal_id, reschedule_status')
         .in('lead_id', leadIds)
         .eq('seen_by_client', false)
         .in('status', ['confirmed', 'cancelled'])
         .eq('created_by_role', 'client');
-      const proposals = [...(pendingProps ?? []), ...(respondedProps ?? [])];
+      const { data: rescheduleProps } = await supabase
+        .from('rdv_proposals')
+        .select('id, vendor_id, lead_id, lead_name, created_at, status, created_by_role, parent_proposal_id, reschedule_status')
+        .in('lead_id', leadIds)
+        .eq('seen_by_client', false)
+        .eq('status', 'confirmed')
+        .eq('reschedule_status', 'pending');
+      const { data: rescheduleResponseProps } = await supabase
+        .from('rdv_proposals')
+        .select('id, vendor_id, lead_id, lead_name, created_at, status, created_by_role, parent_proposal_id, reschedule_status')
+        .in('lead_id', leadIds)
+        .eq('seen_by_client', false)
+        .eq('status', 'confirmed')
+        .in('reschedule_status', ['accepted', 'refused']);
+      const proposals = [...(pendingProps ?? []), ...(respondedProps ?? []), ...(rescheduleProps ?? []), ...(rescheduleResponseProps ?? [])];
       if (proposals.length === 0) {
         setUnseenProposals([]);
         unseenProposalsRef.current = [];
@@ -119,7 +133,9 @@ export default function ClientDashboard({ onLogout, impersonatedClient, onBackTo
         if (!leadVendorId) return !p.vendor_id;
         return p.vendor_id === leadVendorId;
       });
-      const entries = valid.map(p => ({ id: p.id, lead_name: p.lead_name || '', created_at: p.created_at, created_by_role: p.created_by_role || '', parent_proposal_id: p.parent_proposal_id || null, status: p.status || '' }));
+      const dedupIds = new Set<string>();
+      const deduped = valid.filter(p => { if (dedupIds.has(p.id)) return false; dedupIds.add(p.id); return true; });
+      const entries = deduped.map(p => ({ id: p.id, lead_name: p.lead_name || '', created_at: p.created_at, created_by_role: p.created_by_role || '', parent_proposal_id: p.parent_proposal_id || null, status: p.status || '', reschedule_status: p.reschedule_status || null }));
       setUnseenProposals(entries);
       unseenProposalsRef.current = entries;
     };
@@ -148,9 +164,13 @@ export default function ClientDashboard({ onLogout, impersonatedClient, onBackTo
   }, [markAgendaSeen]);
 
   const handleProposalNotifClick = useCallback((proposalId: string) => {
+    const entry = unseenProposalsRef.current.find(p => p.id === proposalId);
+    const isRescheduleResponse = entry?.reschedule_status === 'accepted' || entry?.reschedule_status === 'refused';
+    const updatePayload: Record<string, unknown> = { seen_by_client: true };
+    if (isRescheduleResponse) updatePayload.reschedule_status = null;
     supabase
       .from('rdv_proposals')
-      .update({ seen_by_client: true })
+      .update(updatePayload)
       .eq('id', proposalId)
       .then(() => {
         setUnseenProposals(prev => prev.filter(p => p.id !== proposalId));

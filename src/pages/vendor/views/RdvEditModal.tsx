@@ -55,7 +55,19 @@ export default function RdvEditModal({ rdv, onClose, onSaved, callerRole }: Edit
     setSaving(true);
     setError('');
 
-    if (isClientProposal && rdv.status === 'pending') {
+    if (rdv.status === 'confirmed') {
+      const { error: err } = await supabase.from('rdv_proposals').update({
+        reschedule_status: 'pending',
+        reschedule_date: form.proposed_date,
+        reschedule_time: form.proposed_time,
+        reschedule_utc: appointmentUtc,
+        reschedule_reason: form.description.trim() || null,
+        reschedule_requested_at: new Date().toISOString(),
+        reschedule_requested_by: role,
+        seen_by_client: false,
+      }).eq('id', rdv.id);
+      if (err) { setSaving(false); setError('Erreur lors de l\'enregistrement.'); return; }
+    } else if (isClientProposal && rdv.status === 'pending') {
       const now = new Date().toISOString();
       await supabase.from('rdv_proposals').update({
         status: 'counter_proposed',
@@ -140,7 +152,7 @@ export default function RdvEditModal({ rdv, onClose, onSaved, callerRole }: Edit
         <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 flex-shrink-0" style={{ borderBottom: `1px solid ${tokens.card.border}` }}>
           <div>
             <p className="font-semibold text-sm" style={{ color: tokens.modal.title }}>
-              {isClientProposal && rdv.status === 'pending' ? 'Reproposer un horaire' : 'Modifier le rendez-vous'}
+              {rdv.status === 'confirmed' ? 'Proposer un decalage' : isClientProposal && rdv.status === 'pending' ? 'Reproposer un horaire' : 'Modifier le rendez-vous'}
             </p>
             <p className="text-xs" style={{ color: tokens.modal.subtitle }}>{rdv.lead_name}</p>
           </div>
@@ -156,6 +168,12 @@ export default function RdvEditModal({ rdv, onClose, onSaved, callerRole }: Edit
         </div>
 
         <div className="px-4 sm:px-6 py-4 sm:py-5 space-y-3 sm:space-y-4 overflow-y-auto flex-1 overscroll-contain">
+          {rdv.status === 'confirmed' && (
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs" style={{ background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.15)', color: '#f59e0b' }}>
+              <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+              Le client recevra une demande de modification. Le RDV actuel reste confirme.
+            </div>
+          )}
           {isClientProposal && rdv.status === 'pending' && (
             <div className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs" style={{ background: 'rgba(6,182,212,0.06)', border: '1px solid rgba(6,182,212,0.15)', color: '#06b6d4' }}>
               <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
@@ -195,7 +213,7 @@ export default function RdvEditModal({ rdv, onClose, onSaved, callerRole }: Edit
             <textarea value={form.description} onChange={e => set('description', e.target.value)} rows={2} className={inputCls + ' resize-none'} style={inputStyle} placeholder="Details du rendez-vous..." />
           </div>
 
-          {!(isClientProposal && rdv.status === 'pending') && (
+          {rdv.status !== 'confirmed' && !(isClientProposal && rdv.status === 'pending') && (
             <div>
               <label className="block text-[10px] font-bold tracking-[0.15em] uppercase mb-1.5" style={{ color: tokens.modal.fieldLabel }}>Statut</label>
               <select
@@ -221,7 +239,7 @@ export default function RdvEditModal({ rdv, onClose, onSaved, callerRole }: Edit
             style={{ background: 'linear-gradient(90deg, #0ea5e9, #22d3ee)', boxShadow: `0 0 16px ${tokens.accent.text}33`, color: tokens.text.primary }}
           >
             <Check className="w-3.5 h-3.5" />
-            {saving ? 'Enregistrement...' : (isClientProposal && rdv.status === 'pending' ? 'Envoyer la proposition' : 'Enregistrer')}
+            {saving ? 'Enregistrement...' : rdv.status === 'confirmed' ? 'Envoyer la demande' : (isClientProposal && rdv.status === 'pending' ? 'Envoyer la proposition' : 'Enregistrer')}
           </button>
           <button
             onClick={onClose}

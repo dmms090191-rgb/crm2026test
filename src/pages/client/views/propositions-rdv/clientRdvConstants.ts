@@ -22,6 +22,13 @@ export interface RdvProposal {
   created_by_name?: string;
   parent_proposal_id?: string | null;
   counter_message?: string;
+  reschedule_status?: string | null;
+  reschedule_date?: string | null;
+  reschedule_time?: string | null;
+  reschedule_utc?: string | null;
+  reschedule_reason?: string | null;
+  reschedule_requested_at?: string | null;
+  reschedule_requested_by?: string | null;
 }
 
 export const statusConfig: Record<string, { label: string; color: string; bg: string; border: string }> = {

@@ -1,5 +1,5 @@
-import { CalendarDays, Clock, Phone, Mail, CheckCircle, XCircle, RefreshCw, Loader2 } from 'lucide-react';
-import { getRdvLocalDate, getRdvLocalTime } from '../../../lib/timezoneUtils';
+import { CalendarDays, Clock, Phone, Mail, CheckCircle, XCircle, RefreshCw, Loader2, ArrowRight, Pencil } from 'lucide-react';
+import { getRdvLocalDate, getRdvLocalTime, utcToLocal } from '../../../lib/timezoneUtils';
 import type { ThemeTokens } from '../../../lib/themeTokensTypes';
 
 interface RdvProposal {
@@ -25,6 +25,13 @@ interface RdvProposal {
   created_by_name?: string;
   parent_proposal_id?: string | null;
   counter_message?: string;
+  reschedule_status?: string | null;
+  reschedule_date?: string | null;
+  reschedule_time?: string | null;
+  reschedule_utc?: string | null;
+  reschedule_reason?: string | null;
+  reschedule_requested_at?: string | null;
+  reschedule_requested_by?: string | null;
 }
 
 interface ClientRdvCardProps {
@@ -37,9 +44,13 @@ interface ClientRdvCardProps {
   onRefuse: (id: string) => void;
   onCounterPropose: (id: string) => void;
   onCancelOwn?: (id: string) => void;
+  onAcceptReschedule?: (id: string) => void;
+  onRefuseReschedule?: (id: string) => void;
+  onCounterReschedule?: (id: string) => void;
+  onRequestReschedule?: (id: string) => void;
 }
 
-export default function ClientRdvCard({ rdv, tokens, timezone, todayStr, statusConfig, onAccept, onRefuse, onCounterPropose, onCancelOwn }: ClientRdvCardProps) {
+export default function ClientRdvCard({ rdv, tokens, timezone, todayStr, statusConfig, onAccept, onRefuse, onCounterPropose, onCancelOwn, onAcceptReschedule, onRefuseReschedule, onCounterReschedule, onRequestReschedule }: ClientRdvCardProps) {
   const cfg = statusConfig[rdv.status] ?? statusConfig.pending;
   const isPast = rdv.proposed_date < todayStr;
   const isPending = rdv.status === 'pending';
@@ -47,6 +58,7 @@ export default function ClientRdvCard({ rdv, tokens, timezone, todayStr, statusC
   const isOwnProposal = rdv.created_by_role === 'client';
   const canRespond = isPending && !isOwnProposal;
   const isWaitingResponse = isPending && isOwnProposal;
+  const isReschedulePending = rdv.status === 'confirmed' && rdv.reschedule_status === 'pending';
 
   return (
     <div
@@ -83,6 +95,14 @@ export default function ClientRdvCard({ rdv, tokens, timezone, todayStr, statusC
               style={{ background: 'rgba(100,116,139,0.08)', color: '#64748b', border: '1px solid rgba(100,116,139,0.2)' }}
             >
               Remplacee
+            </span>
+          )}
+          {isReschedulePending && (
+            <span
+              className="px-2 py-0.5 rounded-md text-[10px] font-semibold"
+              style={{ background: 'rgba(251,191,36,0.08)', color: '#f59e0b', border: '1px solid rgba(251,191,36,0.2)' }}
+            >
+              Modification proposee
             </span>
           )}
         </div>
@@ -125,6 +145,69 @@ export default function ClientRdvCard({ rdv, tokens, timezone, todayStr, statusC
 
         {rdv.description && (
           <p className="text-xs mt-1.5" style={{ color: tokens.text.quaternary }}>{rdv.description}</p>
+        )}
+
+        {isReschedulePending && (() => {
+          const newLocal = rdv.reschedule_utc
+            ? utcToLocal(rdv.reschedule_utc, timezone)
+            : { date: rdv.reschedule_date || '', time: rdv.reschedule_time || '' };
+          const newDateLabel = newLocal.date
+            ? new Date(newLocal.date + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })
+            : '';
+          return (
+            <div className="mt-3 p-3 rounded-xl space-y-2" style={{ background: 'rgba(251,191,36,0.04)', border: '1px solid rgba(251,191,36,0.15)' }}>
+              <p className="text-xs font-semibold" style={{ color: '#f59e0b' }}>
+                Votre conseiller souhaite decaler ce rendez-vous
+              </p>
+              <div className="flex items-center gap-2 flex-wrap text-xs" style={{ color: tokens.text.tertiary }}>
+                <span className="line-through opacity-60">{getRdvLocalTime(rdv, timezone)} - {new Date(getRdvLocalDate(rdv, timezone) + 'T00:00:00').toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}</span>
+                <ArrowRight className="w-3 h-3" style={{ color: '#f59e0b' }} />
+                <span className="font-semibold" style={{ color: '#f59e0b' }}>{newLocal.time} - {newDateLabel}</span>
+              </div>
+              {rdv.reschedule_reason && (
+                <p className="text-[11px] italic" style={{ color: tokens.text.quaternary }}>Motif : {rdv.reschedule_reason}</p>
+              )}
+              <div className="flex items-center gap-2 mt-1 flex-wrap">
+                <button
+                  onClick={() => onAcceptReschedule?.(rdv.id)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105"
+                  style={{ background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.2)', color: '#34d399' }}
+                >
+                  <CheckCircle className="w-3.5 h-3.5" />
+                  Accepter
+                </button>
+                <button
+                  onClick={() => onRefuseReschedule?.(rdv.id)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105"
+                  style={{ background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.2)', color: '#f87171' }}
+                >
+                  <XCircle className="w-3.5 h-3.5" />
+                  Refuser
+                </button>
+                <button
+                  onClick={() => onCounterReschedule?.(rdv.id)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105"
+                  style={{ background: 'rgba(6,182,212,0.08)', border: '1px solid rgba(6,182,212,0.2)', color: '#06b6d4' }}
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  Modifier l'horaire
+                </button>
+              </div>
+            </div>
+          );
+        })()}
+
+        {rdv.status === 'confirmed' && !isReschedulePending && onRequestReschedule && (
+          <div className="flex items-center gap-2 mt-3">
+            <button
+              onClick={() => onRequestReschedule(rdv.id)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105"
+              style={{ background: 'rgba(96,165,250,0.08)', border: '1px solid rgba(96,165,250,0.15)', color: '#60a5fa' }}
+            >
+              <Pencil className="w-3.5 h-3.5" />
+              Proposer un decalage
+            </button>
+          </div>
         )}
 
         {canRespond && (

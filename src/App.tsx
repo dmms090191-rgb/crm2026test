@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy } from 'react';
+import { useState, useEffect, lazy, useRef } from 'react';
 import LoginModal from './components/LoginModal';
 import type { ImpersonatedVendor } from './pages/vendor/VendorDashboard';
 import type { ImpersonatedClientInfo } from './pages/client/ClientDashboard';
@@ -9,6 +9,7 @@ import { AppLoadingScreen, AppAccessBlocked } from './app/AppStatusScreens';
 import AppLandingPage from './app/AppLandingPage';
 import AppShell from './app/AppShell';
 import CompanySitePage from './pages/public/CompanySitePage';
+import { getHomePageByDomain } from './lib/companyHomePages';
 
 export interface ImpersonatedAdmin {
   id: string;
@@ -34,6 +35,9 @@ function App() {
   const [impersonatedVendor, setImpersonatedVendor] = useState<ImpersonatedVendor | null>(null);
   const [impersonatedClient, setImpersonatedClient] = useState<ImpersonatedClientInfo | null>(null);
   const [impersonatedAdmin, setImpersonatedAdmin] = useState<ImpersonatedAdmin | null>(null);
+  const [customDomainSlug, setCustomDomainSlug] = useState<string | null>(null);
+  const [customDomainNotFound, setCustomDomainNotFound] = useState(false);
+  const domainCheckedRef = useRef(false);
 
   async function detectRole() {
     const { data: { session } } = await supabase.auth.getSession();
@@ -83,6 +87,27 @@ function App() {
     return () => subscription.unsubscribe();
   }, []);
 
+  useEffect(() => {
+    if (domainCheckedRef.current) return;
+    domainCheckedRef.current = true;
+    const hostname = window.location.hostname;
+    const isKnownHost =
+      hostname === 'localhost' ||
+      hostname === '127.0.0.1' ||
+      hostname.endsWith('.supabase.co') ||
+      hostname.endsWith('.vercel.app') ||
+      hostname.endsWith('.webcontainer.io') ||
+      hostname.endsWith('.bolt.new') ||
+      hostname.endsWith('.stackblitz.io');
+    if (isKnownHost) return;
+    getHomePageByDomain(hostname)
+      .then(page => {
+        if (page?.slug) setCustomDomainSlug(page.slug);
+        else setCustomDomainNotFound(true);
+      })
+      .catch(() => setCustomDomainNotFound(false));
+  }, []);
+
   const handleLogin = () => { detectRole(); setIsModalOpen(false); };
 
   const handleLogout = async () => {
@@ -100,6 +125,14 @@ function App() {
   const siteSlugMatch = window.location.pathname.match(/^\/site\/([^/]+)/);
   if (siteSlugMatch) {
     return <CompanySitePage slug={siteSlugMatch[1]} />;
+  }
+
+  // --- Custom domain detection ---
+  if (customDomainSlug && !role) {
+    return <CompanySitePage slug={customDomainSlug} />;
+  }
+  if (customDomainNotFound && !role) {
+    return <CompanySitePage slug="__domain_not_found__" />;
   }
 
   // --- Super Admin branches ---

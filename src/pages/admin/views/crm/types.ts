@@ -5,6 +5,7 @@ export interface ImportedLead {
   statut?: string;
   actif?: boolean;
   vendor_id?: string | null;
+  ai_enabled?: boolean;
 }
 
 export interface Vendor {

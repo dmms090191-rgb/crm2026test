@@ -14,6 +14,11 @@ export default function CompanySitePage({ slug }: Props) {
   const [loginOpen, setLoginOpen] = useState(false);
 
   useEffect(() => {
+    if (slug === '__domain_not_found__') {
+      setNotFound(true);
+      setLoading(false);
+      return;
+    }
     getHomePageBySlug(slug)
       .then(data => {
         if (data) setPage(data);
@@ -144,19 +149,26 @@ function LoadingScreen() {
 }
 
 function NotFoundScreen() {
+  const isDomainAccess = !window.location.pathname.startsWith('/site/');
   return (
     <div className="min-h-screen bg-slate-900 flex items-center justify-center px-4">
       <div className="text-center space-y-4">
         <div className="w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto">
           <AlertCircle className="w-8 h-8 text-red-400" />
         </div>
-        <h1 className="text-2xl font-bold text-white">Page introuvable</h1>
+        <h1 className="text-2xl font-bold text-white">
+          {isDomainAccess ? 'Site introuvable' : 'Page introuvable'}
+        </h1>
         <p className="text-slate-400 text-sm max-w-sm">
-          Ce site n'existe pas ou n'est pas encore actif.
+          {isDomainAccess
+            ? 'Ce domaine n\'est pas configure ou le site n\'est pas encore actif.'
+            : 'Ce site n\'existe pas ou n\'est pas encore actif.'}
         </p>
-        <a href="/" className="inline-block mt-4 px-5 py-2.5 rounded-lg bg-slate-800 border border-slate-700 text-sm font-medium text-white hover:bg-slate-700 transition-colors">
-          Retour à l'accueil
-        </a>
+        {!isDomainAccess && (
+          <a href="/" className="inline-block mt-4 px-5 py-2.5 rounded-lg bg-slate-800 border border-slate-700 text-sm font-medium text-white hover:bg-slate-700 transition-colors">
+            Retour &agrave; l'accueil
+          </a>
+        )}
       </div>
     </div>
   );

@@ -6,8 +6,8 @@
 
 # Test info
 
-- Name: health-check.spec.ts >> Health check >> la page d'accueil se charge correctement
-- Location: e2e/health-check.spec.ts:4:3
+- Name: admin/add-lead-client-login-cleanup.spec.ts >> Ajouter lead, connexion client, suppression >> parcours complet : ajout lead, login client, cleanup via SA
+- Location: e2e/admin/add-lead-client-login-cleanup.spec.ts:13:3
 
 # Error details
 

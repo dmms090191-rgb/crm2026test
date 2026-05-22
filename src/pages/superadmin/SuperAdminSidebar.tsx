@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { LayoutDashboard, LogOut, ChevronLeft, Shield, UserCog, BookOpen, Monitor, HardDriveDownload, MessageSquare, CircleUser as UserCircle, FlaskConical } from 'lucide-react';
+import { LayoutDashboard, LogOut, ChevronLeft, Shield, UserCog, BookOpen, Monitor, HardDriveDownload, MessageSquare, CircleUser as UserCircle, FlaskConical, Building2, Settings, Bot, Globe } from 'lucide-react';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
 
-export type SAView = 'dashboard' | 'admins' | 'chat-admin' | 'documentation-crm' | 'system' | 'sauvegarde' | 'mon-compte' | 'tests-systeme';
+export type SAView = 'dashboard' | 'admins' | 'chat-admin' | 'documentation-crm' | 'system' | 'sauvegarde' | 'mon-compte' | 'tests-systeme' | 'crm-societe' | 'statuts' | 'api-ia' | 'sites';
 
 interface SuperAdminSidebarProps {
   activeView: SAView;
@@ -35,6 +35,10 @@ const sections: NavSection[] = [
     items: [
       { id: 'admins', label: 'Liste admins', icon: <UserCog className="w-4 h-4" /> },
       { id: 'mon-compte', label: 'Mon compte', icon: <UserCircle className="w-4 h-4" /> },
+      { id: 'crm-societe', label: 'CRM Societe', icon: <Building2 className="w-4 h-4" /> },
+      { id: 'statuts', label: 'Statuts', icon: <Settings className="w-4 h-4" /> },
+      { id: 'api-ia', label: 'API IA', icon: <Bot className="w-4 h-4" /> },
+      { id: 'sites', label: 'Sites & Domaines', icon: <Globe className="w-4 h-4" /> },
     ],
   },
   {
