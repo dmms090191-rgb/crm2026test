@@ -204,9 +204,9 @@ export default function ContactSidebar({
                   <div
                     className="w-9 h-9 md:w-8 md:h-8 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0"
                     style={{
-                      background: isActive ? `rgba(${accentRgb},0.8)` : tokens.chat.messageBubbleOther,
+                      background: isActive ? `rgba(${accentRgb},0.8)` : tokens.chat.contactAvatarBg ?? tokens.chat.messageBubbleOther,
                       boxShadow: isActive ? `0 0 8px rgba(${accentRgb},0.3)` : 'none',
-                      color: '#ffffff',
+                      color: isActive ? '#ffffff' : (tokens.chat.contactAvatarText ?? '#ffffff'),
                     }}
                   >
                     {contact.initial}

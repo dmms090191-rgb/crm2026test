@@ -11,6 +11,7 @@ import SAStatutRowDropdown from './SAStatutRowDropdown';
 import SASocieteDetailModal from './SASocieteDetailModal';
 import SACrmProspectsPanel from './SACrmProspectsPanel';
 import useCrmSocieteData from './useCrmSocieteData';
+import SiteManagerModal from '../site-builder/SiteManagerModal';
 import type { Argumentaire } from './types';
 
 type Tab = 'prospects' | 'argumentaires';
@@ -23,6 +24,8 @@ export default function SACrmSociete() {
     saveArg, deleteArgs,
     saveProspect, deleteProspects, updateProspectStatut,
   } = useCrmSocieteData();
+
+  const [siteProspect, setSiteProspect] = useState<Prospect | null>(null);
 
   const workMode = useWorkMode('sa_crm_societe_workmode');
   const [activeTab, setActiveTab] = useState<Tab>('prospects');
@@ -158,6 +161,7 @@ export default function SACrmSociete() {
           onDetailProspect={setDetailProspect}
           onStatutClick={handleStatutClick} onFilterToggle={handleFilterToggle} onFilterSelect={handleFilterSelect}
           onLocateDesktop={handleLocateDesktop} onLocateMobile={handleLocateMobile}
+          onSiteProspect={setSiteProspect}
           filterBtnRef={filterBtnRef}
           rowRefCallback={(id, el) => { if (el) rowRefsMap.current.set(id, el); else rowRefsMap.current.delete(id); }}
           cardRefCallback={(id, el) => { if (el) cardRefsMap.current.set(id, el); else cardRefsMap.current.delete(id); }}
@@ -180,6 +184,7 @@ export default function SACrmSociete() {
       {prospectModal.open && <SAProspectModal existing={prospectModal.existing} onSave={handleSaveProspect} onClose={() => setProspectModal({ open: false })} />}
       {floatingArg && <SAArgumentaireFloatingWindow title={floatingArg.title} content={floatingArg.content} onClose={() => setFloatingArg(null)} />}
       {detailProspect && <SASocieteDetailModal prospect={detailProspect} saStatuts={saStatuts} onClose={() => setDetailProspect(null)} />}
+      {siteProspect && <SiteManagerModal ownerType="crm_societe" title={`Site de ${siteProspect.nom}`} subtitle={`Gestion du site pour ${siteProspect.nom}`} societeId={siteProspect.id} onClose={() => setSiteProspect(null)} />}
 
       {filterDropdownOpen && filterDropdownRect && (
         <SAStatutFilterDropdown rect={filterDropdownRect} filterStatut={filterStatut} saStatuts={saStatuts} prospects={prospects} onSelect={handleFilterSelect} onClose={() => { setFilterDropdownOpen(false); setFilterDropdownRect(null); }} t={t} />

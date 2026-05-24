@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { ExternalLink, MapPin, Check, ChevronDown, Pencil, Trash2, Phone, Eye, CheckCircle2, Undo2, Redo2 } from 'lucide-react';
+import { ExternalLink, MapPin, Check, ChevronDown, Pencil, Trash2, Phone, Eye, CheckCircle2, Undo2, Redo2, LayoutTemplate } from 'lucide-react';
 import type { Prospect } from './SAProspectModal';
 import type { SAStatut } from './types';
 import { getStatutColor, checkboxStyle } from './types';
@@ -14,6 +14,7 @@ interface Props {
   onEdit: (p: Prospect) => void;
   onDelete: (ids: string[]) => void;
   onDetail: (p: Prospect) => void;
+  onSite: (p: Prospect) => void;
   onStatutClick: (id: string, rect: { top: number; left: number }) => void;
   onClearFilter: () => void;
   saStatuts: SAStatut[];
@@ -33,7 +34,7 @@ interface Props {
 
 export default function SAProspectsTable({
   prospects, loading, allEmpty, selectedProspects, onToggleSel, onToggleAll,
-  onEdit, onDelete, onDetail, onStatutClick, onClearFilter, saStatuts, t,
+  onEdit, onDelete, onDetail, onSite, onStatutClick, onClearFilter, saStatuts, t,
   selectMode, workModeEnabled, workActiveId, onWorkSelect,
   onWorkUndo, onWorkRedo, canWorkUndo, canWorkRedo, workHistoryPosition, workHistoryLength,
   rowRefCallback,
@@ -193,6 +194,9 @@ export default function SAProspectsTable({
                 <div className="flex items-center gap-1">
                   <button onClick={() => onDetail(p)} className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors" style={{ color: '#0ea5e9' }} title="Detail">
                     <Eye className="w-3.5 h-3.5" />
+                  </button>
+                  <button onClick={() => onSite(p)} className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors" style={{ color: '#0ea5e9' }} title="Site">
+                    <LayoutTemplate className="w-3.5 h-3.5" />
                   </button>
                   <button onClick={() => onEdit(p)} className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors" style={{ color: t.text.tertiary }} title="Modifier">
                     <Pencil className="w-3.5 h-3.5" />

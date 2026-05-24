@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { Mail, Lock, Save, Eye, EyeOff, CheckCircle, AlertCircle } from 'lucide-react';
 import { supabase } from '../../../../lib/supabase';
 import type { ThemeTokens } from '../../../../lib/themeTokens';
@@ -33,6 +33,10 @@ export default function SAMonComptePasswordSection({ userEmail, initialEmail, in
   const [email, setEmail] = useState(initialEmail);
   const [digits, setDigits] = useState<string[]>(initialDigits);
   const [pinSynced, setPinSynced] = useState(initialPinSynced);
+
+  useEffect(() => { if (initialEmail) setEmail(initialEmail); }, [initialEmail]);
+  useEffect(() => { if (initialDigits.some(d => d)) setDigits(initialDigits); }, [initialDigits]);
+  useEffect(() => { setPinSynced(initialPinSynced); }, [initialPinSynced]);
   const [syncingPin, setSyncingPin] = useState(false);
   const [showPin, setShowPin] = useState(false);
   const [credMsg, setCredMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);

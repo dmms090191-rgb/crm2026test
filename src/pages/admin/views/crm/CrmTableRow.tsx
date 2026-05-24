@@ -1,12 +1,13 @@
 import { forwardRef, useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Phone, Mail, ChevronDown, LogIn, MessageCircle, CalendarClock, CheckCircle2, Undo2, Redo2, Bot, MoreHorizontal, X, Eye } from 'lucide-react';
+import { Phone, Mail, ChevronDown, CheckCircle2, Undo2, Redo2, Bot, MoreHorizontal, X } from 'lucide-react';
 import type { ImportedLead, Vendor, StatutDef, ImpersonatedClient, ChatLead } from './types';
 import type { ThemeTokens } from '../../../../lib/themeTokens';
 import { getStatutCfg, FALLBACK_COLOR } from './utils';
 import CheckBox from './CheckBox';
 import MobileStatutModal from './MobileStatutModal';
 import CopyButton from '../../../../components/CopyButton';
+import CrmActionsMenu from './CrmActionsMenu';
 
 function formatImportedAt(isoDate: string, tz: string): string {
   try {
@@ -213,36 +214,15 @@ const CrmTableRow = forwardRef<HTMLTableRowElement, Props>(function CrmTableRow(
                     <X className="w-3 h-3" />
                   </button>
                 </div>
-                <div className="flex flex-col gap-1.5">
-                  <button
-                    onClick={() => { setActionsOpen(false); onDetail(lead, index); }}
-                    className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-xs font-semibold transition-all hover:scale-[1.02]"
-                    style={{ background: tokens.accent.bg, border: `1px solid ${tokens.accent.border}`, color: tokens.accent.text }}
-                  >
-                    <Eye className="w-3.5 h-3.5" />Detail
-                  </button>
-                  <button
-                    onClick={() => { setActionsOpen(false); onConnectAsClient?.({ id: lead.id, nom, prenom, email }); }}
-                    className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-xs font-semibold transition-all hover:scale-[1.02]"
-                    style={{ background: tokens.success.bg, border: `1px solid ${tokens.success.border}`, color: tokens.success.text }}
-                  >
-                    <LogIn className="w-3.5 h-3.5" />Connect
-                  </button>
-                  <button
-                    onClick={() => { setActionsOpen(false); onOpenChat?.({ id: lead.id, nom, prenom, email, tel }); }}
-                    className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-xs font-semibold transition-all hover:scale-[1.02]"
-                    style={{ background: tokens.warning.bg, border: `1px solid ${tokens.warning.border}`, color: tokens.warning.text }}
-                  >
-                    <MessageCircle className="w-3.5 h-3.5" />Chat
-                  </button>
-                  <button
-                    onClick={() => { setActionsOpen(false); onOpenRdv?.({ id: lead.id, nom, prenom, email, tel }); }}
-                    className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-xs font-semibold transition-all hover:scale-[1.02]"
-                    style={{ background: 'rgba(34,211,238,0.08)', border: '1px solid rgba(34,211,238,0.18)', color: '#22d3ee' }}
-                  >
-                    <CalendarClock className="w-3.5 h-3.5" />RDV
-                  </button>
-                </div>
+                <CrmActionsMenu
+                  handlers={{
+                    detail: () => { setActionsOpen(false); onDetail(lead, index); },
+                    connect: () => { setActionsOpen(false); onConnectAsClient?.({ id: lead.id, nom, prenom, email }); },
+                    chat: () => { setActionsOpen(false); onOpenChat?.({ id: lead.id, nom, prenom, email, tel }); },
+                    rdv: () => { setActionsOpen(false); onOpenRdv?.({ id: lead.id, nom, prenom, email, tel }); },
+                  }}
+                  tokens={tokens}
+                />
               </div>
             )}
           </div>,

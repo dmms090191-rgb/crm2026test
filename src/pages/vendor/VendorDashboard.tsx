@@ -232,6 +232,7 @@ export default function VendorDashboard({ onLogout, impersonatedVendor, onBackTo
           collapsed={mobileOpen ? false : sidebarCollapsed}
           onCollapse={() => { if (mobileOpen) setMobileOpen(false); else setSidebarCollapsed(!sidebarCollapsed); }}
           onLogout={onLogout}
+          vendorAuthId={impersonatedVendor?.auth_user_id ?? null}
         />
       </div>
       <div className="flex flex-col flex-1 min-h-0">

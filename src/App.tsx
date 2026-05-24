@@ -28,7 +28,7 @@ const ClientDashboard = lazy(() => import('./pages/client/ClientDashboard'));
 type UserRole = 'super_admin' | 'admin' | 'vendor' | 'client' | null;
 
 function App() {
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(true);
   const [role, setRole] = useState<UserRole>(null);
   const [loading, setLoading] = useState(true);
   const [accessBlocked, setAccessBlocked] = useState(false);
@@ -97,8 +97,14 @@ function App() {
       hostname.endsWith('.supabase.co') ||
       hostname.endsWith('.vercel.app') ||
       hostname.endsWith('.webcontainer.io') ||
+      hostname.endsWith('.local-credentialless.webcontainer.io') ||
+      hostname.endsWith('.local.webcontainer.io') ||
       hostname.endsWith('.bolt.new') ||
-      hostname.endsWith('.stackblitz.io');
+      hostname.endsWith('.stackblitz.io') ||
+      hostname.endsWith('.cloudworkstations.dev') ||
+      hostname.includes('localhost') ||
+      hostname.includes('webcontainer') ||
+      hostname.includes('stackblitz');
     if (isKnownHost) return;
     getHomePageByDomain(hostname)
       .then(page => {

@@ -46,6 +46,7 @@ interface Props {
   onFilterSelect: (nom: string | null) => void;
   onLocateDesktop: () => void;
   onLocateMobile: () => void;
+  onSiteProspect: (p: Prospect) => void;
   filterBtnRef: React.RefObject<HTMLButtonElement>;
   rowRefCallback: (id: string, el: HTMLTableRowElement | null) => void;
   cardRefCallback: (id: string, el: HTMLDivElement | null) => void;
@@ -59,7 +60,7 @@ export default function SACrmProspectsPanel({
   onToggleProspectSel, onToggleAllProspects, onToggleSelectMode, onToggleWorkMode,
   onDeleteProspects, onAddProspect, onEditProspect, onDetailProspect,
   onStatutClick, onFilterToggle, onFilterSelect, onLocateDesktop, onLocateMobile,
-  filterBtnRef, rowRefCallback, cardRefCallback, t,
+  onSiteProspect, filterBtnRef, rowRefCallback, cardRefCallback, t,
 }: Props) {
   return (
     <div className="flex-1 min-w-0">
@@ -137,6 +138,7 @@ export default function SACrmProspectsPanel({
             prospects={filteredProspects} loading={loadingProspects} allEmpty={prospects.length === 0}
             selectedProspects={selectedProspects} onToggleSel={onToggleProspectSel} onToggleAll={onToggleAllProspects}
             onEdit={onEditProspect} onDelete={onDeleteProspects} onDetail={onDetailProspect}
+            onSite={onSiteProspect}
             onStatutClick={onStatutClick} onClearFilter={() => onFilterSelect(null)} saStatuts={saStatuts} t={t}
             selectMode={selectMode} workModeEnabled={workMode.enabled} workActiveId={workMode.activeId}
             onWorkSelect={workMode.select} onWorkUndo={workMode.undo} onWorkRedo={workMode.redo}
@@ -169,6 +171,7 @@ export default function SACrmProspectsPanel({
                 key={p.id} prospect={p} selected={selectedProspects.has(p.id)}
                 onToggleSel={() => onToggleProspectSel(p.id)} onDetail={() => onDetailProspect(p)}
                 onEdit={() => onEditProspect(p)} onDelete={() => onDeleteProspects([p.id])}
+                onSite={() => onSiteProspect(p)}
                 onStatutClick={onStatutClick} saStatuts={saStatuts} t={t}
                 selectMode={selectMode} workModeEnabled={workMode.enabled} isWorkActive={workMode.activeId === p.id}
                 onWorkSelect={workMode.select} onWorkUndo={workMode.undo} onWorkRedo={workMode.redo}

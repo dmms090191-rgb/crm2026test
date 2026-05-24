@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ChevronDown, Sun, Moon, Monitor, Palette, Heart, Leaf, Crown, Cherry, Flame, Droplets, Zap } from 'lucide-react';
+import { ChevronDown, Sun, Moon, Monitor, Palette, Heart, Leaf, Crown, Cherry, Flame, Droplets, Zap, Building2 } from 'lucide-react';
 import { useTheme, type Theme } from '../../../contexts/ThemeContext';
 import { useThemeTokens } from '../../../hooks/useThemeTokens';
 
@@ -15,6 +15,7 @@ const themeOptions: { value: Theme; label: string; icon: React.ReactNode }[] = [
   { value: 'red', label: 'Rouge Premium', icon: <Droplets className="w-3.5 h-3.5" /> },
   { value: 'orange', label: 'Orange Premium', icon: <Flame className="w-3.5 h-3.5" /> },
   { value: 'yellow', label: 'Jaune Premium', icon: <Zap className="w-3.5 h-3.5" /> },
+  { value: 'highlevel_light', label: 'HighLevel Clair', icon: <Building2 className="w-3.5 h-3.5" /> },
 ];
 
 function ThemeOption({

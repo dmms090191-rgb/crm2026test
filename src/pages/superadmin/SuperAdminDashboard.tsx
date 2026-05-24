@@ -20,6 +20,8 @@ const SACrmSociete = lazy(() => import('./views/crm-societe/SACrmSociete'));
 const SAStatuts = lazy(() => import('./views/SAStatuts'));
 const SAApiIa = lazy(() => import('./views/SAApiIa'));
 const SASites = lazy(() => import('./views/sites/SASites'));
+const SAFonctionsTalvex = lazy(() => import('./views/fonctions-talvex/SAFonctionsTalvex'));
+const SASiteTalvex = lazy(() => import('./views/site-builder/SASiteTalvex'));
 
 interface SuperAdminDashboardProps {
   onLogout: () => void;
@@ -131,7 +133,7 @@ export default function SuperAdminDashboard({ onLogout, onConnectAsAdmin }: Supe
 
   function renderView() {
     switch (activeView) {
-      case 'dashboard': return <SADashboard onNavigate={handleNavigate} onNavigateToAudit={() => { setDocInitialTab('audit-technique'); setDocKey(k => k + 1); setActiveView('documentation-crm'); }} />;
+      case 'dashboard': return <SADashboard onNavigate={handleNavigate} onNavigateToAudit={() => { setDocInitialTab('audit-technique'); setDocKey(k => k + 1); setActiveView('documentation-crm'); }} adminCount={cachedAdmins.length} adminsLoading={adminsRefreshing && cachedAdmins.length === 0} />;
       case 'admins': return <SAAdmins onConnectAsAdmin={handleConnectAsAdmin} onOpenChat={handleOpenChatAdmin} cachedAdmins={cachedAdmins} refreshing={adminsRefreshing} cachedError={adminsError} onRefresh={fetchAdminsCache} />;
       case 'chat-admin': return null;
       case 'documentation-crm': return <div className="p-4 md:p-6 flex flex-col h-full min-h-0"><DocumentationCrm key={docKey} initialTab={docInitialTab} onInitialTabConsumed={() => setDocInitialTab(undefined)} /></div>;
@@ -143,7 +145,9 @@ export default function SuperAdminDashboard({ onLogout, onConnectAsAdmin }: Supe
       case 'statuts': return <SAStatuts />;
       case 'api-ia': return <SAApiIa />;
       case 'sites': return <SASites />;
-      default: return <SADashboard onNavigate={handleNavigate} />;
+      case 'fonctions-talvex': return <SAFonctionsTalvex />;
+      case 'site-talvex': return <SASiteTalvex />;
+      default: return <SADashboard onNavigate={handleNavigate} adminCount={cachedAdmins.length} adminsLoading={adminsRefreshing && cachedAdmins.length === 0} />;
     }
   }
 

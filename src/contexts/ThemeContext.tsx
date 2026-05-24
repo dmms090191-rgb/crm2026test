@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
 import { supabase } from '../lib/supabase';
 
-export type Theme = 'dark' | 'light' | 'graphite' | 'beige' | 'rose' | 'emerald' | 'luxury' | 'pink' | 'red' | 'orange' | 'yellow';
+export type Theme = 'dark' | 'light' | 'graphite' | 'beige' | 'rose' | 'emerald' | 'luxury' | 'pink' | 'red' | 'orange' | 'yellow' | 'highlevel_light';
 
 type PanelRole = 'admin' | 'vendor' | 'client' | 'super_admin';
 
@@ -20,7 +20,7 @@ function buildLocalKey(panelRole: PanelRole, effectiveId: string, isLeadFallback
 }
 
 function isValidTheme(v: unknown): v is Theme {
-  return v === 'dark' || v === 'light' || v === 'graphite' || v === 'beige' || v === 'rose' || v === 'emerald' || v === 'luxury' || v === 'pink' || v === 'red' || v === 'orange' || v === 'yellow';
+  return v === 'dark' || v === 'light' || v === 'graphite' || v === 'beige' || v === 'rose' || v === 'emerald' || v === 'luxury' || v === 'pink' || v === 'red' || v === 'orange' || v === 'yellow' || v === 'highlevel_light';
 }
 
 interface ThemeProviderProps {
@@ -29,9 +29,15 @@ interface ThemeProviderProps {
   effectiveUserId?: string;
 }
 
+function readCurrentTheme(): Theme {
+  const attr = document.documentElement.getAttribute('data-theme');
+  if (isValidTheme(attr)) return attr;
+  return 'dark';
+}
+
 export function ThemeProvider({ children, panelRole, effectiveUserId }: ThemeProviderProps) {
   const [sessionUserId, setSessionUserId] = useState<string | null>(null);
-  const [theme, setThemeState] = useState<Theme>('dark');
+  const [theme, setThemeState] = useState<Theme>(readCurrentTheme);
   const [ready, setReady] = useState(false);
   const savingRef = useRef(false);
 
@@ -112,10 +118,6 @@ export function ThemeProvider({ children, panelRole, effectiveUserId }: ThemePro
 
     return () => { cancelled = true; };
   }, [resolvedId, panelRole, isOwnAccount, isLeadFallback, sessionUserId]);
-
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-  }, [theme]);
 
   const setTheme = useCallback((t: Theme) => {
     if (!resolvedId) return;

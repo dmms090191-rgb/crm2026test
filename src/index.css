@@ -192,6 +192,10 @@ html[data-theme="yellow"] {
   background: #0E0C06;
 }
 
+html[data-theme="highlevel_light"] {
+  background: #f4f7fb;
+}
+
 html[data-theme="light"] input::placeholder,
 html[data-theme="light"] textarea::placeholder {
   color: #3D8098;
@@ -255,6 +259,12 @@ html[data-theme="orange"] textarea::placeholder {
 html[data-theme="yellow"] input::placeholder,
 html[data-theme="yellow"] textarea::placeholder {
   color: #8A7820;
+  opacity: 1;
+}
+
+html[data-theme="highlevel_light"] input::placeholder,
+html[data-theme="highlevel_light"] textarea::placeholder {
+  color: #94a3b8;
   opacity: 1;
 }
 

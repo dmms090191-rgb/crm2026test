@@ -157,6 +157,8 @@ export interface ThemeTokens {
     inputText: string;
     emptyText: string;
     timestamp: string;
+    contactAvatarBg?: string;
+    contactAvatarText?: string;
   };
   agenda: {
     bg: string;

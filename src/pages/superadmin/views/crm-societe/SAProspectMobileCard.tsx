@@ -1,4 +1,4 @@
-import { ExternalLink, MapPin, Phone, Eye, Pencil, Trash2, ChevronDown, Check, CheckCircle2, Undo2, Redo2, RotateCcw } from 'lucide-react';
+import { ExternalLink, MapPin, Phone, Eye, Pencil, Trash2, ChevronDown, Check, CheckCircle2, Undo2, Redo2, RotateCcw, LayoutTemplate } from 'lucide-react';
 import type { Prospect } from './SAProspectModal';
 import type { SAStatut } from './types';
 import { getStatutColor, checkboxStyle } from './types';
@@ -10,6 +10,7 @@ interface Props {
   onDetail: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  onSite: () => void;
   onStatutClick: (id: string, rect: { top: number; left: number }) => void;
   saStatuts: SAStatut[];
   t: ReturnType<typeof import('../../../../hooks/useThemeTokens').useThemeTokens>;
@@ -28,7 +29,7 @@ interface Props {
 }
 
 export default function SAProspectMobileCard({
-  prospect: p, selected, onToggleSel, onDetail, onEdit, onDelete, onStatutClick, saStatuts, t,
+  prospect: p, selected, onToggleSel, onDetail, onEdit, onDelete, onSite, onStatutClick, saStatuts, t,
   selectMode, workModeEnabled, isWorkActive, onWorkSelect,
   onWorkUndo, onWorkRedo, onWorkReset, canWorkUndo, canWorkRedo,
   workHistoryPosition, workHistoryLength, cardRef,
@@ -201,6 +202,14 @@ export default function SAProspectMobileCard({
         >
           <Eye className="w-3.5 h-3.5" />
           Detail
+        </button>
+        <button
+          onClick={e => { e.stopPropagation(); onSite(); }}
+          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[11px] font-semibold transition-all active:scale-[0.97]"
+          style={{ background: 'rgba(14,165,233,0.08)', border: '1px solid rgba(14,165,233,0.15)', color: '#0ea5e9' }}
+        >
+          <LayoutTemplate className="w-3.5 h-3.5" />
+          Site
         </button>
         <button
           onClick={e => { e.stopPropagation(); onEdit(); }}

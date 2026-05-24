@@ -1,10 +1,22 @@
 import { Box } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
+function isLightTheme(): boolean {
+  const attr = document.documentElement.getAttribute('data-theme');
+  return attr === 'highlevel_light';
+}
+
 export function AppLoadingScreen() {
+  const light = isLightTheme();
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center">
-      <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+    <div
+      className="min-h-screen flex items-center justify-center transition-colors duration-200"
+      style={{ background: light ? '#f4f7fb' : 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)' }}
+    >
+      <div
+        className="w-10 h-10 border-4 border-t-transparent rounded-full animate-spin"
+        style={{ borderColor: light ? '#2563eb' : '#f97316', borderTopColor: 'transparent' }}
+      />
     </div>
   );
 }

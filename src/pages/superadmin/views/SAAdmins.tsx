@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import { List, Plus, RefreshCw, Trash2, X } from 'lucide-react';
+import { List, Plus, RefreshCw, Trash2, X, ArrowUpDown } from 'lucide-react';
 import { useThemeTokens } from '../../../hooks/useThemeTokens';
 import AdminDetailModal from './admins/AdminDetailModal';
 import SAAdminsCreateModal from './admins/SAAdminsCreateModal';
@@ -9,6 +9,7 @@ import SAAdminMobileCard from './admins/SAAdminMobileCard';
 import SAAdminsDesktopTable from './admins/SAAdminsDesktopTable';
 import SAAdminsActionsPopover from './admins/SAAdminsActionsPopover';
 import { supabase } from '../../../lib/supabase';
+import SiteManagerModal from './site-builder/SiteManagerModal';
 
 export interface AdminUser {
   id: string;
@@ -44,7 +45,9 @@ export default function SAAdmins({ onConnectAsAdmin, onOpenChat, cachedAdmins, r
   const [deleting, setDeleting] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [homePageAdmin, setHomePageAdmin] = useState<AdminUser | null>(null);
+  const [siteAdmin, setSiteAdmin] = useState<AdminUser | null>(null);
   const [orderMap, setOrderMap] = useState<Record<string, number>>({});
+  const [reorderMode, setReorderMode] = useState(false);
   const [actionsOpenId, setActionsOpenId] = useState<string | null>(null);
   const [popoverPos, setPopoverPos] = useState<{ top: number; left: number } | null>(null);
   const actionsBtnRefs = useRef<Record<string, HTMLButtonElement | null>>({});
@@ -92,6 +95,22 @@ export default function SAAdmins({ onConnectAsAdmin, onOpenChat, cachedAdmins, r
       { admin_id: swapAdmin.id, position: currentPos, updated_at: new Date().toISOString() },
     ]);
   }, [admins, orderMap]);
+
+  const reorderDrop = useCallback(async (fromIdx: number, toIdx: number) => {
+    if (fromIdx === toIdx) return;
+    const reordered = [...admins];
+    const [moved] = reordered.splice(fromIdx, 1);
+    reordered.splice(toIdx, 0, moved);
+    const newMap: Record<string, number> = {};
+    const upserts: { admin_id: string; position: number; updated_at: string }[] = [];
+    const now = new Date().toISOString();
+    reordered.forEach((a, i) => {
+      newMap[a.id] = i;
+      upserts.push({ admin_id: a.id, position: i, updated_at: now });
+    });
+    setOrderMap(newMap);
+    await supabase.from('sa_admin_order').upsert(upserts);
+  }, [admins]);
 
   const openActionsPopover = useCallback((adminId: string) => {
     setActionsOpenId(prev => prev === adminId ? null : adminId);
@@ -164,6 +183,7 @@ export default function SAAdmins({ onConnectAsAdmin, onOpenChat, cachedAdmins, r
           ) : (
             <>
               <button data-testid="admins-delete-mode-button" onClick={enterSelectionMode} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105" style={{ background: tokens.surface.secondary, border: `1px solid ${tokens.surface.border}`, color: tokens.text.secondary }}><Trash2 className="w-3.5 h-3.5" />Selection</button>
+              <button onClick={() => setReorderMode(prev => !prev)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105" style={reorderMode ? { background: tokens.accent.bg, border: `1px solid ${tokens.accent.border}`, color: tokens.accent.text } : { background: tokens.surface.secondary, border: `1px solid ${tokens.surface.border}`, color: tokens.text.secondary }}><ArrowUpDown className="w-3.5 h-3.5" />{reorderMode ? 'Terminer' : 'Reorganiser'}</button>
               <button onClick={fetchAdmins} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105" style={{ background: tokens.surface.secondary, border: `1px solid ${tokens.surface.border}`, color: tokens.text.secondary }}><RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />Actualiser</button>
               <button onClick={() => setShowCreateModal(true)} data-testid="create-admin-button" className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105 text-white" style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', boxShadow: '0 2px 12px rgba(245,158,11,0.3)' }}><Plus className="w-3.5 h-3.5" />Creer un admin</button>
             </>
@@ -193,15 +213,16 @@ export default function SAAdmins({ onConnectAsAdmin, onOpenChat, cachedAdmins, r
               admins={admins} selectionMode={selectionMode} selectedIds={selectedIds}
               currentUserId={currentUserId} allSelected={allSelected}
               onToggleSelectAll={toggleSelectAll} onToggleSelect={toggleSelect}
-              onMoveAdmin={moveAdmin} onOpenActions={openActionsPopover} onAccessToggled={fetchAdmins}
+              onMoveAdmin={moveAdmin} onReorderDrop={reorderDrop} reorderMode={reorderMode}
+              onOpenActions={openActionsPopover} onAccessToggled={fetchAdmins}
               formatDate={formatDate} tokens={tokens} actionsBtnRefs={actionsBtnRefs}
             />
             <div className="md:hidden divide-y" style={{ borderColor: tokens.table.rowBorder }}>
               {admins.map((admin, idx) => (
                 <SAAdminMobileCard key={admin.id} admin={admin} idx={idx} total={admins.length} isSelf={admin.id === currentUserId}
                   selectionMode={selectionMode} selected={selectedIds.has(admin.id)} onToggleSelect={toggleSelect}
-                  onMove={moveAdmin} onDetail={setSelectedAdmin} onHomePage={setHomePageAdmin}
-                  onChat={a => onOpenChat?.(a)} onConnect={a => onConnectAsAdmin?.(a)}
+                  onMove={moveAdmin} reorderMode={reorderMode} onDetail={setSelectedAdmin} onHomePage={setHomePageAdmin}
+                  onChat={a => onOpenChat?.(a)} onConnect={a => onConnectAsAdmin?.(a)} onSite={setSiteAdmin}
                   onAccessToggled={fetchAdmins} formatDate={formatDate} tokens={tokens} />
               ))}
             </div>
@@ -209,11 +230,12 @@ export default function SAAdmins({ onConnectAsAdmin, onOpenChat, cachedAdmins, r
         )}
       </div>
 
-      {actionsAdmin && <SAAdminsActionsPopover admin={actionsAdmin} popoverPos={popoverPos} onClose={() => setActionsOpenId(null)} onDetail={setSelectedAdmin} onHomePage={setHomePageAdmin} onChat={a => onOpenChat?.(a)} onConnect={a => onConnectAsAdmin?.(a)} tokens={tokens} />}
+      {actionsAdmin && <SAAdminsActionsPopover admin={actionsAdmin} popoverPos={popoverPos} onClose={() => setActionsOpenId(null)} onDetail={setSelectedAdmin} onHomePage={setHomePageAdmin} onChat={a => onOpenChat?.(a)} onConnect={a => onConnectAsAdmin?.(a)} onSite={setSiteAdmin} tokens={tokens} />}
       {selectedAdmin && <AdminDetailModal admin={selectedAdmin} mode="detail" onClose={() => setSelectedAdmin(null)} onUpdate={handleUpdate} onSwitchMode={() => {}} />}
       {showCreateModal && <SAAdminsCreateModal onClose={() => setShowCreateModal(false)} onCreated={() => { setShowCreateModal(false); fetchAdmins(); }} tokens={tokens} />}
       {showDeleteModal && <SAAdminsBulkDeleteModal count={selectedIds.size} loading={deleting} onConfirm={handleBulkDelete} onCancel={() => setShowDeleteModal(false)} />}
       {homePageAdmin && <AdminHomePageModal admin={homePageAdmin} onClose={() => setHomePageAdmin(null)} />}
+      {siteAdmin && <SiteManagerModal ownerType="admin_company" title={`Site de ${siteAdmin.company || siteAdmin.first_name + ' ' + siteAdmin.last_name}`} subtitle={`Gestion du site pour la societe ${siteAdmin.company || siteAdmin.email}`} companyId={siteAdmin.company_id} onClose={() => setSiteAdmin(null)} />}
     </div>
   );
 }
