@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Bell, BellOff, BellRing, Smartphone, CheckCircle2, AlertTriangle, X, Loader2, Send } from 'lucide-react';
 import { usePushNotifications } from '../../hooks/usePushNotifications';
 import type { ThemeTokens } from '../../lib/themeTokensTypes';
@@ -35,31 +36,76 @@ export default function PushNotificationSettings({ open, onClose, userId, role, 
     }
   }
 
-  return (
-    <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center sm:p-4" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[9999] flex sm:items-center sm:justify-center items-end"
+      onClick={onClose}
+    >
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" />
+
       <div
-        className="relative w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl overflow-hidden flex flex-col"
-        style={{ background: t.card.bg, border: `1px solid ${t.card.border}`, boxShadow: '0 25px 50px rgba(0,0,0,0.25)', maxHeight: 'calc(100dvh - 32px)', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+        className="relative w-full sm:max-w-md sm:rounded-2xl rounded-t-3xl flex flex-col"
+        style={{
+          background: t.card.bg,
+          border: `1px solid ${t.card.border}`,
+          boxShadow: '0 25px 50px rgba(0,0,0,0.25)',
+          maxHeight: 'calc(100dvh - 48px)',
+          paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+        }}
         onClick={e => e.stopPropagation()}
       >
-        <div className="flex-shrink-0 flex items-center justify-between p-4" style={{ borderBottom: `1px solid ${t.card.border}`, paddingTop: 'max(1rem, env(safe-area-inset-top, 1rem))' }}>
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' }}>
+        {/* Drag handle - mobile only */}
+        <div className="sm:hidden flex justify-center pt-3 pb-1 flex-shrink-0">
+          <div className="w-10 h-1 rounded-full" style={{ background: t.text.tertiary, opacity: 0.4 }} />
+        </div>
+
+        {/* Header - always visible */}
+        <div
+          className="flex-shrink-0 flex items-center justify-between px-4 py-3"
+          style={{ borderBottom: `1px solid ${t.card.border}` }}
+        >
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div
+              className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' }}
+            >
               <Bell className="w-4.5 h-4.5 text-white" />
             </div>
-            <div>
-              <h3 className="text-sm font-bold" style={{ color: t.text.primary }}>Notifications telephone</h3>
-              <p className="text-[10px]" style={{ color: t.text.tertiary }}>Recevez des alertes en temps reel</p>
+            <div className="min-w-0">
+              <h3 className="text-sm font-bold truncate" style={{ color: t.text.primary }}>
+                Notifications telephone
+              </h3>
+              <p className="text-[10px]" style={{ color: t.text.tertiary }}>
+                Recevez des alertes en temps reel
+              </p>
             </div>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg transition-colors hover:opacity-70 flex-shrink-0" style={{ color: t.text.tertiary }}>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg transition-colors hover:opacity-70 flex-shrink-0"
+            style={{ color: t.text.tertiary }}
+          >
             <X className="w-4 h-4" />
           </button>
         </div>
 
+        {/* Body - scrollable */}
         <div className="p-4 space-y-4 overflow-y-auto flex-1 min-h-0">
-          {!push.supported && (
+          {push.vapidMissing && (
+            <div className="rounded-xl p-4" style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)' }}>
+              <div className="flex items-start gap-3">
+                <Bell className="w-5 h-5 mt-0.5 flex-shrink-0" style={{ color: '#f59e0b' }} />
+                <div>
+                  <p className="text-xs font-semibold" style={{ color: t.text.primary }}>Configuration en cours</p>
+                  <p className="text-[11px] mt-1 leading-relaxed" style={{ color: t.text.secondary }}>
+                    Les notifications telephone ne sont pas encore configurees. Contactez l'administrateur.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {!push.vapidMissing && !push.supported && (
             <div className="rounded-xl p-4" style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)' }}>
               <div className="flex items-start gap-3">
                 <Smartphone className="w-5 h-5 mt-0.5 flex-shrink-0" style={{ color: '#f59e0b' }} />
@@ -90,7 +136,7 @@ export default function PushNotificationSettings({ open, onClose, userId, role, 
             </div>
           )}
 
-          {push.supported && push.permission === 'denied' && (
+          {!push.vapidMissing && push.supported && push.permission === 'denied' && (
             <div className="rounded-xl p-4" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)' }}>
               <div className="flex items-start gap-3">
                 <BellOff className="w-5 h-5 mt-0.5 flex-shrink-0" style={{ color: '#ef4444' }} />
@@ -104,7 +150,7 @@ export default function PushNotificationSettings({ open, onClose, userId, role, 
             </div>
           )}
 
-          {push.supported && push.permission !== 'denied' && !push.subscribed && (
+          {!push.vapidMissing && push.supported && push.permission !== 'denied' && !push.subscribed && (
             <div className="rounded-xl p-4" style={{ background: t.surface.secondary, border: `1px solid ${t.surface.border}` }}>
               <div className="flex items-start gap-3">
                 <BellRing className="w-5 h-5 mt-0.5 flex-shrink-0" style={{ color: '#f59e0b' }} />
@@ -132,7 +178,7 @@ export default function PushNotificationSettings({ open, onClose, userId, role, 
             </div>
           )}
 
-          {push.supported && push.subscribed && (
+          {!push.vapidMissing && push.supported && push.subscribed && (
             <>
               <div className="rounded-xl p-4" style={{ background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)' }}>
                 <div className="flex items-center gap-3">
@@ -181,6 +227,7 @@ export default function PushNotificationSettings({ open, onClose, userId, role, 
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

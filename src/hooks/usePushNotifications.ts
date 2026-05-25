@@ -13,6 +13,7 @@ import {
 interface UsePushNotificationsResult {
   supported: boolean;
   needsPwa: boolean;
+  vapidMissing: boolean;
   permission: PushPermissionState;
   subscribed: boolean;
   loading: boolean;
@@ -34,6 +35,9 @@ export function usePushNotifications(
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const vapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY || '';
+  const vapidMissing = !vapidKey;
+
   useEffect(() => {
     const { supported: s, needsPwa: np } = getPushSupport();
     setSupported(s);
@@ -48,11 +52,7 @@ export function usePushNotifications(
 
   const subscribe = useCallback(async () => {
     if (!userId) return;
-    const vapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
-    if (!vapidKey) {
-      setError('VAPID key not configured');
-      return;
-    }
+    if (vapidMissing) return;
     setLoading(true);
     setError(null);
     const result = await subscribeToPush(vapidKey, userId, role, companyId);
@@ -60,11 +60,11 @@ export function usePushNotifications(
       setSubscribed(true);
       setPermission('granted');
     } else {
-      setError(result.error || 'Subscription failed');
+      setError(result.error || 'Echec de l\'activation');
       setPermission(getPermissionState());
     }
     setLoading(false);
-  }, [userId, role, companyId]);
+  }, [userId, role, companyId, vapidKey, vapidMissing]);
 
   const unsubscribe = useCallback(async () => {
     setLoading(true);
@@ -79,11 +79,11 @@ export function usePushNotifications(
     setError(null);
     const result = await sendTestNotification();
     if (!result.success) {
-      setError(result.error || 'Test failed');
+      setError(result.error || 'Echec du test');
     }
     setLoading(false);
     return result.success;
   }, []);
 
-  return { supported, needsPwa, permission, subscribed, loading, error, subscribe, unsubscribe, sendTest };
+  return { supported, needsPwa, vapidMissing, permission, subscribed, loading, error, subscribe, unsubscribe, sendTest };
 }
