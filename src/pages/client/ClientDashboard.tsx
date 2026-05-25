@@ -301,7 +301,6 @@ export default function ClientDashboard({ onLogout, impersonatedClient, onBackTo
           propositionsCount={unseenProposals.length}
           propositionsEntries={unseenProposals}
           onPropositionEntryClick={handleProposalNotifClick}
-          onMobileShortcut={(view) => setActiveView(view as ClientActiveView)}
         />
         {!isSAViewing && !impersonatedClient && <DemoReceiverLayer userId={clientAuthId || null} onViewChange={(v) => setActiveView(v as ClientActiveView)} />}
         <main

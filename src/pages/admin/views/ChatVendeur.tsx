@@ -5,6 +5,7 @@ import type { Vendor } from './ListeVendeurs';
 import { useThemeTokens } from '../../../hooks/useThemeTokens';
 import { useCompanyId } from '../../../hooks/useCompanyId';
 import { useSimulation } from '../../../contexts/SimulationContext';
+import { sendPushForMessage } from '../../../lib/sendPushForMessage';
 import ChatVendeurHeader from './chat-vendeur/ChatVendeurHeader';
 import ChatVendeurDeleteModal from './chat-vendeur/ChatVendeurDeleteModal';
 
@@ -146,6 +147,9 @@ export default function ChatVendeur({ initialVendor, onMessageSent, onVendorView
       if (error) console.error('[ChatVendeur] insert error:', error.message);
       loadMessages(false).catch(() => {});
     });
+    if (vendor?.auth_user_id) {
+      sendPushForMessage({ targetUserId: vendor.auth_user_id, title: 'Talvex', body: 'Nouveau message admin' });
+    }
     onMessageSent?.();
   }, [selectedVendorId, allVendors, initialVendor, onMessageSent, loadMessages, isSimulating]);
 

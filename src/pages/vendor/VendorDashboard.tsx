@@ -263,7 +263,6 @@ export default function VendorDashboard({ onLogout, impersonatedVendor, onBackTo
           confirmedCount={confirmedUnseen.length}
           confirmedEntries={confirmedUnseen}
           onConfirmedEntryClick={handleConfirmedEntryClick}
-          onMobileShortcut={(view) => setActiveView(view as VendorActiveView)}
           demoStatus={isSAViewing ? demoStatus : 'idle'}
           demoSlot={isSAViewing && impersonatedVendor ? (
             <DemoEmitterLayer

@@ -4,6 +4,7 @@ import { supabase } from '../../../lib/supabase';
 import MessagingPanel, { ChatMessage, ChatContact } from '../../../components/chat/ChatView';
 import { useThemeTokens } from '../../../hooks/useThemeTokens';
 import { useCompanyId } from '../../../hooks/useCompanyId';
+import { sendPushForMessage } from '../../../lib/sendPushForMessage';
 
 interface VendorChatAdminProps {
   vendorName: string;
@@ -122,6 +123,15 @@ export default function VendorChatAdmin({ vendorName, vendorDbId, vendorAuthId, 
       if (error) console.error('[VendorChatAdmin] insert error:', error.message);
       loadMessages(false).catch(() => {});
     });
+    if (companyId) {
+      supabase.from('registrations').select('auth_user_id').eq('company_id', companyId).eq('role', 'admin').then(({ data }) => {
+        (data ?? []).forEach(r => {
+          if (r.auth_user_id && r.auth_user_id !== userId) {
+            sendPushForMessage({ targetUserId: r.auth_user_id, title: 'Talvex', body: 'Nouveau message vendeur' });
+          }
+        });
+      });
+    }
   }, [userId, vendorId, loadMessages]);
 
   const handleDelete = useCallback(async (id: string) => {

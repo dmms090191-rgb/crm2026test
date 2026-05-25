@@ -6,6 +6,7 @@ import type { VendorChatLead } from '../VendorDashboard';
 import { useThemeTokens } from '../../../hooks/useThemeTokens';
 import { useCompanyId } from '../../../hooks/useCompanyId';
 import { peekChatReturnContext } from '../../../lib/connectReturnContext';
+import { sendPushForMessage } from '../../../lib/sendPushForMessage';
 
 interface LeadRow {
   id: string;
@@ -154,6 +155,9 @@ export default function VendorChatClient({ vendorName, vendorDbId, initialLead, 
       if (error) console.error('[VendorChatClient] insert error:', error.message);
       loadMessages(capturedAuthId, false).catch(() => {});
     });
+    if (clientAuthId) {
+      sendPushForMessage({ targetUserId: clientAuthId, title: 'Talvex', body: 'Nouveau message du support' });
+    }
   }, [clientAuthId, vendorDbId, loadMessages]);
 
   const handleDelete = useCallback(async (id: string) => {

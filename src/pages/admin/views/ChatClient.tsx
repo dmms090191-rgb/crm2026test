@@ -6,6 +6,7 @@ import { useThemeTokens } from '../../../hooks/useThemeTokens';
 import { useCompanyId } from '../../../hooks/useCompanyId';
 import { peekChatReturnContext } from '../../../lib/connectReturnContext';
 import { useSimulation } from '../../../contexts/SimulationContext';
+import { sendPushForMessage } from '../../../lib/sendPushForMessage';
 import ChatClientHeader from './chat-client/ChatClientHeader';
 import ChatClientDeleteModal from './chat-client/ChatClientDeleteModal';
 
@@ -143,6 +144,7 @@ export default function ChatClient({ initialLead, onMessageSent, onClientViewed,
       if (error) console.error('[ChatClient] insert error:', error.message);
       loadMessages(false).catch(() => {});
     });
+    sendPushForMessage({ targetUserId: clientAuthId, title: 'Talvex', body: 'Nouveau message du support' });
     onMessageSent?.();
   }, [clientAuthId, onMessageSent, loadMessages, isSimulating]);
 

@@ -4,7 +4,6 @@ import { useTimezone } from '../../hooks/useTimezone';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
 import { getCurrentTime } from '../../lib/timezone';
 import TimezoneModal from '../../components/TimezoneSearchDropdown';
-import MobileNotifStrip, { type MobileNotifItem } from '../../components/MobileNotifStrip';
 import SAProfileMenu from './topbar/SAProfileMenu';
 
 import type { AdminNotifEntry } from '../../hooks/useUnreadSuperAdminMessages';
@@ -35,10 +34,9 @@ interface SuperAdminTopBarProps {
   onAdminMsgEntryClick?: (entry: AdminNotifEntry) => void;
   saFirstName?: string;
   saLastName?: string;
-  onMobileShortcut?: (view: string) => void;
 }
 
-export default function SuperAdminTopBar({ activeView, onMobileMenuToggle, unreadAdminMsgCount = 0, unreadAdminMsgEntries = [], onAdminMsgEntryClick, saFirstName = '', saLastName = '', onMobileShortcut }: SuperAdminTopBarProps) {
+export default function SuperAdminTopBar({ activeView, onMobileMenuToggle, unreadAdminMsgCount = 0, unreadAdminMsgEntries = [], onAdminMsgEntryClick, saFirstName = '', saLastName = '' }: SuperAdminTopBarProps) {
   const { timezone, tzLabel, tzCode, setTimezone } = useTimezone();
   const t = useThemeTokens();
   const [tzModalOpen, setTzModalOpen] = useState(false);
@@ -157,18 +155,6 @@ export default function SuperAdminTopBar({ activeView, onMobileMenuToggle, unrea
           <SAProfileMenu tokens={t} firstName={saFirstName} lastName={saLastName} />
         </div>
       </header>
-
-      {onMobileShortcut && (
-        <MobileNotifStrip
-          items={[
-            { key: 'chat-admin', icon: MessageSquare, label: 'Chat Admin', count: unreadAdminMsgCount, onClick: () => onMobileShortcut('chat-admin') },
-          ] as MobileNotifItem[]}
-          bg={t.topbar.bg}
-          border={t.topbar.border}
-          iconColor={t.topbar.notifIcon}
-          textColor={t.topbar.notifLabel}
-        />
-      )}
 
       <TimezoneModal
         open={tzModalOpen}

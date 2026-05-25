@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '../../../lib/supabase';
 import MessagingPanel from '../../../components/chat/ChatView';
 import type { ChatMessage, ChatContact } from '../../../components/chat/chatTypes';
+import { sendPushForMessage } from '../../../lib/sendPushForMessage';
 import type { AdminUser } from './SAAdmins';
 
 interface SAchatAdminProps {
@@ -159,6 +160,7 @@ export default function SAchatAdmin({ initialAdmin, onAdminViewed, cachedAdmins 
       if (error) console.error('[SAchatAdmin] insert error:', error.message);
       loadMessages(false).catch(() => {});
     });
+    sendPushForMessage({ targetUserId: selectedAdminId, title: 'Talvex', body: 'Nouveau message Super Admin' });
   }, [selectedAdminId, superAdminId, loadMessages]);
 
   const handleDelete = useCallback(async (id: string) => {

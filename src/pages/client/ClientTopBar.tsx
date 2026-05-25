@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
-import { MessageCircle, CalendarCheck, CalendarClock, ChevronRight, ChevronDown, Menu, Palette } from 'lucide-react';
+import { MessageCircle, CalendarCheck, CalendarClock, ChevronRight, ChevronDown, Menu, Palette, Bell } from 'lucide-react';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
 import { useTimezone } from '../../hooks/useTimezone';
 import { getCurrentTime } from '../../lib/timezone';
 import TimezoneModal from '../../components/TimezoneSearchDropdown';
 import ThemeSelectorModal from '../../components/theme/ThemeSelectorModal';
-import MobileNotifStrip, { type MobileNotifItem } from '../../components/MobileNotifStrip';
+import PushNotificationSettings from '../../components/notifications/PushNotificationSettings';
+import { useCompanyId } from '../../hooks/useCompanyId';
+import { supabase } from '../../lib/supabase';
 import type { AgendaNotifEntry } from '../../hooks/useAgendaNotifications';
 import {
   ClientBadgeButton,
@@ -41,16 +43,17 @@ interface ClientTopBarProps {
   propositionsCount?: number;
   propositionsEntries?: PropositionNotifEntry[];
   onPropositionEntryClick?: (proposalId: string) => void;
-  onMobileShortcut?: (view: string) => void;
 }
 
-
-export default function ClientTopBar({ breadcrumb, onMobileMenuToggle, clientName = 'Client', unreadMessageCount = 0, unreadLatestAt, onMessageNotifClick, agendaCount = 0, agendaEntries = [], onAgendaEntryClick, propositionsCount = 0, propositionsEntries = [], onPropositionEntryClick, onMobileShortcut }: ClientTopBarProps) {
+export default function ClientTopBar({ breadcrumb, onMobileMenuToggle, clientName = 'Client', unreadMessageCount = 0, unreadLatestAt, onMessageNotifClick, agendaCount = 0, agendaEntries = [], onAgendaEntryClick, propositionsCount = 0, propositionsEntries = [], onPropositionEntryClick }: ClientTopBarProps) {
   const t = useThemeTokens();
   const { timezone, tzLabel, tzCode, setTimezone } = useTimezone();
   const [tzModalOpen, setTzModalOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [themeModalOpen, setThemeModalOpen] = useState(false);
+  const [pushModalOpen, setPushModalOpen] = useState(false);
+  const [clientUserId, setClientUserId] = useState<string | null>(null);
+  const clientCompanyId = useCompanyId();
   const [msgDropdownOpen, setMsgDropdownOpen] = useState(false);
   const [agendaDropdownOpen, setAgendaDropdownOpen] = useState(false);
   const [proposDropdownOpen, setProposDropdownOpen] = useState(false);
@@ -66,6 +69,9 @@ export default function ClientTopBar({ breadcrumb, onMobileMenuToggle, clientNam
   useEffect(() => {
     const id = setInterval(() => setTick(v => v + 1), 60_000);
     return () => clearInterval(id);
+  }, []);
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => { if (user) setClientUserId(user.id); });
   }, []);
 
   useEffect(() => {
@@ -268,19 +274,23 @@ export default function ClientTopBar({ breadcrumb, onMobileMenuToggle, clientNam
           {dropdownOpen && (
             <ClientDropdownPanel tokens={t} width="w-56" align="right">
               <div className="py-1">
-                <button
-                  onClick={() => { setDropdownOpen(false); setThemeModalOpen(true); }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs transition-colors duration-150"
-                  style={{ color: t.dropdown.itemText }}
-                  onMouseEnter={e => { e.currentTarget.style.background = t.dropdown.itemBgHover; e.currentTarget.style.color = t.dropdown.itemTextHover; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = t.dropdown.itemText; }}
-                >
-                  <Palette className="w-4 h-4" />
-                  <div className="flex flex-col items-start">
-                    <span className="font-semibold">Themes</span>
-                    <span className="text-[10px] opacity-60">Personnaliser l'apparence</span>
-                  </div>
-                </button>
+                {[
+                  { Icon: Palette, label: 'Themes', sub: 'Personnaliser l\'apparence', action: () => setThemeModalOpen(true) },
+                  { Icon: Bell, label: 'Notifications telephone', sub: 'Alertes push en temps reel', action: () => setPushModalOpen(true) },
+                ].map(item => (
+                  <button key={item.label} onClick={() => { setDropdownOpen(false); item.action(); }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs transition-colors duration-150"
+                    style={{ color: t.dropdown.itemText }}
+                    onMouseEnter={e => { e.currentTarget.style.background = t.dropdown.itemBgHover; e.currentTarget.style.color = t.dropdown.itemTextHover; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = t.dropdown.itemText; }}
+                  >
+                    <item.Icon className="w-4 h-4" />
+                    <div className="flex flex-col items-start">
+                      <span className="font-semibold">{item.label}</span>
+                      <span className="text-[10px] opacity-60">{item.sub}</span>
+                    </div>
+                  </button>
+                ))}
               </div>
             </ClientDropdownPanel>
           )}
@@ -288,16 +298,8 @@ export default function ClientTopBar({ breadcrumb, onMobileMenuToggle, clientNam
       </div>
     </header>
 
-    {onMobileShortcut && <MobileNotifStrip
-      items={[
-        { key: 'msg', icon: MessageCircle, label: 'Messages', count: unreadMessageCount, onClick: () => onMobileShortcut('messagerie') },
-        { key: 'rdv', icon: CalendarCheck, label: 'RDV', count: agendaCount, onClick: () => onMobileShortcut('agenda') },
-        { key: 'prop', icon: CalendarClock, label: 'Prop. RDV', count: propositionsCount, onClick: () => onMobileShortcut('propositions-rdv') },
-      ]}
-      bg={t.topbar.bg} border={t.topbar.border} iconColor={t.topbar.notifIcon} textColor={t.topbar.notifLabel}
-    />}
-
     <ThemeSelectorModal open={themeModalOpen} onClose={() => setThemeModalOpen(false)} />
+    <PushNotificationSettings open={pushModalOpen} onClose={() => setPushModalOpen(false)} userId={clientUserId} role="client" companyId={clientCompanyId} tokens={t} />
 
     <TimezoneModal
       open={tzModalOpen}

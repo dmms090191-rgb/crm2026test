@@ -48,7 +48,7 @@ export default function DemoReceiverLayer({ userId, onViewChange }: Props) {
 
       {activeSession && (
         <>
-          <DemoBanner saName={activeSession.sa_display_name} onStop={endSession} />
+          <DemoBanner saName={activeSession.sa_display_name} deviceType={activeSession.device_type} onStop={endSession} />
           <DemoNavigationToast saName={activeSession.sa_display_name} viewLabel={remoteViewLabel} />
           {isMobile ? (
             <DemoTouchOverlay

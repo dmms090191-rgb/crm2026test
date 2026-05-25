@@ -198,7 +198,6 @@ export default function SuperAdminDashboard({ onLogout, onConnectAsAdmin }: Supe
           onAdminMsgEntryClick={(entry) => { markAdminMsgRead(entry.adminId); setChatAdmin(cachedAdmins.find(a => a.id === entry.adminId) ?? { id: entry.adminId, email: entry.email, first_name: entry.firstName, last_name: entry.lastName, phone: '', role: 'admin', created_at: '', last_sign_in_at: null, access_enabled: true }); setActiveView('chat-admin'); }}
           saFirstName={saFirstName}
           saLastName={saLastName}
-          onMobileShortcut={(view) => setActiveView(view as typeof activeView)}
         />
 
         <main

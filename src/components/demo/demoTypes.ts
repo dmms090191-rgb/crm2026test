@@ -17,14 +17,14 @@ export interface DemoSession {
 
 export interface CursorMoveEvent {
   type: 'cursor_move';
-  x: number;
-  y: number;
+  xPercent: number;
+  yPercent: number;
 }
 
 export interface CursorClickEvent {
   type: 'cursor_click';
-  x: number;
-  y: number;
+  xPercent: number;
+  yPercent: number;
 }
 
 export interface ViewChangeEvent {

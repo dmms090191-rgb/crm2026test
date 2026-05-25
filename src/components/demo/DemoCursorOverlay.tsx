@@ -2,13 +2,14 @@ import { useState, useEffect } from 'react';
 import { MousePointer2 } from 'lucide-react';
 
 interface Props {
-  cursor: { x: number; y: number } | null;
-  clickRipple: { x: number; y: number; id: number } | null;
+  cursor: { xPercent: number; yPercent: number } | null;
+  clickRipple: { xPercent: number; yPercent: number; id: number } | null;
   saName: string;
+  containerRef?: React.RefObject<HTMLElement>;
 }
 
-export default function DemoCursorOverlay({ cursor, clickRipple, saName }: Props) {
-  const [ripples, setRipples] = useState<{ x: number; y: number; id: number }[]>([]);
+export default function DemoCursorOverlay({ cursor, clickRipple, saName, containerRef }: Props) {
+  const [ripples, setRipples] = useState<{ xPercent: number; yPercent: number; id: number }[]>([]);
 
   useEffect(() => {
     if (!clickRipple) return;
@@ -21,14 +22,21 @@ export default function DemoCursorOverlay({ cursor, clickRipple, saName }: Props
 
   if (!cursor) return null;
 
-  const px = cursor.x * window.innerWidth;
-  const py = cursor.y * window.innerHeight;
+  const container = containerRef?.current;
+  const w = container ? container.clientWidth : window.innerWidth;
+  const h = container ? container.clientHeight : window.innerHeight;
+  const px = cursor.xPercent * w;
+  const py = cursor.yPercent * h;
 
   return (
     <div
-      style={{ position: 'fixed', inset: 0, zIndex: 99999, pointerEvents: 'none' }}
+      style={{
+        position: container ? 'absolute' : 'fixed',
+        inset: 0,
+        zIndex: 99999,
+        pointerEvents: 'none',
+      }}
     >
-      {/* Cursor pointer */}
       <div
         style={{
           position: 'absolute',
@@ -55,14 +63,13 @@ export default function DemoCursorOverlay({ cursor, clickRipple, saName }: Props
         </div>
       </div>
 
-      {/* Click ripples */}
       {ripples.map(r => (
         <div
           key={r.id}
           style={{
             position: 'absolute',
-            left: r.x * window.innerWidth,
-            top: r.y * window.innerHeight,
+            left: r.xPercent * w,
+            top: r.yPercent * h,
             transform: 'translate(-50%, -50%)',
           }}
         >

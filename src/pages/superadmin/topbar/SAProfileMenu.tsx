@@ -1,11 +1,15 @@
 import { useState, useEffect, useRef } from 'react';
-import { ChevronDown, Palette } from 'lucide-react';
+import { ChevronDown, Palette, Bell } from 'lucide-react';
 import { useThemeTokens } from '../../../hooks/useThemeTokens';
 import ThemeSelectorModal from '../../../components/theme/ThemeSelectorModal';
+import PushNotificationSettings from '../../../components/notifications/PushNotificationSettings';
+import { supabase } from '../../../lib/supabase';
 
 export default function SAProfileMenu({ tokens, firstName, lastName }: { tokens: ReturnType<typeof useThemeTokens>; firstName?: string; lastName?: string }) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [themeModalOpen, setThemeModalOpen] = useState(false);
+  const [pushModalOpen, setPushModalOpen] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const initials = (firstName && lastName)
@@ -13,6 +17,12 @@ export default function SAProfileMenu({ tokens, firstName, lastName }: { tokens:
     : firstName ? firstName.charAt(0).toUpperCase()
     : 'SA';
   const displayName = [firstName, lastName].filter(Boolean).join(' ') || 'Super Admin';
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) setUserId(user.id);
+    });
+  }, []);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -90,11 +100,25 @@ export default function SAProfileMenu({ tokens, firstName, lastName }: { tokens:
                 <span className="text-[10px] opacity-60">Personnaliser l'apparence</span>
               </div>
             </button>
+            <button
+              onClick={() => { setDropdownOpen(false); setPushModalOpen(true); }}
+              className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs transition-colors duration-150 hover:opacity-80"
+              style={{ color: d.itemText }}
+              onMouseEnter={e => { e.currentTarget.style.background = d.itemBgHover; e.currentTarget.style.color = d.itemTextHover; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = d.itemText; }}
+            >
+              <Bell className="w-4 h-4" />
+              <div className="flex flex-col items-start">
+                <span className="font-semibold">Notifications telephone</span>
+                <span className="text-[10px] opacity-60">Alertes push en temps reel</span>
+              </div>
+            </button>
           </div>
         </div>
       )}
 
       <ThemeSelectorModal open={themeModalOpen} onClose={() => setThemeModalOpen(false)} />
+      <PushNotificationSettings open={pushModalOpen} onClose={() => setPushModalOpen(false)} userId={userId} role="super_admin" companyId={null} tokens={tokens} />
     </div>
   );
 }

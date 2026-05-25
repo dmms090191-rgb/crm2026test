@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '../../../lib/supabase';
 import MessagingPanel from '../../../components/chat/ChatView';
 import type { ChatMessage, ChatContact } from '../../../components/chat/chatTypes';
+import { sendPushForMessage } from '../../../lib/sendPushForMessage';
 
 interface ChatSuperAdminProps {
   adminIdOverride?: string | null;
@@ -116,6 +117,7 @@ export default function ChatSuperAdmin({ adminIdOverride, onMessageSent, onSuper
     const { error } = await supabase.from('super_admin_messages').insert(payload);
     if (error) throw new Error(error.message);
 
+    sendPushForMessage({ targetUserId: effectiveSuperAdminId, title: 'Talvex', body: 'Nouveau message d\'une societe cliente' });
     onMessageSent?.();
     loadMessages(false).catch(() => {});
   }, [isImpersonating, adminId, authUserId, superAdminId, loadMessages, onMessageSent]);

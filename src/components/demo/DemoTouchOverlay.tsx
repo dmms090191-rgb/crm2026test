@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 
 interface Props {
-  cursor: { x: number; y: number } | null;
-  clickRipple: { x: number; y: number; id: number } | null;
+  cursor: { xPercent: number; yPercent: number } | null;
+  clickRipple: { xPercent: number; yPercent: number; id: number } | null;
   saName: string;
 }
 
 export default function DemoTouchOverlay({ cursor, clickRipple, saName }: Props) {
-  const [ripples, setRipples] = useState<{ x: number; y: number; id: number }[]>([]);
+  const [ripples, setRipples] = useState<{ xPercent: number; yPercent: number; id: number }[]>([]);
   const [showIndicator, setShowIndicator] = useState(false);
 
   useEffect(() => {
@@ -23,12 +23,11 @@ export default function DemoTouchOverlay({ cursor, clickRipple, saName }: Props)
 
   if (!cursor) return null;
 
-  const px = cursor.x * window.innerWidth;
-  const py = cursor.y * window.innerHeight;
+  const px = cursor.xPercent * window.innerWidth;
+  const py = cursor.yPercent * window.innerHeight;
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 99999, pointerEvents: 'none' }}>
-      {/* Soft glow dot that follows the SA position */}
       <div
         style={{
           position: 'absolute',
@@ -59,10 +58,9 @@ export default function DemoTouchOverlay({ cursor, clickRipple, saName }: Props)
         )}
       </div>
 
-      {/* Tap ripples */}
       {ripples.map(r => {
-        const rx = r.x * window.innerWidth;
-        const ry = r.y * window.innerHeight;
+        const rx = r.xPercent * window.innerWidth;
+        const ry = r.yPercent * window.innerHeight;
         return (
           <div
             key={r.id}

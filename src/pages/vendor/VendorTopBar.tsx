@@ -1,11 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
-import { ChevronRight, ArrowLeft, Menu, MessageSquare, MessageCircle, CalendarDays, CalendarClock, CalendarCheck } from 'lucide-react';
+import { ChevronRight, ArrowLeft, Menu } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
 import { useTimezone } from '../../hooks/useTimezone';
 import { getCurrentTime } from '../../lib/timezone';
 import TimezoneModal from '../../components/TimezoneSearchDropdown';
-import MobileNotifStrip, { type MobileNotifItem } from '../../components/MobileNotifStrip';
 import type { AgendaNotifEntry } from '../../hooks/useAgendaNotifications';
 import { VendorClockButton, VendorProfileDropdown } from './components/topbar';
 import VendorMobileBellMenu from './components/topbar/VendorMobileBellMenu';
@@ -52,10 +51,9 @@ interface VendorTopBarProps {
   onConfirmedEntryClick?: (proposalId: string) => void;
   demoSlot?: React.ReactNode;
   demoStatus?: 'idle' | 'pending' | 'active';
-  onMobileShortcut?: (view: string) => void;
 }
 
-export default function VendorTopBar({ breadcrumb, onMobileMenuToggle, vendorName = 'Vendeur', isImpersonating, onBackToAdmin, unreadAdminCount = 0, unreadAdminLatestAt, onAdminNotifClick, unreadClientCount = 0, unreadClientEntries = [], onClientEntryClick, agendaCount = 0, agendaEntries = [], onAgendaEntryClick, proposalsCount = 0, proposalsEntries = [], onProposalEntryClick, confirmedCount = 0, confirmedEntries = [], onConfirmedEntryClick, demoSlot, demoStatus = 'idle', onMobileShortcut }: VendorTopBarProps) {
+export default function VendorTopBar({ breadcrumb, onMobileMenuToggle, vendorName = 'Vendeur', isImpersonating, onBackToAdmin, unreadAdminCount = 0, unreadAdminLatestAt, onAdminNotifClick, unreadClientCount = 0, unreadClientEntries = [], onClientEntryClick, agendaCount = 0, agendaEntries = [], onAgendaEntryClick, proposalsCount = 0, proposalsEntries = [], onProposalEntryClick, confirmedCount = 0, confirmedEntries = [], onConfirmedEntryClick, demoSlot, demoStatus = 'idle' }: VendorTopBarProps) {
   const { theme, setTheme } = useTheme();
   const tokens = useThemeTokens();
   const { timezone, tzLabel, tzCode, setTimezone } = useTimezone();
@@ -260,22 +258,6 @@ export default function VendorTopBar({ breadcrumb, onMobileMenuToggle, vendorNam
         />
       </div>
     </header>
-
-    {onMobileShortcut && (
-      <MobileNotifStrip
-        items={[
-          { key: 'admin', icon: MessageSquare, label: 'Admin', count: unreadAdminCount, onClick: () => onMobileShortcut('chat-admin') },
-          { key: 'client', icon: MessageCircle, label: 'Client', count: unreadClientCount, onClick: () => onMobileShortcut('chat-client') },
-          { key: 'agenda', icon: CalendarDays, label: 'Agenda', count: agendaCount, onClick: () => onMobileShortcut('agenda') },
-          { key: 'propositions', icon: CalendarClock, label: 'Prop. RDV', count: proposalsCount, onClick: () => onMobileShortcut('propositions-rdv') },
-          { key: 'rdv', icon: CalendarCheck, label: 'Confirmes', count: confirmedCount, onClick: () => onMobileShortcut('propositions-rdv') },
-        ] as MobileNotifItem[]}
-        bg={tokens.topbar.bg}
-        border={tokens.topbar.border}
-        iconColor={tokens.topbar.notifIcon}
-        textColor={tokens.topbar.notifLabel}
-      />
-    )}
 
     <TimezoneModal
       open={tzModalOpen}

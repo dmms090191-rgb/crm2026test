@@ -1,8 +1,11 @@
-import { RefObject, useState } from 'react';
-import { ChevronDown, Palette } from 'lucide-react';
+import { RefObject, useState, useEffect } from 'react';
+import { ChevronDown, Palette, Bell } from 'lucide-react';
 import type { Theme } from '../../../../contexts/ThemeContext';
 import type { ThemeTokens } from '../../../../lib/themeTokensTypes';
 import ThemeSelectorModal from '../../../../components/theme/ThemeSelectorModal';
+import PushNotificationSettings from '../../../../components/notifications/PushNotificationSettings';
+import { useCompanyId } from '../../../../hooks/useCompanyId';
+import { supabase } from '../../../../lib/supabase';
 
 interface Props {
   vendorName: string;
@@ -16,6 +19,15 @@ interface Props {
 
 export default function VendorProfileDropdown({ vendorName, tokens, open, setOpen, dropdownRef }: Props) {
   const [themeModalOpen, setThemeModalOpen] = useState(false);
+  const [pushModalOpen, setPushModalOpen] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
+  const companyId = useCompanyId();
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) setUserId(user.id);
+    });
+  }, []);
 
   return (
     <div
@@ -76,11 +88,25 @@ export default function VendorProfileDropdown({ vendorName, tokens, open, setOpe
                 <span className="text-[10px] opacity-60">Personnaliser l'apparence</span>
               </div>
             </button>
+            <button
+              onClick={() => { setOpen(() => false); setPushModalOpen(true); }}
+              className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs transition-colors duration-150"
+              style={{ color: tokens.dropdown.itemText }}
+              onMouseEnter={e => { e.currentTarget.style.background = tokens.dropdown.itemBgHover; e.currentTarget.style.color = tokens.dropdown.itemTextHover; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = tokens.dropdown.itemText; }}
+            >
+              <Bell className="w-4 h-4" />
+              <div className="flex flex-col items-start">
+                <span className="font-semibold">Notifications telephone</span>
+                <span className="text-[10px] opacity-60">Alertes push en temps reel</span>
+              </div>
+            </button>
           </div>
         </div>
       )}
 
       <ThemeSelectorModal open={themeModalOpen} onClose={() => setThemeModalOpen(false)} />
+      <PushNotificationSettings open={pushModalOpen} onClose={() => setPushModalOpen(false)} userId={userId} role="vendor" companyId={companyId} tokens={tokens} />
     </div>
   );
 }

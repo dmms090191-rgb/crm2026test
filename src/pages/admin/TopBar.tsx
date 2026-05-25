@@ -1,10 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
-import { ChevronRight, Menu, ArrowLeft, MessageSquareText, Shield, CalendarDays, CalendarClock, CalendarCheck, RefreshCw } from 'lucide-react';
+import { ChevronRight, Menu, ArrowLeft } from 'lucide-react';
 import { useTimezone } from '../../hooks/useTimezone';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
 import { getCurrentTime } from '../../lib/timezone';
 import TimezoneModal from '../../components/TimezoneSearchDropdown';
-import MobileNotifStrip, { type MobileNotifItem } from '../../components/MobileNotifStrip';
 import { ClockButton, ProfileMenu } from './components/topbar';
 import AdminMobileBellMenu from './components/topbar/AdminMobileBellMenu';
 import AdminDesktopNotifPill from './components/topbar/AdminDesktopNotifPill';
@@ -74,10 +73,9 @@ interface TopBarProps {
   onBackToSuperAdmin?: () => void;
   demoSlot?: React.ReactNode;
   demoStatus?: 'idle' | 'pending' | 'active';
-  onMobileShortcut?: (view: string) => void;
 }
 
-export default function TopBar({ breadcrumb, onMobileMenuToggle, adminName = 'Administrateur', unreadClientCount = 0, unreadClientEntries = [], onClientEntryClick, unreadVendorCount = 0, unreadVendorEntries = [], onVendorEntryClick, unreadSuperAdminCount = 0, onSuperAdminClick, agendaPersoCount = 0, agendaPersoEntries = [], onAgendaPersoEntryClick, agendaEquipeCount = 0, agendaEquipeEntries = [], onAgendaEquipeEntryClick, proposalsCount = 0, proposalsEntries = [], onProposalEntryClick, confirmedCount = 0, confirmedEntries = [], onConfirmedEntryClick, rescheduleCount = 0, rescheduleEntries = [], onRescheduleEntryClick, rescheduleRequestCount = 0, rescheduleRequestEntries = [], onRescheduleRequestEntryClick, impersonatedAdmin, onBackToSuperAdmin, demoSlot, demoStatus = 'idle', onMobileShortcut }: TopBarProps) {
+export default function TopBar({ breadcrumb, onMobileMenuToggle, adminName = 'Administrateur', unreadClientCount = 0, unreadClientEntries = [], onClientEntryClick, unreadVendorCount = 0, unreadVendorEntries = [], onVendorEntryClick, unreadSuperAdminCount = 0, onSuperAdminClick, agendaPersoCount = 0, agendaPersoEntries = [], onAgendaPersoEntryClick, agendaEquipeCount = 0, agendaEquipeEntries = [], onAgendaEquipeEntryClick, proposalsCount = 0, proposalsEntries = [], onProposalEntryClick, confirmedCount = 0, confirmedEntries = [], onConfirmedEntryClick, rescheduleCount = 0, rescheduleEntries = [], onRescheduleEntryClick, rescheduleRequestCount = 0, rescheduleRequestEntries = [], onRescheduleRequestEntryClick, impersonatedAdmin, onBackToSuperAdmin, demoSlot, demoStatus = 'idle' }: TopBarProps) {
   const { timezone, tzLabel, tzCode, setTimezone } = useTimezone();
   const t = useThemeTokens();
   const [clientDropdownOpen, setClientDropdownOpen] = useState(false);
@@ -293,22 +291,6 @@ export default function TopBar({ breadcrumb, onMobileMenuToggle, adminName = 'Ad
         <ProfileMenu adminName={adminName} tokens={t} />
       </div>
     </header>
-
-    {onMobileShortcut && (() => {
-      const s = onMobileShortcut;
-      const items: MobileNotifItem[] = [
-        { key: 'client', icon: MessageSquareText, label: 'Client', count: unreadClientCount, onClick: () => s('chat-client') },
-        { key: 'vendeur', icon: MessageSquareText, label: 'Vendeur', count: unreadVendorCount, onClick: () => s('chat-vendeur') },
-        { key: 'sa', icon: Shield, label: 'SA', count: unreadSuperAdminCount, onClick: () => s('chat-super-admin') },
-        { key: 'agenda', icon: CalendarDays, label: 'Agenda', count: agendaPersoCount, onClick: () => s('agenda') },
-        { key: 'equipe', icon: CalendarDays, label: 'Equipe', count: agendaEquipeCount, onClick: () => s('agenda-equipe') },
-        { key: 'prop', icon: CalendarClock, label: 'Prop. RDV', count: proposalsCount, onClick: () => s('propositions-rdv') },
-        { key: 'rdv', icon: CalendarCheck, label: 'Confirmes', count: confirmedCount, onClick: () => s('propositions-rdv') },
-        { key: 'decal', icon: RefreshCw, label: 'Decal.', count: rescheduleCount, onClick: () => s('propositions-rdv') },
-        { key: 'dem', icon: RefreshCw, label: 'Dem. decal.', count: rescheduleRequestCount, onClick: () => s('propositions-rdv') },
-      ];
-      return <MobileNotifStrip items={items} bg={t.topbar.bg} border={t.topbar.border} iconColor={t.topbar.notifIcon} textColor={t.topbar.notifLabel} />;
-    })()}
 
     <TimezoneModal
       open={tzModalOpen}

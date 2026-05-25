@@ -7,8 +7,8 @@ import type { RealtimeChannel } from '@supabase/supabase-js';
 interface ReceiverState {
   pendingInvite: DemoSession | null;
   activeSession: DemoSession | null;
-  cursor: { x: number; y: number } | null;
-  clickRipple: { x: number; y: number; id: number } | null;
+  cursor: { xPercent: number; yPercent: number } | null;
+  clickRipple: { xPercent: number; yPercent: number; id: number } | null;
   remoteView: string | null;
   remoteViewLabel: string | null;
   acceptInvite: () => Promise<void>;
@@ -19,8 +19,8 @@ interface ReceiverState {
 export function useDemoReceiver(userId: string | null, onViewChange?: (view: string) => void): ReceiverState {
   const [pendingInvite, setPendingInvite] = useState<DemoSession | null>(null);
   const [activeSession, setActiveSession] = useState<DemoSession | null>(null);
-  const [cursor, setCursor] = useState<{ x: number; y: number } | null>(null);
-  const [clickRipple, setClickRipple] = useState<{ x: number; y: number; id: number } | null>(null);
+  const [cursor, setCursor] = useState<{ xPercent: number; yPercent: number } | null>(null);
+  const [clickRipple, setClickRipple] = useState<{ xPercent: number; yPercent: number; id: number } | null>(null);
   const [remoteView, setRemoteView] = useState<string | null>(null);
   const [remoteViewLabel, setRemoteViewLabel] = useState<string | null>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
@@ -76,11 +76,11 @@ export function useDemoReceiver(userId: string | null, onViewChange?: (view: str
       const evt = payload as DemoBroadcastEvent;
       switch (evt.type) {
         case 'cursor_move':
-          setCursor({ x: evt.x, y: evt.y });
+          setCursor({ xPercent: evt.xPercent, yPercent: evt.yPercent });
           break;
         case 'cursor_click':
-          setCursor({ x: evt.x, y: evt.y });
-          setClickRipple({ x: evt.x, y: evt.y, id: ++rippleCounter.current });
+          setCursor({ xPercent: evt.xPercent, yPercent: evt.yPercent });
+          setClickRipple({ xPercent: evt.xPercent, yPercent: evt.yPercent, id: ++rippleCounter.current });
           break;
         case 'view_change':
           setRemoteView(evt.view);

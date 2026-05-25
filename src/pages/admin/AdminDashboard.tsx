@@ -247,7 +247,6 @@ export default function AdminDashboard({ onLogout, onConnectAsVendor, onConnectA
           rescheduleRequestCount={rescheduleRequestUnseen.length}
           rescheduleRequestEntries={rescheduleRequestUnseen}
           onRescheduleRequestEntryClick={handleRescheduleRequestEntryClick}
-          onMobileShortcut={(view) => handleNavigate(view as ActiveView)}
           impersonatedAdmin={impersonatedAdmin}
           onBackToSuperAdmin={onBackToSuperAdmin}
           demoStatus={isSAViewing ? demoStatus : 'idle'}

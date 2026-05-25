@@ -5,9 +5,9 @@ export function useDemoEmitter(activeView: string, viewLabel?: string) {
   const ctx = useDemoSessionSafe();
   const lastEmit = useRef(0);
   const rafId = useRef(0);
-  const pendingPos = useRef<{ x: number; y: number } | null>(null);
+  const pendingPos = useRef<{ xPercent: number; yPercent: number } | null>(null);
 
-  const emit = useCallback((event: string, payload: Record<string, unknown>) => {
+  const emit = useCallback((_event: string, payload: Record<string, unknown>) => {
     if (!ctx?.channel || !ctx.session || ctx.session.status !== 'active') return;
     ctx.channel.send({ type: 'broadcast', event: 'demo_event', payload });
   }, [ctx]);
@@ -18,8 +18,8 @@ export function useDemoEmitter(activeView: string, viewLabel?: string) {
 
     function onMouseMove(e: MouseEvent) {
       pendingPos.current = {
-        x: e.clientX / window.innerWidth,
-        y: e.clientY / window.innerHeight,
+        xPercent: e.clientX / window.innerWidth,
+        yPercent: e.clientY / window.innerHeight,
       };
       if (!rafId.current) {
         rafId.current = requestAnimationFrame(() => {
@@ -36,8 +36,8 @@ export function useDemoEmitter(activeView: string, viewLabel?: string) {
     function onClick(e: MouseEvent) {
       emit('demo_event', {
         type: 'cursor_click',
-        x: e.clientX / window.innerWidth,
-        y: e.clientY / window.innerHeight,
+        xPercent: e.clientX / window.innerWidth,
+        yPercent: e.clientY / window.innerHeight,
       });
     }
 

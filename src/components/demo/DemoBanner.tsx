@@ -1,11 +1,15 @@
-import { Monitor, X } from 'lucide-react';
+import { Monitor, Smartphone, X } from 'lucide-react';
+import type { DemoDeviceType } from './demoTypes';
 
 interface Props {
   saName: string;
+  deviceType?: DemoDeviceType;
   onStop: () => void;
 }
 
-export default function DemoBanner({ saName, onStop }: Props) {
+export default function DemoBanner({ saName, deviceType, onStop }: Props) {
+  const DeviceIcon = deviceType === 'smartphone' ? Smartphone : Monitor;
+
   return (
     <div
       className="flex items-center justify-between gap-2 px-3 py-2 sm:px-4 sm:py-2.5"
@@ -20,7 +24,7 @@ export default function DemoBanner({ saName, onStop }: Props) {
             className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg flex items-center justify-center"
             style={{ background: 'rgba(245,158,11,0.15)', border: '1px solid rgba(245,158,11,0.25)' }}
           >
-            <Monitor className="w-3 h-3 sm:w-3.5 sm:h-3.5" style={{ color: '#d97706' }} />
+            <DeviceIcon className="w-3 h-3 sm:w-3.5 sm:h-3.5" style={{ color: '#d97706' }} />
           </div>
           <span
             className="absolute -top-0.5 -right-0.5 w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full border-2"
@@ -29,7 +33,7 @@ export default function DemoBanner({ saName, onStop }: Props) {
         </div>
         <div className="min-w-0">
           <p className="text-[11px] sm:text-xs font-bold" style={{ color: '#d97706' }}>
-            <span className="sm:hidden">Demo active</span>
+            <span className="sm:hidden">Demo en direct</span>
             <span className="hidden sm:inline">Mode demo en direct</span>
           </p>
           <p className="text-[9px] sm:text-[10px] truncate" style={{ color: '#92400e' }}>

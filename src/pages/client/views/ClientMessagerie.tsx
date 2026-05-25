@@ -4,6 +4,7 @@ import { supabase } from '../../../lib/supabase';
 import MessagingPanel, { ChatMessage, ChatContact } from '../../../components/chat/ChatView';
 import { useThemeTokens } from '../../../hooks/useThemeTokens';
 import { useCompanyId } from '../../../hooks/useCompanyId';
+import { sendPushForMessage } from '../../../lib/sendPushForMessage';
 
 interface ClientMessagerieProps {
   clientName: string;
@@ -104,6 +105,16 @@ export default function ClientMessagerie({ clientName, clientAuthId, isAdmin }: 
       ...(file ? { file_url: file.url, file_name: file.name, file_type: file.type } : {}),
     } as ChatMessage]);
 
+    if (companyId) {
+      supabase.from('registrations').select('auth_user_id').eq('company_id', companyId).eq('role', 'admin').then(({ data }) => {
+        const clientLabel = clientName || 'un client';
+        (data ?? []).forEach(r => {
+          if (r.auth_user_id) {
+            sendPushForMessage({ targetUserId: r.auth_user_id, title: 'Talvex', body: `Nouveau message client de ${clientLabel}` });
+          }
+        });
+      });
+    }
     supabase.from('client_messages').insert(payload).select('id').single().then(({ data: inserted, error }) => {
       if (error) { console.error('[ClientMessagerie] insert error:', error.message); return; }
       loadMessages(false).catch(() => {});
