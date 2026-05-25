@@ -38,28 +38,22 @@ export default function PushNotificationSettings({ open, onClose, userId, role, 
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[9999] flex sm:items-center sm:justify-center items-end"
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
       onClick={onClose}
     >
       <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" />
 
       <div
-        className="relative w-full sm:max-w-md sm:rounded-2xl rounded-t-3xl flex flex-col"
+        className="relative w-full max-w-md rounded-2xl flex flex-col"
         style={{
           background: t.card.bg,
           border: `1px solid ${t.card.border}`,
           boxShadow: '0 25px 50px rgba(0,0,0,0.25)',
-          maxHeight: 'calc(100dvh - 48px)',
-          paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+          maxHeight: 'calc(100dvh - 32px)',
         }}
         onClick={e => e.stopPropagation()}
       >
-        {/* Drag handle - mobile only */}
-        <div className="sm:hidden flex justify-center pt-3 pb-1 flex-shrink-0">
-          <div className="w-10 h-1 rounded-full" style={{ background: t.text.tertiary, opacity: 0.4 }} />
-        </div>
-
-        {/* Header - always visible */}
+        {/* Header */}
         <div
           className="flex-shrink-0 flex items-center justify-between px-4 py-3"
           style={{ borderBottom: `1px solid ${t.card.border}` }}
