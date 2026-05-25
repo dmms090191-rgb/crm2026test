@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { LogIn, Loader2, AlertCircle } from 'lucide-react';
 import LoginModal from '../../components/LoginModal';
-import { getHomePageBySlug, type CompanyHomePage } from '../../lib/companyHomePages';
+import { getHomePageBySlug, getTemplateById, type CompanyHomePage } from '../../lib/companyHomePages';
+import { getTemplateComponent } from '../superadmin/views/site-builder/templates/templateRegistry';
 
 interface Props {
   slug: string;
@@ -9,6 +10,7 @@ interface Props {
 
 export default function CompanySitePage({ slug }: Props) {
   const [page, setPage] = useState<CompanyHomePage | null>(null);
+  const [templateKey, setTemplateKey] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
@@ -20,9 +22,13 @@ export default function CompanySitePage({ slug }: Props) {
       return;
     }
     getHomePageBySlug(slug)
-      .then(data => {
-        if (data) setPage(data);
-        else setNotFound(true);
+      .then(async (data) => {
+        if (!data) { setNotFound(true); return; }
+        setPage(data);
+        if (data.active_template_id) {
+          const tmpl = await getTemplateById(data.active_template_id);
+          if (tmpl) setTemplateKey(tmpl.template_key);
+        }
       })
       .catch(() => setNotFound(true))
       .finally(() => setLoading(false));
@@ -34,6 +40,9 @@ export default function CompanySitePage({ slug }: Props) {
 
   if (loading) return <LoadingScreen />;
   if (notFound || !page) return <NotFoundScreen />;
+
+  const TemplateComponent = templateKey ? getTemplateComponent(templateKey) : null;
+  if (TemplateComponent) return <TemplateComponent />;
 
   const mainColor = page.main_color || '#0ea5e9';
   const secondaryColor = page.secondary_color || '#10b981';

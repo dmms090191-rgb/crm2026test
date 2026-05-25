@@ -1,7 +1,7 @@
-import { Eye, Sparkles, Pencil, Settings, Globe } from 'lucide-react';
+import { Eye, LayoutGrid, Globe } from 'lucide-react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 
-export type SiteTab = 'apercu' | 'creer-ia' | 'modifier' | 'parametres' | 'domaine';
+export type SiteTab = 'apercu' | 'templates' | 'domaine';
 
 interface Props {
   activeTab: SiteTab;
@@ -10,9 +10,7 @@ interface Props {
 
 const TABS: { id: SiteTab; label: string; icon: React.ReactNode }[] = [
   { id: 'apercu', label: 'Apercu du site', icon: <Eye className="w-3.5 h-3.5" /> },
-  { id: 'creer-ia', label: 'Creer avec IA', icon: <Sparkles className="w-3.5 h-3.5" /> },
-  { id: 'modifier', label: 'Modifier le site', icon: <Pencil className="w-3.5 h-3.5" /> },
-  { id: 'parametres', label: 'Parametres', icon: <Settings className="w-3.5 h-3.5" /> },
+  { id: 'templates', label: 'Templates', icon: <LayoutGrid className="w-3.5 h-3.5" /> },
   { id: 'domaine', label: 'Domaine', icon: <Globe className="w-3.5 h-3.5" /> },
 ];
 
@@ -35,8 +33,7 @@ export default function SiteTabs({ activeTab, onTabChange }: Props) {
             }}
           >
             {tab.icon}
-            <span className="hidden sm:inline">{tab.label}</span>
-            <span className="sm:hidden">{tab.label.split(' ')[0]}</span>
+            {tab.label}
           </button>
         );
       })}

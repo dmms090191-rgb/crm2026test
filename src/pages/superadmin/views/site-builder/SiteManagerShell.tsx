@@ -1,8 +1,22 @@
-import { useState } from 'react';
-import { Globe, X } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Globe, X, Loader2 } from 'lucide-react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
+import { supabase } from '../../../../lib/supabase';
+import {
+  getHomePageByCompanyId,
+  getAllTemplates,
+  getTemplateById,
+  applyTemplate,
+  createHomePageWithTemplate,
+  type CompanyHomePage,
+  type CompanyHomePageWithCompany,
+  type SiteTemplate,
+} from '../../../../lib/companyHomePages';
 import SiteTabs, { type SiteTab } from './SiteTabs';
-import SiteEmptyState from './SiteEmptyState';
+import SitePreviewTab from './SitePreviewTab';
+import SiteTemplatesTab from './SiteTemplatesTab';
+import SiteDomainTab from './SiteDomainTab';
+import SADomainsModal from '../sites/SADomainsModal';
 
 export type SiteOwnerType = 'super_admin' | 'admin_company' | 'crm_societe';
 
@@ -12,30 +26,105 @@ interface Props {
   subtitle: string;
   companyId?: string | null;
   societeId?: string | null;
-  emptyMessage?: string;
   onClose?: () => void;
 }
 
-export default function SiteManagerShell({ ownerType, title, subtitle, companyId, societeId, emptyMessage, onClose }: Props) {
+export default function SiteManagerShell({ ownerType, title, subtitle, companyId: companyIdProp, onClose }: Props) {
   const t = useThemeTokens();
   const [activeTab, setActiveTab] = useState<SiteTab>('apercu');
+  const [loading, setLoading] = useState(true);
+  const [resolvedCompanyId, setResolvedCompanyId] = useState<string | null>(companyIdProp ?? null);
+  const [page, setPage] = useState<CompanyHomePage | null>(null);
+  const [templates, setTemplates] = useState<SiteTemplate[]>([]);
+  const [activeTemplate, setActiveTemplate] = useState<SiteTemplate | null>(null);
+  const [previewTemplateKey, setPreviewTemplateKey] = useState<string | null>(null);
+  const [previewTemplateName, setPreviewTemplateName] = useState<string | null>(null);
+  const [domainModalOpen, setDomainModalOpen] = useState(false);
 
-  const defaultEmpty = ownerType === 'super_admin'
-    ? 'Aucun site officiel Talvex cree pour le moment'
-    : 'Aucun site cree pour cette societe';
+  useEffect(() => {
+    if (companyIdProp) { setResolvedCompanyId(companyIdProp); return; }
+    if (ownerType !== 'super_admin') return;
+    (async () => {
+      const { data: user } = await supabase.auth.getUser();
+      const fromMeta = user?.user?.app_metadata?.company_id;
+      if (fromMeta) { setResolvedCompanyId(fromMeta); return; }
+      const { data } = await supabase.from('companies').select('id').limit(1).maybeSingle();
+      if (data) setResolvedCompanyId(data.id);
+    })();
+  }, [companyIdProp, ownerType]);
+
+  const loadData = useCallback(async () => {
+    if (!resolvedCompanyId) { setLoading(false); return; }
+    setLoading(true);
+    try {
+      const [tmpls, homePage] = await Promise.all([
+        getAllTemplates(),
+        getHomePageByCompanyId(resolvedCompanyId),
+      ]);
+      setTemplates(tmpls);
+      setPage(homePage);
+      if (homePage?.active_template_id) {
+        const tmpl = await getTemplateById(homePage.active_template_id);
+        setActiveTemplate(tmpl);
+      } else {
+        setActiveTemplate(null);
+      }
+    } catch {
+      // silent
+    } finally {
+      setLoading(false);
+    }
+  }, [resolvedCompanyId]);
+
+  useEffect(() => { loadData(); }, [loadData]);
+
+  const handleApply = async (template: SiteTemplate) => {
+    if (!resolvedCompanyId) return;
+    if (page) {
+      await applyTemplate(page.id, template.id);
+    } else {
+      await createHomePageWithTemplate(resolvedCompanyId, template.id);
+    }
+    await loadData();
+    setPreviewTemplateKey(null);
+    setPreviewTemplateName(null);
+    setActiveTab('apercu');
+  };
+
+  const handlePreview = (template: SiteTemplate) => {
+    setPreviewTemplateKey(template.template_key);
+    setPreviewTemplateName(template.name);
+  };
+
+  const handleApplyPreview = async () => {
+    if (!previewTemplateKey) return;
+    const tmpl = templates.find(t => t.template_key === previewTemplateKey);
+    if (tmpl) {
+      await handleApply(tmpl);
+      setPreviewTemplateKey(null);
+      setPreviewTemplateName(null);
+    }
+  };
+
+  const handleClearPreview = () => {
+    setPreviewTemplateKey(null);
+    setPreviewTemplateName(null);
+  };
+
+  const pageAsWithCompany: CompanyHomePageWithCompany | null = page
+    ? { ...page, companies: null }
+    : null;
 
   return (
     <div className="space-y-4">
+      {/* Header */}
       <div
         className="flex items-center gap-3 rounded-2xl p-4"
         style={{ background: t.card.bg, border: `1px solid ${t.card.border}`, boxShadow: t.card.shadow }}
       >
         <div
           className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-          style={{
-            background: 'linear-gradient(135deg, #0ea5e9, #0284c7)',
-            boxShadow: '0 0 20px rgba(14,165,233,0.35)',
-          }}
+          style={{ background: 'linear-gradient(135deg, #0ea5e9, #0284c7)', boxShadow: '0 0 20px rgba(14,165,233,0.35)' }}
         >
           <Globe className="w-5 h-5 text-white" />
         </div>
@@ -51,6 +140,7 @@ export default function SiteManagerShell({ ownerType, title, subtitle, companyId
         )}
       </div>
 
+      {/* Content */}
       <div
         className="rounded-2xl p-4 space-y-4"
         style={{ background: t.card.bg, border: `1px solid ${t.card.border}`, boxShadow: t.card.shadow }}
@@ -58,27 +148,47 @@ export default function SiteManagerShell({ ownerType, title, subtitle, companyId
         <SiteTabs activeTab={activeTab} onTabChange={setActiveTab} />
 
         <div className="min-h-[200px]">
-          {activeTab === 'apercu' && <SiteEmptyState message={emptyMessage ?? defaultEmpty} />}
-          {activeTab === 'creer-ia' && <TabPlaceholder label="Creer avec IA" description="L'outil de creation de site par intelligence artificielle sera disponible ici." />}
-          {activeTab === 'modifier' && <TabPlaceholder label="Modifier le site" description="L'editeur de site sera disponible ici pour personnaliser les pages, les couleurs et le contenu." />}
-          {activeTab === 'parametres' && <TabPlaceholder label="Parametres" description="Les parametres du site (SEO, analytics, redirections) seront configures ici." />}
-          {activeTab === 'domaine' && <TabPlaceholder label="Domaine" description="La gestion du nom de domaine et des certificats SSL sera disponible ici." />}
+          {loading ? (
+            <div className="flex items-center justify-center py-16">
+              <Loader2 className="w-6 h-6 animate-spin" style={{ color: '#0ea5e9' }} />
+            </div>
+          ) : (
+            <>
+              {activeTab === 'apercu' && (
+                <SitePreviewTab
+                  activeTemplateKey={activeTemplate?.template_key ?? null}
+                  previewTemplateKey={previewTemplateKey}
+                  previewTemplateName={previewTemplateName}
+                  onTabChange={setActiveTab}
+                  onApplyPreview={handleApplyPreview}
+                  onClearPreview={handleClearPreview}
+                />
+              )}
+              {activeTab === 'templates' && (
+                <SiteTemplatesTab
+                  templates={templates}
+                  activeTemplateId={page?.active_template_id ?? null}
+                  onPreview={handlePreview}
+                  onApply={handleApply}
+                  onTabChange={setActiveTab}
+                />
+              )}
+              {activeTab === 'domaine' && (
+                <SiteDomainTab page={page} onOpenDomainManager={() => setDomainModalOpen(true)} />
+              )}
+            </>
+          )}
         </div>
       </div>
-    </div>
-  );
-}
 
-function TabPlaceholder({ label, description }: { label: string; description: string }) {
-  const t = useThemeTokens();
-  return (
-    <div className="flex flex-col items-center justify-center py-12 sm:py-16 px-4 text-center">
-      <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-4"
-        style={{ background: t.surface.secondary, border: `1px solid ${t.surface.borderLight}` }}>
-        <Globe className="w-5 h-5" style={{ color: t.text.tertiary }} />
-      </div>
-      <p className="text-sm font-semibold mb-1" style={{ color: t.text.secondary }}>{label}</p>
-      <p className="text-xs max-w-sm" style={{ color: t.text.tertiary }}>{description}</p>
+      {/* Domain modal (existing component) */}
+      {domainModalOpen && pageAsWithCompany && (
+        <SADomainsModal
+          page={pageAsWithCompany}
+          onClose={() => setDomainModalOpen(false)}
+          onChanged={() => { setDomainModalOpen(false); loadData(); }}
+        />
+      )}
     </div>
   );
 }

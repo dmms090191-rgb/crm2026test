@@ -11,11 +11,11 @@ export function AppLoadingScreen() {
   return (
     <div
       className="min-h-screen flex items-center justify-center transition-colors duration-200"
-      style={{ background: light ? '#f4f7fb' : 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)' }}
+      style={{ background: light ? '#f4f7fb' : '#020617' }}
     >
       <div
         className="w-10 h-10 border-4 border-t-transparent rounded-full animate-spin"
-        style={{ borderColor: light ? '#2563eb' : '#f97316', borderTopColor: 'transparent' }}
+        style={{ borderColor: light ? '#2563eb' : '#0ea5e9', borderTopColor: 'transparent' }}
       />
     </div>
   );

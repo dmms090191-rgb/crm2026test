@@ -9,7 +9,8 @@ import { AppLoadingScreen, AppAccessBlocked } from './app/AppStatusScreens';
 import AppLandingPage from './app/AppLandingPage';
 import AppShell from './app/AppShell';
 import CompanySitePage from './pages/public/CompanySitePage';
-import { getHomePageByDomain } from './lib/companyHomePages';
+import { getHomePageByDomain, getLandingTemplateKey } from './lib/companyHomePages';
+import { getTemplateComponent } from './pages/superadmin/views/site-builder/templates/templateRegistry';
 import { DemoSessionProvider } from './components/demo/DemoSessionContext';
 
 export interface ImpersonatedAdmin {
@@ -41,6 +42,8 @@ function App() {
   const domainCheckedRef = useRef(false);
   const [saUserId, setSaUserId] = useState<string | null>(null);
   const [saDisplayName, setSaDisplayName] = useState('Support Talvex');
+  const [landingTemplateKey, setLandingTemplateKey] = useState<string | null>(null);
+  const [landingTemplateLoaded, setLandingTemplateLoaded] = useState(false);
 
   async function detectRole() {
     const { data: { session } } = await supabase.auth.getSession();
@@ -97,6 +100,13 @@ function App() {
   }, []);
 
   useEffect(() => {
+    getLandingTemplateKey()
+      .then(key => { if (key) setLandingTemplateKey(key); })
+      .catch(() => {})
+      .finally(() => setLandingTemplateLoaded(true));
+  }, []);
+
+  useEffect(() => {
     if (domainCheckedRef.current) return;
     domainCheckedRef.current = true;
     const hostname = window.location.hostname;
@@ -133,7 +143,7 @@ function App() {
     setImpersonatedAdmin(null);
   };
 
-  if (loading) return <AppLoadingScreen />;
+  if (loading || (!role && !landingTemplateLoaded)) return <AppLoadingScreen />;
   if (accessBlocked) return <AppAccessBlocked onClear={() => setAccessBlocked(false)} />;
 
   // --- Public company site (/site/:slug) ---
@@ -277,6 +287,18 @@ function App() {
   }
 
   // --- Landing page (not logged in) ---
+
+  const LandingTemplate = landingTemplateKey ? getTemplateComponent(landingTemplateKey) : null;
+
+  if (LandingTemplate) {
+    return (
+      <ThemeProvider panelRole="admin">
+        <div className="min-h-screen" style={{ background: '#020617' }}>
+          <LandingTemplate />
+        </div>
+      </ThemeProvider>
+    );
+  }
 
   return (
     <ThemeProvider panelRole="admin">

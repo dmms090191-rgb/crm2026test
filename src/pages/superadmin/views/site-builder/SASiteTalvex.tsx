@@ -8,7 +8,6 @@ export default function SASiteTalvex() {
           ownerType="super_admin"
           title="Site Talvex"
           subtitle="Gestion du site officiel de la plateforme Talvex"
-          emptyMessage="Aucun site officiel Talvex cree pour le moment"
         />
       </div>
     </div>

@@ -147,7 +147,11 @@ export function ThemeProvider({ children, panelRole, effectiveUserId }: ThemePro
     }
   }, [resolvedId, panelRole, isLeadFallback, isOwnAccount, sessionUserId]);
 
-  if (resolvedId && !ready) return null;
+  if (resolvedId && !ready) {
+    return (
+      <div className="min-h-screen" style={{ background: '#020617' }} />
+    );
+  }
 
   return (
     <ThemeContext.Provider value={{ theme, setTheme }}>

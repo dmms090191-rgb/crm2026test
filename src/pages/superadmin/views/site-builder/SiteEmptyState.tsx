@@ -3,9 +3,10 @@ import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 
 interface Props {
   message?: string;
+  hint?: string;
 }
 
-export default function SiteEmptyState({ message = 'Aucun site cree pour le moment' }: Props) {
+export default function SiteEmptyState({ message = 'Aucun site cree pour le moment', hint }: Props) {
   const t = useThemeTokens();
 
   return (
@@ -23,9 +24,11 @@ export default function SiteEmptyState({ message = 'Aucun site cree pour le mome
       <p className="text-sm font-medium text-center max-w-xs" style={{ color: t.text.secondary }}>
         {message}
       </p>
-      <p className="text-xs mt-2 text-center max-w-xs" style={{ color: t.text.tertiary }}>
-        Utilisez l'onglet "Creer avec IA" pour generer automatiquement un site professionnel.
-      </p>
+      {hint && (
+        <p className="text-xs mt-2 text-center max-w-xs" style={{ color: t.text.tertiary }}>
+          {hint}
+        </p>
+      )}
     </div>
   );
 }
