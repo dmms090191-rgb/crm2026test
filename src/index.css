@@ -24,11 +24,16 @@ html, body, #root {
   margin: 0;
   padding: 0;
   overflow-x: hidden;
-  background: #020617;
 }
 
 html {
+  background: #020617;
   transition: background-color 150ms ease;
+}
+
+body, #root {
+  background: inherit;
+  color: inherit;
 }
 
 * {
@@ -151,58 +156,72 @@ html {
 
 html[data-theme="light"] {
   background: #080C16;
+  color: #ffffff;
 }
 
 html[data-theme="dark"] {
   background: #050810;
+  color: #ffffff;
 }
 
 html[data-theme="graphite"] {
   background: #1e2024;
+  color: #ffffff;
 }
 
 html[data-theme="beige"] {
   background: #14100A;
+  color: #ffffff;
 }
 
 html[data-theme="rose"] {
   background: #120A16;
+  color: #ffffff;
 }
 
 html[data-theme="emerald"] {
   background: #06130D;
+  color: #ffffff;
 }
 
 html[data-theme="luxury"] {
   background: #12100B;
+  color: #ffffff;
 }
 
 html[data-theme="pink"] {
   background: #120810;
+  color: #ffffff;
 }
 
 html[data-theme="red"] {
   background: #100808;
+  color: #ffffff;
 }
 
 html[data-theme="orange"] {
   background: #100A06;
+  color: #ffffff;
 }
 
 html[data-theme="yellow"] {
   background: #0E0C06;
+  color: #ffffff;
 }
 
 html[data-theme="highlevel_light"] {
   background: #f4f7fb;
+  color: #111827;
 }
 
 html[data-theme="highlevel_dark"] {
   background: #f3f6fb;
+  color: #0f172a;
 }
 
 html[data-theme="highlevel_emerald"] {
   background: #f8fafc;
+  color: #0f172a;
 }
 
 html[data-theme="light"] input::placeholder,

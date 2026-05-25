@@ -149,7 +149,7 @@ export function ThemeProvider({ children, panelRole, effectiveUserId }: ThemePro
 
   if (resolvedId && !ready) {
     return (
-      <div className="min-h-screen" style={{ background: '#020617' }} />
+      <div className="min-h-screen" style={{ background: 'inherit' }} />
     );
   }
 
