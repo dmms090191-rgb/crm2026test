@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { List, ChevronDown, LogIn, MessageSquare, Mail, Phone, CheckSquare, Trash2, X } from 'lucide-react';
+import { List, ChevronDown, LogIn, MessageSquare, Mail, Phone, CheckSquare, Trash2, X, Lock, Unlock } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { useThemeTokens } from '../../../hooks/useThemeTokens';
 import { useSimulation } from '../../../contexts/SimulationContext';
@@ -7,6 +7,7 @@ import { useCompanyId } from '../../../hooks/useCompanyId';
 import type { Vendor } from './vendeurs/vendeurTypes';
 import VendorDetailModal from './vendeurs/VendorDetailModal';
 import VendorDeleteModal from './vendeurs/VendorDeleteModal';
+import ListeVendeursMobileCard from './vendeurs/ListeVendeursMobileCard';
 import DualScrollWrapper from '../../../components/DualScrollWrapper';
 import CheckBox from './crm/CheckBox';
 import CopyButton from '../../../components/CopyButton';
@@ -70,6 +71,14 @@ export default function ListeVendeurs({ onConnectAsVendor, onOpenChat }: ListeVe
     setSelectMode(false);
     fetchVendors();
   }, []);
+
+  const toggleColumnLock = useCallback(async (vendorId: string) => {
+    const vendor = vendors.find(v => v.id === vendorId);
+    if (!vendor || isSimulating) return;
+    const newVal = !(vendor.can_customize_columns !== false);
+    setVendors(prev => prev.map(v => v.id === vendorId ? { ...v, can_customize_columns: newVal } : v));
+    await supabase.from('vendors').update({ can_customize_columns: newVal }).eq('id', vendorId);
+  }, [vendors, isSimulating]);
 
   const maskedPassword = '••••••';
   const allChecked = vendors.length > 0 && selected.size === vendors.length;
@@ -153,7 +162,7 @@ export default function ListeVendeurs({ onConnectAsVendor, onOpenChat }: ListeVe
                           <CheckBox checked={allChecked} indeterminate={someChecked} onChange={toggleAll} />
                         </th>
                       )}
-                      {['Prenom', 'Nom', 'Adresse email', 'Mot de passe', 'Telephone', 'Actions'].map(col => (
+                      {['Prenom', 'Nom', 'Adresse email', 'Mot de passe', 'Telephone', 'Colonnes', 'Actions'].map(col => (
                         <th key={col} className="px-5 py-3 text-left text-[10px] font-bold tracking-[0.15em] uppercase" style={{ color: tokens.table.headerText }}>{col}</th>
                       ))}
                     </tr>
@@ -182,6 +191,25 @@ export default function ListeVendeurs({ onConnectAsVendor, onOpenChat }: ListeVe
                         <td className="px-5 py-3.5"><span className="text-sm font-mono tracking-widest" style={{ color: tokens.label.hint }}>{maskedPassword}</span></td>
                         <td className="px-5 py-3.5"><span className="text-sm" style={{ color: tokens.table.cellTextMuted }}>{vendor.phone || '\u2014'}</span></td>
                         <td className="px-5 py-3.5">
+                          {(() => {
+                            const unlocked = vendor.can_customize_columns !== false;
+                            return (
+                              <button
+                                onClick={() => toggleColumnLock(vendor.id)}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105"
+                                style={unlocked
+                                  ? { background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)', color: '#16a34a' }
+                                  : { background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444' }
+                                }
+                                title={unlocked ? 'Le vendeur peut personnaliser ses colonnes' : 'Le vendeur ne peut pas personnaliser ses colonnes'}
+                              >
+                                {unlocked ? <Unlock className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
+                                {unlocked ? 'Libre' : 'Bloque'}
+                              </button>
+                            );
+                          })()}
+                        </td>
+                        <td className="px-5 py-3.5">
                           <div className="flex items-center gap-2">
                             <button onClick={() => setSelectedVendor(vendor)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105" style={{ background: tokens.accent.bg, border: `1px solid ${tokens.accent.border}`, color: tokens.accent.text }}>
                               <ChevronDown className="w-3 h-3" />Detail
@@ -203,48 +231,19 @@ export default function ListeVendeurs({ onConnectAsVendor, onOpenChat }: ListeVe
 
             {/* Mobile cards */}
             <div className="md:hidden divide-y" style={{ borderColor: tokens.table.rowBorder }}>
-              {vendors.map((vendor) => {
-                const initials = `${(vendor.first_name?.[0] ?? '').toUpperCase()}${(vendor.last_name?.[0] ?? '').toUpperCase()}`;
-                return (
-                  <div key={vendor.id} className="px-4 py-4" style={{ borderColor: tokens.table.rowBorder, background: selected.has(vendor.id) ? tokens.accent.bg : undefined }}>
-                    <div className="flex items-start gap-3 mb-3">
-                      {selectMode && (
-                        <div className="pt-1">
-                          <CheckBox checked={selected.has(vendor.id)} onChange={() => toggleSelect(vendor.id)} />
-                        </div>
-                      )}
-                      <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0" style={{ background: 'linear-gradient(135deg, #22d3ee, #2563eb)', boxShadow: '0 2px 8px rgba(0,0,0,0.3)', color: '#fff' }}>{initials || '?'}</div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold truncate" style={{ color: tokens.table.cellText }}>{vendor.first_name} {vendor.last_name}</p>
-                        {vendor.email && (
-                          <div className="flex items-center gap-1 mt-1">
-                            <Mail className="w-3 h-3 flex-shrink-0" style={{ color: tokens.table.cellIcon }} />
-                            <span className="text-xs truncate flex-1 min-w-0" style={{ color: tokens.table.cellTextMuted }}>{vendor.email}</span>
-                            <CopyButton value={vendor.email} />
-                          </div>
-                        )}
-                        {vendor.phone && (
-                          <div className="flex items-center gap-1.5 mt-0.5">
-                            <Phone className="w-3 h-3 flex-shrink-0" style={{ color: tokens.table.cellIcon }} />
-                            <span className="text-xs" style={{ color: tokens.table.cellTextMuted }}>{vendor.phone}</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <button onClick={() => setSelectedVendor(vendor)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: tokens.accent.bg, border: `1px solid ${tokens.accent.border}`, color: tokens.accent.text }}>
-                        <ChevronDown className="w-3 h-3" />Details
-                      </button>
-                      <button onClick={() => onOpenChat?.(vendor)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: tokens.accent.bg, border: `1px solid ${tokens.accent.border}`, color: tokens.accent.text }}>
-                        <MessageSquare className="w-3 h-3" />Message
-                      </button>
-                      <button onClick={() => onConnectAsVendor?.(vendor)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: tokens.success.bg, border: `1px solid ${tokens.success.border}`, color: tokens.success.text }}>
-                        <LogIn className="w-3 h-3" />Connect
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
+              {vendors.map((vendor) => (
+                <ListeVendeursMobileCard
+                  key={vendor.id}
+                  vendor={vendor}
+                  isSelected={selected.has(vendor.id)}
+                  selectMode={selectMode}
+                  onToggleSelect={toggleSelect}
+                  onDetail={setSelectedVendor}
+                  onOpenChat={onOpenChat}
+                  onConnectAsVendor={onConnectAsVendor}
+                  tokens={tokens}
+                />
+              ))}
             </div>
           </>
         )}

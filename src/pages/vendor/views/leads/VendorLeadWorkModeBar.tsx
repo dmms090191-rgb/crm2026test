@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
-import { Undo2, Redo2, Briefcase, LocateFixed, CheckSquare, X, RotateCcw } from 'lucide-react';
+import { useState, useEffect, useMemo, type ReactNode } from 'react';
+import { Briefcase, LocateFixed, CheckSquare, X, RotateCcw, ChevronLeft, ChevronRight, Columns3, SlidersHorizontal, Lock } from 'lucide-react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 import CheckBox from '../../../admin/views/crm/CheckBox';
+import VendorLeadWorkModeBarMobile from './VendorLeadWorkModeBarMobile';
 
 interface Props {
   allChecked: boolean;
@@ -20,238 +21,166 @@ interface Props {
   onLocate: () => void;
   canLocate: boolean;
   onResetHistory: () => void;
+  onOpenColumns: () => void;
+  onOpenOrganize: () => void;
+  toolbarOrder: string[];
+  columnsLocked?: boolean;
 }
+
+type ToolId = 'select' | 'workmode' | 'columns' | 'organize';
 
 export default function VendorLeadWorkModeBar({
   allChecked, someChecked, toggleAll, selectMode, onToggleSelectMode,
   workModeEnabled, onWorkModeToggle,
   onUndo, onRedo, canUndo, canRedo, historyPosition, historyLength, onLocate, canLocate,
-  onResetHistory,
+  onResetHistory, onOpenColumns, onOpenOrganize, toolbarOrder, columnsLocked,
 }: Props) {
-  const tokens = useThemeTokens();
+  const t = useThemeTokens();
   const [showToast, setShowToast] = useState(false);
 
   useEffect(() => {
     if (!showToast) return;
-    const t = setTimeout(() => setShowToast(false), 1500);
-    return () => clearTimeout(t);
+    const id = setTimeout(() => setShowToast(false), 1500);
+    return () => clearTimeout(id);
   }, [showToast]);
 
-  const handleReset = () => {
-    onResetHistory();
-    setShowToast(true);
+  const handleReset = () => { onResetHistory(); setShowToast(true); };
+
+  const inactiveBtn: React.CSSProperties = {
+    background: t.surface.primary, border: `1px solid ${t.surface.border}`, color: t.text.secondary,
+  };
+  const inactiveBtnHover: React.CSSProperties = {
+    background: t.surface.secondary, border: `1px solid ${t.surface.border}`, color: t.text.primary,
   };
 
-  return (
-    <div className="px-3 md:px-5 py-2.5 md:py-3 space-y-2 md:space-y-0" style={{ borderBottom: `1px solid ${tokens.table.rowBorder}` }}>
-      {/* Desktop: single row */}
-      <div className="hidden md:flex items-center gap-3">
+  const toolRenderers: Record<ToolId, () => ReactNode> = useMemo(() => ({
+    select: () => (
+      <div key="select" className="flex items-center gap-2">
         <button
           onClick={onToggleSelectMode}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all hover:scale-[1.02] active:scale-[0.98]"
-          style={selectMode ? {
-            background: 'rgba(239,68,68,0.08)',
-            border: '1px solid rgba(239,68,68,0.2)',
-            color: '#ef4444',
-          } : {
-            background: tokens.surface.hover,
-            border: `1px solid ${tokens.surface.borderLight}`,
-            color: tokens.text.secondary,
-          }}
+          className="inline-flex items-center gap-2 h-9 px-4 rounded-lg text-xs font-semibold transition-all duration-200"
+          style={selectMode ? { background: t.danger.bg, border: `1px solid ${t.danger.border}`, color: t.danger.text } : inactiveBtn}
+          onMouseEnter={e => { if (!selectMode) Object.assign(e.currentTarget.style, inactiveBtnHover); }}
+          onMouseLeave={e => { if (!selectMode) Object.assign(e.currentTarget.style, inactiveBtn); }}
         >
           {selectMode ? <><X className="w-3.5 h-3.5" />Annuler</> : <><CheckSquare className="w-3.5 h-3.5" />Selectionner</>}
         </button>
-
         {selectMode && (
-          <label className="flex items-center gap-1.5 cursor-pointer select-none px-2.5 py-1.5 rounded-lg" style={{ background: tokens.surface.hover, border: `1px solid ${tokens.surface.borderLight}` }}>
+          <label className="inline-flex items-center gap-2 h-9 px-3 rounded-lg cursor-pointer select-none" style={{ background: t.surface.secondary, border: `1px solid ${t.surface.border}` }}>
             <CheckBox checked={allChecked} indeterminate={!allChecked && someChecked} onChange={toggleAll} />
-            <span className="text-[11px] font-medium" style={{ color: tokens.text.secondary }}>Tout</span>
+            <span className="text-xs font-medium" style={{ color: t.text.secondary }}>Tout</span>
           </label>
         )}
+      </div>
+    ),
 
-        <div className="w-px h-5 mx-0.5" style={{ background: tokens.surface.border }} />
-
+    workmode: () => (
+      <div key="workmode" className="flex items-center gap-2">
         <button
           onClick={onWorkModeToggle}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all hover:scale-[1.02] active:scale-[0.98]"
-          style={workModeEnabled ? {
-            background: 'rgba(249,115,22,0.08)',
-            border: '1px solid rgba(249,115,22,0.2)',
-            color: '#f97316',
-          } : {
-            background: tokens.surface.hover,
-            border: `1px solid ${tokens.surface.borderLight}`,
-            color: tokens.text.secondary,
-          }}
+          className="inline-flex items-center gap-2 h-9 px-4 rounded-lg text-xs font-semibold transition-all duration-200"
+          style={workModeEnabled
+            ? { background: t.accent.bg, border: `1px solid ${t.accent.border}`, color: t.accent.text, boxShadow: `0 0 12px ${t.accent.bg}` }
+            : inactiveBtn
+          }
+          onMouseEnter={e => { if (!workModeEnabled) Object.assign(e.currentTarget.style, inactiveBtnHover); }}
+          onMouseLeave={e => { if (!workModeEnabled) Object.assign(e.currentTarget.style, inactiveBtn); }}
         >
-          <Briefcase className="w-3.5 h-3.5" />
-          Mode travail
+          <Briefcase className="w-3.5 h-3.5" />Mode travail
         </button>
-
         {workModeEnabled && (
-          <div className="flex items-center gap-2 ml-1 relative">
-            <div className="flex items-center rounded-lg overflow-hidden" style={{ border: '1px solid rgba(249,115,22,0.2)' }}>
-              <button
-                onClick={onUndo}
-                disabled={!canUndo}
-                className="w-7 h-7 flex items-center justify-center transition-colors disabled:opacity-25 hover:bg-orange-50"
-                style={{ color: '#f97316' }}
-              >
-                <Undo2 className="w-3.5 h-3.5" />
+          <>
+            <div className="inline-flex items-center h-9 rounded-lg overflow-hidden" style={{ background: t.accent.bg, border: `1px solid ${t.accent.border}` }}>
+              <button onClick={onUndo} disabled={!canUndo} className="w-9 h-full flex items-center justify-center transition-all duration-200 disabled:opacity-25" style={{ color: t.accent.text }} onMouseEnter={e => { if (canUndo) e.currentTarget.style.background = t.accent.bgHover; }} onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}>
+                <ChevronLeft className="w-4 h-4" />
               </button>
-              <span
-                className="text-[11px] font-bold tabular-nums px-2 h-7 flex items-center border-x"
-                style={{ color: '#f97316', background: 'rgba(249,115,22,0.04)', borderColor: 'rgba(249,115,22,0.15)' }}
-              >
-                {historyPosition}/{historyLength}
-              </span>
-              <button
-                onClick={onRedo}
-                disabled={!canRedo}
-                className="w-7 h-7 flex items-center justify-center transition-colors disabled:opacity-25 hover:bg-orange-50"
-                style={{ color: '#f97316' }}
-              >
-                <Redo2 className="w-3.5 h-3.5" />
-              </button>
-            </div>
-
-            <button
-              onClick={onLocate}
-              disabled={!canLocate}
-              className="w-7 h-7 rounded-lg flex items-center justify-center transition-all disabled:opacity-25 hover:scale-105"
-              style={{ background: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.2)', color: '#f97316' }}
-            >
-              <LocateFixed className="w-3.5 h-3.5" />
-            </button>
-
-            {historyLength > 0 && (
-              <button
-                onClick={handleReset}
-                className="flex items-center gap-1.5 h-7 px-2.5 rounded-lg transition-all hover:scale-[1.02] active:scale-95"
-                style={{ background: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.2)', color: '#f97316' }}
-                title="Reinitialiser le compteur"
-              >
-                <RotateCcw className="w-3 h-3" />
-                <span className="text-[10px] font-semibold">Reset</span>
-              </button>
-            )}
-
-            {showToast && (
-              <div
-                className="absolute -bottom-8 left-0 z-50 rounded-md px-2.5 py-1 shadow-lg text-[10px] font-medium whitespace-nowrap"
-                style={{ background: tokens.card.bg, border: `1px solid ${tokens.surface.border}`, color: '#f97316' }}
-              >
-                Historique reinitialise
+              <div className="h-full flex items-center px-3 border-x" style={{ borderColor: t.accent.border }}>
+                <span className="text-xs font-bold tabular-nums" style={{ color: t.accent.text }}>{historyPosition} / {historyLength}</span>
               </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Mobile: 2-line layout */}
-      <div className="flex md:hidden flex-col gap-2">
-        {/* Line 1: primary actions */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={onToggleSelectMode}
-            className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-[11px] font-semibold transition-all active:scale-95"
-            style={selectMode ? {
-              background: 'rgba(239,68,68,0.08)',
-              border: '1px solid rgba(239,68,68,0.2)',
-              color: '#ef4444',
-            } : {
-              background: tokens.surface.hover,
-              border: `1px solid ${tokens.surface.borderLight}`,
-              color: tokens.text.secondary,
-            }}
-          >
-            {selectMode ? <><X className="w-3.5 h-3.5" />Annuler</> : <><CheckSquare className="w-3.5 h-3.5" />Select.</>}
-          </button>
-
-          {selectMode && (
-            <label className="flex items-center gap-1.5 cursor-pointer select-none px-2 py-2 rounded-lg" style={{ background: tokens.surface.hover, border: `1px solid ${tokens.surface.borderLight}` }}>
-              <CheckBox checked={allChecked} indeterminate={!allChecked && someChecked} onChange={toggleAll} />
-              <span className="text-[11px] font-medium" style={{ color: tokens.text.secondary }}>Tout</span>
-            </label>
-          )}
-
-          <button
-            onClick={onWorkModeToggle}
-            className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-[11px] font-semibold transition-all active:scale-95 ml-auto"
-            style={workModeEnabled ? {
-              background: 'rgba(249,115,22,0.08)',
-              border: '1px solid rgba(249,115,22,0.2)',
-              color: '#f97316',
-            } : {
-              background: tokens.surface.hover,
-              border: `1px solid ${tokens.surface.borderLight}`,
-              color: tokens.text.secondary,
-            }}
-          >
-            <Briefcase className="w-3.5 h-3.5" />
-            Travail
-          </button>
-        </div>
-
-        {/* Line 2: work mode controls */}
-        {workModeEnabled && (
-          <div className="flex items-center gap-2 relative">
-            <div className="flex items-center rounded-lg overflow-hidden flex-shrink-0" style={{ border: '1px solid rgba(249,115,22,0.2)' }}>
-              <button
-                onClick={onUndo}
-                disabled={!canUndo}
-                className="w-9 h-9 flex items-center justify-center transition-colors disabled:opacity-25"
-                style={{ color: '#f97316' }}
-              >
-                <Undo2 className="w-4 h-4" />
-              </button>
-              <span
-                className="text-[12px] font-bold tabular-nums px-2.5 h-9 flex items-center border-x"
-                style={{ color: '#f97316', background: 'rgba(249,115,22,0.04)', borderColor: 'rgba(249,115,22,0.15)' }}
-              >
-                {historyPosition}/{historyLength}
-              </span>
-              <button
-                onClick={onRedo}
-                disabled={!canRedo}
-                className="w-9 h-9 flex items-center justify-center transition-colors disabled:opacity-25"
-                style={{ color: '#f97316' }}
-              >
-                <Redo2 className="w-4 h-4" />
+              <button onClick={onRedo} disabled={!canRedo} className="w-9 h-full flex items-center justify-center transition-all duration-200 disabled:opacity-25" style={{ color: t.accent.text }} onMouseEnter={e => { if (canRedo) e.currentTarget.style.background = t.accent.bgHover; }} onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}>
+                <ChevronRight className="w-4 h-4" />
               </button>
             </div>
-
-            <button
-              onClick={onLocate}
-              disabled={!canLocate}
-              className="w-9 h-9 rounded-lg flex items-center justify-center transition-all disabled:opacity-25 flex-shrink-0"
-              style={{ background: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.2)', color: '#f97316' }}
-            >
+            <button onClick={onLocate} disabled={!canLocate} className="w-9 h-9 rounded-lg flex items-center justify-center transition-all duration-200 disabled:opacity-25" style={{ background: t.accent.bg, border: `1px solid ${t.accent.border}`, color: t.accent.text }} title="Centrer la ligne" onMouseEnter={e => { if (canLocate) e.currentTarget.style.background = t.accent.bgHover; }} onMouseLeave={e => { e.currentTarget.style.background = t.accent.bg; }}>
               <LocateFixed className="w-4 h-4" />
             </button>
-
             {historyLength > 0 && (
-              <button
-                onClick={handleReset}
-                className="flex items-center gap-1.5 h-9 px-3 rounded-lg transition-all active:scale-95 ml-auto flex-shrink-0"
-                style={{ background: 'rgba(249,115,22,0.08)', border: '1px solid rgba(249,115,22,0.2)', color: '#f97316' }}
-              >
-                <RotateCcw className="w-3.5 h-3.5" />
-                <span className="text-[11px] font-semibold">Reset</span>
+              <button onClick={handleReset} className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-xs font-semibold transition-all duration-200" style={{ background: t.danger.bg, border: `1px solid ${t.danger.border}`, color: t.danger.text }} title="Reinitialiser le compteur">
+                <RotateCcw className="w-3.5 h-3.5" />Reset
               </button>
             )}
+          </>
+        )}
+      </div>
+    ),
 
-            {showToast && (
-              <div
-                className="absolute -bottom-7 left-0 z-50 rounded-md px-2.5 py-1 shadow-lg text-[10px] font-medium whitespace-nowrap"
-                style={{ background: tokens.card.bg, border: `1px solid ${tokens.surface.border}`, color: '#f97316' }}
-              >
-                Historique reinitialise
-              </div>
-            )}
+    columns: () => columnsLocked ? (
+      <div key="columns" className="inline-flex items-center gap-2 h-9 px-4 rounded-lg text-xs font-semibold" style={{ background: t.surface.secondary, border: `1px solid ${t.surface.border}`, color: t.text.quaternary, opacity: 0.6 }} title="Votre admin a verrouille la personnalisation des colonnes.">
+        <Lock className="w-3.5 h-3.5" />Colonnes
+      </div>
+    ) : (
+      <button key="columns" onClick={onOpenColumns} className="inline-flex items-center gap-2 h-9 px-4 rounded-lg text-xs font-semibold transition-all duration-200" style={inactiveBtn} onMouseEnter={e => Object.assign(e.currentTarget.style, inactiveBtnHover)} onMouseLeave={e => Object.assign(e.currentTarget.style, inactiveBtn)}>
+        <Columns3 className="w-3.5 h-3.5" />Colonnes
+      </button>
+    ),
+
+    organize: () => (
+      <button key="organize" onClick={onOpenOrganize} className="inline-flex items-center gap-2 h-9 px-4 rounded-lg text-xs font-semibold transition-all duration-200" style={inactiveBtn} onMouseEnter={e => Object.assign(e.currentTarget.style, inactiveBtnHover)} onMouseLeave={e => Object.assign(e.currentTarget.style, inactiveBtn)}>
+        <SlidersHorizontal className="w-3.5 h-3.5" />Organiser
+      </button>
+    ),
+  }), [
+    selectMode, allChecked, someChecked, toggleAll, onToggleSelectMode,
+    workModeEnabled, onWorkModeToggle, canUndo, canRedo, historyPosition, historyLength, canLocate,
+    onUndo, onRedo, onLocate, onResetHistory,
+    onOpenColumns, onOpenOrganize, columnsLocked, t,
+  ]);
+
+  const orderedTools = toolbarOrder.filter(id => id in toolRenderers) as ToolId[];
+
+  return (
+    <div className="px-3 md:px-4 py-2.5 md:py-0" style={{ borderBottom: `1px solid ${t.surface.border}` }}>
+      {/* Desktop */}
+      <div className="hidden md:flex items-center gap-0 py-3 px-2 flex-wrap" style={{ background: t.card.bg, borderRadius: 12 }}>
+        {orderedTools.map((id, idx) => {
+          const node = toolRenderers[id]();
+          if (!node) return null;
+          return (
+            <div key={id} className="flex items-center">
+              {idx > 0 && <div className="w-px h-6 mx-3 rounded-full" style={{ background: t.surface.border }} />}
+              {node}
+            </div>
+          );
+        })}
+        {showToast && (
+          <div className="ml-2 inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-[10px] font-semibold animate-pulse" style={{ background: t.success.bg, border: `1px solid ${t.success.border}`, color: t.success.text }}>
+            Historique reinitialise
           </div>
         )}
       </div>
+
+      {/* Mobile */}
+      <VendorLeadWorkModeBarMobile
+        allChecked={allChecked} someChecked={someChecked} toggleAll={toggleAll}
+        selectMode={selectMode} onToggleSelectMode={onToggleSelectMode}
+        workModeEnabled={workModeEnabled} onWorkModeToggle={onWorkModeToggle}
+        onUndo={onUndo} onRedo={onRedo} canUndo={canUndo} canRedo={canRedo}
+        historyPosition={historyPosition} historyLength={historyLength}
+        onLocate={onLocate} canLocate={canLocate} onReset={handleReset}
+        onOpenColumns={onOpenColumns} onOpenOrganize={onOpenOrganize}
+        columnsLocked={columnsLocked} showToast={showToast} inactiveBtn={inactiveBtn} t={t}
+      />
+
+      {columnsLocked && (
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg mt-2 md:mt-0 md:mb-2 md:mx-2"
+          style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)' }}
+        >
+          <Lock className="w-3.5 h-3.5 flex-shrink-0" style={{ color: '#ef4444' }} />
+          <span className="text-[11px] font-medium" style={{ color: '#ef4444' }}>
+            Votre admin a verrouille la personnalisation des colonnes.
+          </span>
+        </div>
+      )}
     </div>
   );
 }

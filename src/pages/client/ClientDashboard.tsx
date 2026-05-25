@@ -10,6 +10,9 @@ import { ArrowLeft } from 'lucide-react';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
 import { useUnreadAdminMessages } from '../../hooks/useUnreadAdminMessages';
 import { useAgendaNotifications } from '../../hooks/useAgendaNotifications';
+import DemoEmitterLayer from '../../components/demo/DemoEmitterLayer';
+import DemoReceiverLayer from '../../components/demo/DemoReceiverLayer';
+import { useDemoSessionSafe } from '../../components/demo/DemoSessionContext';
 
 export interface ImpersonatedClientInfo {
   id: string;
@@ -23,12 +26,15 @@ interface ClientDashboardProps {
   impersonatedClient?: ImpersonatedClientInfo | null;
   onBackToAdmin?: () => void;
   backLabel?: string;
+  isSAViewing?: boolean;
 }
 
 export type ClientActiveView = 'vue-ensemble' | 'messagerie' | 'agenda' | 'propositions-rdv';
 
-export default function ClientDashboard({ onLogout, impersonatedClient, onBackToAdmin, backLabel = 'Retour admin' }: ClientDashboardProps) {
+export default function ClientDashboard({ onLogout, impersonatedClient, onBackToAdmin, backLabel = 'Retour admin', isSAViewing }: ClientDashboardProps) {
   const tokens = useThemeTokens();
+  const demoCtx = useDemoSessionSafe();
+  const demoStatus: 'idle' | 'pending' | 'active' = demoCtx?.session?.status === 'active' ? 'active' : demoCtx?.session?.status === 'pending' ? 'pending' : 'idle';
   const [activeView, setActiveView] = useState<ClientActiveView>('vue-ensemble');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -238,20 +244,48 @@ export default function ClientDashboard({ onLogout, impersonatedClient, onBackTo
       <div className="flex flex-col flex-1 min-h-0">
         {impersonatedClient && onBackToAdmin && (
           <div
-            className="flex items-center gap-3 px-5 py-2.5"
-            style={{ background: 'rgba(14,165,233,0.06)', borderBottom: '1px solid rgba(14,165,233,0.15)' }}
+            className="flex items-center justify-between gap-3 px-4 sm:px-5 py-2.5"
+            style={{
+              background: isSAViewing && demoStatus === 'active'
+                ? 'linear-gradient(135deg, rgba(14,165,233,0.08) 0%, rgba(245,158,11,0.06) 100%)'
+                : 'rgba(14,165,233,0.06)',
+              borderBottom: isSAViewing && demoStatus === 'active'
+                ? '1px solid rgba(245,158,11,0.25)'
+                : '1px solid rgba(14,165,233,0.15)',
+            }}
           >
-            <button
-              onClick={onBackToAdmin}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105"
-              style={{ background: 'rgba(14,165,233,0.1)', border: '1px solid rgba(14,165,233,0.25)', color: '#0ea5e9' }}
-            >
-              <ArrowLeft className="w-3 h-3" />
-              {backLabel}
-            </button>
-            <span className="text-xs" style={{ color: tokens.text.quaternary }}>
-              Vue client de <span className="font-medium" style={{ color: tokens.text.secondary }}>{clientName}</span>
-            </span>
+            <div className="flex items-center gap-3 min-w-0">
+              {(!isSAViewing || demoStatus !== 'active') && (
+                <button
+                  onClick={onBackToAdmin}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105 flex-shrink-0"
+                  style={{ background: 'rgba(14,165,233,0.1)', border: '1px solid rgba(14,165,233,0.25)', color: '#0ea5e9' }}
+                >
+                  <ArrowLeft className="w-3 h-3" />
+                  {backLabel}
+                </button>
+              )}
+              <span className="text-xs truncate" style={{ color: isSAViewing && demoStatus === 'active' ? '#f59e0b' : tokens.text.quaternary }}>
+                {isSAViewing && demoStatus === 'active' ? (
+                  <>Demo en direct active avec <span className="font-medium">{clientName}</span></>
+                ) : isSAViewing && demoStatus === 'pending' ? (
+                  <>Invitation demo envoyee a <span className="font-medium">{clientName}</span></>
+                ) : (
+                  <>Vue client de <span className="font-medium" style={{ color: tokens.text.secondary }}>{clientName}</span></>
+                )}
+              </span>
+            </div>
+            {isSAViewing && impersonatedClient && (
+              <DemoEmitterLayer
+                activeView={activeView}
+                viewLabel={getBreadcrumb()}
+                targetUserId={impersonatedClient.id}
+                targetRole="client"
+                targetName={[impersonatedClient.prenom, impersonatedClient.nom].filter(Boolean).join(' ') || impersonatedClient.email}
+                companyId={null}
+                tokens={tokens}
+              />
+            )}
           </div>
         )}
         <ClientTopBar
@@ -267,7 +301,9 @@ export default function ClientDashboard({ onLogout, impersonatedClient, onBackTo
           propositionsCount={unseenProposals.length}
           propositionsEntries={unseenProposals}
           onPropositionEntryClick={handleProposalNotifClick}
+          onMobileShortcut={(view) => setActiveView(view as ClientActiveView)}
         />
+        {!isSAViewing && !impersonatedClient && <DemoReceiverLayer userId={clientAuthId || null} onViewChange={(v) => setActiveView(v as ClientActiveView)} />}
         <main
           className={`flex-1 flex flex-col md:p-6 mobile-main-scroll ${activeView === 'messagerie' ? 'p-2 sm:p-3 overflow-hidden' : 'p-3 sm:p-4 overflow-auto'}`}
           style={{ minHeight: 0 }}

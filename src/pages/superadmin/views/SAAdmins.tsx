@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import { List, Plus, RefreshCw, Trash2, X, ArrowUpDown } from 'lucide-react';
+import { List, Plus, RefreshCw, Trash2, X, ArrowUpDown, Columns3 } from 'lucide-react';
 import { useThemeTokens } from '../../../hooks/useThemeTokens';
 import AdminDetailModal from './admins/AdminDetailModal';
 import SAAdminsCreateModal from './admins/SAAdminsCreateModal';
@@ -10,6 +10,22 @@ import SAAdminsDesktopTable from './admins/SAAdminsDesktopTable';
 import SAAdminsActionsPopover from './admins/SAAdminsActionsPopover';
 import { supabase } from '../../../lib/supabase';
 import SiteManagerModal from './site-builder/SiteManagerModal';
+import useColumnOrder from '../../../components/table/useColumnOrder';
+import useColumnOrderMobile from '../../../components/table/useColumnOrderMobile';
+import ColumnOrganizerModal from '../../../components/table/ColumnOrganizerModal';
+import { useCustomColumns } from '../../../hooks/useCustomColumns';
+
+const SA_ADMINS_COLUMNS = [
+  { key: 'prenom', label: 'Prenom' },
+  { key: 'nom', label: 'Nom' },
+  { key: 'email', label: 'Email' },
+  { key: 'societe', label: 'Societe' },
+  { key: 'telephone', label: 'Telephone' },
+  { key: 'role', label: 'Role' },
+  { key: 'cree_le', label: 'Cree le' },
+  { key: 'acces', label: 'Acces', required: true },
+  { key: 'actions', label: 'Actions', required: true },
+];
 
 export interface AdminUser {
   id: string;
@@ -51,6 +67,12 @@ export default function SAAdmins({ onConnectAsAdmin, onOpenChat, cachedAdmins, r
   const [actionsOpenId, setActionsOpenId] = useState<string | null>(null);
   const [popoverPos, setPopoverPos] = useState<{ top: number; left: number } | null>(null);
   const actionsBtnRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const cc = useCustomColumns('sa_liste_admins');
+  const allColumns = useMemo(() => [...SA_ADMINS_COLUMNS, ...cc.customDefs], [cc.customDefs]);
+  const colOrder = useColumnOrder('talvex_columns_sa_liste_admins', allColumns);
+  const colMobile = useColumnOrderMobile('talvex_columns_sa_liste_admins', allColumns);
+  const [showColModal, setShowColModal] = useState(false);
+  const displayColumns = useMemo(() => allColumns.map(c => colOrder.labelOverrides[c.key] ? { ...c, label: colOrder.labelOverrides[c.key] } : c), [allColumns, colOrder.labelOverrides]);
 
   const rawAdmins = cachedAdmins || [];
   const loading = refreshing ?? false;
@@ -183,6 +205,7 @@ export default function SAAdmins({ onConnectAsAdmin, onOpenChat, cachedAdmins, r
           ) : (
             <>
               <button data-testid="admins-delete-mode-button" onClick={enterSelectionMode} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105" style={{ background: tokens.surface.secondary, border: `1px solid ${tokens.surface.border}`, color: tokens.text.secondary }}><Trash2 className="w-3.5 h-3.5" />Selection</button>
+              <button onClick={() => setShowColModal(true)} className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105" style={{ background: tokens.surface.secondary, border: `1px solid ${tokens.surface.border}`, color: tokens.text.secondary }}><Columns3 className="w-3.5 h-3.5" />Colonnes</button>
               <button onClick={() => setReorderMode(prev => !prev)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105" style={reorderMode ? { background: tokens.accent.bg, border: `1px solid ${tokens.accent.border}`, color: tokens.accent.text } : { background: tokens.surface.secondary, border: `1px solid ${tokens.surface.border}`, color: tokens.text.secondary }}><ArrowUpDown className="w-3.5 h-3.5" />{reorderMode ? 'Terminer' : 'Reorganiser'}</button>
               <button onClick={fetchAdmins} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105" style={{ background: tokens.surface.secondary, border: `1px solid ${tokens.surface.border}`, color: tokens.text.secondary }}><RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />Actualiser</button>
               <button onClick={() => setShowCreateModal(true)} data-testid="create-admin-button" className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105 text-white" style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', boxShadow: '0 2px 12px rgba(245,158,11,0.3)' }}><Plus className="w-3.5 h-3.5" />Creer un admin</button>
@@ -194,7 +217,7 @@ export default function SAAdmins({ onConnectAsAdmin, onOpenChat, cachedAdmins, r
 
       {error && <div className="px-4 py-3 rounded-lg text-xs font-medium" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', color: '#f87171' }}>{error}</div>}
 
-      <div className="rounded-2xl overflow-hidden" data-testid="admins-list" style={{ background: tokens.card.bg, border: `1px solid ${tokens.card.border}` }}>
+      <div className="rounded-2xl overflow-hidden" data-testid="admins-list" style={{ background: tokens.card.bg, border: `1px solid ${tokens.card.border}`, boxShadow: tokens.card.shadow }}>
         {admins.length === 0 && loading ? (
           <div className="hidden md:block overflow-x-hidden">
             <table className="w-full table-auto" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
@@ -216,6 +239,10 @@ export default function SAAdmins({ onConnectAsAdmin, onOpenChat, cachedAdmins, r
               onMoveAdmin={moveAdmin} onReorderDrop={reorderDrop} reorderMode={reorderMode}
               onOpenActions={openActionsPopover} onAccessToggled={fetchAdmins}
               formatDate={formatDate} tokens={tokens} actionsBtnRefs={actionsBtnRefs}
+              columnOrder={colOrder.visibleOrderedKeys}
+              customColumnDefs={cc.customDefs}
+              getCustomValues={cc.getValuesForRow}
+              labelOverrides={colOrder.labelOverrides}
             />
             <div className="md:hidden divide-y" style={{ borderColor: tokens.table.rowBorder }}>
               {admins.map((admin, idx) => (
@@ -236,6 +263,7 @@ export default function SAAdmins({ onConnectAsAdmin, onOpenChat, cachedAdmins, r
       {showDeleteModal && <SAAdminsBulkDeleteModal count={selectedIds.size} loading={deleting} onConfirm={handleBulkDelete} onCancel={() => setShowDeleteModal(false)} />}
       {homePageAdmin && <AdminHomePageModal admin={homePageAdmin} onClose={() => setHomePageAdmin(null)} />}
       {siteAdmin && <SiteManagerModal ownerType="admin_company" title={`Site de ${siteAdmin.company || siteAdmin.first_name + ' ' + siteAdmin.last_name}`} subtitle={`Gestion du site pour la societe ${siteAdmin.company || siteAdmin.email}`} companyId={siteAdmin.company_id} onClose={() => setSiteAdmin(null)} />}
+      {showColModal && <ColumnOrganizerModal columns={displayColumns} orderedKeys={colOrder.orderedKeys} hiddenDesktopKeys={colOrder.hiddenDesktopKeys} tableKey="sa_liste_admins" onSave={colOrder.saveAll} onReset={colOrder.resetAll} onClose={() => setShowColModal(false)} onCreateCustomColumn={cc.createColumn} onDeleteCustomColumn={cc.deleteColumn} onRenameCustomColumn={cc.renameColumn} onRenameLabel={colOrder.renameLabel} mobileOrder={colMobile.mobileOrder} mobileCardStyle={colMobile.cardStyle} onSaveMobile={colMobile.saveMobile} onResetMobile={colMobile.resetMobile} />}
     </div>
   );
 }

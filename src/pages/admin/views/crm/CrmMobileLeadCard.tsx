@@ -164,10 +164,10 @@ export default function CrmMobileLeadCard({
           <button
             onClick={() => onToggleActif(lead.id, actif)}
             className="relative inline-flex items-center rounded-full transition-all duration-300 focus:outline-none"
-            style={{ width: 34, height: 18, background: actif ? 'rgba(52,211,153,0.25)' : 'rgba(255,255,255,0.08)', border: actif ? '1px solid rgba(52,211,153,0.4)' : '1px solid rgba(255,255,255,0.1)' }}
+            style={{ width: 34, height: 18, background: actif ? tokens.success.bg : tokens.surface.hover, border: actif ? `1px solid ${tokens.success.border}` : `1px solid ${tokens.surface.borderLight}` }}
             title={actif ? 'Desactiver' : 'Activer'}
           >
-            <span className="absolute rounded-full transition-all duration-300" style={{ width: 10, height: 10, left: actif ? 20 : 3, background: actif ? tokens.success.text : 'rgba(255,255,255,0.3)', boxShadow: actif ? '0 0 6px rgba(52,211,153,0.8)' : 'none' }} />
+            <span className="absolute rounded-full transition-all duration-300" style={{ width: 10, height: 10, left: actif ? 20 : 3, background: actif ? tokens.success.text : tokens.text.quaternary, boxShadow: actif ? `0 0 6px ${tokens.success.text}` : 'none' }} />
           </button>
         </div>
 
@@ -177,10 +177,10 @@ export default function CrmMobileLeadCard({
           <button
             onClick={() => onToggleAi(lead.id, aiEnabled)}
             className="relative inline-flex items-center rounded-full transition-all duration-300 focus:outline-none"
-            style={{ width: 34, height: 18, background: aiEnabled ? 'rgba(59,130,246,0.25)' : 'rgba(255,255,255,0.08)', border: aiEnabled ? '1px solid rgba(59,130,246,0.4)' : '1px solid rgba(255,255,255,0.1)' }}
+            style={{ width: 34, height: 18, background: aiEnabled ? 'rgba(59,130,246,0.25)' : tokens.surface.hover, border: aiEnabled ? '1px solid rgba(59,130,246,0.4)' : `1px solid ${tokens.surface.borderLight}` }}
             title={aiEnabled ? 'Mode IA' : 'Mode manuel'}
           >
-            <span className="absolute rounded-full transition-all duration-300" style={{ width: 10, height: 10, left: aiEnabled ? 20 : 3, background: aiEnabled ? '#3b82f6' : 'rgba(255,255,255,0.3)', boxShadow: aiEnabled ? '0 0 6px rgba(59,130,246,0.8)' : 'none' }} />
+            <span className="absolute rounded-full transition-all duration-300" style={{ width: 10, height: 10, left: aiEnabled ? 20 : 3, background: aiEnabled ? '#3b82f6' : tokens.text.quaternary, boxShadow: aiEnabled ? '0 0 6px rgba(59,130,246,0.8)' : 'none' }} />
           </button>
         </div>
       </div>

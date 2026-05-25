@@ -11,6 +11,8 @@ import { redTokens } from './themeTokensRed';
 import { orangeTokens } from './themeTokensOrange';
 import { yellowTokens } from './themeTokensYellow';
 import { highLevelLightTokens } from './themeTokensHighLevelLight';
+import { highLevelDarkTokens } from './themeTokensHighLevelDark';
+import { highLevelEmeraldTokens } from './themeTokensHighLevelEmerald';
 
 export type { ThemeTokens } from './themeTokensTypes';
 
@@ -27,6 +29,8 @@ const tokenMap: Record<Theme, typeof darkTokens> = {
   orange: orangeTokens,
   yellow: yellowTokens,
   highlevel_light: highLevelLightTokens,
+  highlevel_dark: highLevelDarkTokens,
+  highlevel_emerald: highLevelEmeraldTokens,
 };
 
 export function getThemeTokens(theme: Theme) {

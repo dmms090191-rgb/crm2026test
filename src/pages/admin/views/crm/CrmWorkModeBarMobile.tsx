@@ -1,4 +1,4 @@
-import { Undo2, Redo2, Briefcase, LocateFixed, CheckSquare, X, RotateCcw, Bot } from 'lucide-react';
+import { Briefcase, LocateFixed, CheckSquare, X, RotateCcw, Bot, ChevronLeft, ChevronRight, Columns3, SlidersHorizontal } from 'lucide-react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 import CheckBox from './CheckBox';
 
@@ -22,6 +22,8 @@ interface Props {
   showToast: boolean;
   allAiEnabled?: boolean;
   onGlobalAiClick?: () => void;
+  onOpenColumns: () => void;
+  onOpenOrganize: () => void;
 }
 
 export default function CrmWorkModeBarMobile({
@@ -29,129 +31,128 @@ export default function CrmWorkModeBarMobile({
   workModeEnabled, onWorkModeToggle,
   onUndo, onRedo, canUndo, canRedo, historyPosition, historyLength, onLocate, canLocate,
   onReset, showToast, allAiEnabled, onGlobalAiClick,
+  onOpenColumns, onOpenOrganize,
 }: Props) {
-  const tokens = useThemeTokens();
+  const t = useThemeTokens();
+
+  const inactiveBtn: React.CSSProperties = {
+    background: t.surface.primary, border: `1px solid ${t.surface.border}`, color: t.text.secondary,
+  };
 
   return (
-    <div className="flex md:hidden flex-col gap-2">
-      <div className="flex items-center gap-2">
+    <div className="flex md:hidden flex-col gap-2.5" style={{ background: t.card.bg, borderRadius: 12, padding: '10px 12px' }}>
+      {/* Row 1: Selection + IA + Work mode */}
+      <div className="flex items-center gap-2 flex-wrap">
         <button
           onClick={onToggleSelectMode}
-          className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-[11px] font-semibold transition-all active:scale-95"
-          style={selectMode ? {
-            background: 'rgba(239,68,68,0.08)',
-            border: '1px solid rgba(239,68,68,0.2)',
-            color: '#ef4444',
-          } : {
-            background: tokens.surface.hover,
-            border: `1px solid ${tokens.surface.borderLight}`,
-            color: tokens.text.secondary,
-          }}
+          className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg text-xs font-semibold transition-all active:scale-95"
+          style={selectMode ? { background: t.danger.bg, border: `1px solid ${t.danger.border}`, color: t.danger.text } : inactiveBtn}
         >
           {selectMode ? <><X className="w-3.5 h-3.5" />Annuler</> : <><CheckSquare className="w-3.5 h-3.5" />Select.</>}
         </button>
 
         {selectMode && (
-          <label className="flex items-center gap-1.5 cursor-pointer select-none px-2 py-2 rounded-lg" style={{ background: tokens.surface.hover, border: `1px solid ${tokens.surface.borderLight}` }}>
+          <label className="inline-flex items-center gap-1.5 h-9 px-2.5 rounded-lg cursor-pointer select-none" style={{ background: t.surface.secondary, border: `1px solid ${t.surface.border}` }}>
             <CheckBox checked={allChecked} indeterminate={!allChecked && someChecked} onChange={toggleAll} />
-            <span className="text-[11px] font-medium" style={{ color: tokens.text.secondary }}>Tout</span>
+            <span className="text-xs font-medium" style={{ color: t.text.secondary }}>Tout</span>
           </label>
         )}
 
         {onGlobalAiClick && (
           <button
             onClick={onGlobalAiClick}
-            className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-[11px] font-semibold transition-all active:scale-95"
-            style={allAiEnabled ? {
-              background: 'rgba(6,182,212,0.1)',
-              border: '1px solid rgba(6,182,212,0.3)',
-              color: '#06b6d4',
-            } : {
-              background: tokens.surface.hover,
-              border: `1px solid ${tokens.surface.borderLight}`,
-              color: tokens.text.secondary,
-            }}
+            className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg text-xs font-semibold transition-all active:scale-95"
+            style={allAiEnabled
+              ? { background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.22)', color: '#3b82f6' }
+              : inactiveBtn
+            }
           >
             <Bot className="w-3.5 h-3.5" />
-            {allAiEnabled ? 'IA : Tous' : 'IA : Aucun'}
+            {allAiEnabled ? 'IA' : 'IA'}
           </button>
         )}
 
         <button
           onClick={onWorkModeToggle}
-          className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-[11px] font-semibold transition-all active:scale-95 ml-auto"
-          style={workModeEnabled ? {
-            background: 'rgba(249,115,22,0.08)',
-            border: '1px solid rgba(249,115,22,0.2)',
-            color: '#f97316',
-          } : {
-            background: tokens.surface.hover,
-            border: `1px solid ${tokens.surface.borderLight}`,
-            color: tokens.text.secondary,
-          }}
+          className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg text-xs font-semibold transition-all active:scale-95 ml-auto"
+          style={workModeEnabled
+            ? { background: t.accent.bg, border: `1px solid ${t.accent.border}`, color: t.accent.text, boxShadow: `0 0 12px ${t.accent.bg}` }
+            : inactiveBtn
+          }
         >
           <Briefcase className="w-3.5 h-3.5" />
           Travail
         </button>
       </div>
 
+      {/* Row 2: Work mode controls */}
       {workModeEnabled && (
         <div className="flex items-center gap-2 relative">
-          <div className="flex items-center rounded-lg overflow-hidden flex-shrink-0" style={{ border: '1px solid rgba(249,115,22,0.2)' }}>
-            <button
-              onClick={onUndo}
-              disabled={!canUndo}
-              className="w-9 h-9 flex items-center justify-center transition-colors disabled:opacity-25"
-              style={{ color: '#f97316' }}
+          {/* Navigation controller */}
+          <div className="inline-flex items-center h-9 rounded-lg overflow-hidden flex-shrink-0" style={{ background: t.accent.bg, border: `1px solid ${t.accent.border}` }}>
+            <button onClick={onUndo} disabled={!canUndo}
+              className="w-9 h-full flex items-center justify-center transition-all disabled:opacity-25"
+              style={{ color: t.accent.text }}
             >
-              <Undo2 className="w-4 h-4" />
+              <ChevronLeft className="w-4 h-4" />
             </button>
-            <span
-              className="text-[12px] font-bold tabular-nums px-2.5 h-9 flex items-center border-x"
-              style={{ color: '#f97316', background: 'rgba(249,115,22,0.04)', borderColor: 'rgba(249,115,22,0.15)' }}
+            <div className="h-full flex items-center px-2.5 border-x" style={{ borderColor: t.accent.border }}>
+              <span className="text-xs font-bold tabular-nums" style={{ color: t.accent.text }}>{historyPosition} / {historyLength}</span>
+            </div>
+            <button onClick={onRedo} disabled={!canRedo}
+              className="w-9 h-full flex items-center justify-center transition-all disabled:opacity-25"
+              style={{ color: t.accent.text }}
             >
-              {historyPosition}/{historyLength}
-            </span>
-            <button
-              onClick={onRedo}
-              disabled={!canRedo}
-              className="w-9 h-9 flex items-center justify-center transition-colors disabled:opacity-25"
-              style={{ color: '#f97316' }}
-            >
-              <Redo2 className="w-4 h-4" />
+              <ChevronRight className="w-4 h-4" />
             </button>
           </div>
 
-          <button
-            onClick={onLocate}
-            disabled={!canLocate}
+          {/* Locate */}
+          <button onClick={onLocate} disabled={!canLocate}
             className="w-9 h-9 rounded-lg flex items-center justify-center transition-all disabled:opacity-25 flex-shrink-0"
-            style={{ background: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.2)', color: '#f97316' }}
+            style={{ background: t.accent.bg, border: `1px solid ${t.accent.border}`, color: t.accent.text }}
           >
             <LocateFixed className="w-4 h-4" />
           </button>
 
+          {/* Reset */}
           {historyLength > 0 && (
-            <button
-              onClick={onReset}
-              className="flex items-center gap-1.5 h-9 px-3 rounded-lg transition-all active:scale-95 ml-auto flex-shrink-0"
-              style={{ background: 'rgba(249,115,22,0.08)', border: '1px solid rgba(249,115,22,0.2)', color: '#f97316' }}
+            <button onClick={onReset}
+              className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg text-xs font-semibold transition-all active:scale-95 ml-auto flex-shrink-0"
+              style={{ background: t.danger.bg, border: `1px solid ${t.danger.border}`, color: t.danger.text }}
             >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span className="text-[11px] font-semibold">Reset</span>
+              <RotateCcw className="w-3.5 h-3.5" />Reset
             </button>
           )}
 
+          {/* Toast */}
           {showToast && (
-            <div
-              className="absolute -bottom-7 left-0 z-50 rounded-md px-2.5 py-1 shadow-lg text-[10px] font-medium whitespace-nowrap"
-              style={{ background: tokens.card.bg, border: `1px solid ${tokens.surface.border}`, color: '#f97316' }}
+            <div className="absolute -bottom-8 left-0 z-50 rounded-full px-3 py-1 shadow-lg text-[10px] font-semibold whitespace-nowrap animate-pulse"
+              style={{ background: t.success.bg, border: `1px solid ${t.success.border}`, color: t.success.text }}
             >
               Historique reinitialise
             </div>
           )}
         </div>
       )}
+
+      {/* Row 3: Colonnes + Organiser */}
+      <div className="flex items-center gap-2">
+        <button
+          onClick={onOpenColumns}
+          className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg text-xs font-semibold transition-all active:scale-95"
+          style={inactiveBtn}
+        >
+          <Columns3 className="w-3.5 h-3.5" />Colonnes
+        </button>
+        <button
+          onClick={onOpenOrganize}
+          className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg text-xs font-semibold transition-all active:scale-95"
+          style={inactiveBtn}
+        >
+          <SlidersHorizontal className="w-3.5 h-3.5" />Organiser
+        </button>
+      </div>
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { useTimezone } from '../../hooks/useTimezone';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
 import { getCurrentTime } from '../../lib/timezone';
 import TimezoneModal from '../../components/TimezoneSearchDropdown';
+import MobileNotifStrip, { type MobileNotifItem } from '../../components/MobileNotifStrip';
 import SAProfileMenu from './topbar/SAProfileMenu';
 
 import type { AdminNotifEntry } from '../../hooks/useUnreadSuperAdminMessages';
@@ -17,6 +18,13 @@ const viewLabels: Record<string, string> = {
   sauvegarde: 'Sauvegarde & restauration',
   'mon-compte': 'Mon compte',
   'tests-systeme': 'Tests Système',
+  'crm-societe': 'CRM Societe',
+  'statuts': 'Statuts',
+  'api-ia': 'API IA',
+  'cerveau-ia': 'Cerveau IA',
+  'sites': 'Sites & Domaines',
+  'fonctions-talvex': 'Fonctions Talvex',
+  'site-talvex': 'Site',
 };
 
 interface SuperAdminTopBarProps {
@@ -27,9 +35,10 @@ interface SuperAdminTopBarProps {
   onAdminMsgEntryClick?: (entry: AdminNotifEntry) => void;
   saFirstName?: string;
   saLastName?: string;
+  onMobileShortcut?: (view: string) => void;
 }
 
-export default function SuperAdminTopBar({ activeView, onMobileMenuToggle, unreadAdminMsgCount = 0, unreadAdminMsgEntries = [], onAdminMsgEntryClick, saFirstName = '', saLastName = '' }: SuperAdminTopBarProps) {
+export default function SuperAdminTopBar({ activeView, onMobileMenuToggle, unreadAdminMsgCount = 0, unreadAdminMsgEntries = [], onAdminMsgEntryClick, saFirstName = '', saLastName = '', onMobileShortcut }: SuperAdminTopBarProps) {
   const { timezone, tzLabel, tzCode, setTimezone } = useTimezone();
   const t = useThemeTokens();
   const [tzModalOpen, setTzModalOpen] = useState(false);
@@ -149,6 +158,18 @@ export default function SuperAdminTopBar({ activeView, onMobileMenuToggle, unrea
         </div>
       </header>
 
+      {onMobileShortcut && (
+        <MobileNotifStrip
+          items={[
+            { key: 'chat-admin', icon: MessageSquare, label: 'Chat Admin', count: unreadAdminMsgCount, onClick: () => onMobileShortcut('chat-admin') },
+          ] as MobileNotifItem[]}
+          bg={t.topbar.bg}
+          border={t.topbar.border}
+          iconColor={t.topbar.notifIcon}
+          textColor={t.topbar.notifLabel}
+        />
+      )}
+
       <TimezoneModal
         open={tzModalOpen}
         currentTimezone={timezone}
@@ -172,8 +193,8 @@ function ClockButton({ tzLabel, tzCode, clock, onClick }: { tzLabel: string; tzC
       onMouseLeave={e => { e.currentTarget.style.background = 'rgba(245,158,11,0.06)'; e.currentTarget.style.borderColor = 'rgba(245,158,11,0.15)'; }}
     >
       <Clock className="w-3.5 h-3.5" style={{ color: '#f59e0b' }} />
-      <span className="text-xs font-medium hidden sm:block" style={{ color: '#94a3b8' }}>{tzLabel}</span>
-      {tzCode && <span className="text-xs font-medium sm:hidden" style={{ color: '#94a3b8' }}>{tzCode}</span>}
+      <span className="text-xs font-medium hidden sm:block" style={{ color: '#64748b' }}>{tzLabel}</span>
+      {tzCode && <span className="text-xs font-medium sm:hidden" style={{ color: '#64748b' }}>{tzCode}</span>}
       <span className="text-xs font-semibold font-mono" style={{ color: '#f59e0b' }}>{clock}</span>
     </button>
   );

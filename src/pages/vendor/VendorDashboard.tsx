@@ -15,6 +15,9 @@ import { useUnreadVendorAdminMessages } from '../../hooks/useUnreadVendorAdminMe
 import { useUnreadVendorClientMessages } from '../../hooks/useUnreadVendorClientMessages';
 import { useAgendaNotifications } from '../../hooks/useAgendaNotifications';
 import type { VendorClientNotifEntry } from './VendorTopBar';
+import DemoEmitterLayer from '../../components/demo/DemoEmitterLayer';
+import DemoReceiverLayer from '../../components/demo/DemoReceiverLayer';
+import { useDemoSessionSafe } from '../../components/demo/DemoSessionContext';
 
 export interface ImpersonatedVendor {
   id: string;
@@ -28,6 +31,7 @@ interface VendorDashboardProps {
   impersonatedVendor?: ImpersonatedVendor;
   onBackToAdmin?: () => void;
   onConnectAsClient?: (client: ImpersonatedClientInfo) => void;
+  isSAViewing?: boolean;
 }
 
 export type VendorActiveView = 'vue-ensemble' | 'leads' | 'chat-admin' | 'chat-client' | 'agenda' | 'propositions-rdv';
@@ -40,8 +44,10 @@ export interface VendorChatLead {
   tel?: string;
 }
 
-export default function VendorDashboard({ onLogout, impersonatedVendor, onBackToAdmin, onConnectAsClient }: VendorDashboardProps) {
+export default function VendorDashboard({ onLogout, impersonatedVendor, onBackToAdmin, onConnectAsClient, isSAViewing }: VendorDashboardProps) {
   const tokens = useThemeTokens();
+  const demoCtx = useDemoSessionSafe();
+  const demoStatus: 'idle' | 'pending' | 'active' = demoCtx?.session?.status === 'active' ? 'active' : demoCtx?.session?.status === 'pending' ? 'pending' : 'idle';
   const [activeView, setActiveView] = useState<VendorActiveView>('vue-ensemble');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -257,7 +263,21 @@ export default function VendorDashboard({ onLogout, impersonatedVendor, onBackTo
           confirmedCount={confirmedUnseen.length}
           confirmedEntries={confirmedUnseen}
           onConfirmedEntryClick={handleConfirmedEntryClick}
+          onMobileShortcut={(view) => setActiveView(view as VendorActiveView)}
+          demoStatus={isSAViewing ? demoStatus : 'idle'}
+          demoSlot={isSAViewing && impersonatedVendor ? (
+            <DemoEmitterLayer
+              activeView={activeView}
+              viewLabel={getBreadcrumb()}
+              targetUserId={impersonatedVendor.auth_user_id ?? impersonatedVendor.id}
+              targetRole="vendor"
+              targetName={[impersonatedVendor.first_name, impersonatedVendor.last_name].filter(Boolean).join(' ')}
+              companyId={null}
+              tokens={tokens}
+            />
+          ) : undefined}
         />
+        {!isSAViewing && !impersonatedVendor && <DemoReceiverLayer userId={vendorDbId} onViewChange={(v) => setActiveView(v as VendorActiveView)} />}
         <main
           className={`flex-1 flex flex-col md:p-6 mobile-main-scroll ${(activeView === 'chat-admin' || activeView === 'chat-client') ? 'p-2 sm:p-3 overflow-hidden' : 'p-3 sm:p-4 overflow-auto'}`}
           style={{ minHeight: 0 }}

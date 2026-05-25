@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X } from 'lucide-react';
+import { X, Columns3, Lock, Unlock } from 'lucide-react';
 import { supabase } from '../../../../lib/supabase';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
+import { useSimulation } from '../../../../contexts/SimulationContext';
 import type { Vendor, ModalTab } from './vendeurTypes';
 import PinDisplay from './PinDisplay';
 import CommentsTab from './CommentsTab';
@@ -10,7 +11,9 @@ import CopyButton from '../../../../components/CopyButton';
 
 export default function VendorDetailModal({ vendor, onClose, onUpdate }: { vendor: Vendor; onClose: () => void; onUpdate: () => void }) {
   const tokens = useThemeTokens();
+  const { isSimulating } = useSimulation();
   const [tab, setTab] = useState<ModalTab>('informations');
+  const [canCustomize, setCanCustomize] = useState(vendor.can_customize_columns !== false);
 
   useEffect(() => {
     document.body.style.overflow = 'hidden';
@@ -146,6 +149,41 @@ export default function VendorDetailModal({ vendor, onClose, onUpdate }: { vendo
                   style={{ background: tokens.modal.fieldBg, border: `1px solid ${tokens.modal.fieldBorder}`, color: tokens.modal.fieldValue }}
                 />
               </div>
+              <div className="rounded-xl p-3" style={{ background: tokens.surface.secondary, border: `1px solid ${tokens.surface.border}` }}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Columns3 className="w-4 h-4" style={{ color: tokens.text.tertiary }} />
+                    <div>
+                      <p className="text-xs font-semibold" style={{ color: tokens.text.primary }}>Personnalisation des colonnes</p>
+                      <p className="text-[10px]" style={{ color: tokens.text.quaternary }}>
+                        {canCustomize ? 'Le vendeur peut modifier ses colonnes' : 'Colonnes verrouillees par l\'admin'}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      if (isSimulating) return;
+                      const newVal = !canCustomize;
+                      setCanCustomize(newVal);
+                      await supabase.from('vendors').update({ can_customize_columns: newVal }).eq('id', vendor.id);
+                      onUpdate();
+                    }}
+                    className="relative w-11 h-6 rounded-full transition-all duration-300 flex-shrink-0"
+                    style={{
+                      background: canCustomize ? tokens.success.text : tokens.surface.border,
+                      opacity: isSimulating ? 0.5 : 1,
+                    }}
+                  >
+                    <div
+                      className="absolute top-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-all duration-300 flex items-center justify-center"
+                      style={{ left: canCustomize ? '22px' : '2px' }}
+                    >
+                      {canCustomize ? <Unlock className="w-2.5 h-2.5" style={{ color: tokens.success.text }} /> : <Lock className="w-2.5 h-2.5" style={{ color: tokens.text.quaternary }} />}
+                    </div>
+                  </button>
+                </div>
+              </div>
+
               <div className="flex items-center gap-3 pt-1">
                 <button
                   onClick={saveInfo}

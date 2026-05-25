@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
-import { Users } from 'lucide-react';
+import { Users, Hash, User, Mail, Phone, CalendarDays, Signal, Settings, Lock, Bot, UserCheck, CheckSquare, Briefcase, Columns3, SlidersHorizontal } from 'lucide-react';
 import { useThemeTokens } from '../../../hooks/useThemeTokens';
 import { useTimezone } from '../../../hooks/useTimezone';
 import type { ImpersonatedClient, ChatLead } from './crm/types';
@@ -11,6 +11,32 @@ import CrmMobileLeadCard from './crm/CrmMobileLeadCard';
 import DetailModal from './crm/DetailModal';
 import TransferModal from './crm/TransferModal';
 import { useCrmData } from './crm/useCrmData';
+import useColumnOrder from '../../../components/table/useColumnOrder';
+import useColumnOrderMobile from '../../../components/table/useColumnOrderMobile';
+import ColumnOrganizerModal from '../../../components/table/ColumnOrganizerModal';
+import { useCustomColumns } from '../../../hooks/useCustomColumns';
+import { useActionMenuOrder } from '../../../components/action-menu/useActionMenuOrder';
+import ToolbarOrganizerModal from '../../../components/toolbar/ToolbarOrganizerModal';
+import type { ToolbarItem } from '../../../components/toolbar/ToolbarOrganizerModal';
+
+const CRM_COLUMNS = [
+  { key: 'hash', label: '#' },
+  { key: 'nom', label: 'Nom' },
+  { key: 'prenom', label: 'Prenom' },
+  { key: 'email', label: 'Email' },
+  { key: 'telephone', label: 'Telephone' },
+  { key: 'date_ajout', label: "Date d'ajout" },
+  { key: 'statut', label: 'Statut', required: true },
+  { key: 'actions', label: 'Actions', required: true },
+  { key: 'acces', label: 'Acces', required: true },
+  { key: 'ia', label: 'IA', required: true },
+  { key: 'vendeur', label: 'Vendeur' },
+];
+
+const CRM_HEADER_ICONS: Record<string, React.FC<{ className?: string; style?: React.CSSProperties }>> = {
+  hash: Hash, nom: User, prenom: User, email: Mail, telephone: Phone,
+  date_ajout: CalendarDays, statut: Signal, actions: Settings, acces: Lock, ia: Bot, vendeur: UserCheck,
+};
 
 export type { ImpersonatedClient, ChatLead } from './crm/types';
 
@@ -25,7 +51,24 @@ export default function Crm({ onConnectAsClient, onOpenChat, onOpenRdv }: CrmPro
   const { timezone } = useTimezone();
   const d = useCrmData();
   const colSep = { borderRight: `1px solid ${tokens.table.colSep}` };
-  const cardStyle = { background: tokens.card.bg, border: tokens.card.border };
+  const cc = useCustomColumns('admin_crm');
+  const allColumns = useMemo(() => [...CRM_COLUMNS, ...cc.customDefs], [cc.customDefs]);
+  const colOrder = useColumnOrder('talvex_columns_admin_crm', allColumns);
+  const colMobile = useColumnOrderMobile('talvex_columns_admin_crm', allColumns);
+  const [showColModal, setShowColModal] = useState(false);
+  const [showOrgModal, setShowOrgModal] = useState(false);
+  const displayColumns = useMemo(() => allColumns.map(c => colOrder.labelOverrides[c.key] ? { ...c, label: colOrder.labelOverrides[c.key] } : c), [allColumns, colOrder.labelOverrides]);
+  const colMap = useMemo(() => new Map(displayColumns.map(c => [c.key, c])), [displayColumns]);
+
+  const CRM_TOOLBAR_DEFAULT = ['select', 'ia', 'workmode', 'columns', 'organize'];
+  const tbOrder = useActionMenuOrder('talvex_toolbar_order_admin_crm', CRM_TOOLBAR_DEFAULT);
+  const toolbarItems: ToolbarItem[] = useMemo(() => [
+    { id: 'select', label: 'Selectionner', icon: <CheckSquare className="w-3.5 h-3.5" /> },
+    { id: 'ia', label: 'IA', icon: <Bot className="w-3.5 h-3.5" /> },
+    { id: 'workmode', label: 'Mode travail', icon: <Briefcase className="w-3.5 h-3.5" />, pinned: true },
+    { id: 'columns', label: 'Colonnes', icon: <Columns3 className="w-3.5 h-3.5" />, pinned: true },
+    { id: 'organize', label: 'Organiser', icon: <SlidersHorizontal className="w-3.5 h-3.5" />, pinned: true },
+  ], []);
 
   const allAiEnabled = useMemo(() => d.leads.length > 0 && d.leads.every(l => l.ai_enabled === true), [d.leads]);
 
@@ -59,7 +102,7 @@ export default function Crm({ onConnectAsClient, onOpenChat, onOpenRdv }: CrmPro
         vendors={d.vendors} statutDefs={d.statutDefs} tokens={tokens}
       />
 
-      <div className="rounded-2xl overflow-hidden" style={cardStyle}>
+      <div className="rounded-2xl overflow-hidden" style={{ background: tokens.card.bg, border: `1px solid ${tokens.card.border}`, boxShadow: tokens.card.shadow }}>
         {d.loading ? (
           <div className="flex items-center justify-center py-16">
             <div className="w-6 h-6 border-2 border-t-cyan-400 rounded-full animate-spin" style={{ borderColor: tokens.text.quaternary, borderTopColor: '#22d3ee' }} />
@@ -87,26 +130,30 @@ export default function Crm({ onConnectAsClient, onOpenChat, onOpenRdv }: CrmPro
                 onResetHistory={d.workMode.resetHistory}
                 allAiEnabled={allAiEnabled}
                 onGlobalAiToggle={d.handleGlobalAiToggle}
+                onOpenColumns={() => setShowColModal(true)}
+                onOpenOrganize={() => setShowOrgModal(true)}
+                toolbarOrder={tbOrder.order}
               />
               <div ref={d.topScrollRef} onScroll={d.handleTopScroll} className="dual-scroll-top">
                 <div ref={d.topInnerRef} className="dual-scroll-top-inner" />
               </div>
               <div ref={d.bottomScrollRef} onScroll={d.handleBottomScroll} className="overflow-x-auto">
-                <table className="w-full" style={{ borderCollapse: 'collapse' }}>
+                <table className="w-full" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
                   <thead>
-                    <tr style={{ borderBottom: tokens.table.headerBorder, background: tokens.table.headerBg }}>
-                      {(selectMode || d.workMode.enabled) && <th className="px-2 py-3 w-11" style={colSep}></th>}
-                      <th className="text-left px-5 py-3 text-[10px] font-bold tracking-[0.12em] uppercase w-12" style={{ ...colSep, color: tokens.table.headerText }}>#</th>
-                      <th className="text-left px-5 py-3 text-[10px] font-bold tracking-[0.12em] uppercase" style={{ ...colSep, color: tokens.table.headerText }}>Nom</th>
-                      <th className="text-left px-5 py-3 text-[10px] font-bold tracking-[0.12em] uppercase" style={{ ...colSep, color: tokens.table.headerText }}>Prenom</th>
-                      <th className="text-left px-5 py-3 text-[10px] font-bold tracking-[0.12em] uppercase" style={{ ...colSep, color: tokens.table.headerText }}>Email</th>
-                      <th className="text-left px-5 py-3 text-[10px] font-bold tracking-[0.12em] uppercase" style={{ ...colSep, color: tokens.table.headerText }}>Telephone</th>
-                      <th className="text-left px-5 py-3 text-[10px] font-bold tracking-[0.12em] uppercase" style={{ ...colSep, color: tokens.table.headerText }}>Date d'ajout</th>
-                      <th className="text-left px-5 py-3 text-[10px] font-bold tracking-[0.12em] uppercase" style={{ ...colSep, color: tokens.table.headerText }}>Statut</th>
-                      <th className="text-left px-5 py-3 text-[10px] font-bold tracking-[0.12em] uppercase" style={{ ...colSep, color: tokens.table.headerText }}>Actions</th>
-                      <th className="text-left px-5 py-3 text-[10px] font-bold tracking-[0.12em] uppercase" style={{ ...colSep, color: tokens.table.headerText }}>Acces</th>
-                      <th className="text-left px-5 py-3 text-[10px] font-bold tracking-[0.12em] uppercase" style={{ ...colSep, color: tokens.table.headerText }}>IA</th>
-                      <th className="text-left px-5 py-3 text-[10px] font-bold tracking-[0.12em] uppercase" style={{ ...colSep, color: tokens.table.headerText }}>Vendeur</th>
+                    <tr className="sticky top-0 z-10" style={{ background: tokens.table.headerBg }}>
+                      {(selectMode || d.workMode.enabled) && <th className="px-3 py-4 w-12" style={{ borderBottom: `2px solid ${tokens.accent.solid}` }}></th>}
+                      {colOrder.visibleOrderedKeys.map(key => {
+                        const col = colMap.get(key);
+                        const Icon = CRM_HEADER_ICONS[key];
+                        return (
+                          <th key={key} className={`text-left px-5 py-4 ${key === 'hash' ? 'w-12' : ''}`} style={{ borderBottom: `2px solid ${tokens.accent.solid}` }}>
+                            <div className="flex items-center gap-2">
+                              {Icon && <Icon className="w-3 h-3 flex-shrink-0" style={{ color: tokens.accent.text, opacity: 0.6 }} />}
+                              <span className="text-[10px] font-bold tracking-[0.1em] uppercase" style={{ color: tokens.table.headerText }}>{col?.label ?? key}</span>
+                            </div>
+                          </th>
+                        );
+                      })}
                     </tr>
                   </thead>
                   <tbody>
@@ -124,6 +171,9 @@ export default function Crm({ onConnectAsClient, onOpenChat, onOpenRdv }: CrmPro
                         onWorkSelect={d.workMode.select} onWorkUndo={d.workMode.undo} onWorkRedo={d.workMode.redo}
                         canWorkUndo={d.workMode.canUndo} canWorkRedo={d.workMode.canRedo}
                         workHistoryPosition={d.workMode.historyPosition} workHistoryLength={d.workMode.historyLength}
+                        columnOrder={colOrder.visibleOrderedKeys}
+                        customColumnDefs={cc.customDefs}
+                        customColumnValues={cc.getValuesForRow(lead.id)}
                       />
                     ))}
                   </tbody>
@@ -144,6 +194,9 @@ export default function Crm({ onConnectAsClient, onOpenChat, onOpenRdv }: CrmPro
                 onResetHistory={d.workMode.resetHistory}
                 allAiEnabled={allAiEnabled}
                 onGlobalAiToggle={d.handleGlobalAiToggle}
+                onOpenColumns={() => setShowColModal(true)}
+                onOpenOrganize={() => setShowOrgModal(true)}
+                toolbarOrder={tbOrder.order}
               />
               <div className="divide-y" style={{ borderColor: tokens.table.rowBorder }}>
                 {d.filtered.map((lead, i) => (
@@ -165,10 +218,15 @@ export default function Crm({ onConnectAsClient, onOpenChat, onOpenRdv }: CrmPro
               </div>
             </div>
 
-            <div className="flex items-center justify-between px-5 py-3" style={{ borderTop: `1px solid ${tokens.table.rowBorder}` }}>
-              <p className="text-xs" style={{ color: tokens.table.footerText }}>{d.filtered.length} lead{d.filtered.length !== 1 ? 's' : ''} affiche{d.filtered.length !== 1 ? 's' : ''}</p>
+            <div className="flex items-center justify-between px-6 py-3.5" style={{ borderTop: `1px solid ${tokens.surface.border}`, background: tokens.table.headerBg }}>
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold" style={{ background: tokens.accent.bg, color: tokens.accent.text, border: `1px solid ${tokens.accent.border}` }}>
+                  <Users className="w-3 h-3" />{d.filtered.length}
+                </span>
+                <span className="text-xs" style={{ color: tokens.table.footerText }}>lead{d.filtered.length !== 1 ? 's' : ''} affiche{d.filtered.length !== 1 ? 's' : ''}</span>
+              </div>
               {d.selected.size > 0 && (
-                <p className="text-xs" style={{ color: tokens.danger.text }}>{d.selected.size} selectionne{d.selected.size > 1 ? 's' : ''}</p>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold" style={{ background: tokens.danger.bg, color: tokens.danger.text, border: `1px solid ${tokens.danger.border}` }}>{d.selected.size} selectionne{d.selected.size > 1 ? 's' : ''}</span>
               )}
               {d.filtered.length === 0 && (d.filterNom || d.filterPrenom || d.filterEmail || d.filterTel) && (
                 <p className="text-xs" style={{ color: tokens.table.footerText }}>Aucun resultat pour ces filtres</p>
@@ -185,6 +243,10 @@ export default function Crm({ onConnectAsClient, onOpenChat, onOpenRdv }: CrmPro
       {d.showTransfer && (
         <TransferModal count={d.selected.size} onClose={() => d.setShowTransfer(false)} onConfirm={d.handleTransfer} />
       )}
+
+      {showColModal && <ColumnOrganizerModal columns={displayColumns} orderedKeys={colOrder.orderedKeys} hiddenDesktopKeys={colOrder.hiddenDesktopKeys} tableKey="admin_crm" onSave={colOrder.saveAll} onReset={colOrder.resetAll} onClose={() => setShowColModal(false)} onCreateCustomColumn={cc.createColumn} onDeleteCustomColumn={cc.deleteColumn} onRenameCustomColumn={cc.renameColumn} onRenameLabel={colOrder.renameLabel} mobileOrder={colMobile.mobileOrder} mobileCardStyle={colMobile.cardStyle} onSaveMobile={colMobile.saveMobile} onResetMobile={colMobile.resetMobile} />}
+
+      {showOrgModal && <ToolbarOrganizerModal items={toolbarItems} order={tbOrder.order} onSave={tbOrder.save} onClose={() => setShowOrgModal(false)} t={tokens} />}
     </div>
   );
 }

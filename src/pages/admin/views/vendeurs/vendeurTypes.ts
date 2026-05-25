@@ -7,6 +7,7 @@ export interface Vendor {
   phone: string;
   created_at: string;
   auth_user_id?: string | null;
+  can_customize_columns?: boolean;
 }
 
 export interface VendorComment {

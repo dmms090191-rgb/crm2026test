@@ -8,6 +8,7 @@ import AgendaEquipe from './views/AgendaEquipe';
 import { SimulationProvider } from '../../contexts/SimulationContext';
 import { SimulationBanner } from './views/sauvegarde/SimulationBanner';
 const VueEnsemble = lazy(() => import('./views/VueEnsemble'));
+const AdminSite = lazy(() => import('./views/AdminSite'));
 const Inscription = lazy(() => import('./views/Inscription'));
 const AjouterLeads = lazy(() => import('./views/AjouterLeads'));
 const AjouterVendeur = lazy(() => import('./views/AjouterVendeur'));
@@ -35,6 +36,9 @@ import { useAgendaEquipeNotifications } from '../../hooks/useAgendaEquipeNotific
 import { BREADCRUMB_LABELS } from './adminDashboardConstants';
 import { useAdminProposalNotifs } from './dashboard/useAdminProposalNotifs';
 import { useAdminNavHandlers } from './dashboard/useAdminNavHandlers';
+import DemoEmitterLayer from '../../components/demo/DemoEmitterLayer';
+import DemoReceiverLayer from '../../components/demo/DemoReceiverLayer';
+import { useDemoSessionSafe } from '../../components/demo/DemoSessionContext';
 
 export interface ImpersonatedAdminInfo {
   id: string;
@@ -51,10 +55,12 @@ interface AdminDashboardProps {
   onConnectAsClient?: (client: ImpersonatedClient) => void;
   impersonatedAdmin?: ImpersonatedAdminInfo | null;
   onBackToSuperAdmin?: () => void;
+  isSAViewing?: boolean;
 }
 
 export type ActiveView =
   | 'vue-ensemble'
+  | 'site'
   | 'info-admin'
   | 'inscription'
   | 'import-leads'
@@ -73,8 +79,10 @@ export type ActiveView =
   | 'system'
   | 'sauvegarde';
 
-export default function AdminDashboard({ onLogout, onConnectAsVendor, onConnectAsClient, impersonatedAdmin, onBackToSuperAdmin }: AdminDashboardProps) {
+export default function AdminDashboard({ onLogout, onConnectAsVendor, onConnectAsClient, impersonatedAdmin, onBackToSuperAdmin, isSAViewing }: AdminDashboardProps) {
   const t = useThemeTokens();
+  const demoCtx = useDemoSessionSafe();
+  const demoStatus: 'idle' | 'pending' | 'active' = demoCtx?.session?.status === 'active' ? 'active' : demoCtx?.session?.status === 'pending' ? 'pending' : 'idle';
   const { unreadCount: unreadClientCount, unreadEntries, markAsRead: markClientRead } = useUnreadClientMessages();
   const { unreadCount: unreadVendorCount, unreadEntries: unreadVendorEntries, markAsRead: markVendorRead } = useUnreadVendorMessages();
   const [adminAuthId, setAdminAuthId] = useState<string | null>(null);
@@ -164,6 +172,7 @@ export default function AdminDashboard({ onLogout, onConnectAsVendor, onConnectA
   const renderView = () => {
     switch (activeView) {
       case 'vue-ensemble': return <Suspense fallback={lazyFallback}><VueEnsemble onNavigate={handleNavigate} unreadClientConversations={unreadEntries.length} unreadVendorConversations={unreadVendorEntries.length} /></Suspense>;
+      case 'site': return <Suspense fallback={lazyFallback}><AdminSite /></Suspense>;
       case 'inscription': return <Suspense fallback={lazyFallback}><Inscription /></Suspense>;
       case 'import-leads': return <Suspense fallback={lazyFallback}><ImportLeads onNavigateToCrm={() => handleNavigate('crm')} /></Suspense>;
       case 'ajouter-leads': return <Suspense fallback={lazyFallback}><AjouterLeads /></Suspense>;
@@ -238,10 +247,24 @@ export default function AdminDashboard({ onLogout, onConnectAsVendor, onConnectA
           rescheduleRequestCount={rescheduleRequestUnseen.length}
           rescheduleRequestEntries={rescheduleRequestUnseen}
           onRescheduleRequestEntryClick={handleRescheduleRequestEntryClick}
+          onMobileShortcut={(view) => handleNavigate(view as ActiveView)}
           impersonatedAdmin={impersonatedAdmin}
           onBackToSuperAdmin={onBackToSuperAdmin}
+          demoStatus={isSAViewing ? demoStatus : 'idle'}
+          demoSlot={isSAViewing && impersonatedAdmin ? (
+            <DemoEmitterLayer
+              activeView={activeView}
+              viewLabel={getBreadcrumb()}
+              targetUserId={impersonatedAdmin.id}
+              targetRole="admin"
+              targetName={[impersonatedAdmin.first_name, impersonatedAdmin.last_name].filter(Boolean).join(' ') || impersonatedAdmin.email}
+              companyId={impersonatedAdmin.company_id ?? null}
+              tokens={t}
+            />
+          ) : undefined}
         />
         <SimulationBanner />
+        {!isSAViewing && <DemoReceiverLayer userId={adminAuthId} onViewChange={(v) => setActiveView(v as ActiveView)} />}
         <main
           className={`flex-1 flex flex-col md:p-6 mobile-main-scroll ${(activeView === 'chat-client' || activeView === 'chat-vendeur' || activeView === 'chat-super-admin') ? 'p-2 sm:p-3' : 'p-3 sm:p-4'}`}
           style={{

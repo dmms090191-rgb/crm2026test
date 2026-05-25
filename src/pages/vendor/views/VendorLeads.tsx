@@ -1,5 +1,6 @@
-import { useState, useCallback } from 'react';
-import { Users, Phone, Mail, ChevronDown, Filter, SlidersHorizontal } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { Users, Hash, User, Mail, Phone, CalendarDays, Signal, Settings, Lock, Columns3, CheckSquare, Briefcase, SlidersHorizontal } from 'lucide-react';
+import { supabase } from '../../../lib/supabase';
 import { useThemeTokens } from '../../../hooks/useThemeTokens';
 import { useTimezone } from '../../../hooks/useTimezone';
 import DualScrollWrapper from '../../../components/DualScrollWrapper';
@@ -7,8 +8,33 @@ import VendorLeadDetailModal from './VendorLeadDetailModal';
 import VendorLeadDesktopRow from './leads/VendorLeadDesktopRow';
 import VendorLeadMobileCard from './leads/VendorLeadMobileCard';
 import VendorLeadWorkModeBar from './leads/VendorLeadWorkModeBar';
+import VendorLeadsFilters from './leads/VendorLeadsFilters';
 import { useVendorLeadsData } from './leads/useVendorLeadsData';
+import useColumnOrder from '../../../components/table/useColumnOrder';
+import useColumnOrderMobile from '../../../components/table/useColumnOrderMobile';
+import ColumnOrganizerModal from '../../../components/table/ColumnOrganizerModal';
+import { useCustomColumns } from '../../../hooks/useCustomColumns';
+import { useActionMenuOrder } from '../../../components/action-menu/useActionMenuOrder';
+import ToolbarOrganizerModal from '../../../components/toolbar/ToolbarOrganizerModal';
+import type { ToolbarItem } from '../../../components/toolbar/ToolbarOrganizerModal';
 import type { VendorLeadsProps } from './vendorLeadsTypes';
+
+const VENDOR_LEADS_COLUMNS = [
+  { key: 'hash', label: '#' },
+  { key: 'nom', label: 'Nom' },
+  { key: 'prenom', label: 'Prenom' },
+  { key: 'email', label: 'Email' },
+  { key: 'telephone', label: 'Telephone' },
+  { key: 'date_ajout', label: "Date d'ajout" },
+  { key: 'statut', label: 'Statut', required: true },
+  { key: 'actions', label: 'Actions', required: true },
+  { key: 'acces', label: 'Acces', required: true },
+];
+
+const VENDOR_HEADER_ICONS: Record<string, React.FC<{ className?: string; style?: React.CSSProperties }>> = {
+  hash: Hash, nom: User, prenom: User, email: Mail, telephone: Phone,
+  date_ajout: CalendarDays, statut: Signal, actions: Settings, acces: Lock,
+};
 
 export type { VendorChatLeadRef } from './vendorLeadsTypes';
 
@@ -18,6 +44,31 @@ export default function VendorLeads({ vendorId, onOpenChat, onConnectAsClient, o
   const d = useVendorLeadsData(vendorId);
   const colSep = { borderRight: `1px solid ${tokens.table.colSep}` };
   const showLoading = d.loading || !vendorId;
+  const cc = useCustomColumns('vendor_leads');
+  const allColumns = useMemo(() => [...VENDOR_LEADS_COLUMNS, ...cc.customDefs], [cc.customDefs]);
+  const colOrder = useColumnOrder('talvex_columns_vendor_leads', allColumns);
+  const colMobile = useColumnOrderMobile('talvex_columns_vendor_leads', allColumns);
+  const [showColModal, setShowColModal] = useState(false);
+  const [showOrgModal, setShowOrgModal] = useState(false);
+  const [canCustomizeColumns, setCanCustomizeColumns] = useState(true);
+
+  useEffect(() => {
+    if (!vendorId) return;
+    supabase.from('vendors').select('can_customize_columns').eq('id', vendorId).maybeSingle().then(({ data }) => {
+      if (data) setCanCustomizeColumns(data.can_customize_columns !== false);
+    });
+  }, [vendorId]);
+  const displayColumns = useMemo(() => allColumns.map(c => colOrder.labelOverrides[c.key] ? { ...c, label: colOrder.labelOverrides[c.key] } : c), [allColumns, colOrder.labelOverrides]);
+  const colMap = useMemo(() => new Map(displayColumns.map(c => [c.key, c])), [displayColumns]);
+
+  const VENDOR_TOOLBAR_DEFAULT = ['select', 'workmode', 'columns', 'organize'];
+  const tbOrder = useActionMenuOrder('talvex_toolbar_order_vendor_leads', VENDOR_TOOLBAR_DEFAULT);
+  const toolbarItems: ToolbarItem[] = useMemo(() => [
+    { id: 'select', label: 'Selectionner', icon: <CheckSquare className="w-3.5 h-3.5" /> },
+    { id: 'workmode', label: 'Mode travail', icon: <Briefcase className="w-3.5 h-3.5" />, pinned: true },
+    { id: 'columns', label: 'Colonnes', icon: <Columns3 className="w-3.5 h-3.5" />, pinned: true },
+    { id: 'organize', label: 'Organiser', icon: <SlidersHorizontal className="w-3.5 h-3.5" />, pinned: true },
+  ], []);
 
   const [selectMode, setSelectMode] = useState(false);
   const handleToggleSelectMode = useCallback(() => {
@@ -44,115 +95,19 @@ export default function VendorLeads({ vendorId, onOpenChat, onConnectAsClient, o
         </div>
       </div>
 
-      <div className="rounded-2xl overflow-hidden mb-4" style={{ background: tokens.card.bg, border: `1px solid ${tokens.card.border}` }}>
-        {/* Desktop filters */}
-        <div className="hidden md:block">
-          <div className="flex items-center gap-2 px-5 py-3" style={{ borderBottom: `1px solid ${tokens.table.headerBorder}` }}>
-            <Filter className="w-3.5 h-3.5" style={{ color: tokens.text.tertiary }} />
-            <span className="text-[10px] font-bold tracking-[0.15em] uppercase" style={{ color: tokens.text.tertiary }}>Filtres de recherche</span>
-          </div>
-          <div className="px-5 py-4 space-y-3">
-            <div className="grid grid-cols-3 gap-3">
-              <div className="relative">
-                <Mail className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: tokens.text.quaternary }} />
-                <input type="text" placeholder="Rechercher par email..." value={d.filterEmail} onChange={e => d.setFilterEmail(e.target.value)} className="w-full pl-8 pr-3 py-2 rounded-xl text-xs focus:outline-none transition-all placeholder-slate-600" style={{ background: tokens.input.bg, border: `1px solid ${tokens.input.border}`, color: tokens.input.text }} onFocus={e => (e.currentTarget.style.borderColor = tokens.input.borderFocus)} onBlur={e => (e.currentTarget.style.borderColor = tokens.input.border)} />
-              </div>
-              <div className="relative">
-                <Phone className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: tokens.text.quaternary }} />
-                <input type="text" placeholder="Rechercher par numero..." value={d.filterTel} onChange={e => d.setFilterTel(e.target.value)} className="w-full pl-8 pr-3 py-2 rounded-xl text-xs focus:outline-none transition-all placeholder-slate-600" style={{ background: tokens.input.bg, border: `1px solid ${tokens.input.border}`, color: tokens.input.text }} onFocus={e => (e.currentTarget.style.borderColor = tokens.input.borderFocus)} onBlur={e => (e.currentTarget.style.borderColor = tokens.input.border)} />
-              </div>
-              <div className="relative">
-                <Users className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: tokens.text.quaternary }} />
-                <input type="text" placeholder="Rechercher par prenom..." value={d.filterPrenom} onChange={e => d.setFilterPrenom(e.target.value)} className="w-full pl-8 pr-3 py-2 rounded-xl text-xs focus:outline-none transition-all placeholder-slate-600" style={{ background: tokens.input.bg, border: `1px solid ${tokens.input.border}`, color: tokens.input.text }} onFocus={e => (e.currentTarget.style.borderColor = tokens.input.borderFocus)} onBlur={e => (e.currentTarget.style.borderColor = tokens.input.border)} />
-              </div>
-            </div>
-            <div className="grid grid-cols-3 gap-3">
-              <div className="relative">
-                <Users className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: tokens.text.quaternary }} />
-                <input type="text" placeholder="Rechercher par nom..." value={d.filterNom} onChange={e => d.setFilterNom(e.target.value)} className="w-full pl-8 pr-3 py-2 rounded-xl text-xs focus:outline-none transition-all placeholder-slate-600" style={{ background: tokens.input.bg, border: `1px solid ${tokens.input.border}`, color: tokens.input.text }} onFocus={e => (e.currentTarget.style.borderColor = tokens.input.borderFocus)} onBlur={e => (e.currentTarget.style.borderColor = tokens.input.border)} />
-              </div>
-              <div className="relative">
-                <select value={d.statutFilter} onChange={e => d.setStatutFilter(e.target.value)} className="w-full pl-3 pr-7 py-2 rounded-xl text-xs focus:outline-none appearance-none cursor-pointer transition-all" style={{ background: tokens.input.bg, border: `1px solid ${tokens.input.border}`, color: tokens.input.text }} onFocus={e => (e.currentTarget.style.borderColor = tokens.input.borderFocus)} onBlur={e => (e.currentTarget.style.borderColor = tokens.input.border)}>
-                  <option value="Tous" style={{ background: tokens.selectBg }}>Tous les statuts</option>
-                  {d.statutDefs.map(s => (<option key={s.id} value={s.nom} style={{ background: tokens.selectBg }}>{s.nom}</option>))}
-                  <option value="sans_statut" style={{ background: tokens.selectBg }}>Sans statut</option>
-                </select>
-                <ChevronDown className="w-3.5 h-3.5 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: tokens.text.quaternary }} />
-              </div>
-              <div className="relative">
-                <select value={d.sortOrder} onChange={e => d.setSortOrder(e.target.value as 'recent' | 'ancien')} className="w-full pl-3 pr-7 py-2 rounded-xl text-xs focus:outline-none appearance-none cursor-pointer transition-all" style={{ background: tokens.input.bg, border: `1px solid ${tokens.input.border}`, color: tokens.input.text }} onFocus={e => (e.currentTarget.style.borderColor = tokens.input.borderFocus)} onBlur={e => (e.currentTarget.style.borderColor = tokens.input.border)}>
-                  <option value="recent" style={{ background: tokens.selectBg }}>Plus recent</option>
-                  <option value="ancien" style={{ background: tokens.selectBg }}>Plus ancien</option>
-                </select>
-                <ChevronDown className="w-3.5 h-3.5 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: tokens.text.quaternary }} />
-              </div>
-            </div>
-          </div>
-        </div>
+      <VendorLeadsFilters
+        filterEmail={d.filterEmail} setFilterEmail={d.setFilterEmail}
+        filterTel={d.filterTel} setFilterTel={d.setFilterTel}
+        filterPrenom={d.filterPrenom} setFilterPrenom={d.setFilterPrenom}
+        filterNom={d.filterNom} setFilterNom={d.setFilterNom}
+        statutFilter={d.statutFilter} setStatutFilter={d.setStatutFilter}
+        sortOrder={d.sortOrder} setSortOrder={d.setSortOrder}
+        statutDefs={d.statutDefs}
+        mobileFiltersOpen={d.mobileFiltersOpen} setMobileFiltersOpen={d.setMobileFiltersOpen}
+        tokens={tokens}
+      />
 
-        {/* Mobile filters */}
-        <div className="md:hidden px-3 py-3 space-y-2">
-          <div className="relative">
-            <Mail className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: tokens.text.quaternary }} />
-            <input type="text" placeholder="Rechercher par email..." value={d.filterEmail} onChange={e => d.setFilterEmail(e.target.value)} className="w-full pl-8 pr-3 py-2.5 rounded-xl text-xs focus:outline-none transition-all" style={{ background: tokens.input.bg, border: `1px solid ${tokens.input.border}`, color: tokens.input.text, caretColor: tokens.input.text }} onFocus={e => (e.currentTarget.style.borderColor = tokens.input.borderFocus)} onBlur={e => (e.currentTarget.style.borderColor = tokens.input.border)} />
-          </div>
-          <button
-            onClick={() => d.setMobileFiltersOpen(!d.mobileFiltersOpen)}
-            className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium transition-all"
-            style={{
-              background: (d.filterTel || d.filterPrenom || d.filterNom || d.statutFilter !== 'Tous' || d.sortOrder !== 'recent') ? tokens.accent.bg : tokens.input.bg,
-              border: `1px solid ${(d.filterTel || d.filterPrenom || d.filterNom || d.statutFilter !== 'Tous' || d.sortOrder !== 'recent') ? tokens.accent.border : tokens.input.border}`,
-              color: (d.filterTel || d.filterPrenom || d.filterNom || d.statutFilter !== 'Tous' || d.sortOrder !== 'recent') ? tokens.accent.text : tokens.text.secondary,
-            }}
-          >
-            <span className="flex items-center gap-2">
-              <SlidersHorizontal className="w-3.5 h-3.5" />
-              {(() => {
-                const count = [d.filterTel ? 1 : 0, d.filterPrenom ? 1 : 0, d.filterNom ? 1 : 0, d.statutFilter !== 'Tous' ? 1 : 0, d.sortOrder !== 'recent' ? 1 : 0].reduce((a, b) => a + b, 0);
-                return count > 0 ? `${count} filtre${count > 1 ? 's' : ''} actif${count > 1 ? 's' : ''}` : 'Filtres';
-              })()}
-            </span>
-            <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${d.mobileFiltersOpen ? 'rotate-180' : ''}`} />
-          </button>
-          {d.mobileFiltersOpen && (
-            <div className="space-y-2 pt-1">
-              <div className="relative">
-                <Phone className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: tokens.text.quaternary }} />
-                <input type="text" placeholder="Rechercher par numero..." value={d.filterTel} onChange={e => d.setFilterTel(e.target.value)} className="w-full pl-8 pr-3 py-2.5 rounded-xl text-xs focus:outline-none transition-all" style={{ background: tokens.input.bg, border: `1px solid ${tokens.input.border}`, color: tokens.input.text, caretColor: tokens.input.text }} onFocus={e => (e.currentTarget.style.borderColor = tokens.input.borderFocus)} onBlur={e => (e.currentTarget.style.borderColor = tokens.input.border)} />
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="relative">
-                  <Users className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: tokens.text.quaternary }} />
-                  <input type="text" placeholder="Prenom..." value={d.filterPrenom} onChange={e => d.setFilterPrenom(e.target.value)} className="w-full pl-8 pr-3 py-2.5 rounded-xl text-xs focus:outline-none transition-all" style={{ background: tokens.input.bg, border: `1px solid ${tokens.input.border}`, color: tokens.input.text, caretColor: tokens.input.text }} onFocus={e => (e.currentTarget.style.borderColor = tokens.input.borderFocus)} onBlur={e => (e.currentTarget.style.borderColor = tokens.input.border)} />
-                </div>
-                <div className="relative">
-                  <Users className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: tokens.text.quaternary }} />
-                  <input type="text" placeholder="Nom..." value={d.filterNom} onChange={e => d.setFilterNom(e.target.value)} className="w-full pl-8 pr-3 py-2.5 rounded-xl text-xs focus:outline-none transition-all" style={{ background: tokens.input.bg, border: `1px solid ${tokens.input.border}`, color: tokens.input.text, caretColor: tokens.input.text }} onFocus={e => (e.currentTarget.style.borderColor = tokens.input.borderFocus)} onBlur={e => (e.currentTarget.style.borderColor = tokens.input.border)} />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="relative">
-                  <select value={d.statutFilter} onChange={e => d.setStatutFilter(e.target.value)} className="w-full pl-3 pr-7 py-2.5 rounded-xl text-xs focus:outline-none appearance-none cursor-pointer transition-all" style={{ background: tokens.input.bg, border: `1px solid ${tokens.input.border}`, color: tokens.input.text }} onFocus={e => (e.currentTarget.style.borderColor = tokens.input.borderFocus)} onBlur={e => (e.currentTarget.style.borderColor = tokens.input.border)}>
-                    <option value="Tous" style={{ background: tokens.selectBg }}>Tous les statuts</option>
-                    {d.statutDefs.map(s => (<option key={s.id} value={s.nom} style={{ background: tokens.selectBg }}>{s.nom}</option>))}
-                    <option value="sans_statut" style={{ background: tokens.selectBg }}>Sans statut</option>
-                  </select>
-                  <ChevronDown className="w-3.5 h-3.5 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: tokens.text.quaternary }} />
-                </div>
-                <div className="relative">
-                  <select value={d.sortOrder} onChange={e => d.setSortOrder(e.target.value as 'recent' | 'ancien')} className="w-full pl-3 pr-7 py-2.5 rounded-xl text-xs focus:outline-none appearance-none cursor-pointer transition-all" style={{ background: tokens.input.bg, border: `1px solid ${tokens.input.border}`, color: tokens.input.text }} onFocus={e => (e.currentTarget.style.borderColor = tokens.input.borderFocus)} onBlur={e => (e.currentTarget.style.borderColor = tokens.input.border)}>
-                    <option value="recent" style={{ background: tokens.selectBg }}>Plus recent</option>
-                    <option value="ancien" style={{ background: tokens.selectBg }}>Plus ancien</option>
-                  </select>
-                  <ChevronDown className="w-3.5 h-3.5 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: tokens.text.quaternary }} />
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="rounded-2xl overflow-hidden" style={{ background: tokens.card.bg, border: `1px solid ${tokens.card.border}` }}>
+      <div className="rounded-2xl overflow-hidden" style={{ background: tokens.card.bg, border: `1px solid ${tokens.card.border}`, boxShadow: tokens.card.shadow }}>
         {showLoading ? (
           <div className="px-4 md:px-5 py-4 space-y-3 animate-pulse">
             {[1, 2, 3].map(i => (
@@ -186,21 +141,28 @@ export default function VendorLeads({ vendorId, onOpenChat, onConnectAsClient, o
                 onLocate={() => { if (d.workMode.activeId) d.rowRefsMap.current.get(d.workMode.activeId)?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }}
                 canLocate={!!d.workMode.activeId && d.filtered.some(l => l.id === d.workMode.activeId)}
                 onResetHistory={d.workMode.resetHistory}
+                onOpenColumns={() => { if (canCustomizeColumns) setShowColModal(true); }}
+                onOpenOrganize={() => setShowOrgModal(true)}
+                toolbarOrder={tbOrder.order}
+                columnsLocked={!canCustomizeColumns}
               />
               <DualScrollWrapper deps={[d.filtered.length]}>
-                <table className="w-full" style={{ borderCollapse: 'collapse', minWidth: 'max-content' }}>
+                <table className="w-full" style={{ borderCollapse: 'separate', borderSpacing: 0, minWidth: 'max-content' }}>
                   <thead>
-                    <tr style={{ borderBottom: `1px solid ${tokens.table.headerBorder}`, background: tokens.table.headerBg }}>
-                      {(selectMode || d.workMode.enabled) && <th className="px-2 py-3 w-11" style={colSep}></th>}
-                      <th className="text-left px-5 py-3 text-[10px] font-bold tracking-[0.12em] uppercase w-12" style={{ color: tokens.table.headerText, ...colSep }}>#</th>
-                      <th className="text-left px-5 py-3 text-[10px] font-bold tracking-[0.12em] uppercase" style={{ color: tokens.table.headerText, ...colSep }}>Nom</th>
-                      <th className="text-left px-5 py-3 text-[10px] font-bold tracking-[0.12em] uppercase" style={{ color: tokens.table.headerText, ...colSep }}>Prenom</th>
-                      <th className="text-left px-5 py-3 text-[10px] font-bold tracking-[0.12em] uppercase" style={{ color: tokens.table.headerText, ...colSep }}>Email</th>
-                      <th className="text-left px-5 py-3 text-[10px] font-bold tracking-[0.12em] uppercase" style={{ color: tokens.table.headerText, ...colSep }}>Telephone</th>
-                      <th className="text-left px-5 py-3 text-[10px] font-bold tracking-[0.12em] uppercase" style={{ color: tokens.table.headerText, ...colSep }}>Date d'ajout</th>
-                      <th className="text-left px-5 py-3 text-[10px] font-bold tracking-[0.12em] uppercase" style={{ color: tokens.table.headerText, ...colSep }}>Statut</th>
-                      <th className="text-left px-5 py-3 text-[10px] font-bold tracking-[0.12em] uppercase" style={{ color: tokens.table.headerText, ...colSep }}>Actions</th>
-                      <th className="text-left px-5 py-3 text-[10px] font-bold tracking-[0.12em] uppercase" style={{ color: tokens.table.headerText }}>Acces</th>
+                    <tr className="sticky top-0 z-10" style={{ background: tokens.table.headerBg }}>
+                      {(selectMode || d.workMode.enabled) && <th className="px-3 py-4 w-12" style={{ borderBottom: `2px solid ${tokens.accent.solid}` }}></th>}
+                      {colOrder.visibleOrderedKeys.map(key => {
+                        const col = colMap.get(key);
+                        const Icon = VENDOR_HEADER_ICONS[key];
+                        return (
+                          <th key={key} className={`text-left px-5 py-4 ${key === 'hash' ? 'w-12' : ''}`} style={{ borderBottom: `2px solid ${tokens.accent.solid}` }}>
+                            <div className="flex items-center gap-2">
+                              {Icon && <Icon className="w-3 h-3 flex-shrink-0" style={{ color: tokens.accent.text, opacity: 0.6 }} />}
+                              <span className="text-[10px] font-bold tracking-[0.1em] uppercase" style={{ color: tokens.table.headerText }}>{col?.label ?? key}</span>
+                            </div>
+                          </th>
+                        );
+                      })}
                     </tr>
                   </thead>
                   <tbody>
@@ -217,6 +179,9 @@ export default function VendorLeads({ vendorId, onOpenChat, onConnectAsClient, o
                         onToggle={d.toggleOne} onStatutChange={d.handleStatut} onToggleActif={d.handleToggleActif}
                         onDetail={(l, idx) => d.setDetailLead({ lead: l, index: idx })}
                         onOpenChat={onOpenChat} onOpenRdv={onOpenRdv} onConnectAsClient={onConnectAsClient}
+                        columnOrder={colOrder.visibleOrderedKeys}
+                        customColumnDefs={cc.customDefs}
+                        customColumnValues={cc.getValuesForRow(lead.id)}
                       />
                     ))}
                   </tbody>
@@ -235,6 +200,10 @@ export default function VendorLeads({ vendorId, onOpenChat, onConnectAsClient, o
                 onLocate={() => { if (d.workMode.activeId) d.cardRefsMap.current.get(d.workMode.activeId)?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }}
                 canLocate={!!d.workMode.activeId && d.filtered.some(l => l.id === d.workMode.activeId)}
                 onResetHistory={d.workMode.resetHistory}
+                onOpenColumns={() => { if (canCustomizeColumns) setShowColModal(true); }}
+                onOpenOrganize={() => setShowOrgModal(true)}
+                toolbarOrder={tbOrder.order}
+                columnsLocked={!canCustomizeColumns}
               />
               <div className="divide-y" style={{ borderColor: tokens.table.rowBorder }}>
                 {d.filtered.map((lead, i) => (
@@ -255,9 +224,16 @@ export default function VendorLeads({ vendorId, onOpenChat, onConnectAsClient, o
               </div>
             </div>
 
-            <div className="flex items-center justify-between px-5 py-3" style={{ borderTop: `1px solid ${tokens.table.rowBorder}` }}>
-              <p className="text-xs" style={{ color: tokens.table.footerText }}>{d.filtered.length} lead{d.filtered.length !== 1 ? 's' : ''} affiche{d.filtered.length !== 1 ? 's' : ''}</p>
-              {d.selected.size > 0 && (<p className="text-xs" style={{ color: tokens.danger.text }}>{d.selected.size} selectionne{d.selected.size > 1 ? 's' : ''}</p>)}
+            <div className="flex items-center justify-between px-6 py-3.5" style={{ borderTop: `1px solid ${tokens.surface.border}`, background: tokens.table.headerBg }}>
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold" style={{ background: tokens.accent.bg, color: tokens.accent.text, border: `1px solid ${tokens.accent.border}` }}>
+                  <Users className="w-3 h-3" />{d.filtered.length}
+                </span>
+                <span className="text-xs" style={{ color: tokens.table.footerText }}>lead{d.filtered.length !== 1 ? 's' : ''} affiche{d.filtered.length !== 1 ? 's' : ''}</span>
+              </div>
+              {d.selected.size > 0 && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold" style={{ background: tokens.danger.bg, color: tokens.danger.text, border: `1px solid ${tokens.danger.border}` }}>{d.selected.size} selectionne{d.selected.size > 1 ? 's' : ''}</span>
+              )}
             </div>
           </>
         )}
@@ -272,6 +248,10 @@ export default function VendorLeads({ vendorId, onOpenChat, onConnectAsClient, o
           onConnect={(client) => { d.setDetailLead(null); onConnectAsClient?.(client); }}
         />
       )}
+
+      {showColModal && <ColumnOrganizerModal columns={displayColumns} orderedKeys={colOrder.orderedKeys} hiddenDesktopKeys={colOrder.hiddenDesktopKeys} tableKey="vendor_leads" onSave={colOrder.saveAll} onReset={colOrder.resetAll} onClose={() => setShowColModal(false)} onCreateCustomColumn={cc.createColumn} onDeleteCustomColumn={cc.deleteColumn} onRenameCustomColumn={cc.renameColumn} onRenameLabel={colOrder.renameLabel} mobileOrder={colMobile.mobileOrder} mobileCardStyle={colMobile.cardStyle} onSaveMobile={colMobile.saveMobile} onResetMobile={colMobile.resetMobile} />}
+
+      {showOrgModal && <ToolbarOrganizerModal items={toolbarItems} order={tbOrder.order} onSave={tbOrder.save} onClose={() => setShowOrgModal(false)} t={tokens} />}
     </div>
   );
 }

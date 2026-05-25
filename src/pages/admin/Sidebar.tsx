@@ -2,11 +2,12 @@ import { useState, useEffect, useMemo } from 'react';
 import {
   LayoutDashboard, Info, UserPlus, Upload, Users, Database, UserCheck, List,
   MessageCircle, MessageSquare, Shield, Calendar, CalendarRange, CalendarCheck,
-  Settings, LogOut, ChevronLeft, Hexagon,
+  Settings, Hexagon, Globe,
 } from 'lucide-react';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
 import { useSidebarOrder } from '../../hooks/useSidebarOrder';
 import SidebarReorderControls from '../../components/SidebarReorderControls';
+import SidebarFooterActions from '../../components/layout/SidebarFooterActions';
 import type { SidebarSection } from '../../lib/sidebarOrderTypes';
 import type { ActiveView } from './AdminDashboard';
 import { supabase } from '../../lib/supabase';
@@ -22,6 +23,7 @@ interface SidebarProps {
 const DEFAULT_SECTIONS: SidebarSection[] = [
   { title: 'Principal', items: [
     { id: 'vue-ensemble', label: "Vue d'ensemble", icon: <LayoutDashboard className="w-4 h-4" /> },
+    { id: 'site', label: 'Site', icon: <Globe className="w-4 h-4" /> },
     { id: 'info-admin', label: 'Info admin', icon: <Info className="w-4 h-4" /> },
   ] },
   { title: 'Gestion des leads', items: [
@@ -96,10 +98,14 @@ export default function Sidebar({ activeView, onNavigate, collapsed, onCollapse,
         )}
       />
 
-      <div className="px-2 pb-2 pt-2 space-y-0.5" style={{ borderTop: `1px solid ${t.sidebar.divider}` }}>
-        <AdminBottomBtn icon={<LogOut className="w-4 h-4 flex-shrink-0" />} label="Deconnexion" collapsed={collapsed} color={t.sidebar.logoutText} hoverColor={t.sidebar.logoutHover} onClick={onLogout} />
-        <AdminBottomBtn icon={<ChevronLeft className={`w-4 h-4 flex-shrink-0 transition-all duration-300 ${collapsed ? 'rotate-180' : ''}`} />} label="Reduire" collapsed={collapsed} color={t.sidebar.collapseText} hoverColor={t.sidebar.collapseHover} onClick={onCollapse} />
-      </div>
+      <SidebarFooterActions
+        collapsed={collapsed}
+        onLogout={onLogout}
+        onCollapse={onCollapse}
+        onReorganize={order.startReorder}
+        reordering={order.reordering}
+        tokens={t}
+      />
     </aside>
   );
 }
@@ -119,14 +125,3 @@ function AdminItem({ entry, isActive, collapsed, onClick, tokens }: {
   );
 }
 
-function AdminBottomBtn({ icon, label, collapsed, color, hoverColor, onClick }: { icon: React.ReactNode; label: string; collapsed: boolean; color: string; hoverColor: string; onClick: () => void }) {
-  return (
-    <button onClick={onClick} title={collapsed ? label : undefined}
-      className={`w-full flex items-center gap-3 rounded-lg py-2 transition-all group ${collapsed ? 'px-1 justify-center' : 'px-3'}`}
-      onMouseEnter={e => { e.currentTarget.querySelectorAll<HTMLElement>('[data-themed]').forEach(el => { el.style.color = hoverColor; }); }}
-      onMouseLeave={e => { e.currentTarget.querySelectorAll<HTMLElement>('[data-themed]').forEach(el => { el.style.color = color; }); }}>
-      <span data-themed style={{ color }}>{icon}</span>
-      {!collapsed && <span data-themed className="text-sm font-medium transition-colors" style={{ color }}>{label}</span>}
-    </button>
-  );
-}

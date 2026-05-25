@@ -2,6 +2,7 @@ import type { ActiveView } from './AdminDashboard';
 
 export const BREADCRUMB_LABELS: Record<ActiveView, string> = {
   'vue-ensemble': "Vue d'ensemble",
+  'site': 'Site',
   'info-admin': 'Info admin',
   'inscription': 'Inscription',
   'import-leads': 'Import de leads',

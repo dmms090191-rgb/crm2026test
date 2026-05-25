@@ -1,23 +1,8 @@
-import { RefObject } from 'react';
-import { ChevronDown, Sun, Moon, Monitor, Palette, Heart, Leaf, Crown, Cherry, Flame, Droplets, Zap, Building2 } from 'lucide-react';
+import { RefObject, useState } from 'react';
+import { ChevronDown, Palette } from 'lucide-react';
 import type { Theme } from '../../../../contexts/ThemeContext';
 import type { ThemeTokens } from '../../../../lib/themeTokensTypes';
-import VendorThemeOption from './VendorThemeOption';
-
-const themeOptions: { value: Theme; label: string; icon: React.ReactNode }[] = [
-  { value: 'dark', label: 'Sombre', icon: <Moon className="w-3.5 h-3.5" /> },
-  { value: 'light', label: 'Clair', icon: <Sun className="w-3.5 h-3.5" /> },
-  { value: 'graphite', label: 'Graphite', icon: <Monitor className="w-3.5 h-3.5" /> },
-  { value: 'beige', label: 'Beige Premium', icon: <Palette className="w-3.5 h-3.5" /> },
-  { value: 'rose', label: 'Violet Royal Premium', icon: <Heart className="w-3.5 h-3.5" /> },
-  { value: 'emerald', label: 'Vert Émeraude Premium', icon: <Leaf className="w-3.5 h-3.5" /> },
-  { value: 'luxury', label: 'Blanc Luxe', icon: <Crown className="w-3.5 h-3.5" /> },
-  { value: 'pink', label: 'Rose Premium', icon: <Cherry className="w-3.5 h-3.5" /> },
-  { value: 'red', label: 'Rouge Premium', icon: <Droplets className="w-3.5 h-3.5" /> },
-  { value: 'orange', label: 'Orange Premium', icon: <Flame className="w-3.5 h-3.5" /> },
-  { value: 'yellow', label: 'Jaune Premium', icon: <Zap className="w-3.5 h-3.5" /> },
-  { value: 'highlevel_light', label: 'HighLevel Clair', icon: <Building2 className="w-3.5 h-3.5" /> },
-];
+import ThemeSelectorModal from '../../../../components/theme/ThemeSelectorModal';
 
 interface Props {
   vendorName: string;
@@ -29,7 +14,9 @@ interface Props {
   dropdownRef: RefObject<HTMLDivElement>;
 }
 
-export default function VendorProfileDropdown({ vendorName, theme, setTheme, tokens, open, setOpen, dropdownRef }: Props) {
+export default function VendorProfileDropdown({ vendorName, tokens, open, setOpen, dropdownRef }: Props) {
+  const [themeModalOpen, setThemeModalOpen] = useState(false);
+
   return (
     <div
       className="relative ml-2 pl-4"
@@ -76,19 +63,24 @@ export default function VendorProfileDropdown({ vendorName, theme, setTheme, tok
           }}
         >
           <div className="py-1">
-            {themeOptions.map(opt => (
-              <VendorThemeOption
-                key={opt.value}
-                icon={opt.icon}
-                label={opt.label}
-                active={theme === opt.value}
-                onClick={() => setTheme(opt.value)}
-                tokens={tokens.dropdown}
-              />
-            ))}
+            <button
+              onClick={() => { setOpen(() => false); setThemeModalOpen(true); }}
+              className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs transition-colors duration-150"
+              style={{ color: tokens.dropdown.itemText }}
+              onMouseEnter={e => { e.currentTarget.style.background = tokens.dropdown.itemBgHover; e.currentTarget.style.color = tokens.dropdown.itemTextHover; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = tokens.dropdown.itemText; }}
+            >
+              <Palette className="w-4 h-4" />
+              <div className="flex flex-col items-start">
+                <span className="font-semibold">Themes</span>
+                <span className="text-[10px] opacity-60">Personnaliser l'apparence</span>
+              </div>
+            </button>
           </div>
         </div>
       )}
+
+      <ThemeSelectorModal open={themeModalOpen} onClose={() => setThemeModalOpen(false)} />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { forwardRef, useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Phone, Mail, ChevronDown, CheckCircle2, Undo2, Redo2, Bot, MoreHorizontal, X } from 'lucide-react';
+import { Phone, Mail, ChevronDown, CheckCircle2, Undo2, Redo2, MoreHorizontal, X, ExternalLink } from 'lucide-react';
 import type { ImportedLead, Vendor, StatutDef, ImpersonatedClient, ChatLead } from './types';
 import type { ThemeTokens } from '../../../../lib/themeTokens';
 import { getStatutCfg, FALLBACK_COLOR } from './utils';
@@ -8,6 +8,7 @@ import CheckBox from './CheckBox';
 import MobileStatutModal from './MobileStatutModal';
 import CopyButton from '../../../../components/CopyButton';
 import CrmActionsMenu from './CrmActionsMenu';
+import type { ColumnDef } from '../../../../components/table/useColumnOrder';
 
 function formatImportedAt(isoDate: string, tz: string): string {
   try {
@@ -44,9 +45,16 @@ interface Props {
   canWorkRedo?: boolean;
   workHistoryPosition?: number;
   workHistoryLength?: number;
+  columnOrder?: string[];
+  customColumnDefs?: ColumnDef[];
+  customColumnValues?: Record<string, string>;
 }
 
-const CrmTableRow = forwardRef<HTMLTableRowElement, Props>(function CrmTableRow({ lead, index, isSelected, statutDefs, vendors, tokens, timezone, colSep, onToggle, onStatutChange, onToggleActif, onToggleAi, onDetail, onConnectAsClient, onOpenChat, onOpenRdv, selectMode, workModeEnabled, isWorkActive, onWorkSelect, onWorkUndo, onWorkRedo, canWorkUndo, canWorkRedo, workHistoryPosition, workHistoryLength }, ref) {
+const DEFAULT_COLUMN_ORDER = ['hash', 'nom', 'prenom', 'email', 'telephone', 'date_ajout', 'statut', 'actions', 'acces', 'ia', 'vendeur'];
+
+const CrmTableRow = forwardRef<HTMLTableRowElement, Props>(function CrmTableRow(props, ref) {
+  const { lead, index, isSelected, statutDefs, vendors, tokens, timezone, onToggle, onStatutChange, onToggleActif, onToggleAi, onDetail, onConnectAsClient, onOpenChat, onOpenRdv, selectMode, workModeEnabled, isWorkActive, onWorkSelect, onWorkUndo, onWorkRedo, canWorkUndo, canWorkRedo, workHistoryPosition, workHistoryLength, columnOrder, customColumnDefs, customColumnValues } = props;
+  const cols = columnOrder ?? DEFAULT_COLUMN_ORDER;
   const [statutModalOpen, setStatutModalOpen] = useState(false);
   const [actionsOpen, setActionsOpen] = useState(false);
   const actionsBtnRef = useRef<HTMLButtonElement>(null);
@@ -55,8 +63,7 @@ const CrmTableRow = forwardRef<HTMLTableRowElement, Props>(function CrmTableRow(
   useEffect(() => {
     if (!actionsOpen || !actionsBtnRef.current) { setPopoverPos(null); return; }
     const rect = actionsBtnRef.current.getBoundingClientRect();
-    const popW = 220;
-    const popH = 240;
+    const popW = 220; const popH = 240;
     let top = rect.bottom + 6;
     let left = rect.left + rect.width / 2 - popW / 2;
     if (left < 8) left = 8;
@@ -64,6 +71,7 @@ const CrmTableRow = forwardRef<HTMLTableRowElement, Props>(function CrmTableRow(
     if (top + popH > window.innerHeight - 8) top = rect.top - popH - 6;
     setPopoverPos({ top, left });
   }, [actionsOpen]);
+
   const nom = lead.data['Nom'] ?? '';
   const prenom = lead.data['Prenom'] ?? '';
   const email = lead.data['Email'] ?? '';
@@ -76,53 +84,50 @@ const CrmTableRow = forwardRef<HTMLTableRowElement, Props>(function CrmTableRow(
   const aiEnabled = lead.ai_enabled === true;
   const assignedVendor = lead.vendor_id ? vendors.find(v => v.id === lead.vendor_id) : null;
   const statutLabel = statut === 'Nouveau' ? 'Sans statut' : statut;
-
-  const rowBg = workModeEnabled && isWorkActive ? 'rgba(249,115,22,0.04)' : isSelected ? tokens.table.rowSelected : 'transparent';
+  const isEven = index % 2 === 0;
+  const baseBg = isEven ? 'transparent' : tokens.surface.secondary;
+  const rowBg = isWorkActive ? tokens.table.rowSelected : isSelected ? tokens.table.rowSelected : baseBg;
 
   return (
     <tr
       ref={ref}
       data-row-id={lead.id}
-      className="group transition-all duration-150"
-      style={{ borderBottom: tokens.table.rowBorder, background: rowBg }}
-      onMouseEnter={e => { if (!isSelected && !isWorkActive) e.currentTarget.style.background = tokens.table.rowHover; }}
-      onMouseLeave={e => { e.currentTarget.style.background = workModeEnabled && isWorkActive ? 'rgba(249,115,22,0.04)' : isSelected ? tokens.table.rowSelected : 'transparent'; }}
+      className="group transition-all duration-200"
+      style={{
+        background: rowBg,
+        borderLeft: isWorkActive ? `4px solid ${tokens.accent.solid}` : '4px solid transparent',
+        boxShadow: isWorkActive ? `inset 0 0 20px ${tokens.accent.bg}` : 'none',
+      }}
+      onMouseEnter={e => {
+        if (!isSelected && !isWorkActive) {
+          e.currentTarget.style.background = tokens.table.rowHover;
+          e.currentTarget.style.boxShadow = `inset 0 0 0 1px ${tokens.surface.border}`;
+        }
+      }}
+      onMouseLeave={e => {
+        e.currentTarget.style.background = rowBg;
+        e.currentTarget.style.boxShadow = isWorkActive ? `inset 0 0 20px ${tokens.accent.bg}` : 'none';
+      }}
     >
       {(selectMode || workModeEnabled) && (
-        <td className="px-2 py-3.5 w-11" style={colSep}>
+        <td className="px-3 py-5 w-12">
           {workModeEnabled ? (
             <div className="flex items-center gap-1">
               <button
                 onClick={() => onWorkSelect?.(lead.id)}
-                className="w-5 h-5 rounded-md flex items-center justify-center transition-all flex-shrink-0"
+                className="w-6 h-6 rounded-lg flex items-center justify-center transition-all flex-shrink-0"
                 style={isWorkActive
-                  ? { background: 'rgba(249,115,22,0.15)', border: '1px solid rgba(249,115,22,0.4)' }
-                  : { background: tokens.input.bg, border: `1px solid ${tokens.input.border}` }
+                  ? { background: tokens.accent.bg, border: `1.5px solid ${tokens.accent.border}`, boxShadow: `0 0 8px ${tokens.accent.bg}` }
+                  : { background: tokens.input.bg, border: `1.5px solid ${tokens.input.border}` }
                 }
               >
-                {isWorkActive && <CheckCircle2 className="w-3.5 h-3.5" style={{ color: '#f97316' }} />}
+                {isWorkActive && <CheckCircle2 className="w-3.5 h-3.5" style={{ color: tokens.accent.text }} />}
               </button>
               {isWorkActive && (workHistoryLength ?? 0) > 0 && (
                 <div className="flex items-center gap-0.5 ml-1">
-                  <button
-                    onClick={onWorkUndo}
-                    disabled={!canWorkUndo}
-                    className="w-5 h-5 rounded flex items-center justify-center disabled:opacity-30"
-                    style={{ color: '#f97316' }}
-                  >
-                    <Undo2 className="w-3 h-3" />
-                  </button>
-                  <span className="text-[9px] font-semibold tabular-nums" style={{ color: '#f97316' }}>
-                    {workHistoryPosition}/{workHistoryLength}
-                  </span>
-                  <button
-                    onClick={onWorkRedo}
-                    disabled={!canWorkRedo}
-                    className="w-5 h-5 rounded flex items-center justify-center disabled:opacity-30"
-                    style={{ color: '#f97316' }}
-                  >
-                    <Redo2 className="w-3 h-3" />
-                  </button>
+                  <button onClick={onWorkUndo} disabled={!canWorkUndo} className="w-5 h-5 rounded flex items-center justify-center disabled:opacity-30" style={{ color: tokens.accent.text }}><Undo2 className="w-3 h-3" /></button>
+                  <span className="text-[9px] font-bold tabular-nums" style={{ color: tokens.accent.text }}>{workHistoryPosition}/{workHistoryLength}</span>
+                  <button onClick={onWorkRedo} disabled={!canWorkRedo} className="w-5 h-5 rounded flex items-center justify-center disabled:opacity-30" style={{ color: tokens.accent.text }}><Redo2 className="w-3 h-3" /></button>
                 </div>
               )}
             </div>
@@ -131,131 +136,151 @@ const CrmTableRow = forwardRef<HTMLTableRowElement, Props>(function CrmTableRow(
           )}
         </td>
       )}
-      <td className="px-5 py-3.5 text-xs tabular-nums" style={{ ...colSep, color: tokens.table.indexText }}>{index + 1}</td>
-      <td className="px-5 py-3.5" style={colSep}>
-        <span className="text-sm font-semibold" style={{ color: tokens.table.cellText }}>{nom || '\u2014'}</span>
-      </td>
-      <td className="px-5 py-3.5" style={colSep}><span className="text-sm" style={{ color: tokens.text.secondary }}>{prenom || '\u2014'}</span></td>
-      <td className="px-5 py-3.5" style={colSep}>
-        <div className="flex items-center gap-1">
-          <Mail className="w-3 h-3 flex-shrink-0" style={{ color: tokens.table.cellIcon }} />
-          <span className="text-xs truncate" style={{ color: tokens.table.cellTextMuted }}>{email || '\u2014'}</span>
-          {email && <CopyButton value={email} />}
-        </div>
-      </td>
-      <td className="px-5 py-3.5" style={colSep}>
-        <div className="flex items-center gap-1.5">
-          <Phone className="w-3 h-3 flex-shrink-0" style={{ color: tokens.table.cellIcon }} />
-          <span className="text-xs" style={{ color: tokens.table.cellTextMuted }}>{tel || '\u2014'}</span>
-        </div>
-      </td>
-      <td className="px-5 py-3.5" style={colSep}>
-        <span className="text-xs whitespace-nowrap tabular-nums" style={{ color: tokens.table.cellTextMuted }}>{formatImportedAt(lead.imported_at, timezone)}</span>
-      </td>
-      <td className="px-5 py-3.5" style={colSep}>
-        <button
-          type="button"
-          onClick={() => setStatutModalOpen(true)}
-          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105 active:scale-95 cursor-pointer"
-          style={{ background: cfg.bg, border: `1px solid ${cfg.border}`, color: cfg.color }}
-        >
-          <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: cfg.dot, boxShadow: `0 0 4px ${cfg.dot}` }} />
-          {statutLabel}
-          <ChevronDown className="w-3 h-3" />
-        </button>
-        {statutModalOpen && (
-          <MobileStatutModal
-            currentStatut={statut}
-            statutDefs={statutDefs}
-            onSelect={v => onStatutChange(lead.id, v)}
-            onClose={() => setStatutModalOpen(false)}
-          />
-        )}
-      </td>
-      <td className="px-5 py-3.5" style={colSep}>
-        <button
-          ref={actionsBtnRef}
-          onClick={() => setActionsOpen(v => !v)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105"
-          style={{ background: tokens.accent.bg, border: `1px solid ${tokens.accent.border}`, color: tokens.accent.text }}
-        >
-          <MoreHorizontal className="w-3.5 h-3.5" />
-          Actions
-        </button>
-        {actionsOpen && createPortal(
-          <div
-            className="fixed inset-0"
-            style={{ zIndex: 99998 }}
-            onClick={() => setActionsOpen(false)}
-          >
-            {popoverPos && (
-              <div
-                className="absolute rounded-xl p-3 w-[220px]"
-                style={{
-                  top: popoverPos.top,
-                  left: popoverPos.left,
-                  zIndex: 99999,
-                  background: tokens.modal.bg,
-                  border: `1px solid ${tokens.modal.border}`,
-                  boxShadow: '0 8px 32px rgba(0,0,0,0.35), 0 2px 8px rgba(0,0,0,0.2)',
-                  backdropFilter: 'blur(12px)',
-                }}
-                onClick={e => e.stopPropagation()}
-              >
-                <div className="flex items-center justify-between mb-2.5">
-                  <p className="text-xs font-bold truncate" style={{ color: tokens.heading.primary }}>
-                    {prenom ? `${prenom} ${nom}` : nom || 'Lead'}
-                  </p>
-                  <button
-                    onClick={() => setActionsOpen(false)}
-                    className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0"
-                    style={{ background: tokens.modal.closeBtnBg, color: tokens.modal.closeBtnText }}
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
+      {cols.map(key => {
+        switch (key) {
+          case 'hash': return <td key={key} className="px-5 py-5 text-xs tabular-nums font-medium" style={{ color: tokens.table.indexText }}>{index + 1}</td>;
+          case 'nom': return <td key={key} className="px-5 py-5"><span className="text-[13px] font-semibold" style={{ color: tokens.table.cellText }}>{nom || '\u2014'}</span></td>;
+          case 'prenom': return <td key={key} className="px-5 py-5"><span className="text-[13px]" style={{ color: tokens.text.secondary }}>{prenom || '\u2014'}</span></td>;
+          case 'email': return (
+            <td key={key} className="px-5 py-5">
+              <div className="flex items-center gap-2">
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg" style={{ background: tokens.surface.secondary }}>
+                  <Mail className="w-3 h-3 flex-shrink-0" style={{ color: tokens.table.cellIcon }} />
+                  <span className="text-xs truncate max-w-[160px]" style={{ color: tokens.table.cellTextMuted }}>{email || '\u2014'}</span>
                 </div>
-                <CrmActionsMenu
-                  handlers={{
-                    detail: () => { setActionsOpen(false); onDetail(lead, index); },
-                    connect: () => { setActionsOpen(false); onConnectAsClient?.({ id: lead.id, nom, prenom, email }); },
-                    chat: () => { setActionsOpen(false); onOpenChat?.({ id: lead.id, nom, prenom, email, tel }); },
-                    rdv: () => { setActionsOpen(false); onOpenRdv?.({ id: lead.id, nom, prenom, email, tel }); },
-                  }}
-                  tokens={tokens}
-                />
+                {email && <CopyButton value={email} />}
               </div>
-            )}
-          </div>,
-          document.body
-        )}
-      </td>
-      <td className="px-5 py-3.5" style={colSep}>
-        <button
-          onClick={() => onToggleActif(lead.id, actif)}
-          className="relative inline-flex items-center rounded-full transition-all duration-300 focus:outline-none"
-          style={{ width: 36, height: 20, background: actif ? 'rgba(52,211,153,0.25)' : 'rgba(255,255,255,0.08)', border: actif ? '1px solid rgba(52,211,153,0.4)' : '1px solid rgba(255,255,255,0.1)' }}
-          title={actif ? 'Desactiver' : 'Activer'}
-        >
-          <span className="absolute rounded-full transition-all duration-300" style={{ width: 12, height: 12, left: actif ? 20 : 3, background: actif ? tokens.success.text : 'rgba(255,255,255,0.3)', boxShadow: actif ? '0 0 6px rgba(52,211,153,0.8)' : 'none' }} />
-        </button>
-      </td>
-      <td className="px-5 py-3.5" style={colSep}>
-        <button
-          onClick={() => onToggleAi(lead.id, aiEnabled)}
-          className="relative inline-flex items-center gap-1.5 rounded-full transition-all duration-300 focus:outline-none"
-          style={{ width: 36, height: 20, background: aiEnabled ? 'rgba(59,130,246,0.25)' : 'rgba(255,255,255,0.08)', border: aiEnabled ? '1px solid rgba(59,130,246,0.4)' : '1px solid rgba(255,255,255,0.1)' }}
-          title={aiEnabled ? 'Mode IA' : 'Mode manuel'}
-        >
-          <span className="absolute rounded-full transition-all duration-300" style={{ width: 12, height: 12, left: aiEnabled ? 20 : 3, background: aiEnabled ? '#3b82f6' : 'rgba(255,255,255,0.3)', boxShadow: aiEnabled ? '0 0 6px rgba(59,130,246,0.8)' : 'none' }} />
-        </button>
-      </td>
-      <td className="px-5 py-3.5" style={colSep}>
-        {assignedVendor ? (
-          <span className="text-xs truncate max-w-[120px]" style={{ color: tokens.text.secondary }}>{assignedVendor.first_name} {assignedVendor.last_name}</span>
-        ) : (
-          <span className="text-xs" style={{ color: tokens.text.quaternary }}>Admin</span>
-        )}
-      </td>
+            </td>
+          );
+          case 'telephone': return (
+            <td key={key} className="px-5 py-5">
+              {tel ? (
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg" style={{ background: tokens.surface.secondary }}>
+                  <Phone className="w-3 h-3 flex-shrink-0" style={{ color: tokens.table.cellIcon }} />
+                  <span className="text-xs" style={{ color: tokens.table.cellTextMuted }}>{tel}</span>
+                </div>
+              ) : (
+                <span className="text-xs" style={{ color: tokens.text.quaternary }}>{'\u2014'}</span>
+              )}
+            </td>
+          );
+          case 'date_ajout': return <td key={key} className="px-5 py-5"><span className="text-xs whitespace-nowrap tabular-nums font-medium" style={{ color: tokens.table.cellTextMuted }}>{formatImportedAt(lead.imported_at, timezone)}</span></td>;
+          case 'statut': return (
+            <td key={key} className="px-5 py-5">
+              <button
+                type="button"
+                onClick={() => setStatutModalOpen(true)}
+                className="inline-flex items-center gap-2 px-3.5 py-2 rounded-full text-[11px] font-bold transition-all duration-200 hover:shadow-md cursor-pointer"
+                style={{ background: cfg.bg, border: `1px solid ${cfg.border}`, color: cfg.color }}
+              >
+                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: cfg.dot, boxShadow: `0 0 6px ${cfg.dot}` }} />
+                {statutLabel}
+                <ChevronDown className="w-3 h-3 opacity-60" />
+              </button>
+              {statutModalOpen && (
+                <MobileStatutModal currentStatut={statut} statutDefs={statutDefs} onSelect={v => onStatutChange(lead.id, v)} onClose={() => setStatutModalOpen(false)} />
+              )}
+            </td>
+          );
+          case 'actions': return (
+            <td key={key} className="px-5 py-5">
+              <button
+                ref={actionsBtnRef}
+                onClick={() => setActionsOpen(v => !v)}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold transition-all duration-200"
+                style={{ background: tokens.accent.bg, border: `1px solid ${tokens.accent.border}`, color: tokens.accent.text }}
+                onMouseEnter={e => { e.currentTarget.style.background = tokens.accent.bgHover; e.currentTarget.style.boxShadow = `0 2px 8px ${tokens.accent.bg}`; }}
+                onMouseLeave={e => { e.currentTarget.style.background = tokens.accent.bg; e.currentTarget.style.boxShadow = 'none'; }}
+              >
+                <MoreHorizontal className="w-3.5 h-3.5" />Actions
+              </button>
+              {actionsOpen && createPortal(
+                <div className="fixed inset-0" style={{ zIndex: 99998 }} onClick={() => setActionsOpen(false)}>
+                  {popoverPos && (
+                    <div
+                      className="absolute rounded-xl p-3 w-[220px]"
+                      style={{ top: popoverPos.top, left: popoverPos.left, zIndex: 99999, background: tokens.modal.bg, border: `1px solid ${tokens.modal.border}`, boxShadow: tokens.modal.shadow, backdropFilter: 'blur(12px)' }}
+                      onClick={e => e.stopPropagation()}
+                    >
+                      <div className="flex items-center justify-between mb-2.5">
+                        <p className="text-xs font-bold truncate" style={{ color: tokens.heading.primary }}>{prenom ? `${prenom} ${nom}` : nom || 'Lead'}</p>
+                        <button onClick={() => setActionsOpen(false)} className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0" style={{ background: tokens.modal.closeBtnBg, color: tokens.modal.closeBtnText }}><X className="w-3 h-3" /></button>
+                      </div>
+                      <CrmActionsMenu
+                        handlers={{
+                          detail: () => { setActionsOpen(false); onDetail(lead, index); },
+                          connect: () => { setActionsOpen(false); onConnectAsClient?.({ id: lead.id, nom, prenom, email }); },
+                          chat: () => { setActionsOpen(false); onOpenChat?.({ id: lead.id, nom, prenom, email, tel }); },
+                          rdv: () => { setActionsOpen(false); onOpenRdv?.({ id: lead.id, nom, prenom, email, tel }); },
+                        }}
+                        tokens={tokens}
+                      />
+                    </div>
+                  )}
+                </div>,
+                document.body
+              )}
+            </td>
+          );
+          case 'acces': return (
+            <td key={key} className="px-5 py-5">
+              <button
+                onClick={() => onToggleActif(lead.id, actif)}
+                className="relative inline-flex items-center rounded-full transition-all duration-300 focus:outline-none"
+                style={{ width: 40, height: 22, background: actif ? tokens.success.bg : tokens.surface.tertiary, border: actif ? `1.5px solid ${tokens.success.border}` : `1.5px solid ${tokens.surface.border}`, boxShadow: actif ? `0 0 8px ${tokens.success.bg}` : 'none' }}
+                title={actif ? 'Desactiver' : 'Activer'}
+              >
+                <span className="absolute rounded-full transition-all duration-300" style={{ width: 14, height: 14, left: actif ? 22 : 3, top: 3, background: actif ? tokens.success.text : tokens.text.quaternary, boxShadow: actif ? `0 0 6px ${tokens.success.text}` : 'none' }} />
+              </button>
+            </td>
+          );
+          case 'ia': return (
+            <td key={key} className="px-5 py-5">
+              <button
+                onClick={() => onToggleAi(lead.id, aiEnabled)}
+                className="relative inline-flex items-center rounded-full transition-all duration-300 focus:outline-none"
+                style={{ width: 40, height: 22, background: aiEnabled ? 'rgba(59,130,246,0.12)' : tokens.surface.tertiary, border: aiEnabled ? '1.5px solid rgba(59,130,246,0.30)' : `1.5px solid ${tokens.surface.border}`, boxShadow: aiEnabled ? '0 0 8px rgba(59,130,246,0.12)' : 'none' }}
+                title={aiEnabled ? 'Mode IA' : 'Mode manuel'}
+              >
+                <span className="absolute rounded-full transition-all duration-300" style={{ width: 14, height: 14, left: aiEnabled ? 22 : 3, top: 3, background: aiEnabled ? '#3b82f6' : tokens.text.quaternary, boxShadow: aiEnabled ? '0 0 6px rgba(59,130,246,0.6)' : 'none' }} />
+              </button>
+            </td>
+          );
+          case 'vendeur': return (
+            <td key={key} className="px-5 py-5">
+              {assignedVendor ? (
+                <span className="inline-flex items-center text-xs font-medium truncate max-w-[120px]" style={{ color: tokens.text.secondary }}>{assignedVendor.first_name} {assignedVendor.last_name}</span>
+              ) : (
+                <span className="inline-flex items-center text-[10px] font-bold uppercase px-2.5 py-1 rounded-full tracking-wider" style={{ background: tokens.surface.tertiary, color: tokens.text.quaternary }}>Admin</span>
+              )}
+            </td>
+          );
+          default: {
+            const customDef = customColumnDefs?.find(c => c.key === key);
+            const val = customColumnValues?.[key] ?? '';
+            if (customDef?.fieldType === 'url' && val) {
+              const href = val.match(/^https?:\/\//) ? val : `https://${val}`;
+              return (
+                <td key={key} className="px-5 py-5 whitespace-nowrap">
+                  <a href={href} target="_blank" rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold transition-all duration-200"
+                    style={{ background: tokens.accent.bg, color: tokens.accent.text, border: `1px solid ${tokens.accent.border}` }}
+                    onMouseEnter={e => { e.currentTarget.style.background = tokens.accent.bgHover; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = tokens.accent.bg; }}
+                  >
+                    <ExternalLink className="w-3 h-3" />Lien
+                  </a>
+                </td>
+              );
+            }
+            return (
+              <td key={key} className="px-5 py-5 whitespace-nowrap">
+                <span className="text-xs" style={{ color: val ? tokens.table.cellTextMuted : tokens.text.quaternary }}>{val || '\u2014'}</span>
+              </td>
+            );
+          }
+        }
+      })}
     </tr>
   );
 });

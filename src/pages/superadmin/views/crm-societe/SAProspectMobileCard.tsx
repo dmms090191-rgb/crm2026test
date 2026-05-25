@@ -96,6 +96,11 @@ export default function SAProspectMobileCard({
           <p className="text-[13px] font-bold truncate leading-tight" style={{ color: t.text.primary }}>
             {p.nom}
           </p>
+          {(p.manager_first_name || p.manager_last_name) && (
+            <p className="text-[11px] truncate mt-0.5" style={{ color: t.text.secondary }}>
+              {[p.manager_first_name, p.manager_last_name].filter(Boolean).join(' ')}
+            </p>
+          )}
           {p.secteur_activite && (
             <p className="text-[11px] truncate mt-0.5" style={{ color: t.text.tertiary }}>
               {p.secteur_activite}

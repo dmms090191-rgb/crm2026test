@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Check, X, ArrowUpDown, Plus, Minus, FolderPlus } from 'lucide-react';
+import { Check, X, Minus, FolderPlus } from 'lucide-react';
 import type { SidebarEntry } from '../lib/sidebarOrderTypes';
 import { useThemeTokens } from '../hooks/useThemeTokens';
 import SidebarReorderEntry from './SidebarReorderEntry';
@@ -97,11 +97,7 @@ export default function SidebarReorderControls({
                 </button>
               </div>
             </>
-          ) : (
-            <button onClick={startReorder} className="flex items-center justify-center gap-1.5 w-full py-1.5 rounded-lg text-[11px] font-medium transition-all hover:scale-[1.02] active:scale-[0.98]" style={{ background: t.surface.secondary, border: `1px solid ${t.surface.borderLight}`, color: t.text.tertiary }}>
-              <ArrowUpDown className="w-3.5 h-3.5" />Reorganiser
-            </button>
-          )}
+          ) : null}
         </div>
       )}
     </>

@@ -28,6 +28,14 @@ export default function SASocieteInfoTab({ prospect: p, saStatuts }: Props) {
 
   return (
     <div className="space-y-0">
+      <InfoRow label="Prenom du gerant">
+        <span className="font-medium">{p.manager_first_name || <span style={{ color: t.text.tertiary }}>-</span>}</span>
+      </InfoRow>
+
+      <InfoRow label="Nom du gerant">
+        <span className="font-medium">{p.manager_last_name || <span style={{ color: t.text.tertiary }}>-</span>}</span>
+      </InfoRow>
+
       <InfoRow label="Nom de la societe">
         <span className="font-semibold">{p.nom}</span>
       </InfoRow>

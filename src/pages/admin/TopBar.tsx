@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
-import { ChevronRight, Menu, ArrowLeft } from 'lucide-react';
+import { ChevronRight, Menu, ArrowLeft, MessageSquareText, Shield, CalendarDays, CalendarClock, CalendarCheck, RefreshCw } from 'lucide-react';
 import { useTimezone } from '../../hooks/useTimezone';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
 import { getCurrentTime } from '../../lib/timezone';
 import TimezoneModal from '../../components/TimezoneSearchDropdown';
+import MobileNotifStrip, { type MobileNotifItem } from '../../components/MobileNotifStrip';
 import { ClockButton, ProfileMenu } from './components/topbar';
 import AdminMobileBellMenu from './components/topbar/AdminMobileBellMenu';
 import AdminDesktopNotifPill from './components/topbar/AdminDesktopNotifPill';
@@ -71,9 +72,12 @@ interface TopBarProps {
   onRescheduleRequestEntryClick?: (proposalId: string) => void;
   impersonatedAdmin?: ImpersonatedAdminInfo | null;
   onBackToSuperAdmin?: () => void;
+  demoSlot?: React.ReactNode;
+  demoStatus?: 'idle' | 'pending' | 'active';
+  onMobileShortcut?: (view: string) => void;
 }
 
-export default function TopBar({ breadcrumb, onMobileMenuToggle, adminName = 'Administrateur', unreadClientCount = 0, unreadClientEntries = [], onClientEntryClick, unreadVendorCount = 0, unreadVendorEntries = [], onVendorEntryClick, unreadSuperAdminCount = 0, onSuperAdminClick, agendaPersoCount = 0, agendaPersoEntries = [], onAgendaPersoEntryClick, agendaEquipeCount = 0, agendaEquipeEntries = [], onAgendaEquipeEntryClick, proposalsCount = 0, proposalsEntries = [], onProposalEntryClick, confirmedCount = 0, confirmedEntries = [], onConfirmedEntryClick, rescheduleCount = 0, rescheduleEntries = [], onRescheduleEntryClick, rescheduleRequestCount = 0, rescheduleRequestEntries = [], onRescheduleRequestEntryClick, impersonatedAdmin, onBackToSuperAdmin }: TopBarProps) {
+export default function TopBar({ breadcrumb, onMobileMenuToggle, adminName = 'Administrateur', unreadClientCount = 0, unreadClientEntries = [], onClientEntryClick, unreadVendorCount = 0, unreadVendorEntries = [], onVendorEntryClick, unreadSuperAdminCount = 0, onSuperAdminClick, agendaPersoCount = 0, agendaPersoEntries = [], onAgendaPersoEntryClick, agendaEquipeCount = 0, agendaEquipeEntries = [], onAgendaEquipeEntryClick, proposalsCount = 0, proposalsEntries = [], onProposalEntryClick, confirmedCount = 0, confirmedEntries = [], onConfirmedEntryClick, rescheduleCount = 0, rescheduleEntries = [], onRescheduleEntryClick, rescheduleRequestCount = 0, rescheduleRequestEntries = [], onRescheduleRequestEntryClick, impersonatedAdmin, onBackToSuperAdmin, demoSlot, demoStatus = 'idle', onMobileShortcut }: TopBarProps) {
   const { timezone, tzLabel, tzCode, setTimezone } = useTimezone();
   const t = useThemeTokens();
   const [clientDropdownOpen, setClientDropdownOpen] = useState(false);
@@ -133,19 +137,37 @@ export default function TopBar({ breadcrumb, onMobileMenuToggle, adminName = 'Ad
     {impersonatingAdmin && (
       <div
         className="flex items-center justify-between px-4 sm:px-6 py-2 flex-shrink-0"
-        style={{ background: 'rgba(245,158,11,0.08)', borderBottom: '1px solid rgba(245,158,11,0.18)' }}
+        style={{
+          background: demoStatus === 'active'
+            ? 'linear-gradient(135deg, rgba(245,158,11,0.12) 0%, rgba(239,68,68,0.06) 100%)'
+            : 'rgba(245,158,11,0.08)',
+          borderBottom: demoStatus === 'active'
+            ? '1px solid rgba(245,158,11,0.3)'
+            : '1px solid rgba(245,158,11,0.18)',
+        }}
       >
         <span className="text-xs font-medium" style={{ color: '#f59e0b' }}>
-          Mode Super Admin — vous visualisez le panel de <span className="font-bold">{impersonatedAdminName}</span>
+          {demoStatus === 'active' ? (
+            <>Demo en direct active avec <span className="font-bold">{impersonatedAdminName}</span></>
+          ) : demoStatus === 'pending' ? (
+            <>Invitation demo envoyee a <span className="font-bold">{impersonatedAdminName}</span></>
+          ) : (
+            <>Mode Super Admin — vous visualisez le panel de <span className="font-bold">{impersonatedAdminName}</span></>
+          )}
         </span>
-        <button
-          onClick={onBackToSuperAdmin}
-          className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition-all hover:scale-105"
-          style={{ background: 'rgba(245,158,11,0.12)', color: '#f59e0b' }}
-        >
-          <ArrowLeft className="w-3 h-3" />
-          Retour Super Admin
-        </button>
+        <div className="flex items-center gap-2">
+          {demoSlot}
+          {demoStatus !== 'active' && (
+            <button
+              onClick={onBackToSuperAdmin}
+              className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition-all hover:scale-105"
+              style={{ background: 'rgba(245,158,11,0.12)', color: '#f59e0b' }}
+            >
+              <ArrowLeft className="w-3 h-3" />
+              Retour Super Admin
+            </button>
+          )}
+        </div>
       </div>
     )}
     <header
@@ -271,6 +293,22 @@ export default function TopBar({ breadcrumb, onMobileMenuToggle, adminName = 'Ad
         <ProfileMenu adminName={adminName} tokens={t} />
       </div>
     </header>
+
+    {onMobileShortcut && (() => {
+      const s = onMobileShortcut;
+      const items: MobileNotifItem[] = [
+        { key: 'client', icon: MessageSquareText, label: 'Client', count: unreadClientCount, onClick: () => s('chat-client') },
+        { key: 'vendeur', icon: MessageSquareText, label: 'Vendeur', count: unreadVendorCount, onClick: () => s('chat-vendeur') },
+        { key: 'sa', icon: Shield, label: 'SA', count: unreadSuperAdminCount, onClick: () => s('chat-super-admin') },
+        { key: 'agenda', icon: CalendarDays, label: 'Agenda', count: agendaPersoCount, onClick: () => s('agenda') },
+        { key: 'equipe', icon: CalendarDays, label: 'Equipe', count: agendaEquipeCount, onClick: () => s('agenda-equipe') },
+        { key: 'prop', icon: CalendarClock, label: 'Prop. RDV', count: proposalsCount, onClick: () => s('propositions-rdv') },
+        { key: 'rdv', icon: CalendarCheck, label: 'Confirmes', count: confirmedCount, onClick: () => s('propositions-rdv') },
+        { key: 'decal', icon: RefreshCw, label: 'Decal.', count: rescheduleCount, onClick: () => s('propositions-rdv') },
+        { key: 'dem', icon: RefreshCw, label: 'Dem. decal.', count: rescheduleRequestCount, onClick: () => s('propositions-rdv') },
+      ];
+      return <MobileNotifStrip items={items} bg={t.topbar.bg} border={t.topbar.border} iconColor={t.topbar.notifIcon} textColor={t.topbar.notifLabel} />;
+    })()}
 
     <TimezoneModal
       open={tzModalOpen}

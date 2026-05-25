@@ -10,6 +10,7 @@ import AppLandingPage from './app/AppLandingPage';
 import AppShell from './app/AppShell';
 import CompanySitePage from './pages/public/CompanySitePage';
 import { getHomePageByDomain } from './lib/companyHomePages';
+import { DemoSessionProvider } from './components/demo/DemoSessionContext';
 
 export interface ImpersonatedAdmin {
   id: string;
@@ -38,6 +39,8 @@ function App() {
   const [customDomainSlug, setCustomDomainSlug] = useState<string | null>(null);
   const [customDomainNotFound, setCustomDomainNotFound] = useState(false);
   const domainCheckedRef = useRef(false);
+  const [saUserId, setSaUserId] = useState<string | null>(null);
+  const [saDisplayName, setSaDisplayName] = useState('Support Talvex');
 
   async function detectRole() {
     const { data: { session } } = await supabase.auth.getSession();
@@ -56,7 +59,13 @@ function App() {
       return;
     }
     setAccessBlocked(false);
-    if (appRole === 'super_admin') setRole('super_admin');
+    if (appRole === 'super_admin') {
+      setRole('super_admin');
+      setSaUserId(session.user.id);
+      const um = session.user.user_metadata ?? {};
+      const name = [um.first_name, um.last_name].filter(Boolean).join(' ');
+      setSaDisplayName(name || 'Support Talvex');
+    }
     else if (appRole === 'vendor') setRole('vendor');
     else if (appRole === 'client') setRole('client');
     else setRole('admin');
@@ -145,39 +154,48 @@ function App() {
 
   if (role === 'super_admin' && impersonatedAdmin && impersonatedVendor && impersonatedClient) {
     return (
-      <AppShell panelRole="client" useCompanyProvider companyId={impersonatedAdmin.company_id} effectiveUserId={impersonatedClient.id}>
-        <ClientDashboard onLogout={handleLogout} impersonatedClient={impersonatedClient} onBackToAdmin={() => setImpersonatedClient(null)} backLabel="Retour vendeur" />
-      </AppShell>
+      <DemoSessionProvider saUserId={saUserId ?? undefined} saDisplayName={saDisplayName}>
+        <AppShell panelRole="client" useCompanyProvider companyId={impersonatedAdmin.company_id} effectiveUserId={impersonatedClient.id}>
+          <ClientDashboard onLogout={handleLogout} impersonatedClient={impersonatedClient} onBackToAdmin={() => setImpersonatedClient(null)} backLabel="Retour vendeur" isSAViewing />
+        </AppShell>
+      </DemoSessionProvider>
     );
   }
 
   if (role === 'super_admin' && impersonatedAdmin && impersonatedVendor) {
     return (
-      <AppShell panelRole="vendor" useCompanyProvider companyId={impersonatedAdmin.company_id} effectiveUserId={impersonatedVendor.auth_user_id ?? impersonatedVendor.id}>
-        <VendorDashboard onLogout={handleLogout} impersonatedVendor={impersonatedVendor} onBackToAdmin={() => setImpersonatedVendor(null)} onConnectAsClient={(client) => setImpersonatedClient(client)} />
-      </AppShell>
+      <DemoSessionProvider saUserId={saUserId ?? undefined} saDisplayName={saDisplayName}>
+        <AppShell panelRole="vendor" useCompanyProvider companyId={impersonatedAdmin.company_id} effectiveUserId={impersonatedVendor.auth_user_id ?? impersonatedVendor.id}>
+          <VendorDashboard onLogout={handleLogout} impersonatedVendor={impersonatedVendor} onBackToAdmin={() => setImpersonatedVendor(null)} onConnectAsClient={(client) => setImpersonatedClient(client)} isSAViewing />
+        </AppShell>
+      </DemoSessionProvider>
     );
   }
 
   if (role === 'super_admin' && impersonatedAdmin && impersonatedClient) {
     return (
-      <AppShell panelRole="client" useCompanyProvider companyId={impersonatedAdmin.company_id} effectiveUserId={impersonatedClient.id}>
-        <ClientDashboard onLogout={handleLogout} impersonatedClient={impersonatedClient} onBackToAdmin={() => setImpersonatedClient(null)} />
-      </AppShell>
+      <DemoSessionProvider saUserId={saUserId ?? undefined} saDisplayName={saDisplayName}>
+        <AppShell panelRole="client" useCompanyProvider companyId={impersonatedAdmin.company_id} effectiveUserId={impersonatedClient.id}>
+          <ClientDashboard onLogout={handleLogout} impersonatedClient={impersonatedClient} onBackToAdmin={() => setImpersonatedClient(null)} isSAViewing />
+        </AppShell>
+      </DemoSessionProvider>
     );
   }
 
   if (role === 'super_admin' && impersonatedAdmin) {
     return (
-      <AppShell panelRole="admin" useCompanyProvider companyId={impersonatedAdmin.company_id}>
-        <AdminDashboard
-          onLogout={handleLogout}
-          onConnectAsVendor={(vendor) => setImpersonatedVendor({ id: vendor.id, first_name: vendor.first_name, last_name: vendor.last_name, auth_user_id: vendor.auth_user_id })}
-          onConnectAsClient={(client) => setImpersonatedClient(client)}
-          impersonatedAdmin={impersonatedAdmin}
-          onBackToSuperAdmin={() => setImpersonatedAdmin(null)}
-        />
-      </AppShell>
+      <DemoSessionProvider saUserId={saUserId ?? undefined} saDisplayName={saDisplayName}>
+        <AppShell panelRole="admin" useCompanyProvider companyId={impersonatedAdmin.company_id}>
+          <AdminDashboard
+            onLogout={handleLogout}
+            onConnectAsVendor={(vendor) => setImpersonatedVendor({ id: vendor.id, first_name: vendor.first_name, last_name: vendor.last_name, auth_user_id: vendor.auth_user_id })}
+            onConnectAsClient={(client) => setImpersonatedClient(client)}
+            impersonatedAdmin={impersonatedAdmin}
+            onBackToSuperAdmin={() => setImpersonatedAdmin(null)}
+            isSAViewing
+          />
+        </AppShell>
+      </DemoSessionProvider>
     );
   }
 

@@ -1,22 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
-import { ChevronDown, Sun, Moon, Monitor, Palette, Heart, Leaf, Crown, Cherry, Flame, Droplets, Zap, Building2 } from 'lucide-react';
-import { useTheme, type Theme } from '../../../../contexts/ThemeContext';
+import { ChevronDown, Palette } from 'lucide-react';
 import type { ThemeTokens } from '../../../../lib/themeTokensTypes';
-
-const themeOptions: { value: Theme; label: string; icon: React.ReactNode }[] = [
-  { value: 'dark', label: 'Sombre', icon: <Moon className="w-3.5 h-3.5" /> },
-  { value: 'light', label: 'Clair', icon: <Sun className="w-3.5 h-3.5" /> },
-  { value: 'graphite', label: 'Graphite', icon: <Monitor className="w-3.5 h-3.5" /> },
-  { value: 'beige', label: 'Beige Premium', icon: <Palette className="w-3.5 h-3.5" /> },
-  { value: 'rose', label: 'Violet Royal Premium', icon: <Heart className="w-3.5 h-3.5" /> },
-  { value: 'emerald', label: 'Vert Émeraude Premium', icon: <Leaf className="w-3.5 h-3.5" /> },
-  { value: 'luxury', label: 'Blanc Luxe', icon: <Crown className="w-3.5 h-3.5" /> },
-  { value: 'pink', label: 'Rose Premium', icon: <Cherry className="w-3.5 h-3.5" /> },
-  { value: 'red', label: 'Rouge Premium', icon: <Droplets className="w-3.5 h-3.5" /> },
-  { value: 'orange', label: 'Orange Premium', icon: <Flame className="w-3.5 h-3.5" /> },
-  { value: 'yellow', label: 'Jaune Premium', icon: <Zap className="w-3.5 h-3.5" /> },
-  { value: 'highlevel_light', label: 'HighLevel Clair', icon: <Building2 className="w-3.5 h-3.5" /> },
-];
+import ThemeSelectorModal from '../../../../components/theme/ThemeSelectorModal';
 
 interface ProfileMenuProps {
   adminName: string;
@@ -24,8 +9,8 @@ interface ProfileMenuProps {
 }
 
 export default function ProfileMenu({ adminName, tokens }: ProfileMenuProps) {
-  const { theme, setTheme } = useTheme();
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [themeModalOpen, setThemeModalOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -98,53 +83,24 @@ export default function ProfileMenu({ adminName, tokens }: ProfileMenuProps) {
           }}
         >
           <div className="py-1">
-            {themeOptions.map(opt => (
-              <ThemeOption
-                key={opt.value}
-                icon={opt.icon}
-                label={opt.label}
-                active={theme === opt.value}
-                onClick={() => { setTheme(opt.value); }}
-                tokens={d}
-              />
-            ))}
+            <button
+              onClick={() => { setDropdownOpen(false); setThemeModalOpen(true); }}
+              className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs transition-colors duration-150"
+              style={{ color: d.itemText }}
+              onMouseEnter={e => { e.currentTarget.style.background = d.itemBgHover; e.currentTarget.style.color = d.itemTextHover; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = d.itemText; }}
+            >
+              <Palette className="w-4 h-4" />
+              <div className="flex flex-col items-start">
+                <span className="font-semibold">Themes</span>
+                <span className="text-[10px] opacity-60">Personnaliser l'apparence</span>
+              </div>
+            </button>
           </div>
         </div>
       )}
-    </div>
-  );
-}
 
-function ThemeOption({
-  icon,
-  label,
-  active,
-  onClick,
-  tokens,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  active: boolean;
-  onClick: () => void;
-  tokens: ThemeTokens['dropdown'];
-}) {
-  const [hovered, setHovered] = useState(false);
-  return (
-    <button
-      onClick={onClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      className="w-full flex items-center gap-2.5 px-3 py-2 text-xs transition-colors duration-150"
-      style={{
-        color: active ? tokens.activeCheck : (hovered ? tokens.itemTextHover : tokens.itemText),
-        background: hovered ? tokens.itemBgHover : 'transparent',
-      }}
-    >
-      {icon}
-      <span className="font-medium flex-1 text-left">{label}</span>
-      {active && (
-        <div className="w-1.5 h-1.5 rounded-full" style={{ background: tokens.activeCheck, boxShadow: `0 0 6px ${tokens.activeCheck}` }} />
-      )}
-    </button>
+      <ThemeSelectorModal open={themeModalOpen} onClose={() => setThemeModalOpen(false)} />
+    </div>
   );
 }

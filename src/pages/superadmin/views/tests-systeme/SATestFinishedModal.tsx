@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
+import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 
 export interface FinishedTest {
   id: string;
@@ -34,6 +35,7 @@ interface Props {
 }
 
 export default function SATestFinishedModal({ open, initial, subcategoryId, categories, subcategories, onSave, onClose }: Props) {
+  const t = useThemeTokens();
   const [title, setTitle] = useState('');
   const [filename, setFilename] = useState('');
   const [description, setDescription] = useState('');
@@ -79,10 +81,10 @@ export default function SATestFinishedModal({ open, initial, subcategoryId, cate
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 backdrop-blur-sm" style={{ background: t.modal.overlayBg }} onClick={onClose} />
       <div
         className="relative w-full max-w-md rounded-xl p-6 max-h-[90vh] overflow-y-auto"
-        style={{ background: '#0f172a', border: '1px solid rgba(51,65,85,0.6)' }}
+        style={{ background: t.modal.bg, border: `1px solid ${t.modal.border}` }}
       >
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-base font-bold text-slate-100">
@@ -100,7 +102,7 @@ export default function SATestFinishedModal({ open, initial, subcategoryId, cate
               value={selectedSubcatId}
               onChange={e => setSelectedSubcatId(e.target.value)}
               className="w-full px-3 py-2 rounded-lg text-sm text-slate-100 outline-none focus:ring-1 focus:ring-amber-500/50 transition-all appearance-none"
-              style={{ background: 'rgba(30,41,59,0.8)', border: '1px solid rgba(71,85,105,0.5)' }}
+              style={{ background: t.modal.fieldBg, border: `1px solid ${t.modal.fieldBorder}` }}
             >
               {categories.map(cat => {
                 const subs = subcategories.filter(s => s.categoryId === cat.id);
@@ -122,7 +124,7 @@ export default function SATestFinishedModal({ open, initial, subcategoryId, cate
               onChange={e => setTitle(e.target.value)}
               placeholder="Exemple : Info admin — modification prenom/nom/PIN"
               className="w-full px-3 py-2 rounded-lg text-sm text-slate-100 placeholder:text-slate-500 outline-none focus:ring-1 focus:ring-amber-500/50 transition-all"
-              style={{ background: 'rgba(30,41,59,0.8)', border: '1px solid rgba(71,85,105,0.5)' }}
+              style={{ background: t.modal.fieldBg, border: `1px solid ${t.modal.fieldBorder}` }}
             />
           </div>
 
@@ -134,7 +136,7 @@ export default function SATestFinishedModal({ open, initial, subcategoryId, cate
               onChange={e => setFilename(e.target.value)}
               placeholder="Exemple : info-admin.spec.ts"
               className="w-full px-3 py-2 rounded-lg text-sm text-slate-100 placeholder:text-slate-500 outline-none focus:ring-1 focus:ring-amber-500/50 transition-all font-mono"
-              style={{ background: 'rgba(30,41,59,0.8)', border: '1px solid rgba(71,85,105,0.5)' }}
+              style={{ background: t.modal.fieldBg, border: `1px solid ${t.modal.fieldBorder}` }}
             />
           </div>
 
@@ -146,7 +148,7 @@ export default function SATestFinishedModal({ open, initial, subcategoryId, cate
               placeholder="Exemple : Verifie que l'admin peut modifier son prenom, son nom et son PIN..."
               rows={3}
               className="w-full px-3 py-2 rounded-lg text-sm text-slate-100 placeholder:text-slate-500 outline-none focus:ring-1 focus:ring-amber-500/50 transition-all resize-none"
-              style={{ background: 'rgba(30,41,59,0.8)', border: '1px solid rgba(71,85,105,0.5)' }}
+              style={{ background: t.modal.fieldBg, border: `1px solid ${t.modal.fieldBorder}` }}
             />
           </div>
 
@@ -159,7 +161,7 @@ export default function SATestFinishedModal({ open, initial, subcategoryId, cate
               placeholder={"npm.cmd install\nnpm.cmd run dev\nnpm.cmd run test:e2e:slow -- e2e/admin/info-admin.spec.ts"}
               rows={4}
               className="w-full px-3 py-2 rounded-lg text-sm text-slate-100 placeholder:text-slate-500 outline-none focus:ring-1 focus:ring-amber-500/50 transition-all resize-none font-mono"
-              style={{ background: 'rgba(30,41,59,0.8)', border: '1px solid rgba(71,85,105,0.5)' }}
+              style={{ background: t.modal.fieldBg, border: `1px solid ${t.modal.fieldBorder}` }}
             />
           </div>
 
@@ -172,7 +174,7 @@ export default function SATestFinishedModal({ open, initial, subcategoryId, cate
               placeholder={"import { test, expect } from '@playwright/test';\n\ntest('mon test', async ({ page }) => {\n  await page.goto('/');\n  // ...\n});"}
               rows={10}
               className="w-full px-3 py-2 rounded-lg text-[12px] text-slate-100 placeholder:text-slate-500 outline-none focus:ring-1 focus:ring-amber-500/50 transition-all resize-y font-mono leading-relaxed"
-              style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(71,85,105,0.5)', maxHeight: '50vh' }}
+              style={{ background: t.modal.fieldBg, border: `1px solid ${t.modal.fieldBorder}`, maxHeight: '50vh' }}
             />
           </div>
         </div>
@@ -181,7 +183,7 @@ export default function SATestFinishedModal({ open, initial, subcategoryId, cate
           <button
             onClick={onClose}
             className="px-4 py-2 rounded-lg text-xs font-medium transition-all"
-            style={{ background: 'rgba(51,65,85,0.5)', border: '1px solid rgba(71,85,105,0.5)', color: '#94a3b8' }}
+            style={{ background: t.surface.secondary, border: `1px solid ${t.modal.fieldBorder}`, color: t.text.secondary }}
           >
             Annuler
           </button>

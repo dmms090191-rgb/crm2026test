@@ -196,6 +196,14 @@ html[data-theme="highlevel_light"] {
   background: #f4f7fb;
 }
 
+html[data-theme="highlevel_dark"] {
+  background: #f3f6fb;
+}
+
+html[data-theme="highlevel_emerald"] {
+  background: #f8fafc;
+}
+
 html[data-theme="light"] input::placeholder,
 html[data-theme="light"] textarea::placeholder {
   color: #3D8098;
@@ -264,6 +272,18 @@ html[data-theme="yellow"] textarea::placeholder {
 
 html[data-theme="highlevel_light"] input::placeholder,
 html[data-theme="highlevel_light"] textarea::placeholder {
+  color: #94a3b8;
+  opacity: 1;
+}
+
+html[data-theme="highlevel_dark"] input::placeholder,
+html[data-theme="highlevel_dark"] textarea::placeholder {
+  color: #94a3b8;
+  opacity: 1;
+}
+
+html[data-theme="highlevel_emerald"] input::placeholder,
+html[data-theme="highlevel_emerald"] textarea::placeholder {
   color: #94a3b8;
   opacity: 1;
 }

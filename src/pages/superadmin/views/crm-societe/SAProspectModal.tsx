@@ -4,6 +4,8 @@ import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 
 export interface Prospect {
   id: string;
+  manager_first_name: string;
+  manager_last_name: string;
   nom: string;
   site_internet: string;
   lien_google_maps: string;
@@ -22,6 +24,8 @@ interface Props {
 }
 
 const FIELDS: { key: keyof Omit<Prospect, 'id' | 'created_at' | 'statut'>; label: string; placeholder: string; type?: string }[] = [
+  { key: 'manager_first_name', label: 'Prenom du gerant', placeholder: 'Ex: David' },
+  { key: 'manager_last_name', label: 'Nom du gerant', placeholder: 'Ex: Cohen' },
   { key: 'nom', label: 'Nom de la societe', placeholder: 'Ex: Studio Digital Paris' },
   { key: 'site_internet', label: 'Site internet', placeholder: 'https://...' },
   { key: 'lien_google_maps', label: 'Lien Google Maps', placeholder: 'https://maps.google.com/...' },
@@ -74,9 +78,20 @@ function formatCompanyName(name: string): string {
     .join(' ');
 }
 
+function capitalizeName(name: string): string {
+  return name
+    .replace(/\s+/g, ' ')
+    .trimStart()
+    .split(' ')
+    .map(w => w.length === 0 ? '' : w[0].toUpperCase() + w.slice(1))
+    .join(' ');
+}
+
 export default function SAProspectModal({ existing, onSave, onClose }: Props) {
   const t = useThemeTokens();
   const [form, setForm] = useState({
+    manager_first_name: existing?.manager_first_name ?? '',
+    manager_last_name: existing?.manager_last_name ?? '',
     nom: existing?.nom ?? '',
     site_internet: existing?.site_internet ?? '',
     lien_google_maps: existing?.lien_google_maps ?? '',
@@ -92,6 +107,7 @@ export default function SAProspectModal({ existing, onSave, onClose }: Props) {
       ...prev,
       [key]: key === 'nom' ? formatCompanyName(value)
            : key === 'telephone' ? formatFrenchPhoneNumber(value)
+           : (key === 'manager_first_name' || key === 'manager_last_name') ? capitalizeName(value)
            : value,
     }));
 

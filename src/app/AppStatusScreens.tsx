@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 
 function isLightTheme(): boolean {
   const attr = document.documentElement.getAttribute('data-theme');
-  return attr === 'highlevel_light';
+  return attr === 'highlevel_light' || attr === 'highlevel_dark' || attr === 'highlevel_emerald';
 }
 
 export function AppLoadingScreen() {

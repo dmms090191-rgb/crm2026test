@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
-import { ChevronRight, ArrowLeft, Menu } from 'lucide-react';
+import { ChevronRight, ArrowLeft, Menu, MessageSquare, MessageCircle, CalendarDays, CalendarClock, CalendarCheck } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
 import { useTimezone } from '../../hooks/useTimezone';
 import { getCurrentTime } from '../../lib/timezone';
 import TimezoneModal from '../../components/TimezoneSearchDropdown';
+import MobileNotifStrip, { type MobileNotifItem } from '../../components/MobileNotifStrip';
 import type { AgendaNotifEntry } from '../../hooks/useAgendaNotifications';
 import { VendorClockButton, VendorProfileDropdown } from './components/topbar';
 import VendorMobileBellMenu from './components/topbar/VendorMobileBellMenu';
@@ -49,9 +50,12 @@ interface VendorTopBarProps {
   confirmedCount?: number;
   confirmedEntries?: ConfirmedProposalEntry[];
   onConfirmedEntryClick?: (proposalId: string) => void;
+  demoSlot?: React.ReactNode;
+  demoStatus?: 'idle' | 'pending' | 'active';
+  onMobileShortcut?: (view: string) => void;
 }
 
-export default function VendorTopBar({ breadcrumb, onMobileMenuToggle, vendorName = 'Vendeur', isImpersonating, onBackToAdmin, unreadAdminCount = 0, unreadAdminLatestAt, onAdminNotifClick, unreadClientCount = 0, unreadClientEntries = [], onClientEntryClick, agendaCount = 0, agendaEntries = [], onAgendaEntryClick, proposalsCount = 0, proposalsEntries = [], onProposalEntryClick, confirmedCount = 0, confirmedEntries = [], onConfirmedEntryClick }: VendorTopBarProps) {
+export default function VendorTopBar({ breadcrumb, onMobileMenuToggle, vendorName = 'Vendeur', isImpersonating, onBackToAdmin, unreadAdminCount = 0, unreadAdminLatestAt, onAdminNotifClick, unreadClientCount = 0, unreadClientEntries = [], onClientEntryClick, agendaCount = 0, agendaEntries = [], onAgendaEntryClick, proposalsCount = 0, proposalsEntries = [], onProposalEntryClick, confirmedCount = 0, confirmedEntries = [], onConfirmedEntryClick, demoSlot, demoStatus = 'idle', onMobileShortcut }: VendorTopBarProps) {
   const { theme, setTheme } = useTheme();
   const tokens = useThemeTokens();
   const { timezone, tzLabel, tzCode, setTimezone } = useTimezone();
@@ -120,21 +124,41 @@ export default function VendorTopBar({ breadcrumb, onMobileMenuToggle, vendorNam
     <div className="flex-shrink-0">
       {isImpersonating && (
         <div
-          className="flex items-center justify-between px-6 py-2"
-          style={{ background: 'rgba(52,211,153,0.08)', borderBottom: '1px solid rgba(52,211,153,0.15)' }}
+          className="flex items-center justify-between px-4 sm:px-6 py-2"
+          style={{
+            background: demoStatus === 'active'
+              ? 'linear-gradient(135deg, rgba(52,211,153,0.1) 0%, rgba(245,158,11,0.06) 100%)'
+              : 'rgba(52,211,153,0.08)',
+            borderBottom: demoStatus === 'active'
+              ? '1px solid rgba(245,158,11,0.25)'
+              : '1px solid rgba(52,211,153,0.15)',
+          }}
         >
           <div className="flex items-center gap-2">
             <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-xs text-emerald-400 font-medium">Mode admin — vous visualisez le panel de <span className="font-bold">{vendorName}</span></span>
+            <span className="text-xs font-medium" style={{ color: demoStatus === 'active' ? '#f59e0b' : '#34d399' }}>
+              {demoStatus === 'active' ? (
+                <>Demo en direct active avec <span className="font-bold">{vendorName}</span></>
+              ) : demoStatus === 'pending' ? (
+                <>Invitation demo envoyee a <span className="font-bold">{vendorName}</span></>
+              ) : (
+                <>Mode admin — vous visualisez le panel de <span className="font-bold">{vendorName}</span></>
+              )}
+            </span>
           </div>
-          <button
-            onClick={onBackToAdmin}
-            className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold text-emerald-400 transition-all hover:scale-105"
-            style={{ background: 'rgba(52,211,153,0.1)', border: '1px solid rgba(52,211,153,0.2)' }}
-          >
-            <ArrowLeft className="w-3 h-3" />
-            Retour admin
-          </button>
+          <div className="flex items-center gap-2">
+            {demoSlot}
+            {demoStatus !== 'active' && (
+              <button
+                onClick={onBackToAdmin}
+                className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold text-emerald-400 transition-all hover:scale-105"
+                style={{ background: 'rgba(52,211,153,0.1)', border: '1px solid rgba(52,211,153,0.2)' }}
+              >
+                <ArrowLeft className="w-3 h-3" />
+                Retour admin
+              </button>
+            )}
+          </div>
         </div>
       )}
     <header
@@ -236,6 +260,22 @@ export default function VendorTopBar({ breadcrumb, onMobileMenuToggle, vendorNam
         />
       </div>
     </header>
+
+    {onMobileShortcut && (
+      <MobileNotifStrip
+        items={[
+          { key: 'admin', icon: MessageSquare, label: 'Admin', count: unreadAdminCount, onClick: () => onMobileShortcut('chat-admin') },
+          { key: 'client', icon: MessageCircle, label: 'Client', count: unreadClientCount, onClick: () => onMobileShortcut('chat-client') },
+          { key: 'agenda', icon: CalendarDays, label: 'Agenda', count: agendaCount, onClick: () => onMobileShortcut('agenda') },
+          { key: 'propositions', icon: CalendarClock, label: 'Prop. RDV', count: proposalsCount, onClick: () => onMobileShortcut('propositions-rdv') },
+          { key: 'rdv', icon: CalendarCheck, label: 'Confirmes', count: confirmedCount, onClick: () => onMobileShortcut('propositions-rdv') },
+        ] as MobileNotifItem[]}
+        bg={tokens.topbar.bg}
+        border={tokens.topbar.border}
+        iconColor={tokens.topbar.notifIcon}
+        textColor={tokens.topbar.notifLabel}
+      />
+    )}
 
     <TimezoneModal
       open={tzModalOpen}

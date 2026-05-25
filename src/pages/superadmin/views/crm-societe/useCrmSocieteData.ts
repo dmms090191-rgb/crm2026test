@@ -10,6 +10,7 @@ export default function useCrmSocieteData() {
   const [loadingArgs, setLoadingArgs] = useState(true);
   const [loadingProspects, setLoadingProspects] = useState(true);
   const [filterStatut, setFilterStatut] = useState<string | null>(null);
+  const [filterPhone, setFilterPhone] = useState('');
 
   const loadArgs = useCallback(async () => {
     const { data } = await supabase
@@ -36,10 +37,15 @@ export default function useCrmSocieteData() {
 
   useEffect(() => { loadArgs(); loadProspects(); loadSaStatuts(); }, [loadArgs, loadProspects, loadSaStatuts]);
 
-  const filteredProspects = useMemo(
-    () => filterStatut ? prospects.filter(p => p.statut === filterStatut) : prospects,
-    [prospects, filterStatut]
-  );
+  const filteredProspects = useMemo(() => {
+    let result = prospects;
+    if (filterStatut) result = result.filter(p => p.statut === filterStatut);
+    if (filterPhone.trim()) {
+      const digits = filterPhone.replace(/\D/g, '');
+      result = result.filter(p => p.telephone.replace(/\D/g, '').includes(digits));
+    }
+    return result;
+  }, [prospects, filterStatut, filterPhone]);
 
   const saveArg = async (title: string, content: string, existingId?: string) => {
     if (existingId) {
@@ -78,7 +84,7 @@ export default function useCrmSocieteData() {
 
   return {
     args, prospects, saStatuts, loadingArgs, loadingProspects,
-    filteredProspects, filterStatut, setFilterStatut,
+    filteredProspects, filterStatut, setFilterStatut, filterPhone, setFilterPhone,
     saveArg, deleteArgs,
     saveProspect, deleteProspects, updateProspectStatut,
   };

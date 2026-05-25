@@ -1,12 +1,13 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
   LayoutDashboard, Database, MessageSquare, MessageCircle,
-  LogOut, ChevronLeft, Hexagon, CalendarDays, CalendarClock,
+  Hexagon, CalendarDays, CalendarClock,
 } from 'lucide-react';
 import type { VendorActiveView } from './VendorDashboard';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
 import { useSidebarOrder } from '../../hooks/useSidebarOrder';
 import SidebarReorderControls from '../../components/SidebarReorderControls';
+import SidebarFooterActions from '../../components/layout/SidebarFooterActions';
 import type { SidebarSection } from '../../lib/sidebarOrderTypes';
 import { supabase } from '../../lib/supabase';
 
@@ -87,10 +88,14 @@ export default function VendorSidebar({ activeView, onNavigate, collapsed, onCol
         )}
       />
 
-      <div className="px-2 pb-2 pt-2 space-y-0.5" style={{ borderTop: `1px solid ${tokens.sidebar.divider}` }}>
-        <VendorBottomBtn icon={<LogOut className="w-4 h-4 flex-shrink-0" />} label="Deconnexion" collapsed={collapsed} tokens={tokens} kind="logout" onClick={onLogout} />
-        <VendorBottomBtn icon={<ChevronLeft className={`w-4 h-4 flex-shrink-0 transition-all duration-300 ${collapsed ? 'rotate-180' : ''}`} />} label="Reduire" collapsed={collapsed} tokens={tokens} kind="collapse" onClick={onCollapse} />
-      </div>
+      <SidebarFooterActions
+        collapsed={collapsed}
+        onLogout={onLogout}
+        onCollapse={onCollapse}
+        onReorganize={order.startReorder}
+        reordering={order.reordering}
+        tokens={tokens}
+      />
     </aside>
   );
 }
@@ -110,18 +115,3 @@ function VendorItem({ entry, isActive, collapsed, onClick, tokens }: {
   );
 }
 
-function VendorBottomBtn({ icon, label, collapsed, tokens, kind, onClick }: {
-  icon: React.ReactNode; label: string; collapsed: boolean; tokens: ReturnType<typeof useThemeTokens>; kind: 'logout' | 'collapse'; onClick: () => void;
-}) {
-  const color = kind === 'logout' ? tokens.sidebar.logoutText : tokens.sidebar.collapseText;
-  const hoverColor = kind === 'logout' ? tokens.sidebar.logoutHover : tokens.sidebar.itemTextHover;
-  return (
-    <button onClick={onClick} title={collapsed ? label : undefined}
-      className={`w-full flex items-center gap-3 rounded-lg py-2 transition-all group ${collapsed ? 'px-1 justify-center' : 'px-3'}`}
-      onMouseEnter={e => { e.currentTarget.querySelectorAll<HTMLElement>('[data-themed]').forEach(el => { el.style.color = hoverColor; }); }}
-      onMouseLeave={e => { e.currentTarget.querySelectorAll<HTMLElement>('[data-themed]').forEach(el => { el.style.color = color; }); }}>
-      <span data-themed style={{ color }}>{icon}</span>
-      {!collapsed && <span data-themed className="text-sm font-medium transition-colors" style={{ color }}>{label}</span>}
-    </button>
-  );
-}

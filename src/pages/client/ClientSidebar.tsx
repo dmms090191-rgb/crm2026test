@@ -3,12 +3,11 @@ import {
   MessageCircle,
   CalendarDays,
   CalendarClock,
-  LogOut,
-  ChevronLeft,
   Hexagon,
 } from 'lucide-react';
 import type { ClientActiveView } from './ClientDashboard';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
+import SidebarFooterActions from '../../components/layout/SidebarFooterActions';
 
 interface ClientSidebarProps {
   activeView: ClientActiveView;
@@ -140,27 +139,12 @@ export default function ClientSidebar({ activeView, onNavigate, collapsed, onCol
         ))}
       </nav>
 
-      <div
-        className="px-2 pb-2 pt-2 space-y-0.5"
-        style={{ borderTop: `1px solid ${tokens.sidebar.divider}` }}
-      >
-        <button
-          onClick={onLogout}
-          title={collapsed ? 'Déconnexion' : undefined}
-          className={`w-full flex items-center gap-3 rounded-lg py-2 transition-all group ${collapsed ? 'px-1 justify-center' : 'px-3'}`}
-        >
-          <LogOut className="w-4 h-4 flex-shrink-0 transition-colors" style={{ color: tokens.sidebar.logoutText }} />
-          {!collapsed && <span className="text-sm font-medium transition-colors" style={{ color: tokens.sidebar.logoutText }}>{!collapsed && 'Déconnexion'}</span>}
-        </button>
-        <button
-          onClick={onCollapse}
-          title={collapsed ? 'Agrandir' : undefined}
-          className={`w-full flex items-center gap-3 rounded-lg py-2 transition-all group ${collapsed ? 'px-1 justify-center' : 'px-3'}`}
-        >
-          <ChevronLeft className={`w-4 h-4 flex-shrink-0 transition-all duration-300 ${collapsed ? 'rotate-180' : ''}`} style={{ color: tokens.sidebar.itemIcon }} />
-          {!collapsed && <span className="text-sm font-medium transition-colors" style={{ color: tokens.sidebar.itemText }}>Réduire</span>}
-        </button>
-      </div>
+      <SidebarFooterActions
+        collapsed={collapsed}
+        onLogout={onLogout}
+        onCollapse={onCollapse}
+        tokens={tokens}
+      />
     </aside>
   );
 }

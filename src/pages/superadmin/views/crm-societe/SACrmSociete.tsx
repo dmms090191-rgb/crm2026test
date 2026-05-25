@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { Building2, FileText } from 'lucide-react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 import { useWorkMode } from '../../../../hooks/useWorkMode';
@@ -12,7 +12,23 @@ import SASocieteDetailModal from './SASocieteDetailModal';
 import SACrmProspectsPanel from './SACrmProspectsPanel';
 import useCrmSocieteData from './useCrmSocieteData';
 import SiteManagerModal from '../site-builder/SiteManagerModal';
+import useColumnOrder from '../../../../components/table/useColumnOrder';
+import useColumnOrderMobile from '../../../../components/table/useColumnOrderMobile';
+import ColumnOrganizerModal from '../../../../components/table/ColumnOrganizerModal';
+import { useCustomColumns } from '../../../../hooks/useCustomColumns';
 import type { Argumentaire } from './types';
+
+const SA_CRM_COLUMNS = [
+  { key: 'prenom', label: 'Prenom' },
+  { key: 'nom', label: 'Nom' },
+  { key: 'societe', label: 'Societe' },
+  { key: 'secteur', label: 'Secteur' },
+  { key: 'site', label: 'Site' },
+  { key: 'maps', label: 'Maps' },
+  { key: 'telephone', label: 'Telephone' },
+  { key: 'statut', label: 'Statut', required: true },
+  { key: 'actions', label: 'Actions', required: true },
+];
 
 type Tab = 'prospects' | 'argumentaires';
 
@@ -20,12 +36,18 @@ export default function SACrmSociete() {
   const t = useThemeTokens();
   const {
     args, prospects, saStatuts, loadingArgs, loadingProspects,
-    filteredProspects, filterStatut, setFilterStatut,
+    filteredProspects, filterStatut, setFilterStatut, filterPhone, setFilterPhone,
     saveArg, deleteArgs,
     saveProspect, deleteProspects, updateProspectStatut,
   } = useCrmSocieteData();
 
   const [siteProspect, setSiteProspect] = useState<Prospect | null>(null);
+  const cc = useCustomColumns('sa_crm_societe');
+  const allColumns = useMemo(() => [...SA_CRM_COLUMNS, ...cc.customDefs], [cc.customDefs]);
+  const colOrder = useColumnOrder('talvex_columns_sa_crm_societe', allColumns);
+  const colMobile = useColumnOrderMobile('talvex_columns_sa_crm_societe', allColumns);
+  const [showColModal, setShowColModal] = useState(false);
+  const displayColumns = useMemo(() => allColumns.map(c => colOrder.labelOverrides[c.key] ? { ...c, label: colOrder.labelOverrides[c.key] } : c), [allColumns, colOrder.labelOverrides]);
 
   const workMode = useWorkMode('sa_crm_societe_workmode');
   const [activeTab, setActiveTab] = useState<Tab>('prospects');
@@ -150,7 +172,7 @@ export default function SACrmSociete() {
       {activeTab === 'prospects' && (
         <SACrmProspectsPanel
           prospects={prospects} filteredProspects={filteredProspects} loadingProspects={loadingProspects}
-          saStatuts={saStatuts} filterStatut={filterStatut} selectedProspects={selectedProspects}
+          saStatuts={saStatuts} filterStatut={filterStatut} filterPhone={filterPhone} onFilterPhoneChange={setFilterPhone} selectedProspects={selectedProspects}
           selectMode={selectMode} workMode={workMode}
           allProspectsChecked={allProspectsChecked} someProspectsChecked={someProspectsChecked} canLocate={canLocate}
           onToggleProspectSel={toggleProspectSel} onToggleAllProspects={toggleAllProspects}
@@ -165,6 +187,9 @@ export default function SACrmSociete() {
           filterBtnRef={filterBtnRef}
           rowRefCallback={(id, el) => { if (el) rowRefsMap.current.set(id, el); else rowRefsMap.current.delete(id); }}
           cardRefCallback={(id, el) => { if (el) cardRefsMap.current.set(id, el); else cardRefsMap.current.delete(id); }}
+          columnOrder={colOrder.visibleOrderedKeys}
+          onOpenColumnOrganizer={() => setShowColModal(true)}
+          labelOverrides={colOrder.labelOverrides}
           t={t}
         />
       )}
@@ -185,6 +210,10 @@ export default function SACrmSociete() {
       {floatingArg && <SAArgumentaireFloatingWindow title={floatingArg.title} content={floatingArg.content} onClose={() => setFloatingArg(null)} />}
       {detailProspect && <SASocieteDetailModal prospect={detailProspect} saStatuts={saStatuts} onClose={() => setDetailProspect(null)} />}
       {siteProspect && <SiteManagerModal ownerType="crm_societe" title={`Site de ${siteProspect.nom}`} subtitle={`Gestion du site pour ${siteProspect.nom}`} societeId={siteProspect.id} onClose={() => setSiteProspect(null)} />}
+
+      {showColModal && (
+        <ColumnOrganizerModal columns={displayColumns} orderedKeys={colOrder.orderedKeys} hiddenDesktopKeys={colOrder.hiddenDesktopKeys} tableKey="sa_crm_societe" onSave={colOrder.saveAll} onReset={colOrder.resetAll} onClose={() => setShowColModal(false)} onCreateCustomColumn={cc.createColumn} onDeleteCustomColumn={cc.deleteColumn} onRenameCustomColumn={cc.renameColumn} onRenameLabel={colOrder.renameLabel} mobileOrder={colMobile.mobileOrder} mobileCardStyle={colMobile.cardStyle} onSaveMobile={colMobile.saveMobile} onResetMobile={colMobile.resetMobile} />
+      )}
 
       {filterDropdownOpen && filterDropdownRect && (
         <SAStatutFilterDropdown rect={filterDropdownRect} filterStatut={filterStatut} saStatuts={saStatuts} prospects={prospects} onSelect={handleFilterSelect} onClose={() => { setFilterDropdownOpen(false); setFilterDropdownRect(null); }} t={t} />

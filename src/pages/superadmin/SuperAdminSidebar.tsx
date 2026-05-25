@@ -1,12 +1,13 @@
 import { useState, useEffect, useMemo } from 'react';
-import { LayoutDashboard, LogOut, ChevronLeft, Shield, UserCog, BookOpen, Monitor, HardDriveDownload, MessageSquare, CircleUser as UserCircle, FlaskConical, Building2, Settings, Bot, Globe, Blocks, LayoutTemplate } from 'lucide-react';
+import { LayoutDashboard, Shield, UserCog, BookOpen, Monitor, HardDriveDownload, MessageSquare, CircleUser as UserCircle, FlaskConical, Building2, Settings, Bot, Globe, Blocks, LayoutTemplate, Brain } from 'lucide-react';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
 import { useSidebarOrder } from '../../hooks/useSidebarOrder';
 import SidebarReorderControls from '../../components/SidebarReorderControls';
+import SidebarFooterActions from '../../components/layout/SidebarFooterActions';
 import type { SidebarSection } from '../../lib/sidebarOrderTypes';
 import { supabase } from '../../lib/supabase';
 
-export type SAView = 'dashboard' | 'admins' | 'chat-admin' | 'documentation-crm' | 'system' | 'sauvegarde' | 'mon-compte' | 'tests-systeme' | 'crm-societe' | 'statuts' | 'api-ia' | 'sites' | 'fonctions-talvex' | 'site-talvex';
+export type SAView = 'dashboard' | 'admins' | 'chat-admin' | 'documentation-crm' | 'system' | 'sauvegarde' | 'mon-compte' | 'tests-systeme' | 'crm-societe' | 'statuts' | 'api-ia' | 'cerveau-ia' | 'sites' | 'fonctions-talvex' | 'site-talvex';
 
 interface SuperAdminSidebarProps {
   activeView: SAView;
@@ -32,6 +33,7 @@ const DEFAULT_SECTIONS: SidebarSection[] = [
       { id: 'crm-societe', label: 'CRM Societe', icon: <Building2 className="w-4 h-4" /> },
       { id: 'statuts', label: 'Statuts', icon: <Settings className="w-4 h-4" /> },
       { id: 'api-ia', label: 'API IA', icon: <Bot className="w-4 h-4" /> },
+      { id: 'cerveau-ia', label: 'Cerveau IA', icon: <Brain className="w-4 h-4" /> },
       { id: 'sites', label: 'Sites & Domaines', icon: <Globe className="w-4 h-4" /> },
     ],
   },
@@ -95,10 +97,14 @@ export default function SuperAdminSidebar({ activeView, onNavigate, collapsed, o
         )}
       />
 
-      <div className="px-2 pb-2 pt-2 space-y-0.5" style={{ borderTop: `1px solid ${t.sidebar.divider}` }}>
-        <BottomBtn icon={<LogOut className="w-4 h-4 flex-shrink-0" />} label="Deconnexion" collapsed={collapsed} color={t.sidebar.logoutText} hoverColor={t.sidebar.logoutHover} onClick={onLogout} />
-        <BottomBtn icon={<ChevronLeft className={`w-4 h-4 flex-shrink-0 transition-all duration-300 ${collapsed ? 'rotate-180' : ''}`} />} label="Reduire" collapsed={collapsed} color={t.sidebar.collapseText} hoverColor={t.sidebar.collapseHover} onClick={onCollapse} />
-      </div>
+      <SidebarFooterActions
+        collapsed={collapsed}
+        onLogout={onLogout}
+        onCollapse={onCollapse}
+        onReorganize={order.startReorder}
+        reordering={order.reordering}
+        tokens={t}
+      />
     </aside>
   );
 }
@@ -119,14 +125,3 @@ function SAItem({ id, label, icon, isActive, collapsed, onClick, tokens }: {
   );
 }
 
-function BottomBtn({ icon, label, collapsed, color, hoverColor, onClick }: { icon: React.ReactNode; label: string; collapsed: boolean; color: string; hoverColor: string; onClick: () => void }) {
-  const [hovered, setHovered] = useState(false);
-  return (
-    <button onClick={onClick} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
-      className={`w-full flex items-center gap-2.5 rounded-lg transition-colors duration-150 ${collapsed ? 'justify-center px-2 py-2' : 'px-2.5 py-[7px]'}`}
-      style={{ color: hovered ? hoverColor : color }}>
-      {icon}
-      {!collapsed && <span className="text-[12px] font-medium">{label}</span>}
-    </button>
-  );
-}
