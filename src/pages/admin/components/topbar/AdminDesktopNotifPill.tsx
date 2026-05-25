@@ -1,6 +1,7 @@
 import { MessageSquareText, CalendarDays, CalendarClock, CalendarCheck, Shield, RefreshCw } from 'lucide-react';
 import { ClientNotifItem, VendorNotifItem, AgendaNotifItem, AgendaEquipeNotifItem, ProposalNotifItem, ConfirmedProposalItem } from './index';
 import { NotifDropdownSection, SuperAdminNotifItem, RescheduleResponseItem, RescheduleRequestItem } from './NotificationItems';
+import TopBarOverflowMenu, { type OverflowItem } from '../../../../components/TopBarOverflowMenu';
 import type { ClientNotifEntry, VendorNotifEntry, ConfirmedProposalEntry } from '../../TopBar';
 import type { ProposalNotifEntry } from '../../dashboard/useAdminProposalNotifs';
 import type { AgendaNotifEntry } from '../../../../hooks/useAgendaNotifications';
@@ -86,84 +87,98 @@ export default function AdminDesktopNotifPill({
   unreadSuperAdminCount = 0, onSuperAdminClick,
   tokens: t,
 }: Props) {
-  const iconColor = t.topbar.notifIcon;
-  const iconHover = t.topbar.notifIconHover;
-  const labelColor = t.topbar.notifLabel;
-  const labelHover = t.topbar.notifLabelHover;
-  const hoverBg = t.surface.hover;
+  const ic = t.topbar.notifIcon;
+  const ih = t.topbar.notifIconHover;
+  const lc = t.topbar.notifLabel;
+  const lh = t.topbar.notifLabelHover;
+  const hb = t.surface.hover;
+  const div = <div className="w-px h-5" style={{ background: t.topbar.notifDivider }} />;
+
+  const overflowItems: OverflowItem[] = [
+    { key: 'super-admin', icon: <Shield className="w-4 h-4" />, label: 'Super Admin', count: unreadSuperAdminCount, onClick: () => { onSuperAdminClick?.(); setSuperAdminDropdownOpen(false); } },
+    { key: 'equipe', icon: <CalendarDays className="w-4 h-4" />, label: 'Agenda equipe', count: agendaEquipeCount, onClick: () => setEquipeDropdownOpen((p: boolean) => !p) },
+    { key: 'decalages', icon: <RefreshCw className="w-4 h-4" />, label: 'Decalages', count: rescheduleCount, onClick: () => setRescheduleDropdownOpen((p: boolean) => !p) },
+    { key: 'demandes-decalage', icon: <RefreshCw className="w-4 h-4" />, label: 'Demandes decalage', count: rescheduleRequestCount, onClick: () => setRescheduleReqDropdownOpen((p: boolean) => !p) },
+  ];
 
   return (
     <div
       className="hidden md:flex items-center gap-0.5 px-1 sm:px-1.5 py-1 rounded-xl"
       style={{ background: t.topbar.notifPillBg, border: `1px solid ${t.topbar.notifPillBorder}` }}
     >
-      <NotifDropdownSection dropdownRef={clientDropdownRef} open={clientDropdownOpen} setOpen={setClientDropdownOpen} icon={<MessageSquareText className="w-[15px] h-[15px]" />} label="Client" count={unreadClientCount} iconColor={iconColor} iconHoverColor={iconHover} labelColor={labelColor} labelHoverColor={labelHover} hoverBg={hoverBg} headerLabel="Messages clients" emptyText="Aucun nouveau message" tokens={t}>
+      {/* PRIMARY: always visible on md+ */}
+      <NotifDropdownSection dropdownRef={clientDropdownRef} open={clientDropdownOpen} setOpen={setClientDropdownOpen} icon={<MessageSquareText className="w-[15px] h-[15px]" />} label="Client" count={unreadClientCount} iconColor={ic} iconHoverColor={ih} labelColor={lc} labelHoverColor={lh} hoverBg={hb} headerLabel="Messages clients" emptyText="Aucun nouveau message" tokens={t}>
         {unreadClientEntries.map(entry => (
           <ClientNotifItem key={entry.clientAuthId} entry={entry} tokens={t.dropdown} onClick={() => { onClientEntryClick?.(entry); setClientDropdownOpen(false); }} />
         ))}
       </NotifDropdownSection>
 
-      <div className="w-px h-5" style={{ background: t.topbar.notifDivider }} />
+      {div}
 
-      <NotifDropdownSection dropdownRef={vendorDropdownRef} open={vendorDropdownOpen} setOpen={setVendorDropdownOpen} icon={<MessageSquareText className="w-[15px] h-[15px]" />} label="Vendeur" count={unreadVendorCount} iconColor={iconColor} iconHoverColor={iconHover} labelColor={labelColor} labelHoverColor={labelHover} hoverBg={hoverBg} headerLabel="Messages vendeurs" emptyText="Aucun nouveau message" tokens={t}>
+      <NotifDropdownSection dropdownRef={vendorDropdownRef} open={vendorDropdownOpen} setOpen={setVendorDropdownOpen} icon={<MessageSquareText className="w-[15px] h-[15px]" />} label="Vendeur" count={unreadVendorCount} iconColor={ic} iconHoverColor={ih} labelColor={lc} labelHoverColor={lh} hoverBg={hb} headerLabel="Messages vendeurs" emptyText="Aucun nouveau message" tokens={t}>
         {unreadVendorEntries.map(entry => (
           <VendorNotifItem key={entry.vendorId} entry={entry} tokens={t.dropdown} onClick={() => { onVendorEntryClick?.(entry); setVendorDropdownOpen(false); }} />
         ))}
       </NotifDropdownSection>
 
-      <div className="w-px h-5" style={{ background: t.topbar.notifDivider }} />
+      {div}
 
-      <NotifDropdownSection dropdownRef={superAdminDropdownRef} open={superAdminDropdownOpen} setOpen={setSuperAdminDropdownOpen} icon={<Shield className="w-[15px] h-[15px]" />} label="Super Admin" count={unreadSuperAdminCount} iconColor={iconColor} iconHoverColor="#f59e0b" labelColor={labelColor} labelHoverColor="#f59e0b" hoverBg={hoverBg} headerLabel="Notifications Super Admin" emptyText="Aucun nouveau message du Super Admin." tokens={t}>
-        <SuperAdminNotifItem count={unreadSuperAdminCount} tokens={t.dropdown} onClick={() => { setSuperAdminDropdownOpen(false); onSuperAdminClick?.(); }} />
-      </NotifDropdownSection>
-
-      <div className="w-px h-5" style={{ background: t.topbar.notifDivider }} />
-
-      <NotifDropdownSection dropdownRef={agendaDropdownRef} open={agendaDropdownOpen} setOpen={setAgendaDropdownOpen} icon={<CalendarDays className="w-[15px] h-[15px]" />} label="Agenda perso" count={agendaPersoCount} iconColor={iconColor} iconHoverColor={iconHover} labelColor={labelColor} labelHoverColor={labelHover} hoverBg={hoverBg} dropdownAlign="right" headerLabel="Agenda perso" emptyText="Aucun rendez-vous imminent" tokens={t}>
+      <NotifDropdownSection dropdownRef={agendaDropdownRef} open={agendaDropdownOpen} setOpen={setAgendaDropdownOpen} icon={<CalendarDays className="w-[15px] h-[15px]" />} label="Agenda perso" count={agendaPersoCount} iconColor={ic} iconHoverColor={ih} labelColor={lc} labelHoverColor={lh} hoverBg={hb} dropdownAlign="right" headerLabel="Agenda perso" emptyText="Aucun rendez-vous imminent" tokens={t}>
         {agendaPersoEntries.map(entry => (
           <AgendaNotifItem key={`${entry.rdvId}-${entry.type}`} entry={entry} tokens={t.dropdown} onClick={() => { onAgendaPersoEntryClick?.(entry.rdvId, entry.type); setAgendaDropdownOpen(false); }} />
         ))}
       </NotifDropdownSection>
 
-      <div className="w-px h-5" style={{ background: t.topbar.notifDivider }} />
+      {div}
 
-      <NotifDropdownSection dropdownRef={equipeDropdownRef} open={equipeDropdownOpen} setOpen={setEquipeDropdownOpen} icon={<CalendarDays className="w-[15px] h-[15px]" />} label="Agenda equipe" count={agendaEquipeCount} iconColor={iconColor} iconHoverColor={iconHover} labelColor={labelColor} labelHoverColor={labelHover} hoverBg={hoverBg} dropdownWidth="w-80" dropdownAlign="right" headerLabel="Agenda \u00e9quipe" emptyText="Aucun rendez-vous d'\u00e9quipe imminent" tokens={t}>
-        {agendaEquipeEntries.map(entry => (
-          <AgendaEquipeNotifItem key={`${entry.rdvId}-${entry.type}`} entry={entry} tokens={t.dropdown} onClick={() => { onAgendaEquipeEntryClick?.(entry.rdvId, entry.type); setEquipeDropdownOpen(false); }} />
-        ))}
-      </NotifDropdownSection>
-
-      <div className="w-px h-5" style={{ background: t.topbar.notifDivider }} />
-
-      <NotifDropdownSection dropdownRef={proposDropdownRef} open={proposDropdownOpen} setOpen={setProposDropdownOpen} icon={<CalendarClock className="w-[15px] h-[15px]" />} label="Propositions RDV" count={proposalsCount} iconColor={iconColor} iconHoverColor={iconHover} labelColor={labelColor} labelHoverColor={labelHover} hoverBg={hoverBg} dropdownWidth="w-80" dropdownAlign="right" headerLabel="Propositions RDV" emptyText="Aucune nouvelle proposition" tokens={t}>
+      <NotifDropdownSection dropdownRef={proposDropdownRef} open={proposDropdownOpen} setOpen={setProposDropdownOpen} icon={<CalendarClock className="w-[15px] h-[15px]" />} label="Propositions RDV" count={proposalsCount} iconColor={ic} iconHoverColor={ih} labelColor={lc} labelHoverColor={lh} hoverBg={hb} dropdownWidth="w-80" dropdownAlign="right" headerLabel="Propositions RDV" emptyText="Aucune nouvelle proposition" tokens={t}>
         {proposalsEntries.map(entry => (
           <ProposalNotifItem key={entry.id} entry={entry} tokens={t.dropdown} onClick={() => { setProposDropdownOpen(false); onProposalEntryClick?.(entry.id); }} />
         ))}
       </NotifDropdownSection>
 
-      <div className="w-px h-5" style={{ background: t.topbar.notifDivider }} />
+      {div}
 
-      <NotifDropdownSection dropdownRef={confirmedDropdownRef} open={confirmedDropdownOpen} setOpen={setConfirmedDropdownOpen} icon={<CalendarCheck className="w-[15px] h-[15px]" />} label="RDV Confirmes" count={confirmedCount} iconColor={iconColor} iconHoverColor={iconHover} labelColor={labelColor} labelHoverColor={labelHover} hoverBg={hoverBg} dropdownWidth="w-80" dropdownAlign="right" headerLabel="RDV Confirmes" emptyText="Aucune nouvelle confirmation" tokens={t}>
+      <NotifDropdownSection dropdownRef={confirmedDropdownRef} open={confirmedDropdownOpen} setOpen={setConfirmedDropdownOpen} icon={<CalendarCheck className="w-[15px] h-[15px]" />} label="RDV Confirmes" count={confirmedCount} iconColor={ic} iconHoverColor={ih} labelColor={lc} labelHoverColor={lh} hoverBg={hb} dropdownWidth="w-80" dropdownAlign="right" headerLabel="RDV Confirmes" emptyText="Aucune nouvelle confirmation" tokens={t}>
         {confirmedEntries.map(entry => (
           <ConfirmedProposalItem key={entry.id} entry={entry} tokens={t.dropdown} onClick={() => { setConfirmedDropdownOpen(false); onConfirmedEntryClick?.(entry.id); }} />
         ))}
       </NotifDropdownSection>
 
-      <div className="w-px h-5" style={{ background: t.topbar.notifDivider }} />
+      {/* SECONDARY: visible only on xl+, otherwise in overflow menu */}
+      <div className="hidden xl:contents">
+        {div}
+        <NotifDropdownSection dropdownRef={superAdminDropdownRef} open={superAdminDropdownOpen} setOpen={setSuperAdminDropdownOpen} icon={<Shield className="w-[15px] h-[15px]" />} label="Super Admin" count={unreadSuperAdminCount} iconColor={ic} iconHoverColor="#f59e0b" labelColor={lc} labelHoverColor="#f59e0b" hoverBg={hb} headerLabel="Notifications Super Admin" emptyText="Aucun nouveau message du Super Admin." tokens={t}>
+          <SuperAdminNotifItem count={unreadSuperAdminCount} tokens={t.dropdown} onClick={() => { setSuperAdminDropdownOpen(false); onSuperAdminClick?.(); }} />
+        </NotifDropdownSection>
 
-      <NotifDropdownSection dropdownRef={rescheduleDropdownRef} open={rescheduleDropdownOpen} setOpen={setRescheduleDropdownOpen} icon={<RefreshCw className="w-[15px] h-[15px]" />} label="Decalages" count={rescheduleCount} iconColor={iconColor} iconHoverColor={iconHover} labelColor={labelColor} labelHoverColor={labelHover} hoverBg={hoverBg} dropdownWidth="w-80" dropdownAlign="right" headerLabel="Reponses decalages" emptyText="Aucune reponse de decalage" tokens={t}>
-        {rescheduleEntries.map(entry => (
-          <RescheduleResponseItem key={entry.id} entry={entry} tokens={t.dropdown} onClick={() => { setRescheduleDropdownOpen(false); onRescheduleEntryClick?.(entry.id); }} />
-        ))}
-      </NotifDropdownSection>
+        {div}
+        <NotifDropdownSection dropdownRef={equipeDropdownRef} open={equipeDropdownOpen} setOpen={setEquipeDropdownOpen} icon={<CalendarDays className="w-[15px] h-[15px]" />} label="Agenda equipe" count={agendaEquipeCount} iconColor={ic} iconHoverColor={ih} labelColor={lc} labelHoverColor={lh} hoverBg={hb} dropdownWidth="w-80" dropdownAlign="right" headerLabel="Agenda equipe" emptyText="Aucun rendez-vous d'equipe imminent" tokens={t}>
+          {agendaEquipeEntries.map(entry => (
+            <AgendaEquipeNotifItem key={`${entry.rdvId}-${entry.type}`} entry={entry} tokens={t.dropdown} onClick={() => { onAgendaEquipeEntryClick?.(entry.rdvId, entry.type); setEquipeDropdownOpen(false); }} />
+          ))}
+        </NotifDropdownSection>
 
-      <div className="w-px h-5" style={{ background: t.topbar.notifDivider }} />
+        {div}
+        <NotifDropdownSection dropdownRef={rescheduleDropdownRef} open={rescheduleDropdownOpen} setOpen={setRescheduleDropdownOpen} icon={<RefreshCw className="w-[15px] h-[15px]" />} label="Decalages" count={rescheduleCount} iconColor={ic} iconHoverColor={ih} labelColor={lc} labelHoverColor={lh} hoverBg={hb} dropdownWidth="w-80" dropdownAlign="right" headerLabel="Reponses decalages" emptyText="Aucune reponse de decalage" tokens={t}>
+          {rescheduleEntries.map(entry => (
+            <RescheduleResponseItem key={entry.id} entry={entry} tokens={t.dropdown} onClick={() => { setRescheduleDropdownOpen(false); onRescheduleEntryClick?.(entry.id); }} />
+          ))}
+        </NotifDropdownSection>
 
-      <NotifDropdownSection dropdownRef={rescheduleReqDropdownRef} open={rescheduleReqDropdownOpen} setOpen={setRescheduleReqDropdownOpen} icon={<RefreshCw className="w-[15px] h-[15px]" />} label="Demandes decalage" count={rescheduleRequestCount} iconColor={iconColor} iconHoverColor="#f59e0b" labelColor={labelColor} labelHoverColor="#f59e0b" hoverBg={hoverBg} dropdownWidth="w-80" dropdownAlign="right" headerLabel="Demandes de decalage" emptyText="Aucune demande de decalage" tokens={t}>
-        {rescheduleRequestEntries.map(entry => (
-          <RescheduleRequestItem key={entry.id} entry={entry} tokens={t.dropdown} onClick={() => { setRescheduleReqDropdownOpen(false); onRescheduleRequestEntryClick?.(entry.id); }} />
-        ))}
-      </NotifDropdownSection>
+        {div}
+        <NotifDropdownSection dropdownRef={rescheduleReqDropdownRef} open={rescheduleReqDropdownOpen} setOpen={setRescheduleReqDropdownOpen} icon={<RefreshCw className="w-[15px] h-[15px]" />} label="Demandes decalage" count={rescheduleRequestCount} iconColor={ic} iconHoverColor="#f59e0b" labelColor={lc} labelHoverColor="#f59e0b" hoverBg={hb} dropdownWidth="w-80" dropdownAlign="right" headerLabel="Demandes de decalage" emptyText="Aucune demande de decalage" tokens={t}>
+          {rescheduleRequestEntries.map(entry => (
+            <RescheduleRequestItem key={entry.id} entry={entry} tokens={t.dropdown} onClick={() => { setRescheduleReqDropdownOpen(false); onRescheduleRequestEntryClick?.(entry.id); }} />
+          ))}
+        </NotifDropdownSection>
+      </div>
+
+      {/* OVERFLOW "Plus" menu: visible only on md-xl */}
+      <div className="xl:hidden flex items-center">
+        {div}
+        <TopBarOverflowMenu items={overflowItems} tokens={t} />
+      </div>
     </div>
   );
 }

@@ -88,20 +88,20 @@ export default function SuperAdminTopBar({ activeView, onMobileMenuToggle, unrea
           </span>
         </div>
 
-        <div className="flex items-center gap-2">
-          <div className="relative" ref={msgDropdownRef}>
+        <div className="flex items-center gap-1 sm:gap-2 min-w-0">
+          <div className="relative flex-shrink-0" ref={msgDropdownRef}>
             <button
               onClick={() => setMsgDropdownOpen(prev => !prev)}
-              className="relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl transition-all duration-200"
+              className="relative flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-xl transition-all duration-200"
               style={{
                 background: unreadAdminMsgCount > 0 ? 'rgba(245,158,11,0.1)' : 'rgba(245,158,11,0.04)',
                 border: `1px solid ${unreadAdminMsgCount > 0 ? 'rgba(245,158,11,0.25)' : 'rgba(245,158,11,0.1)'}`,
               }}
             >
-              <MessageSquare className="w-4 h-4" style={{ color: unreadAdminMsgCount > 0 ? '#f59e0b' : t.topbar.breadcrumbPrefix }} />
-              <span className="text-[11px] font-medium" style={{ color: unreadAdminMsgCount > 0 ? '#f59e0b' : t.topbar.breadcrumbPrefix }}>Admin</span>
+              <MessageSquare className="w-4 h-4 flex-shrink-0" style={{ color: unreadAdminMsgCount > 0 ? '#f59e0b' : t.topbar.breadcrumbPrefix }} />
+              <span className="text-[11px] font-medium hidden sm:inline" style={{ color: unreadAdminMsgCount > 0 ? '#f59e0b' : t.topbar.breadcrumbPrefix }}>Admin</span>
               {unreadAdminMsgCount > 0 && (
-                <span className="min-w-[18px] h-[18px] flex items-center justify-center rounded-full text-[10px] font-bold text-white px-1" style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)', boxShadow: '0 0 8px rgba(245,158,11,0.4)' }}>
+                <span className="min-w-[18px] h-[18px] flex items-center justify-center rounded-full text-[10px] font-bold text-white px-1 flex-shrink-0" style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)', boxShadow: '0 0 8px rgba(245,158,11,0.4)' }}>
                   {unreadAdminMsgCount > 99 ? '99+' : unreadAdminMsgCount}
                 </span>
               )}

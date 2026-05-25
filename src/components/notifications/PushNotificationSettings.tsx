@@ -36,16 +36,16 @@ export default function PushNotificationSettings({ open, onClose, userId, role, 
   }
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center sm:p-4" onClick={onClose}>
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
       <div
-        className="relative w-full max-w-md rounded-2xl overflow-hidden"
-        style={{ background: t.card.bg, border: `1px solid ${t.card.border}`, boxShadow: '0 25px 50px rgba(0,0,0,0.25)' }}
+        className="relative w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl overflow-hidden flex flex-col"
+        style={{ background: t.card.bg, border: `1px solid ${t.card.border}`, boxShadow: '0 25px 50px rgba(0,0,0,0.25)', maxHeight: 'calc(100dvh - 32px)', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
         onClick={e => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between p-4" style={{ borderBottom: `1px solid ${t.card.border}` }}>
+        <div className="flex-shrink-0 flex items-center justify-between p-4" style={{ borderBottom: `1px solid ${t.card.border}`, paddingTop: 'max(1rem, env(safe-area-inset-top, 1rem))' }}>
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' }}>
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' }}>
               <Bell className="w-4.5 h-4.5 text-white" />
             </div>
             <div>
@@ -53,12 +53,12 @@ export default function PushNotificationSettings({ open, onClose, userId, role, 
               <p className="text-[10px]" style={{ color: t.text.tertiary }}>Recevez des alertes en temps reel</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg transition-colors hover:opacity-70" style={{ color: t.text.tertiary }}>
+          <button onClick={onClose} className="p-1.5 rounded-lg transition-colors hover:opacity-70 flex-shrink-0" style={{ color: t.text.tertiary }}>
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="p-4 space-y-4">
+        <div className="p-4 space-y-4 overflow-y-auto flex-1 min-h-0">
           {!push.supported && (
             <div className="rounded-xl p-4" style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)' }}>
               <div className="flex items-start gap-3">

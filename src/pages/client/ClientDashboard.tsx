@@ -43,8 +43,9 @@ export default function ClientDashboard({ onLogout, impersonatedClient, onBackTo
   const [clientAuthId, setClientAuthId] = useState('');
   const { unreadCount: unreadMsgCount, latestAt: unreadLatestAt, markAsRead: markMsgRead } = useUnreadAdminMessages(clientAuthId);
   const { notifications: agendaNotifs, count: agendaCount, markAsSeen: markAgendaSeen } = useAgendaNotifications('client', clientEmail || null);
-  const [unseenProposals, setUnseenProposals] = useState<{ id: string; lead_name: string; created_at: string; created_by_role: string; reschedule_status?: string | null }[]>([]);
-  const unseenProposalsRef = useRef<{ id: string; lead_name: string; created_at: string; created_by_role: string; reschedule_status?: string | null }[]>([]);
+  type ProposalEntry = { id: string; lead_name: string; created_at: string; created_by_role: string; reschedule_status?: string | null };
+  const [unseenProposals, setUnseenProposals] = useState<ProposalEntry[]>([]);
+  const unseenProposalsRef = useRef<ProposalEntry[]>([]);
 
   useEffect(() => {
     if (impersonatedClient) {
@@ -98,35 +99,15 @@ export default function ClientDashboard({ onLogout, impersonatedClient, onBackTo
         return;
       }
       const leadIds = leads.map(l => l.id);
-      const { data: pendingProps } = await supabase
-        .from('rdv_proposals')
-        .select('id, vendor_id, lead_id, lead_name, created_at, status, created_by_role, parent_proposal_id, reschedule_status')
-        .in('lead_id', leadIds)
-        .eq('seen_by_client', false)
-        .eq('status', 'pending')
-        .neq('created_by_role', 'client');
-      const { data: respondedProps } = await supabase
-        .from('rdv_proposals')
-        .select('id, vendor_id, lead_id, lead_name, created_at, status, created_by_role, parent_proposal_id, reschedule_status')
-        .in('lead_id', leadIds)
-        .eq('seen_by_client', false)
-        .in('status', ['confirmed', 'cancelled'])
-        .eq('created_by_role', 'client');
-      const { data: rescheduleProps } = await supabase
-        .from('rdv_proposals')
-        .select('id, vendor_id, lead_id, lead_name, created_at, status, created_by_role, parent_proposal_id, reschedule_status')
-        .in('lead_id', leadIds)
-        .eq('seen_by_client', false)
-        .eq('status', 'confirmed')
-        .eq('reschedule_status', 'pending');
-      const { data: rescheduleResponseProps } = await supabase
-        .from('rdv_proposals')
-        .select('id, vendor_id, lead_id, lead_name, created_at, status, created_by_role, parent_proposal_id, reschedule_status')
-        .in('lead_id', leadIds)
-        .eq('seen_by_client', false)
-        .eq('status', 'confirmed')
-        .in('reschedule_status', ['accepted', 'refused']);
-      const proposals = [...(pendingProps ?? []), ...(respondedProps ?? []), ...(rescheduleProps ?? []), ...(rescheduleResponseProps ?? [])];
+      const cols = 'id, vendor_id, lead_id, lead_name, created_at, status, created_by_role, parent_proposal_id, reschedule_status';
+      const base = () => supabase.from('rdv_proposals').select(cols).in('lead_id', leadIds).eq('seen_by_client', false);
+      const [{ data: d1 }, { data: d2 }, { data: d3 }, { data: d4 }] = await Promise.all([
+        base().eq('status', 'pending').neq('created_by_role', 'client'),
+        base().in('status', ['confirmed', 'cancelled']).eq('created_by_role', 'client'),
+        base().eq('status', 'confirmed').eq('reschedule_status', 'pending'),
+        base().eq('status', 'confirmed').in('reschedule_status', ['accepted', 'refused']),
+      ]);
+      const proposals = [...(d1 ?? []), ...(d2 ?? []), ...(d3 ?? []), ...(d4 ?? [])];
       if (proposals.length === 0) {
         setUnseenProposals([]);
         unseenProposalsRef.current = [];
@@ -244,24 +225,17 @@ export default function ClientDashboard({ onLogout, impersonatedClient, onBackTo
       <div className="flex flex-col flex-1 min-h-0">
         {impersonatedClient && onBackToAdmin && (
           <div
-            className="flex items-center justify-between gap-3 px-4 sm:px-5 py-2.5"
-            style={{
-              background: isSAViewing && demoStatus === 'active'
-                ? 'linear-gradient(135deg, rgba(14,165,233,0.08) 0%, rgba(245,158,11,0.06) 100%)'
-                : 'rgba(14,165,233,0.06)',
-              borderBottom: isSAViewing && demoStatus === 'active'
-                ? '1px solid rgba(245,158,11,0.25)'
-                : '1px solid rgba(14,165,233,0.15)',
-            }}
+            className="flex items-center justify-between gap-2 sm:gap-3 px-3 sm:px-4 md:px-5 py-2"
+            style={{ background: isSAViewing && demoStatus === 'active' ? 'linear-gradient(135deg, rgba(14,165,233,0.08) 0%, rgba(245,158,11,0.06) 100%)' : 'rgba(14,165,233,0.06)', borderBottom: `1px solid ${isSAViewing && demoStatus === 'active' ? 'rgba(245,158,11,0.25)' : 'rgba(14,165,233,0.15)'}` }}
           >
             <div className="flex items-center gap-3 min-w-0">
               {(!isSAViewing || demoStatus !== 'active') && (
                 <button
                   onClick={onBackToAdmin}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105 flex-shrink-0"
+                  className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold transition-all hover:scale-105 flex-shrink-0 whitespace-nowrap"
                   style={{ background: 'rgba(14,165,233,0.1)', border: '1px solid rgba(14,165,233,0.25)', color: '#0ea5e9' }}
                 >
-                  <ArrowLeft className="w-3 h-3" />
+                  <ArrowLeft className="w-3 h-3 flex-shrink-0" />
                   {backLabel}
                 </button>
               )}

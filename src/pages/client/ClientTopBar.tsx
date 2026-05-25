@@ -6,6 +6,7 @@ import { getCurrentTime } from '../../lib/timezone';
 import TimezoneModal from '../../components/TimezoneSearchDropdown';
 import ThemeSelectorModal from '../../components/theme/ThemeSelectorModal';
 import PushNotificationSettings from '../../components/notifications/PushNotificationSettings';
+import TopBarOverflowMenu, { type OverflowItem } from '../../components/TopBarOverflowMenu';
 import { useCompanyId } from '../../hooks/useCompanyId';
 import { supabase } from '../../lib/supabase';
 import type { AgendaNotifEntry } from '../../hooks/useAgendaNotifications';
@@ -157,10 +158,7 @@ export default function ClientTopBar({ breadcrumb, onMobileMenuToggle, clientNam
         {/* Desktop notification pill */}
         <div
           className="hidden md:flex items-center gap-0.5 px-1 sm:px-1.5 py-1 rounded-xl"
-          style={{
-            background: t.topbar.notifPillBg,
-            border: `1px solid ${t.topbar.notifPillBorder}`,
-          }}
+          style={{ background: t.topbar.notifPillBg, border: `1px solid ${t.topbar.notifPillBorder}` }}
         >
           <div className="relative" ref={msgDropdownRef}>
             <ClientBadgeButton icon={<MessageCircle className="w-[15px] h-[15px]" />} label="Messages" count={unreadMessageCount} {...badgeColors} onClick={() => setMsgDropdownOpen(prev => !prev)} />
@@ -168,11 +166,7 @@ export default function ClientTopBar({ breadcrumb, onMobileMenuToggle, clientNam
               <ClientDropdownPanel tokens={t} width="w-72" align="left">
                 <ClientDropdownHeader label="Messages" tokens={t} />
                 <div className="max-h-64 overflow-y-auto">
-                  {unreadMessageCount === 0 ? (
-                    <ClientDropdownEmpty text="Aucun nouveau message" tokens={t} />
-                  ) : (
-                    <NotifRow count={unreadMessageCount} latestAt={unreadLatestAt} tokens={t.dropdown} onClick={handleNotifItemClick} />
-                  )}
+                  {unreadMessageCount === 0 ? <ClientDropdownEmpty text="Aucun nouveau message" tokens={t} /> : <NotifRow count={unreadMessageCount} latestAt={unreadLatestAt} tokens={t.dropdown} onClick={handleNotifItemClick} />}
                 </div>
               </ClientDropdownPanel>
             )}
@@ -184,50 +178,33 @@ export default function ClientTopBar({ breadcrumb, onMobileMenuToggle, clientNam
               <ClientDropdownPanel tokens={t} width="w-72" align="right">
                 <ClientDropdownHeader label="Rendez-vous" tokens={t} />
                 <div className="max-h-64 overflow-y-auto">
-                  {agendaEntries.length === 0 ? (
-                    <ClientDropdownEmpty text="Aucun rendez-vous imminent" tokens={t} />
-                  ) : (
-                    agendaEntries.map(entry => (
-                      <ClientAgendaNotifItem
-                        key={entry.rdvId}
-                        entry={entry}
-                        tokens={t.dropdown}
-                        onClick={() => {
-                          onAgendaEntryClick?.(entry.rdvId);
-                          setAgendaDropdownOpen(false);
-                        }}
-                      />
-                    ))
-                  )}
+                  {agendaEntries.length === 0 ? <ClientDropdownEmpty text="Aucun rendez-vous imminent" tokens={t} /> : agendaEntries.map(entry => (
+                    <ClientAgendaNotifItem key={entry.rdvId} entry={entry} tokens={t.dropdown} onClick={() => { onAgendaEntryClick?.(entry.rdvId); setAgendaDropdownOpen(false); }} />
+                  ))}
                 </div>
               </ClientDropdownPanel>
             )}
           </div>
-          <div className="w-px h-5" style={{ background: t.topbar.notifDivider }} />
-          <div className="relative" ref={proposDropdownRef}>
-            <ClientBadgeButton icon={<CalendarClock className="w-[15px] h-[15px]" />} label="Propositions RDV" count={propositionsCount} {...badgeColors} onClick={() => setProposDropdownOpen(prev => !prev)} />
-            {proposDropdownOpen && (
-              <ClientDropdownPanel tokens={t} width="w-72" align="right">
-                <ClientDropdownHeader label="Propositions RDV" tokens={t} />
-                <div className="max-h-64 overflow-y-auto">
-                  {propositionsEntries.length === 0 ? (
-                    <ClientDropdownEmpty text="Aucune nouvelle proposition" tokens={t} />
-                  ) : (
-                    propositionsEntries.map(entry => (
-                      <PropositionNotifItem
-                        key={entry.id}
-                        entry={entry}
-                        tokens={t.dropdown}
-                        onClick={() => {
-                          setProposDropdownOpen(false);
-                          onPropositionEntryClick?.(entry.id);
-                        }}
-                      />
-                    ))
-                  )}
-                </div>
-              </ClientDropdownPanel>
-            )}
+          {/* Propositions RDV: visible on xl+, otherwise in overflow */}
+          <div className="hidden xl:contents">
+            <div className="w-px h-5" style={{ background: t.topbar.notifDivider }} />
+            <div className="relative" ref={proposDropdownRef}>
+              <ClientBadgeButton icon={<CalendarClock className="w-[15px] h-[15px]" />} label="Propositions RDV" count={propositionsCount} {...badgeColors} onClick={() => setProposDropdownOpen(prev => !prev)} />
+              {proposDropdownOpen && (
+                <ClientDropdownPanel tokens={t} width="w-72" align="right">
+                  <ClientDropdownHeader label="Propositions RDV" tokens={t} />
+                  <div className="max-h-64 overflow-y-auto">
+                    {propositionsEntries.length === 0 ? <ClientDropdownEmpty text="Aucune nouvelle proposition" tokens={t} /> : propositionsEntries.map(entry => (
+                      <PropositionNotifItem key={entry.id} entry={entry} tokens={t.dropdown} onClick={() => { setProposDropdownOpen(false); onPropositionEntryClick?.(entry.id); }} />
+                    ))}
+                  </div>
+                </ClientDropdownPanel>
+              )}
+            </div>
+          </div>
+          <div className="xl:hidden flex items-center">
+            <div className="w-px h-5" style={{ background: t.topbar.notifDivider }} />
+            <TopBarOverflowMenu items={[{ key: 'propositions', icon: <CalendarClock className="w-4 h-4" />, label: 'Propositions RDV', count: propositionsCount, onClick: () => setProposDropdownOpen(prev => !prev) }] as OverflowItem[]} tokens={t} />
           </div>
         </div>
 
