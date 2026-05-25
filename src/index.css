@@ -32,8 +32,7 @@ html {
 }
 
 body, #root {
-  background: inherit;
-  color: inherit;
+  background: transparent;
 }
 
 * {

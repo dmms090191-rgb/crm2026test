@@ -35,6 +35,14 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      (function(){
+        var bg={dark:'#050810',light:'#080C16',graphite:'#1e2024',beige:'#14100A',rose:'#120A16',emerald:'#06130D',luxury:'#12100B',pink:'#120810',red:'#100808',orange:'#100A06',yellow:'#0E0C06',highlevel_light:'#f4f7fb',highlevel_dark:'#f3f6fb',highlevel_emerald:'#f8fafc'};
+        try{var t=localStorage.getItem('crm_theme_last');
+        if(t&&bg[t]){document.documentElement.setAttribute('data-theme',t);document.body.style.background=bg[t];}
+        else{document.body.style.background='#020617';}}catch(e){document.body.style.background='#020617';}
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

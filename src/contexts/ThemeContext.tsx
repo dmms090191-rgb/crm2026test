@@ -23,6 +23,28 @@ function isValidTheme(v: unknown): v is Theme {
   return v === 'dark' || v === 'light' || v === 'graphite' || v === 'beige' || v === 'rose' || v === 'emerald' || v === 'luxury' || v === 'pink' || v === 'red' || v === 'orange' || v === 'yellow' || v === 'highlevel_light' || v === 'highlevel_dark' || v === 'highlevel_emerald';
 }
 
+const THEME_BG: Record<Theme, string> = {
+  dark: '#050810',
+  light: '#080C16',
+  graphite: '#1e2024',
+  beige: '#14100A',
+  rose: '#120A16',
+  emerald: '#06130D',
+  luxury: '#12100B',
+  pink: '#120810',
+  red: '#100808',
+  orange: '#100A06',
+  yellow: '#0E0C06',
+  highlevel_light: '#f4f7fb',
+  highlevel_dark: '#f3f6fb',
+  highlevel_emerald: '#f8fafc',
+};
+
+function applyTheme(t: Theme) {
+  document.documentElement.setAttribute('data-theme', t);
+  document.body.style.background = THEME_BG[t] || '#020617';
+}
+
 interface ThemeProviderProps {
   children: ReactNode;
   panelRole: PanelRole;
@@ -83,7 +105,8 @@ export function ThemeProvider({ children, panelRole, effectiveUserId }: ThemePro
       const cached = localStorage.getItem(key);
       if (isValidTheme(cached)) {
         setThemeState(cached);
-        document.documentElement.setAttribute('data-theme', cached);
+        applyTheme(cached);
+        localStorage.setItem('crm_theme_last', cached);
       }
 
       if (isOwnAccount && sessionUserId) {
@@ -97,17 +120,19 @@ export function ThemeProvider({ children, panelRole, effectiveUserId }: ThemePro
 
         if (!error && data && isValidTheme(data.theme)) {
           setThemeState(data.theme);
-          document.documentElement.setAttribute('data-theme', data.theme);
+          applyTheme(data.theme);
           localStorage.setItem(key, data.theme);
+          localStorage.setItem('crm_theme_last', data.theme);
         } else if (!data && !error) {
-          const fallback = isValidTheme(cached) ? cached : 'dark';
-          setThemeState(fallback as Theme);
-          document.documentElement.setAttribute('data-theme', fallback as Theme);
+          const fallback = (isValidTheme(cached) ? cached : 'dark') as Theme;
+          setThemeState(fallback);
+          applyTheme(fallback);
+          localStorage.setItem('crm_theme_last', fallback);
         }
       } else {
         if (!isValidTheme(cached)) {
           setThemeState('dark');
-          document.documentElement.setAttribute('data-theme', 'dark');
+          applyTheme('dark');
         }
       }
 
@@ -123,12 +148,13 @@ export function ThemeProvider({ children, panelRole, effectiveUserId }: ThemePro
     if (!resolvedId) return;
 
     setThemeState(t);
-    document.documentElement.setAttribute('data-theme', t);
+    applyTheme(t);
 
     const key = buildLocalKey(panelRole, resolvedId, isLeadFallback);
     localStorage.setItem(key, t);
+    localStorage.setItem('crm_theme_last', t);
 
-    if (isOwnAccount && sessionUserId && panelRole !== 'super_admin') {
+    if (isOwnAccount && sessionUserId) {
       if (!savingRef.current) {
         savingRef.current = true;
         supabase
@@ -149,7 +175,7 @@ export function ThemeProvider({ children, panelRole, effectiveUserId }: ThemePro
 
   if (resolvedId && !ready) {
     return (
-      <div className="min-h-screen" style={{ background: 'inherit' }} />
+      <div className="min-h-screen" style={{ background: THEME_BG[theme] || '#020617' }} />
     );
   }
 
