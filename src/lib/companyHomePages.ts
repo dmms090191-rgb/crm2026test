@@ -58,15 +58,15 @@ export async function getAllHomePages(): Promise<CompanyHomePageWithCompany[]> {
   return (data ?? []) as CompanyHomePageWithCompany[];
 }
 
-export async function getHomePageByCompanyId(companyId: string): Promise<CompanyHomePage | null> {
+export async function getHomePageByCompanyId(companyId: string): Promise<CompanyHomePageWithCompany | null> {
   const { data, error } = await supabase
     .from('company_home_pages')
-    .select('*')
+    .select('*, companies(name)')
     .eq('company_id', companyId)
     .eq('site_scope', 'company')
     .maybeSingle();
   if (error) throw error;
-  return data;
+  return data as CompanyHomePageWithCompany | null;
 }
 
 export async function getPlatformHomePage(): Promise<CompanyHomePage | null> {
@@ -79,27 +79,27 @@ export async function getPlatformHomePage(): Promise<CompanyHomePage | null> {
   return data;
 }
 
-export async function getHomePageBySlug(slug: string): Promise<CompanyHomePage | null> {
+export async function getHomePageBySlug(slug: string): Promise<CompanyHomePageWithCompany | null> {
   const { data, error } = await supabase
     .from('company_home_pages')
-    .select('*')
+    .select('*, companies(name)')
     .eq('slug', slug)
     .eq('is_active', true)
     .maybeSingle();
   if (error) throw error;
-  return data;
+  return data as CompanyHomePageWithCompany | null;
 }
 
-export async function getHomePageByDomain(domain: string): Promise<CompanyHomePage | null> {
+export async function getHomePageByDomain(domain: string): Promise<CompanyHomePageWithCompany | null> {
   const { data, error } = await supabase
     .from('company_home_pages')
-    .select('*')
+    .select('*, companies(name)')
     .eq('custom_domain', domain)
     .eq('is_active', true)
     .eq('domain_verified', true)
     .maybeSingle();
   if (error) throw error;
-  return data;
+  return data as CompanyHomePageWithCompany | null;
 }
 
 export async function upsertHomePage(page: CompanyHomePageUpsert): Promise<CompanyHomePage> {

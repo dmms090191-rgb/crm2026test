@@ -12,12 +12,15 @@ import RenewableAdvantages from './renewable/RenewableAdvantages';
 import RenewableClientSpace from './renewable/RenewableClientSpace';
 import RenewableTrust from './renewable/RenewableTrust';
 import RenewableFooter from './renewable/RenewableFooter';
+import type { SitePageProps } from './templateRegistry';
 
 const RENEWABLE_MODAL_THEME = getSiteModalTheme('renewable_energy');
 
-export default function RenewableEnergyTemplate() {
+export default function RenewableEnergyTemplate(props: SitePageProps) {
   const [loginOpen, setLoginOpen] = useState(false);
   const [registerOpen, setRegisterOpen] = useState(false);
+
+  const brandName = props.companyName || 'Nova Energie';
 
   const handleLogin = () => {
     window.location.href = '/';
@@ -37,16 +40,16 @@ export default function RenewableEnergyTemplate() {
   return (
     <div className="flex flex-col h-full" style={{ background: '#030712' }}>
       <div id="renewable-scroll-root" className="flex-1 overflow-y-auto overflow-x-hidden relative">
-        <RenewableHeader onLogin={handleOpenLogin} onRegister={handleOpenRegister} onScroll={handleScroll} />
-        <RenewableHero onLogin={handleOpenLogin} onRegister={handleOpenRegister} onScroll={handleScroll} />
+        <RenewableHeader onLogin={handleOpenLogin} onRegister={handleOpenRegister} onScroll={handleScroll} brandName={brandName} />
+        <RenewableHero onLogin={handleOpenLogin} onRegister={handleOpenRegister} onScroll={handleScroll} subtitle={props.subtitle} welcomeMessage={props.welcomeMessage} />
         <RenewableStats />
         <RenewableSolutions />
         <RenewableSimulator onRegister={handleOpenRegister} />
         <RenewableProcess />
         <RenewableAdvantages />
-        <RenewableClientSpace />
+        <RenewableClientSpace brandName={brandName} />
         <RenewableTrust />
-        <RenewableFooter onLogin={handleOpenLogin} onRegister={handleOpenRegister} onScroll={handleScroll} />
+        <RenewableFooter onLogin={handleOpenLogin} onRegister={handleOpenRegister} onScroll={handleScroll} brandName={brandName} />
       </div>
 
       <TalvexLoginModal isOpen={loginOpen} onClose={() => setLoginOpen(false)} onLogin={handleLogin} onRegister={() => { setLoginOpen(false); setRegisterOpen(true); }} theme={RENEWABLE_MODAL_THEME} />

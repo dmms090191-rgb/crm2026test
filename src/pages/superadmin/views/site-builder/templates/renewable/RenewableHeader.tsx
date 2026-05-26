@@ -5,6 +5,7 @@ interface Props {
   onLogin: () => void;
   onRegister: () => void;
   onScroll: (id: string) => void;
+  brandName?: string;
 }
 
 const NAV = [
@@ -16,7 +17,7 @@ const NAV = [
   { label: 'Contact', target: 'contact' },
 ];
 
-export default function RenewableHeader({ onLogin, onRegister, onScroll }: Props) {
+export default function RenewableHeader({ onLogin, onRegister, onScroll, brandName = 'Nova Energie' }: Props) {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -49,7 +50,7 @@ export default function RenewableHeader({ onLogin, onRegister, onScroll }: Props
                 style={{ background: 'linear-gradient(135deg, #10b981, #059669)', boxShadow: '0 2px 12px rgba(16,185,129,0.25)' }}>
                 <Leaf className="w-4 h-4 text-white" />
               </div>
-              <span className="text-sm font-bold text-white hidden sm:inline">Nova Energie</span>
+              <span className="text-sm font-bold text-white hidden sm:inline">{brandName}</span>
             </button>
 
             {/* Desktop nav */}

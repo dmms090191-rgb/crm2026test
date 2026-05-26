@@ -38,7 +38,7 @@ export default function SiteManagerShell({ ownerType, title, subtitle, companyId
   const [loading, setLoading] = useState(true);
   const [resolvedCompanyId, setResolvedCompanyId] = useState<string | null>(companyIdProp ?? null);
   const [resolvedCompanyName, setResolvedCompanyName] = useState<string>(companyNameProp || '');
-  const [page, setPage] = useState<CompanyHomePage | null>(null);
+  const [page, setPage] = useState<CompanyHomePageWithCompany | null>(null);
   const [templates, setTemplates] = useState<SiteTemplate[]>([]);
   const [activeTemplate, setActiveTemplate] = useState<SiteTemplate | null>(null);
   const [previewTemplateKey, setPreviewTemplateKey] = useState<string | null>(null);

@@ -1,6 +1,3 @@
-import { useState, useRef, useEffect } from 'react';
-import { getHomePageByDomain } from '../lib/companyHomePages';
-
 const KNOWN_PATTERNS = [
   'localhost', '127.0.0.1', '.supabase.co', '.vercel.app',
   '.webcontainer.io', '.local-credentialless.webcontainer.io',
@@ -18,24 +15,6 @@ function isKnownHost(hostname: string): boolean {
 
 export function useCustomDomain() {
   const hostname = window.location.hostname;
-  const isCustom = !isKnownHost(hostname);
-  const [customDomainSlug, setCustomDomainSlug] = useState<string | null>(null);
-  const [customDomainNotFound, setCustomDomainNotFound] = useState(false);
-  const [customDomainChecked, setCustomDomainChecked] = useState(!isCustom);
-  const checkedRef = useRef(false);
-
-  useEffect(() => {
-    if (checkedRef.current) return;
-    checkedRef.current = true;
-    if (!isCustom) return;
-    getHomePageByDomain(hostname)
-      .then(page => {
-        if (page?.slug) setCustomDomainSlug(page.slug);
-        else setCustomDomainNotFound(true);
-      })
-      .catch(() => setCustomDomainNotFound(false))
-      .finally(() => setCustomDomainChecked(true));
-  }, []);
-
-  return { customDomainSlug, customDomainNotFound, customDomainChecked };
+  const customDomain = isKnownHost(hostname) ? null : hostname;
+  return { customDomain };
 }

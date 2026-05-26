@@ -7,7 +7,10 @@ const SERVICES = [
   { icon: <Home className="w-5 h-5" />, title: 'Accompagnement complet', desc: 'De la premiere visite a la signature, nous vous guidons a chaque etape.' },
 ];
 
-export default function RealEstateTemplate() {
+import type { SitePageProps } from './templateRegistry';
+
+export default function RealEstateTemplate({ companyName, welcomeMessage }: SitePageProps) {
+  const brand = companyName || 'Immobilier Pro';
   return (
     <div className="min-h-full bg-slate-950 text-white">
       {/* Hero */}
@@ -25,8 +28,7 @@ export default function RealEstateTemplate() {
             </span>
           </h1>
           <p className="text-lg text-slate-400 max-w-2xl mx-auto mb-8">
-            Achat, vente, location -- votre agence immobiliere de confiance pour tous vos projets.
-            Expertise locale et accompagnement personnalise.
+            {welcomeMessage || "Achat, vente, location -- votre agence immobiliere de confiance pour tous vos projets. Expertise locale et accompagnement personnalise."}
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <button className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl bg-gradient-to-r from-sky-500 to-sky-600 text-white font-semibold text-sm shadow-lg shadow-sky-500/25">
@@ -74,7 +76,7 @@ export default function RealEstateTemplate() {
 
       {/* Footer */}
       <footer className="border-t border-slate-800 py-8 text-center">
-        <p className="text-xs text-slate-500">&copy; {new Date().getFullYear()} Immobilier Pro. Tous droits reserves.</p>
+        <p className="text-xs text-slate-500">&copy; {new Date().getFullYear()} {brand}. Tous droits reserves.</p>
       </footer>
     </div>
   );

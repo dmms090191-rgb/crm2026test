@@ -1,14 +1,14 @@
 import { Globe, LayoutGrid, Eye, ExternalLink, Settings2, CheckCircle2, Link2 } from 'lucide-react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 import { getTemplateComponent } from './templates/templateRegistry';
-import type { CompanyHomePage } from '../../../../lib/companyHomePages';
+import type { CompanyHomePageWithCompany } from '../../../../lib/companyHomePages';
 import type { SiteTab } from './SiteTabs';
 
 interface Props {
   activeTemplateKey: string | null;
   previewTemplateKey: string | null;
   previewTemplateName: string | null;
-  page: CompanyHomePage | null;
+  page: CompanyHomePageWithCompany | null;
   onTabChange: (tab: SiteTab) => void;
   onApplyPreview: () => void;
   onClearPreview: () => void;
@@ -168,7 +168,16 @@ export default function SitePreviewTab({
       >
         {TemplateComponent ? (
           <div className="w-full h-full overflow-y-auto" style={{ background: '#020617' }}>
-            <TemplateComponent />
+            <TemplateComponent
+              companyName={page?.companies?.name || page?.title || undefined}
+              title={page?.title || undefined}
+              subtitle={page?.subtitle || undefined}
+              welcomeMessage={page?.welcome_message || undefined}
+              logoUrl={page?.logo_url}
+              heroImageUrl={page?.hero_image_url}
+              mainColor={page?.main_color}
+              secondaryColor={page?.secondary_color}
+            />
           </div>
         ) : (
           <div className="w-full h-full flex items-center justify-center" style={{ background: t.surface.secondary }}>

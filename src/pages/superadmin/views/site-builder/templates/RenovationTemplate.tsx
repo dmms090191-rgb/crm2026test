@@ -7,7 +7,10 @@ const SERVICES = [
   { icon: <ShieldCheck className="w-5 h-5" />, title: 'Garantie decennale', desc: 'Tous nos travaux sont couverts par une garantie decennale pour votre tranquillite.' },
 ];
 
-export default function RenovationTemplate() {
+import type { SitePageProps } from './templateRegistry';
+
+export default function RenovationTemplate({ companyName, welcomeMessage }: SitePageProps) {
+  const brand = companyName || 'Renovation Pro';
   return (
     <div className="min-h-full bg-slate-950 text-white">
       {/* Hero */}
@@ -25,8 +28,7 @@ export default function RenovationTemplate() {
             </span>
           </h1>
           <p className="text-lg text-slate-400 max-w-2xl mx-auto mb-8">
-            Renovation, amenagement et transformation de vos espaces.
-            Des artisans qualifies pour donner vie a vos projets.
+            {welcomeMessage || "Renovation, amenagement et transformation de vos espaces. Des artisans qualifies pour donner vie a vos projets."}
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <button className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-white font-semibold text-sm shadow-lg shadow-amber-500/25">
@@ -74,7 +76,7 @@ export default function RenovationTemplate() {
 
       {/* Footer */}
       <footer className="border-t border-slate-800 py-8 text-center">
-        <p className="text-xs text-slate-500">&copy; {new Date().getFullYear()} Renovation Pro. Tous droits reserves.</p>
+        <p className="text-xs text-slate-500">&copy; {new Date().getFullYear()} {brand}. Tous droits reserves.</p>
       </footer>
     </div>
   );

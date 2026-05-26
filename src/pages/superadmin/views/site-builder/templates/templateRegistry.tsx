@@ -6,7 +6,18 @@ import FitnessTemplate from './FitnessTemplate';
 import RealEstateTemplate from './RealEstateTemplate';
 import RenovationTemplate from './RenovationTemplate';
 
-const TEMPLATE_REGISTRY: Record<string, ComponentType> = {
+export interface SitePageProps {
+  companyName?: string;
+  title?: string;
+  subtitle?: string;
+  welcomeMessage?: string;
+  logoUrl?: string | null;
+  heroImageUrl?: string | null;
+  mainColor?: string | null;
+  secondaryColor?: string | null;
+}
+
+const TEMPLATE_REGISTRY: Record<string, ComponentType<SitePageProps>> = {
   talvex_official: TalvexOfficialTemplate,
   renewable_energy: RenewableEnergyTemplate,
   heat_pump: HeatPumpTemplate,
@@ -15,7 +26,7 @@ const TEMPLATE_REGISTRY: Record<string, ComponentType> = {
   renovation: RenovationTemplate,
 };
 
-export function getTemplateComponent(templateKey: string): ComponentType | null {
+export function getTemplateComponent(templateKey: string): ComponentType<SitePageProps> | null {
   return TEMPLATE_REGISTRY[templateKey] ?? null;
 }
 

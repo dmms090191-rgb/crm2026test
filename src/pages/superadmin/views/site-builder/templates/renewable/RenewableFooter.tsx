@@ -4,9 +4,10 @@ interface Props {
   onLogin: () => void;
   onRegister: () => void;
   onScroll: (id: string) => void;
+  brandName?: string;
 }
 
-export default function RenewableFooter({ onLogin, onRegister, onScroll }: Props) {
+export default function RenewableFooter({ onLogin, onRegister, onScroll, brandName = '{brandName}' }: Props) {
   return (
     <>
       {/* CTA Section */}
@@ -55,7 +56,7 @@ export default function RenewableFooter({ onLogin, onRegister, onScroll }: Props
                   style={{ background: 'linear-gradient(135deg, #10b981, #059669)', boxShadow: '0 2px 12px rgba(16,185,129,0.3)' }}>
                   <Leaf className="w-4 h-4 text-white" />
                 </div>
-                <span className="text-sm font-bold text-white">Nova Energie</span>
+                <span className="text-sm font-bold text-white">{brandName}</span>
               </div>
               <p className="text-xs text-slate-500 leading-relaxed max-w-xs">
                 Solutions d'energie renouvelable pour particuliers et professionnels. Accompagnement de A a Z.
@@ -90,7 +91,7 @@ export default function RenewableFooter({ onLogin, onRegister, onScroll }: Props
 
           <div className="pt-6 border-t border-white/[0.04] flex flex-col sm:flex-row items-center justify-between gap-3">
             <p className="text-[10px] text-slate-600">
-              &copy; {new Date().getFullYear()} Nova Energie. Tous droits reserves. Site de demonstration.
+              &copy; {new Date().getFullYear()} {brandName}. Tous droits reserves. Site de demonstration.
             </p>
             <div className="flex items-center gap-4">
               <span className="text-[10px] text-slate-600 hover:text-slate-400 transition-colors cursor-pointer">Mentions legales</span>

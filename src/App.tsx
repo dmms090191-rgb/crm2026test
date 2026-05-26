@@ -38,11 +38,11 @@ function App() {
   const [impersonatedVendor, setImpersonatedVendor] = useState<ImpersonatedVendor | null>(null);
   const [impersonatedClient, setImpersonatedClient] = useState<ImpersonatedClientInfo | null>(null);
   const [impersonatedAdmin, setImpersonatedAdmin] = useState<ImpersonatedAdmin | null>(null);
-  const { customDomainSlug, customDomainNotFound, customDomainChecked } = useCustomDomain();
+  const { customDomain } = useCustomDomain();
   const [saUserId, setSaUserId] = useState<string | null>(null);
   const [saDisplayName, setSaDisplayName] = useState('Support Talvex');
   const [landingTemplateKey, setLandingTemplateKey] = useState<string | null>(null);
-  const [landingTemplateLoaded, setLandingTemplateLoaded] = useState(false);
+  const [landingTemplateLoaded, setLandingTemplateLoaded] = useState(!!customDomain);
 
   async function detectRole() {
     const { data: { session } } = await supabase.auth.getSession();
@@ -99,11 +99,12 @@ function App() {
   }, []);
 
   useEffect(() => {
+    if (customDomain) return;
     getLandingTemplateKey()
       .then(key => { if (key) setLandingTemplateKey(key); })
       .catch(() => {})
       .finally(() => setLandingTemplateLoaded(true));
-  }, []);
+  }, [customDomain]);
 
   const handleLogin = () => { detectRole(); setIsModalOpen(false); };
 
@@ -115,7 +116,7 @@ function App() {
     setImpersonatedAdmin(null);
   };
 
-  if (loading || (!role && !landingTemplateLoaded) || (!role && !customDomainChecked)) return <AppLoadingScreen />;
+  if (loading || (!role && !landingTemplateLoaded)) return <AppLoadingScreen />;
   if (accessBlocked) return <AppAccessBlocked onClear={() => setAccessBlocked(false)} />;
 
   // --- Public company site (/site/:slug) ---
@@ -125,11 +126,8 @@ function App() {
   }
 
   // --- Custom domain detection ---
-  if (customDomainSlug && !role) {
-    return <CompanySitePage slug={customDomainSlug} />;
-  }
-  if (customDomainNotFound && !role) {
-    return <CompanySitePage slug="__domain_not_found__" />;
+  if (customDomain && !role) {
+    return <CompanySitePage domain={customDomain} />;
   }
 
   // --- Super Admin branches ---
