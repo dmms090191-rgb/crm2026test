@@ -2,7 +2,7 @@ const KNOWN_PATTERNS = [
   'localhost', '127.0.0.1', '.supabase.co', '.vercel.app',
   '.webcontainer.io', '.local-credentialless.webcontainer.io',
   '.local.webcontainer.io', '.bolt.new', '.stackblitz.io',
-  '.cloudworkstations.dev',
+  '.cloudworkstations.dev', 'derlumeo.com',
 ];
 
 function isKnownHost(hostname: string): boolean {

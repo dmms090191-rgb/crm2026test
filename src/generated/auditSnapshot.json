@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-26T21:25:20.150Z",
+  "generatedAt": "2026-05-26T23:40:20.347Z",
   "anyCount": 3,
   "anyOccurrences": [
     {
@@ -20,14 +20,25 @@
   ],
   "unusedImportCount": 0,
   "unusedImports": [],
-  "largeFileCount": 0,
-  "largeFiles": [],
+  "largeFileCount": 2,
+  "largeFiles": [
+    {
+      "file": "src/pages/superadmin/views/site-builder/SiteManagerShell.tsx",
+      "lines": 315,
+      "overflow": 15
+    },
+    {
+      "file": "src/pages/superadmin/views/site-builder/SiteTemplatesTab.tsx",
+      "lines": 383,
+      "overflow": 83
+    }
+  ],
   "tscErrorCount": 0,
   "tscErrors": [],
   "eslintErrorCount": 0,
   "eslintWarningCount": 0,
   "eslintIssues": [],
-  "totalFilesAnalyzed": 557,
-  "totalLinesAnalyzed": 76420,
-  "totalOverflowLines": 0
+  "totalFilesAnalyzed": 559,
+  "totalLinesAnalyzed": 76881,
+  "totalOverflowLines": 98
 }

@@ -141,11 +141,14 @@ export async function getLandingTemplateKey(): Promise<string | null> {
 /* ── Template application ── */
 
 export async function applyTemplate(homePageId: string, templateId: string): Promise<void> {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('company_home_pages')
     .update({ active_template_id: templateId, is_active: true, updated_at: new Date().toISOString() })
-    .eq('id', homePageId);
+    .eq('id', homePageId)
+    .select('id')
+    .maybeSingle();
   if (error) throw error;
+  if (!data) throw new Error('Mise a jour refusee. Verifiez vos permissions.');
 }
 
 export async function createHomePageWithTemplate(companyId: string, templateId: string): Promise<CompanyHomePage> {

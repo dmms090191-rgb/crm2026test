@@ -51,7 +51,7 @@ export default function AdminDetailModal({ admin, onClose, onUpdate }: AdminDeta
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
-        className="w-full max-w-md rounded-2xl overflow-hidden"
+        className="w-full max-w-2xl rounded-2xl overflow-hidden"
         style={{
           background: tokens.modal.bg,
           border: `1px solid ${tokens.modal.border}`,
@@ -91,7 +91,7 @@ export default function AdminDetailModal({ admin, onClose, onUpdate }: AdminDeta
           ))}
         </div>
 
-        <div className="px-6 py-5 min-h-0 max-h-[26rem] overflow-y-auto">
+        <div className="px-6 py-5 min-h-0 max-h-[70vh] overflow-y-auto">
           {tab === 'informations' && <AdminDetailInfoTab admin={admin} onUpdate={onUpdate} />}
           {tab === 'domaine' && <AdminDetailDomainTab companyId={admin.company_id} onUpdate={onUpdate} />}
           {tab === 'mot-de-passe' && <AdminDetailPasswordTab adminId={admin.id} currentPin={admin.pin} onUpdate={onUpdate} />}
