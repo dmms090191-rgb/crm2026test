@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import {
   LayoutDashboard, Info, UserPlus, Upload, Users, Database, UserCheck, List,
   MessageCircle, MessageSquare, Shield, Calendar, CalendarRange, CalendarCheck,
-  Settings, Hexagon, Globe,
+  Settings, Hexagon, Globe, Brain,
 } from 'lucide-react';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
 import { useSidebarOrder } from '../../hooks/useSidebarOrder';
@@ -48,6 +48,7 @@ const DEFAULT_SECTIONS: SidebarSection[] = [
   ] },
   { title: 'Configuration', items: [
     { id: 'statuts', label: 'Statuts', icon: <Settings className="w-4 h-4" /> },
+    { id: 'cerveau-ia', label: 'Cerveau IA AD', icon: <Brain className="w-4 h-4" /> },
   ] },
 ];
 

@@ -40,7 +40,7 @@ export function useVendorLeadsData(vendorId: string | null) {
     const [leadsRes, statutsRes] = await Promise.all([
       supabase
         .from('leads')
-        .select('id, data, imported_at, statut, actif, vendor_id')
+        .select('id, data, imported_at, statut, actif, vendor_id, ai_enabled')
         .eq('vendor_id', vendorId)
         .order('imported_at', { ascending: false })
         .order('id', { ascending: true }),
@@ -122,6 +122,14 @@ export function useVendorLeadsData(vendorId: string | null) {
     if (error) setLeads(ls => ls.map(l => l.id === id ? { ...l, actif: current } : l));
   };
 
+  const handleToggleAi = async (id: string, current: boolean) => {
+    recentUpdates.current.set(id, Date.now() + 3000);
+    setLeads(ls => ls.map(l => l.id === id ? { ...l, ai_enabled: !current } : l));
+    const { error } = await supabase.from('leads').update({ ai_enabled: !current }).eq('id', id);
+    if (error) setLeads(ls => ls.map(l => l.id === id ? { ...l, ai_enabled: current } : l));
+    recentUpdates.current.delete(id);
+  };
+
   const filtered = useMemo(() => {
     const fNom = filterNom.toLowerCase();
     const fPrenom = filterPrenom.toLowerCase();
@@ -168,6 +176,6 @@ export function useVendorLeadsData(vendorId: string | null) {
     mobileFiltersOpen, setMobileFiltersOpen,
     detailLead, setDetailLead,
     workMode, cardRefsMap, rowRefsMap,
-    handleStatut, handleToggleActif,
+    handleStatut, handleToggleActif, handleToggleAi,
   };
 }

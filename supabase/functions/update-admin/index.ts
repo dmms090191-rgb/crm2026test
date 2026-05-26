@@ -89,6 +89,14 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    const companyId = targetUser.user.app_metadata?.company_id;
+    if (companyId && (first_name !== undefined || last_name !== undefined)) {
+      const nameUpdate: Record<string, string> = {};
+      if (first_name !== undefined) nameUpdate.admin_first_name = first_name;
+      if (last_name !== undefined) nameUpdate.admin_last_name = last_name;
+      await supabaseAdmin.from("companies").update(nameUpdate).eq("id", companyId);
+    }
+
     return new Response(
       JSON.stringify({ success: true, user: data.user }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }

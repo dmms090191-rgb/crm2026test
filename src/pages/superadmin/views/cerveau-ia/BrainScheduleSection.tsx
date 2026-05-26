@@ -6,9 +6,10 @@ interface Props {
   brain: AiCompanyBrain;
   onChange: (fields: Partial<AiCompanyBrain>) => void;
   tokens: ReturnType<typeof import('../../../../hooks/useThemeTokens').useThemeTokens>;
+  embedded?: boolean;
 }
 
-export default function BrainScheduleSection({ brain, onChange, tokens: t }: Props) {
+export default function BrainScheduleSection({ brain, onChange, tokens: t, embedded }: Props) {
   const hours = (brain.opening_hours ?? {}) as WeekSchedule;
 
   function updateDay(dayKey: string, field: keyof DaySchedule, value: string | boolean) {
@@ -16,16 +17,8 @@ export default function BrainScheduleSection({ brain, onChange, tokens: t }: Pro
     onChange({ opening_hours: next });
   }
 
-  return (
-    <div className="rounded-2xl p-5" style={{ background: t.card.bg, border: `1px solid ${t.card.border}` }}>
-      <div className="flex items-center gap-2.5 mb-4">
-        <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: t.accent.bg, border: `1px solid ${t.accent.border}` }}>
-          <Clock className="w-4 h-4" style={{ color: t.accent.text }} />
-        </div>
-        <h3 className="text-sm font-bold" style={{ color: t.text.primary }}>Horaires d'ouverture</h3>
-      </div>
-
-      <div className="space-y-2">
+  const content = (
+    <div className="space-y-2">
         {DAYS_OF_WEEK.map(({ key, label }) => {
           const day = hours[key] ?? { open: '09:00', close: '18:00', closed: false };
           return (
@@ -65,7 +58,20 @@ export default function BrainScheduleSection({ brain, onChange, tokens: t }: Pro
             </div>
           );
         })}
+    </div>
+  );
+
+  if (embedded) return content;
+
+  return (
+    <div className="rounded-2xl p-5" style={{ background: t.card.bg, border: `1px solid ${t.card.border}` }}>
+      <div className="flex items-center gap-2.5 mb-4">
+        <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: t.accent.bg, border: `1px solid ${t.accent.border}` }}>
+          <Clock className="w-4 h-4" style={{ color: t.accent.text }} />
+        </div>
+        <h3 className="text-sm font-bold" style={{ color: t.text.primary }}>Horaires d'ouverture</h3>
       </div>
+      {content}
     </div>
   );
 }

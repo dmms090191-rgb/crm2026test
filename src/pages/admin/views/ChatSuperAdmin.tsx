@@ -100,6 +100,26 @@ export default function ChatSuperAdmin({ adminIdOverride, onMessageSent, onSuper
 
   const isImpersonating = Boolean(adminIdOverride && authUserId && adminIdOverride !== authUserId);
 
+  const triggerSupportAi = useCallback(async (messageId: string, aId: string, saId: string) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/sa-support-auto-reply`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+          'Apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify({ message_id: messageId, admin_id: aId, super_admin_id: saId }),
+      });
+      const json = await res.json().catch(() => ({}));
+      console.log('[ChatSuperAdmin] AI support response:', res.status, json);
+    } catch (err) {
+      console.warn('[ChatSuperAdmin] AI trigger failed:', err);
+    }
+  }, []);
+
   const handleSend = useCallback(async (content: string, file?: { url: string; name: string; type: string }) => {
     if (!adminId) throw new Error('no_admin_id');
 
@@ -120,7 +140,21 @@ export default function ChatSuperAdmin({ adminIdOverride, onMessageSent, onSuper
     sendPushForMessage({ targetUserId: effectiveSuperAdminId, title: 'Talvex', body: 'Nouveau message d\'une societe cliente' });
     onMessageSent?.();
     loadMessages(false).catch(() => {});
-  }, [isImpersonating, adminId, authUserId, superAdminId, loadMessages, onMessageSent]);
+
+    {
+      const { data: lastMsg } = await supabase
+        .from('super_admin_messages')
+        .select('id')
+        .eq('admin_id', adminId)
+        .eq('sender_role', 'admin')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (lastMsg?.id) {
+        triggerSupportAi(lastMsg.id, adminId, effectiveSuperAdminId);
+      }
+    }
+  }, [isImpersonating, adminId, authUserId, superAdminId, loadMessages, onMessageSent, triggerSupportAi]);
 
   const handleDelete = useCallback(async (id: string) => {
     setMessages(prev => prev.filter(m => m.id !== id));

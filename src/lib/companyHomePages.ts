@@ -1,56 +1,17 @@
 import { supabase } from './supabase';
+export type { SiteTemplate, SiteScope, CompanyHomePage, CompanyHomePageUpsert, CompanyHomePageWithCompany } from './companyHomePagesTypes';
+import type { SiteScope, CompanyHomePage, CompanyHomePageUpsert, CompanyHomePageWithCompany, SiteTemplate } from './companyHomePagesTypes';
 
-/* ── Site template types ── */
+/* ── Slug helpers ── */
 
-export interface SiteTemplate {
-  id: string;
-  name: string;
-  slug: string;
-  template_key: string;
-  description: string;
-  category: string;
-  thumbnail_url: string | null;
-  is_default: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
-/* ── Company home page types ── */
-
-export interface CompanyHomePage {
-  id: string;
-  company_id: string;
-  title: string;
-  subtitle: string;
-  welcome_message: string;
-  logo_url: string | null;
-  main_color: string | null;
-  secondary_color: string | null;
-  hero_image_url: string | null;
-  slug: string | null;
-  custom_domain: string | null;
-  domain_status: string;
-  domain_verified: boolean;
-  domain_provider: string | null;
-  domain_type: string | null;
-  domain_notes: string | null;
-  last_domain_check_at: string | null;
-  domain_purchase_price: number | null;
-  domain_sell_price: number | null;
-  domain_payment_status: string | null;
-  domain_order_id: string | null;
-  domain_expires_at: string | null;
-  domain_auto_renew: boolean | null;
-  active_template_id: string | null;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
-export type CompanyHomePageUpsert = Omit<CompanyHomePage, 'id' | 'created_at' | 'updated_at'>;
-
-export interface CompanyHomePageWithCompany extends CompanyHomePage {
-  companies: { name: string } | null;
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60) || 'site';
 }
 
 /* ── Template queries ── */
@@ -59,6 +20,7 @@ export async function getAllTemplates(): Promise<SiteTemplate[]> {
   const { data, error } = await supabase
     .from('site_templates')
     .select('*')
+    .eq('is_visible', true)
     .order('is_default', { ascending: false })
     .order('name', { ascending: true });
   if (error) throw error;
@@ -101,6 +63,17 @@ export async function getHomePageByCompanyId(companyId: string): Promise<Company
     .from('company_home_pages')
     .select('*')
     .eq('company_id', companyId)
+    .eq('site_scope', 'company')
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+export async function getPlatformHomePage(): Promise<CompanyHomePage | null> {
+  const { data, error } = await supabase
+    .from('company_home_pages')
+    .select('*')
+    .eq('site_scope', 'platform')
     .maybeSingle();
   if (error) throw error;
   return data;
@@ -156,10 +129,9 @@ export async function getLandingTemplateKey(): Promise<string | null> {
   const { data, error } = await supabase
     .from('company_home_pages')
     .select('active_template_id, site_templates(template_key)')
+    .eq('site_scope', 'platform')
     .eq('is_active', true)
     .not('active_template_id', 'is', null)
-    .order('updated_at', { ascending: false })
-    .limit(1)
     .maybeSingle();
   if (error || !data) return null;
   const tmpl = data.site_templates as unknown as { template_key: string } | null;
@@ -171,7 +143,7 @@ export async function getLandingTemplateKey(): Promise<string | null> {
 export async function applyTemplate(homePageId: string, templateId: string): Promise<void> {
   const { error } = await supabase
     .from('company_home_pages')
-    .update({ active_template_id: templateId, updated_at: new Date().toISOString() })
+    .update({ active_template_id: templateId, is_active: true, updated_at: new Date().toISOString() })
     .eq('id', homePageId);
   if (error) throw error;
 }
@@ -182,6 +154,7 @@ export async function createHomePageWithTemplate(companyId: string, templateId: 
     .upsert(
       {
         company_id: companyId,
+        site_scope: 'company',
         title: '',
         subtitle: '',
         welcome_message: '',
@@ -191,6 +164,95 @@ export async function createHomePageWithTemplate(companyId: string, templateId: 
       },
       { onConflict: 'company_id' }
     )
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+/* ── Site creation with scope ── */
+
+interface CreateSiteParams {
+  siteScope: SiteScope;
+  companyId?: string | null;
+  companyName?: string;
+  templateId: string;
+  slug?: string;
+}
+
+export async function createOrUpdateSite(params: CreateSiteParams): Promise<CompanyHomePage> {
+  const { siteScope, companyId, companyName, templateId, slug: customSlug } = params;
+
+  const generatedSlug = customSlug
+    || (siteScope === 'platform' ? 'talvex' : slugify(companyName || 'site'));
+
+  if (siteScope === 'platform') {
+    const existing = await getPlatformHomePage();
+    if (existing) {
+      const { data, error } = await supabase
+        .from('company_home_pages')
+        .update({
+          active_template_id: templateId,
+          is_active: true,
+          slug: existing.slug || generatedSlug,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', existing.id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    }
+
+    const { data, error } = await supabase
+      .from('company_home_pages')
+      .insert({
+        site_scope: 'platform',
+        company_id: null,
+        title: 'Talvex',
+        subtitle: 'Plateforme CRM',
+        welcome_message: '',
+        active_template_id: templateId,
+        slug: generatedSlug,
+        is_active: true,
+      })
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  }
+
+  if (!companyId) throw new Error('company_id is required for company scope');
+
+  const existing = await getHomePageByCompanyId(companyId);
+  if (existing) {
+    const { data, error } = await supabase
+      .from('company_home_pages')
+      .update({
+        active_template_id: templateId,
+        is_active: true,
+        slug: existing.slug || generatedSlug,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', existing.id)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  }
+
+  const { data, error } = await supabase
+    .from('company_home_pages')
+    .insert({
+      site_scope: 'company',
+      company_id: companyId,
+      title: companyName || '',
+      subtitle: '',
+      welcome_message: '',
+      active_template_id: templateId,
+      slug: generatedSlug,
+      is_active: true,
+    })
     .select()
     .single();
   if (error) throw error;

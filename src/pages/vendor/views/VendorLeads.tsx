@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Users, Hash, User, Mail, Phone, CalendarDays, Signal, Settings, Lock, Columns3, CheckSquare, Briefcase, SlidersHorizontal } from 'lucide-react';
+import { Users, Hash, User, Mail, Phone, CalendarDays, Signal, Settings, Lock, Bot, Columns3, CheckSquare, Briefcase, SlidersHorizontal } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { useThemeTokens } from '../../../hooks/useThemeTokens';
 import { useTimezone } from '../../../hooks/useTimezone';
+import { useCompanyId } from '../../../hooks/useCompanyId';
 import DualScrollWrapper from '../../../components/DualScrollWrapper';
 import VendorLeadDetailModal from './VendorLeadDetailModal';
 import VendorLeadDesktopRow from './leads/VendorLeadDesktopRow';
@@ -29,18 +30,22 @@ const VENDOR_LEADS_COLUMNS = [
   { key: 'statut', label: 'Statut', required: true },
   { key: 'actions', label: 'Actions', required: true },
   { key: 'acces', label: 'Acces', required: true },
+  { key: 'ia', label: 'IA', required: true },
 ];
 
 const VENDOR_HEADER_ICONS: Record<string, React.FC<{ className?: string; style?: React.CSSProperties }>> = {
   hash: Hash, nom: User, prenom: User, email: Mail, telephone: Phone,
-  date_ajout: CalendarDays, statut: Signal, actions: Settings, acces: Lock,
+  date_ajout: CalendarDays, statut: Signal, actions: Settings, acces: Lock, ia: Bot,
 };
 
 export type { VendorChatLeadRef } from './vendorLeadsTypes';
 
+const SYNC_TS_KEY = 'talvex_columns_vendor_leads_sync_ts';
+
 export default function VendorLeads({ vendorId, onOpenChat, onConnectAsClient, onOpenRdv }: VendorLeadsProps) {
   const tokens = useThemeTokens();
   const { timezone } = useTimezone();
+  const companyId = useCompanyId();
   const d = useVendorLeadsData(vendorId);
   const colSep = { borderRight: `1px solid ${tokens.table.colSep}` };
   const showLoading = d.loading || !vendorId;
@@ -51,6 +56,34 @@ export default function VendorLeads({ vendorId, onOpenChat, onConnectAsClient, o
   const [showColModal, setShowColModal] = useState(false);
   const [showOrgModal, setShowOrgModal] = useState(false);
   const [canCustomizeColumns, setCanCustomizeColumns] = useState(true);
+
+  useEffect(() => {
+    if (!companyId) return;
+    supabase
+      .from('company_column_config')
+      .select('desktop_order, desktop_hidden, mobile_order, mobile_card_style, pushed_at')
+      .eq('company_id', companyId)
+      .eq('table_key', 'vendor_leads')
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!data?.pushed_at) return;
+        const localTs = localStorage.getItem(SYNC_TS_KEY) || '';
+        if (localTs >= data.pushed_at) return;
+        const validKeys = new Set(VENDOR_LEADS_COLUMNS.map(c => c.key));
+        const desktopOrder = (data.desktop_order as string[] || []).filter(k => validKeys.has(k));
+        const desktopHidden = (data.desktop_hidden as string[] || []).filter(k => validKeys.has(k));
+        if (desktopOrder.length > 0) {
+          const missing = VENDOR_LEADS_COLUMNS.map(c => c.key).filter(k => !desktopOrder.includes(k));
+          colOrder.saveAll({ order: [...desktopOrder, ...missing], hiddenDesktop: desktopHidden });
+        }
+        const mobileOrder = data.mobile_order as { key: string; role: string; visible: boolean }[] | null;
+        if (mobileOrder && mobileOrder.length > 0) {
+          const filteredMobile = mobileOrder.filter(e => validKeys.has(e.key));
+          colMobile.saveMobile({ order: filteredMobile, cardStyle: (data.mobile_card_style as 'comfort') || 'comfort' });
+        }
+        try { localStorage.setItem(SYNC_TS_KEY, data.pushed_at); } catch {}
+      });
+  }, [companyId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!vendorId) return;
@@ -176,7 +209,7 @@ export default function VendorLeads({ vendorId, onOpenChat, onConnectAsClient, o
                         workHistoryLength={d.workMode.historyLength} workHistoryPosition={d.workMode.historyPosition}
                         canUndo={d.workMode.canUndo} canRedo={d.workMode.canRedo}
                         onWorkSelect={d.workMode.select} onWorkUndo={d.workMode.undo} onWorkRedo={d.workMode.redo}
-                        onToggle={d.toggleOne} onStatutChange={d.handleStatut} onToggleActif={d.handleToggleActif}
+                        onToggle={d.toggleOne} onStatutChange={d.handleStatut} onToggleActif={d.handleToggleActif} onToggleAi={d.handleToggleAi}
                         onDetail={(l, idx) => d.setDetailLead({ lead: l, index: idx })}
                         onOpenChat={onOpenChat} onOpenRdv={onOpenRdv} onConnectAsClient={onConnectAsClient}
                         columnOrder={colOrder.visibleOrderedKeys}
@@ -215,7 +248,7 @@ export default function VendorLeads({ vendorId, onOpenChat, onConnectAsClient, o
                     workHistoryLength={d.workMode.historyLength} workHistoryPosition={d.workMode.historyPosition}
                     canUndo={d.workMode.canUndo} canRedo={d.workMode.canRedo}
                     onWorkSelect={d.workMode.select} onWorkUndo={d.workMode.undo} onWorkRedo={d.workMode.redo} onWorkReset={d.workMode.resetHistory}
-                    onToggle={d.toggleOne} onStatutChange={d.handleStatut} onToggleActif={d.handleToggleActif}
+                    onToggle={d.toggleOne} onStatutChange={d.handleStatut} onToggleActif={d.handleToggleActif} onToggleAi={d.handleToggleAi}
                     onDetail={(l, idx) => d.setDetailLead({ lead: l, index: idx })}
                     onOpenChat={onOpenChat} onOpenRdv={onOpenRdv} onConnectAsClient={onConnectAsClient}
                     cardRef={el => { if (el) d.cardRefsMap.current.set(lead.id, el); else d.cardRefsMap.current.delete(lead.id); }}

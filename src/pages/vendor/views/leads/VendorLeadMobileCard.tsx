@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Mail, Phone, ChevronDown, LogIn, MessageCircle, CalendarClock, Undo2, Redo2, CheckCircle2, Calendar, RotateCcw } from 'lucide-react';
+import { Mail, Phone, ChevronDown, LogIn, MessageCircle, CalendarClock, Undo2, Redo2, CheckCircle2, Calendar, RotateCcw, Bot } from 'lucide-react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 import { getInitials, gradients, getStatutCfg, FALLBACK_COLOR } from '../../../admin/views/crm/utils';
 import CheckBox from '../../../admin/views/crm/CheckBox';
@@ -33,6 +33,7 @@ interface Props {
   onToggle: (id: string) => void;
   onStatutChange: (id: string, statut: string) => void;
   onToggleActif: (id: string, current: boolean) => void;
+  onToggleAi: (id: string, current: boolean) => void;
   onDetail: (lead: ImportedLead, index: number) => void;
   onOpenChat?: (ref: { id: string; nom: string; prenom: string; email: string; tel: string }) => void;
   onOpenRdv?: (ref: { id: string; nom: string; prenom: string; email: string; tel: string }) => void;
@@ -45,7 +46,7 @@ export default function VendorLeadMobileCard({
   lead, index, statutDefs, timezone, isSelected, workModeEnabled, workModeActiveId,
   workHistoryLength, workHistoryPosition, canUndo, canRedo,
   onWorkSelect, onWorkUndo, onWorkRedo, onWorkReset, onToggle, onStatutChange,
-  onToggleActif, onDetail, onOpenChat, onOpenRdv, onConnectAsClient, selectMode, cardRef,
+  onToggleActif, onToggleAi, onDetail, onOpenChat, onOpenRdv, onConnectAsClient, selectMode, cardRef,
 }: Props) {
   const tokens = useThemeTokens();
   const [statutModalOpen, setStatutModalOpen] = useState(false);
@@ -57,6 +58,7 @@ export default function VendorLeadMobileCard({
   const initials = getInitials(nom, prenom);
   const grad = gradients[index % gradients.length];
   const actif = lead.actif !== false;
+  const aiEnabled = lead.ai_enabled === true;
   const isWorkActive = workModeEnabled && workModeActiveId === lead.id;
   const isNeutral = statut === 'Nouveau';
   const statutDef = statutDefs.find(s => s.nom === statut);
@@ -156,6 +158,19 @@ export default function VendorLeadMobileCard({
             title={actif ? 'Desactiver' : 'Activer'}
           >
             <span className="absolute rounded-full transition-all duration-300" style={{ width: 10, height: 10, left: actif ? 20 : 3, background: actif ? tokens.success.text : tokens.text.quaternary, boxShadow: actif ? `0 0 6px ${tokens.success.text}` : 'none' }} />
+          </button>
+        </div>
+
+        <div className="flex items-center gap-1.5">
+          <Bot className="w-3 h-3" style={{ color: aiEnabled ? '#3b82f6' : tokens.text.quaternary, transition: 'color 0.3s' }} />
+          <span>IA</span>
+          <button
+            onClick={() => onToggleAi(lead.id, aiEnabled)}
+            className="relative inline-flex items-center rounded-full transition-all duration-300 focus:outline-none"
+            style={{ width: 34, height: 18, background: aiEnabled ? 'rgba(59,130,246,0.15)' : tokens.surface.hover, border: aiEnabled ? '1px solid rgba(59,130,246,0.3)' : `1px solid ${tokens.surface.borderLight}` }}
+            title={aiEnabled ? 'Desactiver IA' : 'Activer IA'}
+          >
+            <span className="absolute rounded-full transition-all duration-300" style={{ width: 10, height: 10, left: aiEnabled ? 20 : 3, background: aiEnabled ? '#3b82f6' : tokens.text.quaternary, boxShadow: aiEnabled ? '0 0 6px rgba(59,130,246,0.5)' : 'none' }} />
           </button>
         </div>
       </div>

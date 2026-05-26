@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { MessageCircle } from 'lucide-react';
+import { MessageCircle, User } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import MessagingPanel, { ChatMessage, ChatContact } from '../../../components/chat/ChatView';
 import { useThemeTokens } from '../../../hooks/useThemeTokens';
 import { useCompanyId } from '../../../hooks/useCompanyId';
 import { sendPushForMessage } from '../../../lib/sendPushForMessage';
+import { useClientConseiller } from '../../../hooks/useClientConseiller';
 
 interface ClientMessagerieProps {
   clientName: string;
@@ -24,6 +25,7 @@ const ADMIN_CONTACT_ID = '__admin__';
 export default function ClientMessagerie({ clientName, clientAuthId, isAdmin }: ClientMessagerieProps) {
   const tokens = useThemeTokens();
   const ctxCompanyId = useCompanyId();
+  const { conseiller } = useClientConseiller(clientAuthId || null);
   const [vendor, setVendor] = useState<VendorRow | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -159,6 +161,8 @@ export default function ClientMessagerie({ clientName, clientAuthId, isAdmin }: 
     return null;
   }, [messages]);
 
+  const adminFallbackName = conseiller?.role === 'admin' && conseillerName ? conseillerName : null;
+
   const contacts: ChatContact[] = vendor
     ? [{
         id: vendor.id,
@@ -171,13 +175,17 @@ export default function ClientMessagerie({ clientName, clientAuthId, isAdmin }: 
       }]
     : [{
         id: ADMIN_CONTACT_ID,
-        displayName: 'Support',
-        subtitle: 'Assistance',
-        initial: 'S',
+        displayName: adminFallbackName || 'Support',
+        subtitle: adminFallbackName ? 'Responsable' : 'Assistance',
+        initial: (adminFallbackName || 'S').charAt(0).toUpperCase(),
         lastMessage: lastMsg?.content || undefined,
         lastMessageAt: lastMsg?.created_at || undefined,
         lastMessageSender: lastMsg?.sender || undefined,
       }];
+
+  const conseillerName = conseiller
+    ? [conseiller.firstName, conseiller.lastName].filter(Boolean).join(' ')
+    : null;
 
   return (
     <div className="flex flex-col flex-1 space-y-2 md:space-y-4" style={{ minHeight: 0 }}>
@@ -193,6 +201,15 @@ export default function ClientMessagerie({ clientName, clientAuthId, isAdmin }: 
           <MessageCircle className="w-4 h-4 text-emerald-400" />
         </div>
       </div>
+
+      {conseillerName && (
+        <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl flex-shrink-0" style={{ background: 'rgba(6,182,212,0.06)', border: '1px solid rgba(6,182,212,0.12)' }}>
+          <User className="w-3.5 h-3.5 flex-shrink-0" style={{ color: '#06b6d4' }} />
+          <p className="text-[11px] font-medium" style={{ color: tokens.text.tertiary }}>
+            Vous echangez avec : <span className="font-bold" style={{ color: tokens.text.primary }}>{conseillerName}</span>
+          </p>
+        </div>
+      )}
 
       <div className="flex-1 overflow-hidden" style={{ minHeight: 0 }}>
         <MessagingPanel

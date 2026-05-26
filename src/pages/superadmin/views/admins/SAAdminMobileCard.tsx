@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { ChevronDown, ChevronUp, LogIn, Mail, Phone, Calendar, MessageSquare, Megaphone, MoreHorizontal, X, Eye, LayoutTemplate, Settings2 } from 'lucide-react';
 import CopyButton from '../../../../components/CopyButton';
 import SAAdminsAccessSwitch from './SAAdminsAccessSwitch';
+import SAAdminsAiSwitch from './SAAdminsAiSwitch';
 import { useActionMenuOrder } from '../../../../components/action-menu/useActionMenuOrder';
 import ActionMenuReorderPanel, { type ActionMenuItem } from '../../../../components/action-menu/ActionMenuReorderPanel';
 import type { AdminUser } from '../SAAdmins';
@@ -94,6 +95,7 @@ export default function SAAdminMobileCard({
           <div className="flex items-center gap-4 mt-1">
             <div className="flex items-center gap-1"><Calendar className="w-3 h-3" style={{ color: tokens.table.cellIcon }} /><span className="text-[11px]" style={{ color: tokens.table.cellTextMuted }}>{formatDate(admin.created_at)}</span></div>
             <SAAdminsAccessSwitch adminId={admin.id} enabled={admin.access_enabled} onToggled={onAccessToggled} />
+            <SAAdminsAiSwitch companyId={admin.company_id} enabled={admin.ai_enabled} onToggled={onAccessToggled} />
           </div>
         </div>
       </div>

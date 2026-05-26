@@ -1,0 +1,21 @@
+import { lazy } from 'react';
+
+export const VueEnsemble = lazy(() => import('../views/VueEnsemble'));
+export const AdminSite = lazy(() => import('../views/AdminSite'));
+export const Inscription = lazy(() => import('../views/Inscription'));
+export const AjouterLeads = lazy(() => import('../views/AjouterLeads'));
+export const AjouterVendeur = lazy(() => import('../views/AjouterVendeur'));
+export const ListeVendeurs = lazy(() => import('../views/ListeVendeurs'));
+export const ChatClient = lazy(() => import('../views/ChatClient'));
+export const ChatVendeur = lazy(() => import('../views/ChatVendeur'));
+export const ChatSuperAdmin = lazy(() => import('../views/ChatSuperAdmin'));
+export const Agenda = lazy(() => import('../views/Agenda'));
+export const PropositionsRdv = lazy(() => import('../views/PropositionsRdv'));
+export const Statuts = lazy(() => import('../views/Statuts'));
+export const Crm = lazy(() => import('../views/Crm'));
+export const ImportLeads = lazy(() => import('../views/ImportLeads'));
+export const importDocumentationCrm = () => import('../views/DocumentationCrm');
+export const DocumentationCrm = lazy(importDocumentationCrm);
+export const SauvegardeRestauration = lazy(() => import('../views/SauvegardeRestauration'));
+export const SystemPage = lazy(() => import('../views/SystemPage'));
+export const AdminCerveauIA = lazy(() => import('../views/cerveau-ia/AdminCerveauIA'));

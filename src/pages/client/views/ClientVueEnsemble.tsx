@@ -1,15 +1,20 @@
 import { useThemeTokens } from '../../../hooks/useThemeTokens';
+import { useClientConseiller } from '../../../hooks/useClientConseiller';
 import { LayoutDashboard } from 'lucide-react';
+import ConseillerCard from './ConseillerCard';
 
 interface ClientVueEnsembleProps {
   clientName: string;
+  clientAuthId?: string;
+  onNavigate?: (view: string) => void;
 }
 
-export default function ClientVueEnsemble({ clientName }: ClientVueEnsembleProps) {
+export default function ClientVueEnsemble({ clientName, clientAuthId, onNavigate }: ClientVueEnsembleProps) {
   const tokens = useThemeTokens();
+  const { conseiller, loading: conseillerLoading } = useClientConseiller(clientAuthId ?? null);
 
   const hour = new Date().getHours();
-  const greeting = hour < 12 ? 'Bonjour' : hour < 18 ? 'Bon apr\u00e8s-midi' : 'Bonsoir';
+  const greeting = hour < 12 ? 'Bonjour' : hour < 18 ? 'Bon après-midi' : 'Bonsoir';
 
   return (
     <div className="flex flex-col gap-6 max-w-3xl">
@@ -32,6 +37,13 @@ export default function ClientVueEnsemble({ clientName }: ClientVueEnsembleProps
           </p>
         </div>
       </div>
+
+      {!conseillerLoading && conseiller && (
+        <ConseillerCard
+          conseiller={conseiller}
+          onContact={() => onNavigate?.('messagerie')}
+        />
+      )}
     </div>
   );
 }

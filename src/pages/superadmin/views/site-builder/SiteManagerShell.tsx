@@ -4,13 +4,15 @@ import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 import { supabase } from '../../../../lib/supabase';
 import {
   getHomePageByCompanyId,
+  getPlatformHomePage,
   getAllTemplates,
   getTemplateById,
   applyTemplate,
-  createHomePageWithTemplate,
+  createOrUpdateSite,
   type CompanyHomePage,
   type CompanyHomePageWithCompany,
   type SiteTemplate,
+  type SiteScope,
 } from '../../../../lib/companyHomePages';
 import SiteTabs, { type SiteTab } from './SiteTabs';
 import SitePreviewTab from './SitePreviewTab';
@@ -25,15 +27,17 @@ interface Props {
   title: string;
   subtitle: string;
   companyId?: string | null;
+  companyName?: string;
   societeId?: string | null;
   onClose?: () => void;
 }
 
-export default function SiteManagerShell({ ownerType, title, subtitle, companyId: companyIdProp, onClose }: Props) {
+export default function SiteManagerShell({ ownerType, title, subtitle, companyId: companyIdProp, companyName: companyNameProp, onClose }: Props) {
   const t = useThemeTokens();
   const [activeTab, setActiveTab] = useState<SiteTab>('apercu');
   const [loading, setLoading] = useState(true);
   const [resolvedCompanyId, setResolvedCompanyId] = useState<string | null>(companyIdProp ?? null);
+  const [resolvedCompanyName, setResolvedCompanyName] = useState<string>(companyNameProp || '');
   const [page, setPage] = useState<CompanyHomePage | null>(null);
   const [templates, setTemplates] = useState<SiteTemplate[]>([]);
   const [activeTemplate, setActiveTemplate] = useState<SiteTemplate | null>(null);
@@ -41,25 +45,34 @@ export default function SiteManagerShell({ ownerType, title, subtitle, companyId
   const [previewTemplateName, setPreviewTemplateName] = useState<string | null>(null);
   const [domainModalOpen, setDomainModalOpen] = useState(false);
 
+  const siteScope: SiteScope = ownerType === 'super_admin' ? 'platform' : 'company';
+
   useEffect(() => {
-    if (companyIdProp) { setResolvedCompanyId(companyIdProp); return; }
-    if (ownerType !== 'super_admin') return;
+    if (ownerType === 'super_admin') return;
+    if (companyIdProp) {
+      setResolvedCompanyId(companyIdProp);
+      if (companyNameProp) setResolvedCompanyName(companyNameProp);
+      return;
+    }
     (async () => {
       const { data: user } = await supabase.auth.getUser();
-      const fromMeta = user?.user?.app_metadata?.company_id;
-      if (fromMeta) { setResolvedCompanyId(fromMeta); return; }
-      const { data } = await supabase.from('companies').select('id').limit(1).maybeSingle();
-      if (data) setResolvedCompanyId(data.id);
+      const cid = user?.user?.app_metadata?.company_id;
+      if (cid) {
+        setResolvedCompanyId(cid);
+        const { data: co } = await supabase.from('companies').select('name').eq('id', cid).maybeSingle();
+        if (co?.name) setResolvedCompanyName(co.name);
+      }
     })();
-  }, [companyIdProp, ownerType]);
+  }, [companyIdProp, companyNameProp, ownerType]);
 
-  const loadData = useCallback(async () => {
-    if (!resolvedCompanyId) { setLoading(false); return; }
-    setLoading(true);
+  const loadData = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const [tmpls, homePage] = await Promise.all([
         getAllTemplates(),
-        getHomePageByCompanyId(resolvedCompanyId),
+        siteScope === 'platform'
+          ? getPlatformHomePage()
+          : resolvedCompanyId ? getHomePageByCompanyId(resolvedCompanyId) : Promise.resolve(null),
       ]);
       setTemplates(tmpls);
       setPage(homePage);
@@ -72,23 +85,31 @@ export default function SiteManagerShell({ ownerType, title, subtitle, companyId
     } catch {
       // silent
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
-  }, [resolvedCompanyId]);
+  }, [resolvedCompanyId, siteScope]);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => {
+    if (siteScope === 'company' && !resolvedCompanyId) return;
+    loadData();
+  }, [loadData, siteScope, resolvedCompanyId]);
 
   const handleApply = async (template: SiteTemplate) => {
-    if (!resolvedCompanyId) return;
     if (page) {
       await applyTemplate(page.id, template.id);
     } else {
-      await createHomePageWithTemplate(resolvedCompanyId, template.id);
+      await createOrUpdateSite({
+        siteScope,
+        companyId: resolvedCompanyId,
+        companyName: resolvedCompanyName,
+        templateId: template.id,
+      });
     }
-    await loadData();
+    setActiveTemplate(template);
     setPreviewTemplateKey(null);
     setPreviewTemplateName(null);
     setActiveTab('apercu');
+    await loadData(true);
   };
 
   const handlePreview = (template: SiteTemplate) => {
@@ -98,7 +119,7 @@ export default function SiteManagerShell({ ownerType, title, subtitle, companyId
 
   const handleApplyPreview = async () => {
     if (!previewTemplateKey) return;
-    const tmpl = templates.find(t => t.template_key === previewTemplateKey);
+    const tmpl = templates.find(tp => tp.template_key === previewTemplateKey);
     if (tmpl) {
       await handleApply(tmpl);
       setPreviewTemplateKey(null);
@@ -112,7 +133,7 @@ export default function SiteManagerShell({ ownerType, title, subtitle, companyId
   };
 
   const pageAsWithCompany: CompanyHomePageWithCompany | null = page
-    ? { ...page, companies: null }
+    ? { ...page, companies: resolvedCompanyName ? { name: resolvedCompanyName } : null }
     : null;
 
   return (
@@ -159,6 +180,7 @@ export default function SiteManagerShell({ ownerType, title, subtitle, companyId
                   activeTemplateKey={activeTemplate?.template_key ?? null}
                   previewTemplateKey={previewTemplateKey}
                   previewTemplateName={previewTemplateName}
+                  page={page}
                   onTabChange={setActiveTab}
                   onApplyPreview={handleApplyPreview}
                   onClearPreview={handleClearPreview}
@@ -167,26 +189,26 @@ export default function SiteManagerShell({ ownerType, title, subtitle, companyId
               {activeTab === 'templates' && (
                 <SiteTemplatesTab
                   templates={templates}
-                  activeTemplateId={page?.active_template_id ?? null}
+                  activeTemplateId={activeTemplate?.id ?? null}
                   onPreview={handlePreview}
                   onApply={handleApply}
                   onTabChange={setActiveTab}
                 />
               )}
               {activeTab === 'domaine' && (
-                <SiteDomainTab page={page} onOpenDomainManager={() => setDomainModalOpen(true)} />
+                <SiteDomainTab page={page} onOpenDomainManager={() => setDomainModalOpen(true)} ownerType={ownerType === 'super_admin' ? 'super_admin' : 'admin_company'} onPageRefresh={() => loadData(true)} />
               )}
             </>
           )}
         </div>
       </div>
 
-      {/* Domain modal (existing component) */}
+      {/* Domain modal */}
       {domainModalOpen && pageAsWithCompany && (
         <SADomainsModal
           page={pageAsWithCompany}
           onClose={() => setDomainModalOpen(false)}
-          onChanged={() => { setDomainModalOpen(false); loadData(); }}
+          onChanged={() => { setDomainModalOpen(false); loadData(true); }}
         />
       )}
     </div>

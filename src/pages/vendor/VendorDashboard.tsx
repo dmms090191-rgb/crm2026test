@@ -11,6 +11,7 @@ import { supabase } from '../../lib/supabase';
 import { saveConnectReturnContext, consumeConnectReturnContext, saveChatReturnContext, consumeChatReturnContext } from '../../lib/connectReturnContext';
 import type { ImpersonatedClientInfo } from '../client/ClientDashboard';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
+import GlassBackgroundLayer from '../../components/theme/GlassBackgroundLayer';
 import { useUnreadVendorAdminMessages } from '../../hooks/useUnreadVendorAdminMessages';
 import { useUnreadVendorClientMessages } from '../../hooks/useUnreadVendorClientMessages';
 import { useAgendaNotifications } from '../../hooks/useAgendaNotifications';
@@ -220,7 +221,8 @@ export default function VendorDashboard({ onLogout, impersonatedVendor, onBackTo
   };
 
   return (
-    <div className="flex h-[100dvh] overflow-hidden" style={{ background: tokens.main.bg }}>
+    <div className="flex h-[100dvh] overflow-hidden relative" style={{ background: tokens.main.bg }}>
+      <GlassBackgroundLayer />
       {mobileOpen && (
         <div className="fixed inset-0 z-40 md:hidden" style={{ background: tokens.modal.overlayBg }} onClick={() => setMobileOpen(false)} />
       )}

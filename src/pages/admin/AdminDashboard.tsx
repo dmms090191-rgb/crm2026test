@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
+import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import Sidebar from './Sidebar';
 import TopBar from './TopBar';
 import InfoAdmin from './views/InfoAdmin';
@@ -7,24 +7,12 @@ import type { Vendor } from './views/ListeVendeurs';
 import AgendaEquipe from './views/AgendaEquipe';
 import { SimulationProvider } from '../../contexts/SimulationContext';
 import { SimulationBanner } from './views/sauvegarde/SimulationBanner';
-const VueEnsemble = lazy(() => import('./views/VueEnsemble'));
-const AdminSite = lazy(() => import('./views/AdminSite'));
-const Inscription = lazy(() => import('./views/Inscription'));
-const AjouterLeads = lazy(() => import('./views/AjouterLeads'));
-const AjouterVendeur = lazy(() => import('./views/AjouterVendeur'));
-const ListeVendeurs = lazy(() => import('./views/ListeVendeurs'));
-const ChatClient = lazy(() => import('./views/ChatClient'));
-const ChatVendeur = lazy(() => import('./views/ChatVendeur'));
-const ChatSuperAdmin = lazy(() => import('./views/ChatSuperAdmin'));
-const Agenda = lazy(() => import('./views/Agenda'));
-const PropositionsRdv = lazy(() => import('./views/PropositionsRdv'));
-const Statuts = lazy(() => import('./views/Statuts'));
-const Crm = lazy(() => import('./views/Crm'));
-const ImportLeads = lazy(() => import('./views/ImportLeads'));
-const importDocumentationCrm = () => import('./views/DocumentationCrm');
-const DocumentationCrm = lazy(importDocumentationCrm);
-const SauvegardeRestauration = lazy(() => import('./views/SauvegardeRestauration'));
-const SystemPage = lazy(() => import('./views/SystemPage'));
+import {
+  VueEnsemble, AdminSite, Inscription, AjouterLeads, AjouterVendeur, ListeVendeurs,
+  ChatClient, ChatVendeur, ChatSuperAdmin, Agenda, PropositionsRdv, Statuts, Crm,
+  ImportLeads, importDocumentationCrm, DocumentationCrm, SauvegardeRestauration,
+  SystemPage, AdminCerveauIA,
+} from './dashboard/adminLazyViews';
 import { supabase } from '../../lib/supabase';
 import { saveConnectReturnContext, consumeConnectReturnContext, saveChatReturnContext } from '../../lib/connectReturnContext';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
@@ -39,6 +27,7 @@ import { useAdminNavHandlers } from './dashboard/useAdminNavHandlers';
 import DemoEmitterLayer from '../../components/demo/DemoEmitterLayer';
 import DemoReceiverLayer from '../../components/demo/DemoReceiverLayer';
 import { useDemoSessionSafe } from '../../components/demo/DemoSessionContext';
+import GlassBackgroundLayer from '../../components/theme/GlassBackgroundLayer';
 
 export interface ImpersonatedAdminInfo {
   id: string;
@@ -77,7 +66,8 @@ export type ActiveView =
   | 'statuts'
   | 'documentation-crm'
   | 'system'
-  | 'sauvegarde';
+  | 'sauvegarde'
+  | 'cerveau-ia';
 
 export default function AdminDashboard({ onLogout, onConnectAsVendor, onConnectAsClient, impersonatedAdmin, onBackToSuperAdmin, isSAViewing }: AdminDashboardProps) {
   const t = useThemeTokens();
@@ -189,6 +179,7 @@ export default function AdminDashboard({ onLogout, onConnectAsVendor, onConnectA
       case 'documentation-crm': return <Suspense fallback={lazyFallback}><DocumentationCrm initialTab={docInitialTab} onInitialTabConsumed={() => setDocInitialTab(undefined)} /></Suspense>;
       case 'system': return <Suspense fallback={lazyFallback}><SystemPage /></Suspense>;
       case 'sauvegarde': return <Suspense fallback={lazyFallback}><SauvegardeRestauration /></Suspense>;
+      case 'cerveau-ia': return <Suspense fallback={lazyFallback}><AdminCerveauIA /></Suspense>;
       default: return <Suspense fallback={lazyFallback}><VueEnsemble unreadClientConversations={unreadEntries.length} unreadVendorConversations={unreadVendorEntries.length} /></Suspense>;
     }
   };
@@ -196,7 +187,8 @@ export default function AdminDashboard({ onLogout, onConnectAsVendor, onConnectA
 
   return (
     <SimulationProvider>
-    <div className="flex h-[100dvh] overflow-hidden" style={{ background: t.main.bg }}>
+    <div className="flex h-[100dvh] overflow-hidden relative" style={{ background: t.main.bg }}>
+      <GlassBackgroundLayer />
       {mobileOpen && (
         <div className="fixed inset-0 z-40 md:hidden" style={{ background: t.modal.overlayBg }} onClick={() => setMobileOpen(false)} />
       )}

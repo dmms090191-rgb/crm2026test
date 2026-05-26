@@ -7,6 +7,7 @@ import { supabase } from '../../lib/supabase';
 import { SimulationProvider } from '../../contexts/SimulationContext';
 import { useUnreadSuperAdminMessages } from '../../hooks/useUnreadSuperAdminMessages';
 import type { AdminUser } from './views/SAAdmins';
+import GlassBackgroundLayer from '../../components/theme/GlassBackgroundLayer';
 
 const SADashboard = lazy(() => import('./views/SADashboard'));
 const SAAdmins = lazy(() => import('./views/SAAdmins'));
@@ -154,7 +155,8 @@ export default function SuperAdminDashboard({ onLogout, onConnectAsAdmin }: Supe
   }
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ background: t.main.bg }}>
+    <div className="flex h-screen overflow-hidden relative" style={{ background: t.main.bg }}>
+      <GlassBackgroundLayer />
       {/* Mobile overlay */}
       {mobileOpen && (
         <div

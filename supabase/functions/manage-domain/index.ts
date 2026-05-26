@@ -53,8 +53,14 @@ Deno.serve(async (req: Request) => {
     if (authError || !caller) {
       return jsonResponse({ error: "Non authentifie" }, 401);
     }
-    if (caller.app_metadata?.role !== "super_admin") {
-      return jsonResponse({ error: "Acces reserve au super admin" }, 403);
+
+    const callerRole = caller.app_metadata?.role;
+    const callerCompanyId = caller.app_metadata?.company_id;
+    const isSuperAdmin = callerRole === "super_admin";
+    const isAdmin = callerRole === "admin";
+
+    if (!isSuperAdmin && !isAdmin) {
+      return jsonResponse({ error: "Acces reserve" }, 403);
     }
 
     const vercelToken = Deno.env.get("VERCEL_API_TOKEN");
@@ -66,12 +72,27 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const { action, domain, page_id } = await req.json();
+    const { action, domain, page_id, domain_provider: reqProvider, domain_type: reqType } = await req.json();
     if (!action || !page_id) {
       return jsonResponse({ error: "Parametres requis: action, page_id" }, 400);
     }
 
+    if (isAdmin && action !== "verify") {
+      return jsonResponse({ error: "Les admins peuvent uniquement verifier un domaine" }, 403);
+    }
+
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+
+    if (isAdmin) {
+      const { data: pageCheck } = await supabaseAdmin
+        .from("company_home_pages")
+        .select("company_id")
+        .eq("id", page_id)
+        .maybeSingle();
+      if (!pageCheck || pageCheck.company_id !== callerCompanyId) {
+        return jsonResponse({ error: "Acces refuse: cette page ne vous appartient pas" }, 403);
+      }
+    }
     const vercelHeaders = {
       Authorization: `Bearer ${vercelToken}`,
       "Content-Type": "application/json",
@@ -89,11 +110,15 @@ Deno.serve(async (req: Request) => {
       );
       const body = await res.json();
 
+      const provider = reqProvider || "vercel";
+      const dtype = reqType || null;
+
       if (!res.ok) {
         const msg = body.error?.message || `Vercel API ${res.status}`;
         await updatePage(supabaseAdmin, page_id, {
           custom_domain: domain,
-          domain_provider: "vercel",
+          domain_provider: provider,
+          domain_type: dtype,
           domain_status: "error",
           domain_verified: false,
           domain_notes: msg,
@@ -105,7 +130,8 @@ Deno.serve(async (req: Request) => {
       const verified = body.verified === true;
       await updatePage(supabaseAdmin, page_id, {
         custom_domain: domain,
-        domain_provider: "vercel",
+        domain_provider: provider,
+        domain_type: dtype,
         domain_status: verified ? "verified" : "pending",
         domain_verified: verified,
         domain_notes: null,
@@ -200,6 +226,7 @@ Deno.serve(async (req: Request) => {
       await updatePage(supabaseAdmin, page_id, {
         custom_domain: null,
         domain_provider: null,
+        domain_type: null,
         domain_status: "not_configured",
         domain_verified: false,
         domain_notes: null,

@@ -58,6 +58,26 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    // Fetch company AI flags in one query
+    const companyIds = [...new Set(
+      users
+        .filter((u) => u.app_metadata?.role === "admin" && u.app_metadata?.company_id)
+        .map((u) => u.app_metadata!.company_id as string)
+    )];
+
+    const aiFlags: Record<string, boolean> = {};
+    if (companyIds.length > 0) {
+      const { data: companies } = await supabaseAdmin
+        .from("companies")
+        .select("id, sa_chat_ai_enabled")
+        .in("id", companyIds);
+      if (companies) {
+        for (const c of companies) {
+          aiFlags[c.id] = c.sa_chat_ai_enabled === true;
+        }
+      }
+    }
+
     const admins = users
       .filter((u) => u.app_metadata?.role === "admin")
       .map((u) => ({
@@ -73,6 +93,7 @@ Deno.serve(async (req: Request) => {
         created_at: u.created_at,
         last_sign_in_at: u.last_sign_in_at,
         access_enabled: u.app_metadata?.access_enabled !== false,
+        ai_enabled: aiFlags[u.app_metadata?.company_id || ""] ?? false,
       }));
 
     return new Response(JSON.stringify({ admins }), {

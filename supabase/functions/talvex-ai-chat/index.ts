@@ -87,6 +87,7 @@ const TOOL_DEFS = [
 // ── Tool implementations ──
 
 interface BrainConfig {
+  business_context_text: string;
   company_name: string;
   company_description: string;
   business_sector: string;
@@ -109,6 +110,7 @@ interface BrainConfig {
     max_per_day: number;
   };
   faq: { question: string; answer: string }[];
+  official_responses: { question: string; answer: string }[];
   tone: string;
   allowed_tools: string[];
   crm_rules: {
@@ -117,6 +119,7 @@ interface BrainConfig {
     require_phone: boolean;
     require_email: boolean;
   };
+  knowledge_sections: { key: string; title: string; content: string; position: number }[];
 }
 
 // deno-lint-ignore no-explicit-any
@@ -251,6 +254,49 @@ async function toolGetLeadContext(
   };
 }
 
+// ── Backend role validation ──
+
+async function resolveAuthorizedCompanyId(
+  // deno-lint-ignore no-explicit-any
+  user: any,
+  requestedCompanyId: string,
+  db: SupabaseAdmin
+): Promise<{ companyId: string | null; error: string | null }> {
+  const role = user.app_metadata?.role as string | undefined;
+  const userCompanyId = user.app_metadata?.company_id as string | undefined;
+
+  if (role === "super_admin") {
+    return { companyId: requestedCompanyId, error: null };
+  }
+
+  if (role === "admin" || role === "vendor") {
+    if (!userCompanyId) {
+      return { companyId: null, error: "No company_id in user metadata" };
+    }
+    if (userCompanyId !== requestedCompanyId) {
+      return { companyId: null, error: "company_id mismatch" };
+    }
+    return { companyId: userCompanyId, error: null };
+  }
+
+  if (role === "client") {
+    const { data: reg } = await db
+      .from("registrations")
+      .select("company_id")
+      .eq("auth_user_id", user.id)
+      .maybeSingle();
+    if (!reg) {
+      return { companyId: null, error: "Client has no registration" };
+    }
+    if (reg.company_id !== requestedCompanyId) {
+      return { companyId: null, error: "company_id mismatch" };
+    }
+    return { companyId: reg.company_id, error: null };
+  }
+
+  return { companyId: null, error: "Unknown role" };
+}
+
 // ── System prompt builder ──
 
 function buildSystemPrompt(brain: BrainConfig): string {
@@ -265,41 +311,80 @@ function buildSystemPrompt(brain: BrainConfig): string {
     parts.push(`Tu es l'assistant IA de l'entreprise. Reponds dans la langue: ${lang}.`);
   }
 
-  if (brain.company_name)
-    parts.push(`Entreprise: ${brain.company_name}`);
-  if (brain.business_sector)
-    parts.push(`Secteur: ${brain.business_sector}`);
-  if (brain.company_description)
-    parts.push(`Description: ${brain.company_description}`);
-
-  const locationParts: string[] = [];
-  if (brain.city) locationParts.push(brain.city);
-  if (brain.country) locationParts.push(brain.country);
-  if (locationParts.length > 0)
-    parts.push(`Localisation: ${locationParts.join(", ")}`);
-
-  const contactParts: string[] = [];
-  if (brain.phone) contactParts.push(`Tel: ${brain.phone}`);
-  if (brain.email) contactParts.push(`Email: ${brain.email}`);
-  if (brain.website) contactParts.push(`Site: ${brain.website}`);
-  if (contactParts.length > 0)
-    parts.push(`Contact: ${contactParts.join(" | ")}`);
-
-  if (brain.services?.length > 0) {
-    const svcList = brain.services
-      .map(
-        (s) =>
-          `- ${s.name}${s.price ? ` (${s.price})` : ""}${s.description ? `: ${s.description}` : ""}`
-      )
-      .join("\n");
-    parts.push(`Services proposes:\n${svcList}`);
+  // PRIORITY 1: Free-text business context
+  if (brain.business_context_text?.trim()) {
+    parts.push(
+      `=== CONTEXTE PRINCIPAL DE L'ENTREPRISE ===\n${brain.business_context_text.trim()}`
+    );
   }
 
-  if (brain.faq?.length > 0) {
-    const faqList = brain.faq
-      .map((f) => `Q: ${f.question}\nR: ${f.answer}`)
+  // PRIORITY 1b: Official responses (highest priority answers)
+  if (brain.official_responses?.length > 0) {
+    const respList = brain.official_responses
+      .filter((r) => r.question?.trim() && r.answer?.trim())
+      .map((r) => `Q: ${r.question}\nR: ${r.answer}`)
       .join("\n\n");
-    parts.push(`FAQ:\n${faqList}`);
+    if (respList) {
+      parts.push(
+        "=== REPONSES OFFICIELLES (PRIORITE ABSOLUE) ===\n" +
+        "Quand une question correspond a l'une de ces reponses officielles, utilise EXACTEMENT la reponse fournie. " +
+        "Ne reformule pas, ne modifie pas, ne complete pas avec d'autres informations.\n\n" +
+        respList
+      );
+    }
+  }
+
+  // PRIORITY 2: Structured fields (supplementary)
+  const hasStructured =
+    brain.company_name ||
+    brain.business_sector ||
+    brain.company_description ||
+    brain.city ||
+    brain.phone ||
+    brain.email ||
+    brain.website ||
+    (brain.services?.length > 0) ||
+    (brain.faq?.length > 0);
+
+  if (hasStructured) {
+    parts.push("=== INFORMATIONS COMPLEMENTAIRES ===");
+
+    if (brain.company_name)
+      parts.push(`Entreprise: ${brain.company_name}`);
+    if (brain.business_sector)
+      parts.push(`Secteur: ${brain.business_sector}`);
+    if (brain.company_description)
+      parts.push(`Description: ${brain.company_description}`);
+
+    const locationParts: string[] = [];
+    if (brain.city) locationParts.push(brain.city);
+    if (brain.country) locationParts.push(brain.country);
+    if (locationParts.length > 0)
+      parts.push(`Localisation: ${locationParts.join(", ")}`);
+
+    const contactParts: string[] = [];
+    if (brain.phone) contactParts.push(`Tel: ${brain.phone}`);
+    if (brain.email) contactParts.push(`Email: ${brain.email}`);
+    if (brain.website) contactParts.push(`Site: ${brain.website}`);
+    if (contactParts.length > 0)
+      parts.push(`Contact: ${contactParts.join(" | ")}`);
+
+    if (brain.services?.length > 0) {
+      const svcList = brain.services
+        .map(
+          (s) =>
+            `- ${s.name}${s.price ? ` (${s.price})` : ""}${s.description ? `: ${s.description}` : ""}`
+        )
+        .join("\n");
+      parts.push(`Services proposes:\n${svcList}`);
+    }
+
+    if (brain.faq?.length > 0) {
+      const faqList = brain.faq
+        .map((f) => `Q: ${f.question}\nR: ${f.answer}`)
+        .join("\n\n");
+      parts.push(`FAQ:\n${faqList}`);
+    }
   }
 
   const rules = brain.appointment_rules;
@@ -309,10 +394,42 @@ function buildSystemPrompt(brain: BrainConfig): string {
     );
   }
 
+  if (brain.opening_hours && typeof brain.opening_hours === "object") {
+    const dayNames = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"];
+    const horaires: string[] = [];
+    for (const day of dayNames) {
+      const d = (brain.opening_hours as Record<string, { open: string; close: string; closed: boolean }>)[day];
+      if (d && !d.closed) {
+        horaires.push(`${day}: ${d.open} - ${d.close}`);
+      } else if (d?.closed) {
+        horaires.push(`${day}: ferme`);
+      }
+    }
+    if (horaires.length > 0) parts.push(`Horaires d'ouverture:\n${horaires.join("\n")}`);
+  }
+
+  // Knowledge sections (structured platform knowledge)
+  const knowledgeSections = (brain.knowledge_sections ?? [])
+    .filter((s: { content: string }) => s.content?.trim())
+    .sort((a: { position: number }, b: { position: number }) => (a.position ?? 0) - (b.position ?? 0));
+
+  if (knowledgeSections.length > 0) {
+    parts.push("=== BASE DE CONNAISSANCES ===");
+    for (const sec of knowledgeSections) {
+      parts.push(`--- ${sec.title} ---\n${sec.content.trim()}`);
+    }
+  }
+
   if (brain.tone) parts.push(`Instructions de ton: ${brain.tone}`);
 
   parts.push(
-    "IMPORTANT: Utilise les outils disponibles pour repondre aux questions. Ne devine pas les horaires ou disponibilites, utilise get_available_slots. Ne devine pas les infos de l'entreprise, utilise get_company_context. Tu es en mode lecture seule: tu peux consulter et proposer, mais tu ne peux pas modifier de donnees."
+    "REGLES STRICTES:\n" +
+    "- N'invente JAMAIS d'informations (telephone, email, horaires, adresse, prix, services).\n" +
+    "- Utilise UNIQUEMENT les informations fournies dans ton contexte ci-dessus.\n" +
+    "- Si une information n'est pas dans ton contexte, dis clairement que tu ne disposes pas encore de cette information.\n" +
+    "- Utilise les outils disponibles pour repondre aux questions.\n" +
+    "- Ne devine pas les horaires ou disponibilites, utilise get_available_slots.\n" +
+    "- Tu es en mode lecture seule: tu peux consulter et proposer, mais tu ne peux pas modifier de donnees."
   );
 
   return parts.join("\n\n");
@@ -348,13 +465,46 @@ Deno.serve(async (req: Request) => {
 
     const db = createClient(supabaseUrl, serviceRoleKey);
 
-    const { data: brain } = await db
-      .from("ai_company_brain")
-      .select("*")
-      .eq("company_id", company_id)
-      .maybeSingle();
+    // Platform brain mode: Cerveau IA SA test (super_admin only)
+    const isPlatformMode = company_id === "platform";
 
-    if (!brain) return jsonResp({ error: "No brain configuration found for this company" }, 404);
+    let verifiedCompanyId: string;
+    // deno-lint-ignore no-explicit-any
+    let brain: any;
+
+    if (isPlatformMode) {
+      const role = user.app_metadata?.role as string | undefined;
+      if (role !== "super_admin") {
+        return jsonResp({ error: "Only super_admin can test platform brain" }, 403);
+      }
+      verifiedCompanyId = "platform";
+
+      const { data: platformBrain } = await db
+        .from("ai_company_brain")
+        .select("*")
+        .eq("ai_scope", "platform")
+        .is("company_id", null)
+        .maybeSingle();
+
+      if (!platformBrain) return jsonResp({ error: "No platform brain configuration found" }, 404);
+      brain = platformBrain;
+    } else {
+      const authCheck = await resolveAuthorizedCompanyId(user, company_id, db);
+      if (authCheck.error || !authCheck.companyId) {
+        return jsonResp({ error: authCheck.error ?? "Forbidden" }, 403);
+      }
+      verifiedCompanyId = authCheck.companyId;
+
+      const { data: companyBrain } = await db
+        .from("ai_company_brain")
+        .select("*")
+        .eq("company_id", verifiedCompanyId)
+        .eq("ai_scope", "company")
+        .maybeSingle();
+
+      if (!companyBrain) return jsonResp({ error: "No brain configuration found for this company" }, 404);
+      brain = companyBrain;
+    }
 
     const brainConfig = brain as BrainConfig;
     const systemPrompt = buildSystemPrompt(brainConfig);
@@ -373,7 +523,6 @@ Deno.serve(async (req: Request) => {
     const sid = session_id || `session-${Date.now()}`;
     const collectedToolCalls: { name: string; input: unknown; output: unknown }[] = [];
 
-    // Iterative tool call loop (max 3 iterations)
     let iterations = 0;
     const MAX_ITERATIONS = 3;
 
@@ -422,9 +571,9 @@ Deno.serve(async (req: Request) => {
           if (fnName === "get_company_context") {
             result = await toolGetCompanyContext(brainConfig);
           } else if (fnName === "get_available_slots") {
-            result = await toolGetAvailableSlots(brainConfig, db, company_id, args as { start_date?: string; end_date?: string });
+            result = await toolGetAvailableSlots(brainConfig, db, verifiedCompanyId, args as { start_date?: string; end_date?: string });
           } else if (fnName === "get_lead_context") {
-            result = await toolGetLeadContext(db, company_id, args as { email?: string; phone?: string });
+            result = await toolGetLeadContext(db, verifiedCompanyId, args as { email?: string; phone?: string });
           } else if (fnName === "send_message") {
             result = { sent: true, note: "V1: message display only" };
           } else {
@@ -440,9 +589,8 @@ Deno.serve(async (req: Request) => {
             content: JSON.stringify(result),
           });
 
-          // Log tool call
           await db.from("ai_tool_logs").insert({
-            company_id,
+            company_id: verifiedCompanyId,
             session_id: sid,
             tool_name: fnName,
             tool_input: args,
@@ -453,19 +601,16 @@ Deno.serve(async (req: Request) => {
         continue;
       }
 
-      // No more tool calls — we have the final response
       const reply = assistantMsg.content?.trim() ?? "";
 
-      // Log conversation
       await db.from("ai_conversation_logs").insert([
-        { company_id, role: "user", content: messages[messages.length - 1]?.content ?? "", is_test: is_test ?? false, session_id: sid },
-        { company_id, role: "assistant", content: reply, tool_calls: collectedToolCalls.length > 0 ? collectedToolCalls : null, is_test: is_test ?? false, session_id: sid },
+        { company_id: verifiedCompanyId, role: "user", content: messages[messages.length - 1]?.content ?? "", is_test: is_test ?? false, session_id: sid },
+        { company_id: verifiedCompanyId, role: "assistant", content: reply, tool_calls: collectedToolCalls.length > 0 ? collectedToolCalls : null, is_test: is_test ?? false, session_id: sid },
       ]).then(() => {});
 
       return jsonResp({ reply, tool_calls: collectedToolCalls });
     }
 
-    // Exceeded max iterations
     const lastMsg = chatMessages[chatMessages.length - 1];
     const fallback = typeof lastMsg?.content === "string" ? lastMsg.content : "Desole, je n'ai pas pu traiter votre demande.";
     return jsonResp({ reply: fallback, tool_calls: collectedToolCalls });

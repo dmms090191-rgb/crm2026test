@@ -63,7 +63,7 @@ export async function callRegistrar(action: string, payload: Record<string, unkn
   return res.json();
 }
 
-export async function callManageDomain(action: string, domain: string, pageId: string) {
+export async function callManageDomain(action: string, domain: string, pageId: string, extra?: Record<string, unknown>) {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) throw new Error('Non authentifie');
   const res = await fetch(
@@ -75,7 +75,7 @@ export async function callManageDomain(action: string, domain: string, pageId: s
         'Content-Type': 'application/json',
         'Apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
       },
-      body: JSON.stringify({ action, domain, page_id: pageId }),
+      body: JSON.stringify({ action, domain, page_id: pageId, ...extra }),
     },
   );
   return res.json();

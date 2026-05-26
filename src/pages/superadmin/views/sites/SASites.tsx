@@ -150,7 +150,7 @@ function DesktopRow({ page, t, copiedId, onToggle, onCopy, onView, onEdit, onDom
       onMouseLeave={() => setHovered(false)}
     >
       <td className="px-3 py-2.5">
-        <span className="text-xs font-semibold" style={{ color: t.text.primary }}>{page.companies?.name ?? '--'}</span>
+        <span className="text-xs font-semibold" style={{ color: t.text.primary }}>{page.site_scope === 'platform' ? 'Talvex (Plateforme)' : (page.companies?.name ?? '--')}</span>
       </td>
       <td className="px-3 py-2.5">
         <code className="text-[11px] px-1.5 py-0.5 rounded" style={{ background: t.surface.primary, color: '#0ea5e9', border: `1px solid ${t.surface.border}` }}>
@@ -219,7 +219,7 @@ function MobileCard({ page, t, copiedId, onToggle, onCopy, onView, onEdit, onDom
   return (
     <div className="rounded-xl p-4 space-y-3" style={{ background: t.card.bg, border: `1px solid ${t.surface.border}` }}>
       <div className="flex items-center justify-between">
-        <span className="text-sm font-semibold" style={{ color: t.text.primary }}>{page.companies?.name ?? '--'}</span>
+        <span className="text-sm font-semibold" style={{ color: t.text.primary }}>{page.site_scope === 'platform' ? 'Talvex (Plateforme)' : (page.companies?.name ?? '--')}</span>
         <button onClick={() => onToggle(page)} className="flex items-center gap-1.5">
           {page.is_active
             ? <ToggleRight className="w-5 h-5" style={{ color: '#10b981' }} />

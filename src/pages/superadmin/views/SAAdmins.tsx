@@ -25,6 +25,7 @@ const SA_ADMINS_COLUMNS = [
   { key: 'cree_le', label: 'Cree le' },
   { key: 'acces', label: 'Acces', required: true },
   { key: 'actions', label: 'Actions', required: true },
+  { key: 'ia', label: 'IA', required: true },
 ];
 
 export interface AdminUser {
@@ -40,6 +41,7 @@ export interface AdminUser {
   created_at: string;
   last_sign_in_at: string | null;
   access_enabled: boolean;
+  ai_enabled: boolean;
 }
 
 interface SAAdminsProps {

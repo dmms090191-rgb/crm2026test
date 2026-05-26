@@ -33,7 +33,7 @@ const DEFAULT_SECTIONS: SidebarSection[] = [
       { id: 'crm-societe', label: 'CRM Societe', icon: <Building2 className="w-4 h-4" /> },
       { id: 'statuts', label: 'Statuts', icon: <Settings className="w-4 h-4" /> },
       { id: 'api-ia', label: 'API IA', icon: <Bot className="w-4 h-4" /> },
-      { id: 'cerveau-ia', label: 'Cerveau IA', icon: <Brain className="w-4 h-4" /> },
+      { id: 'cerveau-ia', label: 'Cerveau IA SA', icon: <Brain className="w-4 h-4" /> },
       { id: 'sites', label: 'Sites & Domaines', icon: <Globe className="w-4 h-4" /> },
     ],
   },

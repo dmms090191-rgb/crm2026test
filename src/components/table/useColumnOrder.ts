@@ -49,8 +49,17 @@ export default function useColumnOrder(storageKey: string, defaultColumns: Colum
     if (!saved.length) return defaultKeys;
     const validKeys = saved.filter(k => defaultKeys.includes(k));
     const missing = defaultKeys.filter(k => !validKeys.includes(k));
-    const merged = [...validKeys, ...missing];
-    if (merged.length !== defaultKeys.length) return defaultKeys;
+    if (missing.length === 0) return validKeys;
+    const merged = [...validKeys];
+    for (const key of missing) {
+      const defaultIdx = defaultKeys.indexOf(key);
+      let insertAt = merged.length;
+      for (let i = defaultIdx + 1; i < defaultKeys.length; i++) {
+        const pos = merged.indexOf(defaultKeys[i]);
+        if (pos !== -1) { insertAt = pos; break; }
+      }
+      merged.splice(insertAt, 0, key);
+    }
     return merged;
   });
 
@@ -62,10 +71,12 @@ export default function useColumnOrder(storageKey: string, defaultColumns: Colum
     loadJson<Record<string, string>>(labelsStorageKey, {})
   );
 
+  const requiredKeySet = useMemo(() => new Set(defaultColumns.filter(c => c.required).map(c => c.key)), [defaultColumns]);
+
   const visibleOrderedKeys = useMemo(() => {
     const hiddenSet = new Set(hiddenDesktopKeys);
-    return orderedKeys.filter(k => !hiddenSet.has(k));
-  }, [orderedKeys, hiddenDesktopKeys]);
+    return orderedKeys.filter(k => requiredKeySet.has(k) || !hiddenSet.has(k));
+  }, [orderedKeys, hiddenDesktopKeys, requiredKeySet]);
 
   const persist = useCallback((keys: string[]) => {
     setOrderedKeys(keys);

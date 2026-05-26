@@ -1,8 +1,11 @@
-import { useState, useCallback, useMemo } from 'react';
-import { Users, Hash, User, Mail, Phone, CalendarDays, Signal, Settings, Lock, Bot, UserCheck, CheckSquare, Briefcase, Columns3, SlidersHorizontal } from 'lucide-react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
+import { Users, CheckSquare, Briefcase, Columns3, SlidersHorizontal, Bot } from 'lucide-react';
 import { useThemeTokens } from '../../../hooks/useThemeTokens';
 import { useTimezone } from '../../../hooks/useTimezone';
+import { supabase } from '../../../lib/supabase';
+import { useCompanyId } from '../../../hooks/useCompanyId';
 import type { ImpersonatedClient, ChatLead } from './crm/types';
+import { CRM_COLUMNS, VENDOR_BASE_COLUMNS, CRM_HEADER_ICONS } from './crm/types';
 import CrmTableRow from './crm/CrmTableRow';
 import CrmActionBar from './crm/CrmActionBar';
 import CrmFilters from './crm/CrmFilters';
@@ -18,25 +21,7 @@ import { useCustomColumns } from '../../../hooks/useCustomColumns';
 import { useActionMenuOrder } from '../../../components/action-menu/useActionMenuOrder';
 import ToolbarOrganizerModal from '../../../components/toolbar/ToolbarOrganizerModal';
 import type { ToolbarItem } from '../../../components/toolbar/ToolbarOrganizerModal';
-
-const CRM_COLUMNS = [
-  { key: 'hash', label: '#' },
-  { key: 'nom', label: 'Nom' },
-  { key: 'prenom', label: 'Prenom' },
-  { key: 'email', label: 'Email' },
-  { key: 'telephone', label: 'Telephone' },
-  { key: 'date_ajout', label: "Date d'ajout" },
-  { key: 'statut', label: 'Statut', required: true },
-  { key: 'actions', label: 'Actions', required: true },
-  { key: 'acces', label: 'Acces', required: true },
-  { key: 'ia', label: 'IA', required: true },
-  { key: 'vendeur', label: 'Vendeur' },
-];
-
-const CRM_HEADER_ICONS: Record<string, React.FC<{ className?: string; style?: React.CSSProperties }>> = {
-  hash: Hash, nom: User, prenom: User, email: Mail, telephone: Phone,
-  date_ajout: CalendarDays, statut: Signal, actions: Settings, acces: Lock, ia: Bot, vendeur: UserCheck,
-};
+import type { VendorColumnConfig } from '../../../components/table/TabVendorColumns';
 
 export type { ImpersonatedClient, ChatLead } from './crm/types';
 
@@ -49,6 +34,7 @@ interface CrmProps {
 export default function Crm({ onConnectAsClient, onOpenChat, onOpenRdv }: CrmProps) {
   const tokens = useThemeTokens();
   const { timezone } = useTimezone();
+  const companyId = useCompanyId();
   const d = useCrmData();
   const colSep = { borderRight: `1px solid ${tokens.table.colSep}` };
   const cc = useCustomColumns('admin_crm');
@@ -79,6 +65,57 @@ export default function Crm({ onConnectAsClient, onOpenChat, onOpenRdv }: CrmPro
       return !prev;
     });
   }, [d]);
+
+  // --- Vendor column config ---
+  const defaultVendorOrder = useMemo(() => VENDOR_BASE_COLUMNS.map(c => c.key), []);
+  const [vendorColOrder, setVendorColOrder] = useState<string[]>(defaultVendorOrder);
+  const [vendorColHidden, setVendorColHidden] = useState<string[]>([]);
+  const [vendorConfigLoaded, setVendorConfigLoaded] = useState(false);
+
+  useEffect(() => {
+    if (!companyId) return;
+    supabase.from('company_column_config')
+      .select('desktop_order, desktop_hidden')
+      .eq('company_id', companyId)
+      .eq('table_key', 'vendor_leads')
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) {
+          const validKeys = new Set(VENDOR_BASE_COLUMNS.map(c => c.key));
+          const order = (data.desktop_order as string[] || []).filter(k => validKeys.has(k));
+          const missing = defaultVendorOrder.filter(k => !order.includes(k));
+          if (order.length > 0) setVendorColOrder([...order, ...missing]);
+          setVendorColHidden((data.desktop_hidden as string[] || []).filter(k => validKeys.has(k)));
+        }
+        setVendorConfigLoaded(true);
+      });
+  }, [companyId, defaultVendorOrder]);
+
+  const handleSaveVendorConfig = useCallback(async (config: VendorColumnConfig) => {
+    setVendorColOrder(config.order);
+    setVendorColHidden(config.hidden);
+    if (!companyId) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    await supabase.from('company_column_config').upsert({
+      company_id: companyId,
+      table_key: 'vendor_leads',
+      desktop_order: config.order,
+      desktop_hidden: config.hidden,
+      pushed_by: user.id,
+      pushed_at: new Date().toISOString(),
+    }, { onConflict: 'company_id,table_key' });
+  }, [companyId]);
+
+  const vendorTabConfig = useMemo(() => {
+    if (!vendorConfigLoaded) return undefined;
+    return {
+      columns: VENDOR_BASE_COLUMNS,
+      order: vendorColOrder,
+      hidden: vendorColHidden,
+      onSave: handleSaveVendorConfig,
+    };
+  }, [vendorConfigLoaded, vendorColOrder, vendorColHidden, handleSaveVendorConfig]);
 
   return (
     <div className="space-y-5">
@@ -244,7 +281,7 @@ export default function Crm({ onConnectAsClient, onOpenChat, onOpenRdv }: CrmPro
         <TransferModal count={d.selected.size} onClose={() => d.setShowTransfer(false)} onConfirm={d.handleTransfer} />
       )}
 
-      {showColModal && <ColumnOrganizerModal columns={displayColumns} orderedKeys={colOrder.orderedKeys} hiddenDesktopKeys={colOrder.hiddenDesktopKeys} tableKey="admin_crm" onSave={colOrder.saveAll} onReset={colOrder.resetAll} onClose={() => setShowColModal(false)} onCreateCustomColumn={cc.createColumn} onDeleteCustomColumn={cc.deleteColumn} onRenameCustomColumn={cc.renameColumn} onRenameLabel={colOrder.renameLabel} mobileOrder={colMobile.mobileOrder} mobileCardStyle={colMobile.cardStyle} onSaveMobile={colMobile.saveMobile} onResetMobile={colMobile.resetMobile} />}
+      {showColModal && <ColumnOrganizerModal columns={displayColumns} orderedKeys={colOrder.orderedKeys} hiddenDesktopKeys={colOrder.hiddenDesktopKeys} tableKey="admin_crm" onSave={colOrder.saveAll} onReset={colOrder.resetAll} onClose={() => setShowColModal(false)} onCreateCustomColumn={cc.createColumn} onDeleteCustomColumn={cc.deleteColumn} onRenameCustomColumn={cc.renameColumn} onRenameLabel={colOrder.renameLabel} mobileOrder={colMobile.mobileOrder} mobileCardStyle={colMobile.cardStyle} onSaveMobile={colMobile.saveMobile} onResetMobile={colMobile.resetMobile} vendorTab={vendorTabConfig} />}
 
       {showOrgModal && <ToolbarOrganizerModal items={toolbarItems} order={tbOrder.order} onSave={tbOrder.save} onClose={() => setShowOrgModal(false)} t={tokens} />}
     </div>

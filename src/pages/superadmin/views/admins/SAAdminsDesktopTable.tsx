@@ -1,7 +1,8 @@
 import { useState, useRef } from 'react';
-import { ChevronDown, ChevronUp, GripVertical, MoreHorizontal, User, Mail, Building2, Phone, Shield, CalendarDays, Lock, Settings, ExternalLink } from 'lucide-react';
+import { ChevronDown, ChevronUp, GripVertical, MoreHorizontal, User, Mail, Building2, Phone, Shield, CalendarDays, Lock, Settings, ExternalLink, Bot } from 'lucide-react';
 import CopyButton from '../../../../components/CopyButton';
 import SAAdminsAccessSwitch from './SAAdminsAccessSwitch';
+import SAAdminsAiSwitch from './SAAdminsAiSwitch';
 import type { AdminUser } from '../SAAdmins';
 import type { ColumnDef } from '../../../../components/table/useColumnOrder';
 
@@ -29,12 +30,12 @@ interface Props {
 
 const HEADER_ICONS: Record<string, React.FC<{ className?: string; style?: React.CSSProperties }>> = {
   prenom: User, nom: User, email: Mail, societe: Building2, telephone: Phone,
-  role: Shield, cree_le: CalendarDays, acces: Lock, actions: Settings,
+  role: Shield, cree_le: CalendarDays, acces: Lock, actions: Settings, ia: Bot,
 };
 
 const HEADER_LABELS: Record<string, string> = {
   prenom: 'Prenom', nom: 'Nom', email: 'Email', societe: 'Societe', telephone: 'Telephone',
-  role: 'Role', cree_le: 'Cree le', acces: 'Acces', actions: 'Actions',
+  role: 'Role', cree_le: 'Cree le', acces: 'Acces', actions: 'Actions', ia: 'IA',
 };
 
 export default function SAAdminsDesktopTable({
@@ -99,6 +100,7 @@ export default function SAAdminsDesktopTable({
       );
       case 'cree_le': return <span className="text-xs tabular-nums font-medium whitespace-nowrap" style={{ color: tokens.table.cellTextMuted }}>{formatDate(admin.created_at)}</span>;
       case 'acces': return <SAAdminsAccessSwitch adminId={admin.id} enabled={admin.access_enabled} onToggled={onAccessToggled} />;
+      case 'ia': return <SAAdminsAiSwitch companyId={admin.company_id} enabled={admin.ai_enabled} onToggled={onAccessToggled} />;
       case 'actions': return (
         <button
           ref={el => { actionsBtnRefs.current[admin.id] = el; }}

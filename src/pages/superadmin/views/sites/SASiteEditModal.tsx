@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Save, Loader2, Globe, ToggleLeft, ToggleRight } from 'lucide-react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
-import { upsertHomePage, type CompanyHomePageWithCompany } from '../../../../lib/companyHomePages';
+import { supabase } from '../../../../lib/supabase';
+import type { CompanyHomePageWithCompany } from '../../../../lib/companyHomePages';
 
 interface Props {
   page: CompanyHomePageWithCompany;
@@ -31,19 +32,16 @@ export default function SASiteEditModal({ page, onClose, onSaved }: Props) {
     setSaving(true);
     setError('');
     try {
-      await upsertHomePage({
-        company_id: page.company_id, title: title.trim(), subtitle: subtitle.trim(),
-        welcome_message: welcomeMessage.trim(), logo_url: logoUrl.trim() || null,
-        hero_image_url: heroImageUrl.trim() || null, main_color: mainColor, secondary_color: secondaryColor,
-        slug: cleanSlug, custom_domain: page.custom_domain,
-        domain_status: page.domain_status, domain_verified: page.domain_verified,
-        domain_provider: page.domain_provider, domain_type: page.domain_type,
-        domain_notes: page.domain_notes, last_domain_check_at: page.last_domain_check_at,
-        domain_purchase_price: page.domain_purchase_price, domain_sell_price: page.domain_sell_price,
-        domain_payment_status: page.domain_payment_status, domain_order_id: page.domain_order_id,
-        domain_expires_at: page.domain_expires_at, domain_auto_renew: page.domain_auto_renew,
-        is_active: isActive,
-      });
+      const { error: updateErr } = await supabase
+        .from('company_home_pages')
+        .update({
+          title: title.trim(), subtitle: subtitle.trim(),
+          welcome_message: welcomeMessage.trim(), logo_url: logoUrl.trim() || null,
+          hero_image_url: heroImageUrl.trim() || null, main_color: mainColor, secondary_color: secondaryColor,
+          slug: cleanSlug, is_active: isActive, updated_at: new Date().toISOString(),
+        })
+        .eq('id', page.id);
+      if (updateErr) throw updateErr;
       onSaved();
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);

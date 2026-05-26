@@ -8,6 +8,7 @@ import ClientPropositionsRdv from './views/ClientPropositionsRdv';
 import { supabase } from '../../lib/supabase';
 import { ArrowLeft } from 'lucide-react';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
+import GlassBackgroundLayer from '../../components/theme/GlassBackgroundLayer';
 import { useUnreadAdminMessages } from '../../hooks/useUnreadAdminMessages';
 import { useAgendaNotifications } from '../../hooks/useAgendaNotifications';
 import DemoEmitterLayer from '../../components/demo/DemoEmitterLayer';
@@ -51,7 +52,14 @@ export default function ClientDashboard({ onLogout, impersonatedClient, onBackTo
     if (impersonatedClient) {
       setClientName([impersonatedClient.prenom, impersonatedClient.nom].filter(Boolean).join(' ') || 'Client');
       setClientEmail(impersonatedClient.email);
-      setClientAuthId(impersonatedClient.id);
+      const email = impersonatedClient.email;
+      if (email) {
+        supabase.from('leads').select('id').eq('email', email).eq('actif', true).limit(1).maybeSingle().then(({ data }) => {
+          setClientAuthId(data?.id ?? impersonatedClient.id);
+        });
+      } else {
+        setClientAuthId(impersonatedClient.id);
+      }
       return;
     }
     supabase.auth.getUser().then(async ({ data: { user } }) => {
@@ -193,16 +201,17 @@ export default function ClientDashboard({ onLogout, impersonatedClient, onBackTo
   const renderView = () => {
     if (!clientAuthId && activeView !== 'vue-ensemble') return null;
     switch (activeView) {
-      case 'vue-ensemble': return <ClientVueEnsemble clientName={clientName} />;
+      case 'vue-ensemble': return <ClientVueEnsemble clientName={clientName} clientAuthId={clientAuthId} onNavigate={(v) => setActiveView(v as ClientActiveView)} />;
       case 'messagerie': return <ClientMessagerie clientName={clientName} clientAuthId={clientAuthId} isAdmin={!!impersonatedClient} />;
       case 'agenda': return <ClientAgenda clientEmail={clientEmail} />;
       case 'propositions-rdv': return <ClientPropositionsRdv clientEmail={clientEmail} onMount={markProposalsSeen} />;
-      default: return <ClientVueEnsemble clientName={clientName} />;
+      default: return <ClientVueEnsemble clientName={clientName} clientAuthId={clientAuthId} onNavigate={(v) => setActiveView(v as ClientActiveView)} />;
     }
   };
 
   return (
-    <div className="flex h-[100dvh] overflow-hidden" style={{ background: tokens.main.bg }}>
+    <div className="flex h-[100dvh] overflow-hidden relative" style={{ background: tokens.main.bg }}>
+      <GlassBackgroundLayer />
       {mobileOpen && (
         <div className="fixed inset-0 z-40 md:hidden" style={{ background: tokens.modal.overlayBg }} onClick={() => setMobileOpen(false)} />
       )}

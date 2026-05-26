@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, useRef } from 'react';
+import { useState, useEffect, lazy } from 'react';
 import LoginModal from './components/LoginModal';
 import type { ImpersonatedVendor } from './pages/vendor/VendorDashboard';
 import type { ImpersonatedClientInfo } from './pages/client/ClientDashboard';
@@ -9,9 +9,10 @@ import { AppLoadingScreen, AppAccessBlocked } from './app/AppStatusScreens';
 import AppLandingPage from './app/AppLandingPage';
 import AppShell from './app/AppShell';
 import CompanySitePage from './pages/public/CompanySitePage';
-import { getHomePageByDomain, getLandingTemplateKey } from './lib/companyHomePages';
+import { getLandingTemplateKey } from './lib/companyHomePages';
 import { getTemplateComponent } from './pages/superadmin/views/site-builder/templates/templateRegistry';
 import { DemoSessionProvider } from './components/demo/DemoSessionContext';
+import { useCustomDomain } from './app/useCustomDomain';
 
 export interface ImpersonatedAdmin {
   id: string;
@@ -37,9 +38,7 @@ function App() {
   const [impersonatedVendor, setImpersonatedVendor] = useState<ImpersonatedVendor | null>(null);
   const [impersonatedClient, setImpersonatedClient] = useState<ImpersonatedClientInfo | null>(null);
   const [impersonatedAdmin, setImpersonatedAdmin] = useState<ImpersonatedAdmin | null>(null);
-  const [customDomainSlug, setCustomDomainSlug] = useState<string | null>(null);
-  const [customDomainNotFound, setCustomDomainNotFound] = useState(false);
-  const domainCheckedRef = useRef(false);
+  const { customDomainSlug, customDomainNotFound, customDomainChecked } = useCustomDomain();
   const [saUserId, setSaUserId] = useState<string | null>(null);
   const [saDisplayName, setSaDisplayName] = useState('Support Talvex');
   const [landingTemplateKey, setLandingTemplateKey] = useState<string | null>(null);
@@ -106,33 +105,6 @@ function App() {
       .finally(() => setLandingTemplateLoaded(true));
   }, []);
 
-  useEffect(() => {
-    if (domainCheckedRef.current) return;
-    domainCheckedRef.current = true;
-    const hostname = window.location.hostname;
-    const isKnownHost =
-      hostname === 'localhost' ||
-      hostname === '127.0.0.1' ||
-      hostname.endsWith('.supabase.co') ||
-      hostname.endsWith('.vercel.app') ||
-      hostname.endsWith('.webcontainer.io') ||
-      hostname.endsWith('.local-credentialless.webcontainer.io') ||
-      hostname.endsWith('.local.webcontainer.io') ||
-      hostname.endsWith('.bolt.new') ||
-      hostname.endsWith('.stackblitz.io') ||
-      hostname.endsWith('.cloudworkstations.dev') ||
-      hostname.includes('localhost') ||
-      hostname.includes('webcontainer') ||
-      hostname.includes('stackblitz');
-    if (isKnownHost) return;
-    getHomePageByDomain(hostname)
-      .then(page => {
-        if (page?.slug) setCustomDomainSlug(page.slug);
-        else setCustomDomainNotFound(true);
-      })
-      .catch(() => setCustomDomainNotFound(false));
-  }, []);
-
   const handleLogin = () => { detectRole(); setIsModalOpen(false); };
 
   const handleLogout = async () => {
@@ -143,7 +115,7 @@ function App() {
     setImpersonatedAdmin(null);
   };
 
-  if (loading || (!role && !landingTemplateLoaded)) return <AppLoadingScreen />;
+  if (loading || (!role && !landingTemplateLoaded) || (!role && !customDomainChecked)) return <AppLoadingScreen />;
   if (accessBlocked) return <AppAccessBlocked onClear={() => setAccessBlocked(false)} />;
 
   // --- Public company site (/site/:slug) ---

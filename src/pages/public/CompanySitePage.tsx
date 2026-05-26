@@ -35,7 +35,7 @@ export default function CompanySitePage({ slug }: Props) {
   }, [slug]);
 
   const handleLogin = () => {
-    window.location.href = '/';
+    window.location.reload();
   };
 
   if (loading) return <LoadingScreen />;

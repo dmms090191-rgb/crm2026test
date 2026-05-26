@@ -1,5 +1,5 @@
 import { forwardRef, useState } from 'react';
-import { Mail, Phone, ChevronDown, LogIn, MessageCircle, CalendarClock, Undo2, Redo2, CheckCircle2, ExternalLink } from 'lucide-react';
+import { Mail, Phone, ChevronDown, LogIn, MessageCircle, CalendarClock, Undo2, Redo2, CheckCircle2, ExternalLink, Bot } from 'lucide-react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 import { getStatutCfg, FALLBACK_COLOR } from '../../../admin/views/crm/utils';
 import MobileStatutModal from '../../../admin/views/crm/MobileStatutModal';
@@ -36,6 +36,7 @@ interface Props {
   onToggle: (id: string) => void;
   onStatutChange: (id: string, statut: string) => void;
   onToggleActif: (id: string, current: boolean) => void;
+  onToggleAi: (id: string, current: boolean) => void;
   onDetail: (lead: ImportedLead, index: number) => void;
   onOpenChat?: (ref: { id: string; nom: string; prenom: string; email: string; tel: string }) => void;
   onOpenRdv?: (ref: { id: string; nom: string; prenom: string; email: string; tel: string }) => void;
@@ -45,13 +46,13 @@ interface Props {
   customColumnValues?: Record<string, string>;
 }
 
-const DEFAULT_VENDOR_COLUMN_ORDER = ['hash', 'nom', 'prenom', 'email', 'telephone', 'date_ajout', 'statut', 'actions', 'acces'];
+const DEFAULT_VENDOR_COLUMN_ORDER = ['hash', 'nom', 'prenom', 'email', 'telephone', 'date_ajout', 'statut', 'actions', 'acces', 'ia'];
 
 const VendorLeadDesktopRow = forwardRef<HTMLTableRowElement, Props>(({
   lead, index, statutDefs, isSelected, timezone, selectMode, workModeEnabled, isWorkActive,
   workHistoryLength, workHistoryPosition, canUndo, canRedo,
   onWorkSelect, onWorkUndo, onWorkRedo, onToggle, onStatutChange,
-  onToggleActif, onDetail, onOpenChat, onOpenRdv, onConnectAsClient, columnOrder,
+  onToggleActif, onToggleAi, onDetail, onOpenChat, onOpenRdv, onConnectAsClient, columnOrder,
   customColumnDefs, customColumnValues,
 }, ref) => {
   const cols = columnOrder ?? DEFAULT_VENDOR_COLUMN_ORDER;
@@ -66,6 +67,7 @@ const VendorLeadDesktopRow = forwardRef<HTMLTableRowElement, Props>(({
   const statutDef = statutDefs.find(s => s.nom === statut);
   const cfg = getStatutCfg(statutDef?.couleur ?? FALLBACK_COLOR, isNeutral);
   const actif = lead.actif !== false;
+  const aiEnabled = lead.ai_enabled === true;
   const statutLabel = statut === 'Nouveau' ? 'Sans statut' : statut;
   const isEven = index % 2 === 0;
   const baseBg = isEven ? 'transparent' : tokens.surface.secondary;
@@ -198,6 +200,21 @@ const VendorLeadDesktopRow = forwardRef<HTMLTableRowElement, Props>(({
               >
                 <span className="absolute rounded-full transition-all duration-300" style={{ width: 14, height: 14, left: actif ? 22 : 3, top: 3, background: actif ? tokens.success.text : tokens.text.quaternary, boxShadow: actif ? `0 0 6px ${tokens.success.text}` : 'none' }} />
               </button>
+            </td>
+          );
+          case 'ia': return (
+            <td key={key} className="px-5 py-5">
+              <div className="flex items-center gap-2">
+                <Bot className="w-3.5 h-3.5 flex-shrink-0" style={{ color: aiEnabled ? '#3b82f6' : tokens.text.quaternary, transition: 'color 0.3s' }} />
+                <button
+                  onClick={() => onToggleAi(lead.id, aiEnabled)}
+                  className="relative inline-flex items-center rounded-full transition-all duration-300 focus:outline-none"
+                  style={{ width: 40, height: 22, background: aiEnabled ? 'rgba(59,130,246,0.15)' : tokens.surface.tertiary, border: aiEnabled ? '1.5px solid rgba(59,130,246,0.3)' : `1.5px solid ${tokens.surface.border}`, boxShadow: aiEnabled ? '0 0 8px rgba(59,130,246,0.2)' : 'none' }}
+                  title={aiEnabled ? 'Desactiver IA' : 'Activer IA'}
+                >
+                  <span className="absolute rounded-full transition-all duration-300" style={{ width: 14, height: 14, left: aiEnabled ? 22 : 3, top: 3, background: aiEnabled ? '#3b82f6' : tokens.text.quaternary, boxShadow: aiEnabled ? '0 0 6px rgba(59,130,246,0.5)' : 'none' }} />
+                </button>
+              </div>
             </td>
           );
           default: {

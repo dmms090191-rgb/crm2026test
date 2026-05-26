@@ -1,48 +1,33 @@
 {
-  "generatedAt": "2026-05-25T19:19:18.461Z",
-  "anyCount": 0,
-  "anyOccurrences": [],
-  "unusedImportCount": 0,
-  "unusedImports": [],
-  "largeFileCount": 6,
-  "largeFiles": [
+  "generatedAt": "2026-05-26T20:50:53.442Z",
+  "anyCount": 3,
+  "anyOccurrences": [
     {
-      "file": "src/pages/admin/AdminDashboard.tsx",
-      "lines": 305,
-      "overflow": 5
+      "file": "src/pages/admin/views/cerveau-ia/AdminCerveauIA.tsx",
+      "line": 75,
+      "text": "{ label: 'Horaires', filled: !!(brain.opening_hours && typeof brain.opening_hours === 'object' && Object.values(brain.opening_hours).some((d: any) => d && !d.closed)) },"
     },
     {
-      "file": "src/App.tsx",
-      "lines": 312,
-      "overflow": 12
+      "file": "src/pages/superadmin/views/cerveau-ia/BrainPreviewModal.tsx",
+      "line": 22,
+      "text": "const hasHours = hours && typeof hours === 'object' && Object.values(hours).some((d: any) => d && !d.closed);"
     },
     {
-      "file": "src/pages/superadmin/views/site-builder/templates/TalvexInteractiveWebsiteView.tsx",
-      "lines": 357,
-      "overflow": 57
-    },
-    {
-      "file": "src/pages/superadmin/views/site-builder/templates/TalvexQuickEmailSelector.tsx",
-      "lines": 359,
-      "overflow": 59
-    },
-    {
-      "file": "src/pages/superadmin/views/site-builder/templates/TalvexRegisterModal.tsx",
-      "lines": 364,
-      "overflow": 64
-    },
-    {
-      "file": "src/pages/superadmin/views/site-builder/templates/TalvexLoginModal.tsx",
-      "lines": 480,
-      "overflow": 180
+      "file": "src/pages/superadmin/views/cerveau-ia/SACerveauIA.tsx",
+      "line": 57,
+      "text": "{ label: 'Horaires', filled: !!(brain.opening_hours && typeof brain.opening_hours === 'object' && Object.values(brain.opening_hours).some((d: any) => d && !d.closed)) },"
     }
   ],
+  "unusedImportCount": 0,
+  "unusedImports": [],
+  "largeFileCount": 0,
+  "largeFiles": [],
   "tscErrorCount": 0,
   "tscErrors": [],
   "eslintErrorCount": 0,
   "eslintWarningCount": 0,
   "eslintIssues": [],
-  "totalFilesAnalyzed": 506,
-  "totalLinesAnalyzed": 71141,
-  "totalOverflowLines": 377
+  "totalFilesAnalyzed": 557,
+  "totalLinesAnalyzed": 76387,
+  "totalOverflowLines": 0
 }

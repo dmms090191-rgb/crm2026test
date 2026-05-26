@@ -13,10 +13,11 @@ import { yellowTokens } from './themeTokensYellow';
 import { highLevelLightTokens } from './themeTokensHighLevelLight';
 import { highLevelDarkTokens } from './themeTokensHighLevelDark';
 import { highLevelEmeraldTokens } from './themeTokensHighLevelEmerald';
+import { buildGlassTokens } from './themeTokensGlass';
 
 export type { ThemeTokens } from './themeTokensTypes';
 
-const tokenMap: Record<Theme, typeof darkTokens> = {
+const tokenMap: Record<Exclude<Theme, 'glass'>, typeof darkTokens> = {
   dark: darkTokens,
   light: lightTokens,
   graphite: graphiteTokens,
@@ -33,6 +34,7 @@ const tokenMap: Record<Theme, typeof darkTokens> = {
   highlevel_emerald: highLevelEmeraldTokens,
 };
 
-export function getThemeTokens(theme: Theme) {
+export function getThemeTokens(theme: Theme, accentColor?: string, glassOverlayMode?: 'dark' | 'light') {
+  if (theme === 'glass') return buildGlassTokens(accentColor || '#f97316', glassOverlayMode || 'dark');
   return tokenMap[theme];
 }

@@ -1,12 +1,14 @@
-import { Globe, LayoutGrid, Eye } from 'lucide-react';
+import { Globe, LayoutGrid, Eye, ExternalLink, Settings2, CheckCircle2, Link2 } from 'lucide-react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 import { getTemplateComponent } from './templates/templateRegistry';
+import type { CompanyHomePage } from '../../../../lib/companyHomePages';
 import type { SiteTab } from './SiteTabs';
 
 interface Props {
   activeTemplateKey: string | null;
   previewTemplateKey: string | null;
   previewTemplateName: string | null;
+  page: CompanyHomePage | null;
   onTabChange: (tab: SiteTab) => void;
   onApplyPreview: () => void;
   onClearPreview: () => void;
@@ -16,6 +18,7 @@ export default function SitePreviewTab({
   activeTemplateKey,
   previewTemplateKey,
   previewTemplateName,
+  page,
   onTabChange,
   onApplyPreview,
   onClearPreview,
@@ -60,6 +63,9 @@ export default function SitePreviewTab({
   }
 
   const TemplateComponent = getTemplateComponent(displayKey);
+  const siteSlug = page?.slug;
+  const publicUrl = siteSlug ? `${window.location.origin}/site/${siteSlug}` : null;
+  const hasDomain = !!page?.custom_domain && page.domain_verified;
 
   return (
     <div className="space-y-3">
@@ -89,6 +95,67 @@ export default function SitePreviewTab({
               style={{ background: 'rgba(245,158,11,0.15)', border: '1px solid rgba(245,158,11,0.3)', color: '#f59e0b' }}
             >
               Appliquer ce template
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Site info bar */}
+      {!isPreview && page && siteSlug && (
+        <div
+          className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl px-4 py-3"
+          style={{ background: t.surface.primary, border: `1px solid ${t.surface.border}` }}
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="flex items-center gap-1.5">
+              <CheckCircle2 className="w-4 h-4 flex-shrink-0" style={{ color: '#16a34a' }} />
+              <span className="text-xs font-bold" style={{ color: '#16a34a' }}>Actif</span>
+            </div>
+            <div className="h-4 w-px" style={{ background: t.surface.border }} />
+            <div className="flex items-center gap-1.5 min-w-0">
+              <Link2 className="w-3.5 h-3.5 flex-shrink-0" style={{ color: t.text.tertiary }} />
+              <span className="text-xs font-mono truncate" style={{ color: t.text.secondary }}>
+                /site/{siteSlug}
+              </span>
+            </div>
+            {hasDomain && (
+              <>
+                <div className="h-4 w-px hidden sm:block" style={{ background: t.surface.border }} />
+                <span className="text-xs font-semibold hidden sm:inline truncate" style={{ color: '#0ea5e9' }}>
+                  {page.custom_domain}
+                </span>
+              </>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {publicUrl && (
+              <a
+                href={publicUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all hover:scale-105"
+                style={{ background: 'linear-gradient(135deg, #0ea5e9, #0284c7)', color: '#fff', boxShadow: '0 1px 6px rgba(14,165,233,0.25)' }}
+              >
+                <ExternalLink className="w-3 h-3" />
+                Ouvrir le site
+              </a>
+            )}
+            <button
+              onClick={() => onTabChange('templates')}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all hover:scale-105"
+              style={{ background: t.surface.secondary, border: `1px solid ${t.surface.border}`, color: t.text.secondary }}
+            >
+              <LayoutGrid className="w-3 h-3" />
+              Changer
+            </button>
+            <button
+              onClick={() => onTabChange('domaine')}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all hover:scale-105"
+              style={{ background: t.surface.secondary, border: `1px solid ${t.surface.border}`, color: t.text.secondary }}
+            >
+              <Settings2 className="w-3 h-3" />
+              Domaine
             </button>
           </div>
         </div>

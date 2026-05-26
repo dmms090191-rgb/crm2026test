@@ -120,6 +120,11 @@ Deno.serve(async (req: Request) => {
         });
       }
 
+      await supabaseAdmin.from("companies").update({
+        admin_first_name: first_name || "",
+        admin_last_name: last_name || "",
+      }).eq("id", newCompanyId);
+
       return new Response(JSON.stringify({ user: data.user }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
