@@ -2,7 +2,7 @@ const KNOWN_PATTERNS = [
   'localhost', '127.0.0.1', '.supabase.co', '.vercel.app',
   '.webcontainer.io', '.local-credentialless.webcontainer.io',
   '.local.webcontainer.io', '.bolt.new', '.stackblitz.io',
-  '.cloudworkstations.dev', 'derlumeo.com',
+  '.cloudworkstations.dev',
 ];
 
 function isKnownHost(hostname: string): boolean {
@@ -15,6 +15,7 @@ function isKnownHost(hostname: string): boolean {
 
 export function useCustomDomain() {
   const hostname = window.location.hostname;
-  const customDomain = isKnownHost(hostname) ? null : hostname;
-  return { customDomain };
+  if (isKnownHost(hostname)) return { customDomain: null };
+  const bare = hostname.startsWith('www.') ? hostname.slice(4) : hostname;
+  return { customDomain: bare };
 }
