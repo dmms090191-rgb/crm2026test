@@ -6,9 +6,10 @@ import { getTemplateComponent } from '../superadmin/views/site-builder/templates
 
 interface Props {
   slug: string;
+  domainCompanyId?: string | null;
 }
 
-export default function CompanySitePage({ slug }: Props) {
+export default function CompanySitePage({ slug, domainCompanyId }: Props) {
   const [page, setPage] = useState<CompanyHomePage | null>(null);
   const [templateKey, setTemplateKey] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -144,7 +145,7 @@ export default function CompanySitePage({ slug }: Props) {
       </footer>
 
       {/* Login modal */}
-      <LoginModal isOpen={loginOpen} onClose={() => setLoginOpen(false)} onLogin={handleLogin} />
+      <LoginModal isOpen={loginOpen} onClose={() => setLoginOpen(false)} onLogin={handleLogin} domainCompanyId={domainCompanyId ?? page.company_id} />
     </div>
   );
 }

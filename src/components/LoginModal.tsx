@@ -12,9 +12,10 @@ interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
   onLogin: () => void;
+  domainCompanyId?: string | null;
 }
 
-export default function LoginModal({ isOpen, onClose, onLogin }: LoginModalProps) {
+export default function LoginModal({ isOpen, onClose, onLogin, domainCompanyId }: LoginModalProps) {
   const { theme } = useTheme();
   const tokens = useThemeTokens();
   const isDark = theme === 'dark';
@@ -61,17 +62,46 @@ export default function LoginModal({ isOpen, onClose, onLogin }: LoginModalProps
       password: pin,
     });
 
-    setLoading(false);
-
     if (authError) {
+      setLoading(false);
       setError('Email ou mot de passe incorrect.');
       setDigits(['', '', '', '', '', '']);
       setTimeout(() => pinRefs.current[0]?.focus(), 0);
-    } else {
-      supabase.auth.updateUser({ data: { pin } });
-      onLogin();
+      return;
     }
-  }, [email, digits, onLogin, setDigits, pinRefs]);
+
+    if (domainCompanyId) {
+      const { data: { user } } = await supabase.auth.getUser();
+      const meta = user?.app_metadata;
+      const appRole = meta?.role;
+
+      if (appRole !== 'super_admin') {
+        let userCompanyId: string | null = meta?.company_id ?? null;
+
+        if (!userCompanyId && appRole === 'client') {
+          const { data: reg } = await supabase
+            .from('registrations')
+            .select('company_id')
+            .eq('email', email.toLowerCase().trim())
+            .maybeSingle();
+          userCompanyId = reg?.company_id ?? null;
+        }
+
+        if (userCompanyId !== domainCompanyId) {
+          await supabase.auth.signOut();
+          setLoading(false);
+          setError('Ce compte n\'est pas autorise sur ce domaine.');
+          setDigits(['', '', '', '', '', '']);
+          setTimeout(() => pinRefs.current[0]?.focus(), 0);
+          return;
+        }
+      }
+    }
+
+    setLoading(false);
+    supabase.auth.updateUser({ data: { pin } });
+    onLogin();
+  }, [email, digits, onLogin, setDigits, pinRefs, domainCompanyId]);
 
   validateRef.current = handleValidate;
 

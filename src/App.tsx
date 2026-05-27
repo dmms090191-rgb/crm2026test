@@ -5,7 +5,7 @@ import type { ImpersonatedClientInfo } from './pages/client/ClientDashboard';
 import type { AdminUser } from './pages/superadmin/views/SAAdmins';
 import { supabase } from './lib/supabase';
 import { ThemeProvider } from './contexts/ThemeContext';
-import { AppLoadingScreen, AppAccessBlocked } from './app/AppStatusScreens';
+import { AppLoadingScreen, AppAccessBlocked, AppDomainBlocked } from './app/AppStatusScreens';
 import AppLandingPage from './app/AppLandingPage';
 import AppShell from './app/AppShell';
 import CompanySitePage from './pages/public/CompanySitePage';
@@ -38,17 +38,32 @@ function App() {
   const [impersonatedVendor, setImpersonatedVendor] = useState<ImpersonatedVendor | null>(null);
   const [impersonatedClient, setImpersonatedClient] = useState<ImpersonatedClientInfo | null>(null);
   const [impersonatedAdmin, setImpersonatedAdmin] = useState<ImpersonatedAdmin | null>(null);
-  const { customDomainSlug, customDomainNotFound, checking: customDomainChecking } = useCustomDomain();
+  const { customDomainSlug, customDomainCompanyId, customDomainNotFound, checking: customDomainChecking } = useCustomDomain();
+  const [domainBlocked, setDomainBlocked] = useState(false);
   const [saUserId, setSaUserId] = useState<string | null>(null);
   const [saDisplayName, setSaDisplayName] = useState('Support Talvex');
   const [landingTemplateKey, setLandingTemplateKey] = useState<string | null>(null);
   const [landingTemplateLoaded, setLandingTemplateLoaded] = useState(false);
+
+  async function resolveUserCompanyId(userId: string, appRole: string, metaCompanyId?: string): Promise<string | null> {
+    if (metaCompanyId) return metaCompanyId;
+    if (appRole === 'client') {
+      const { data } = await supabase
+        .from('registrations')
+        .select('company_id')
+        .eq('email', (await supabase.auth.getUser()).data.user?.email ?? '')
+        .maybeSingle();
+      return data?.company_id ?? null;
+    }
+    return null;
+  }
 
   async function detectRole() {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
       setRole(null);
       setAccessBlocked(false);
+      setDomainBlocked(false);
       setLoading(false);
       return;
     }
@@ -61,6 +76,18 @@ function App() {
       return;
     }
     setAccessBlocked(false);
+
+    if (customDomainCompanyId && appRole !== 'super_admin') {
+      const userCompanyId = await resolveUserCompanyId(session.user.id, appRole, meta?.company_id);
+      if (userCompanyId !== customDomainCompanyId) {
+        setDomainBlocked(true);
+        setRole(null);
+        setLoading(false);
+        return;
+      }
+    }
+    setDomainBlocked(false);
+
     if (appRole === 'super_admin') {
       setRole('super_admin');
       setSaUserId(session.user.id);
@@ -80,19 +107,33 @@ function App() {
       if (!session) {
         setRole(null);
         setAccessBlocked(false);
+        setDomainBlocked(false);
       } else {
-        const meta = session.user.app_metadata;
-        const appRole = meta?.role;
-        if (appRole === 'admin' && meta?.access_enabled === false) {
-          setAccessBlocked(true);
-          setRole(null);
-          return;
-        }
-        setAccessBlocked(false);
-        if (appRole === 'super_admin') setRole('super_admin');
-        else if (appRole === 'vendor') setRole('vendor');
-        else if (appRole === 'client') setRole('client');
-        else setRole('admin');
+        (async () => {
+          const meta = session.user.app_metadata;
+          const appRole = meta?.role;
+          if (appRole === 'admin' && meta?.access_enabled === false) {
+            setAccessBlocked(true);
+            setRole(null);
+            return;
+          }
+          setAccessBlocked(false);
+
+          if (customDomainCompanyId && appRole !== 'super_admin') {
+            const userCompanyId = await resolveUserCompanyId(session.user.id, appRole, meta?.company_id);
+            if (userCompanyId !== customDomainCompanyId) {
+              setDomainBlocked(true);
+              setRole(null);
+              return;
+            }
+          }
+          setDomainBlocked(false);
+
+          if (appRole === 'super_admin') setRole('super_admin');
+          else if (appRole === 'vendor') setRole('vendor');
+          else if (appRole === 'client') setRole('client');
+          else setRole('admin');
+        })();
       }
     });
     return () => subscription.unsubscribe();
@@ -116,6 +157,7 @@ function App() {
   };
 
   if (loading || (!role && !landingTemplateLoaded) || customDomainChecking) return <AppLoadingScreen />;
+  if (domainBlocked) return <AppDomainBlocked onClear={() => setDomainBlocked(false)} />;
   if (accessBlocked) return <AppAccessBlocked onClear={() => setAccessBlocked(false)} />;
 
   // --- Public company site (/site/:slug) ---
@@ -126,7 +168,7 @@ function App() {
 
   // --- Custom domain detection ---
   if (customDomainSlug && !role) {
-    return <CompanySitePage slug={customDomainSlug} />;
+    return <CompanySitePage slug={customDomainSlug} domainCompanyId={customDomainCompanyId} />;
   }
   if (customDomainNotFound && !role) {
     return <CompanySitePage slug="__domain_not_found__" />;

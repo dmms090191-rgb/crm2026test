@@ -22,6 +22,7 @@ function stripWww(hostname: string): string {
 
 export function useCustomDomain() {
   const [customDomainSlug, setCustomDomainSlug] = useState<string | null>(null);
+  const [customDomainCompanyId, setCustomDomainCompanyId] = useState<string | null>(null);
   const [customDomainNotFound, setCustomDomainNotFound] = useState(false);
   const [checking, setChecking] = useState(false);
   const checkedRef = useRef(false);
@@ -36,12 +37,21 @@ export function useCustomDomain() {
     setChecking(true);
     getHomePageByDomain(hostname)
       .then(page => {
-        if (page?.slug) setCustomDomainSlug(page.slug);
-        else setCustomDomainNotFound(true);
+        if (page?.slug) {
+          setCustomDomainSlug(page.slug);
+          setCustomDomainCompanyId(page.company_id);
+        } else {
+          setCustomDomainNotFound(true);
+        }
       })
       .catch(() => setCustomDomainNotFound(true))
       .finally(() => setChecking(false));
   }, []);
 
-  return { customDomainSlug, customDomainNotFound, checking: checking && isCustomDomainHost };
+  return {
+    customDomainSlug,
+    customDomainCompanyId,
+    customDomainNotFound,
+    checking: checking && isCustomDomainHost,
+  };
 }
