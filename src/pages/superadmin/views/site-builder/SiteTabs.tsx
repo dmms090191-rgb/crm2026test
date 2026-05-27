@@ -6,6 +6,7 @@ export type SiteTab = 'apercu' | 'templates' | 'domaine';
 interface Props {
   activeTab: SiteTab;
   onTabChange: (tab: SiteTab) => void;
+  hideDomainTab?: boolean;
 }
 
 const TABS: { id: SiteTab; label: string; icon: React.ReactNode }[] = [
@@ -14,12 +15,14 @@ const TABS: { id: SiteTab; label: string; icon: React.ReactNode }[] = [
   { id: 'domaine', label: 'Domaine', icon: <Globe className="w-3.5 h-3.5" /> },
 ];
 
-export default function SiteTabs({ activeTab, onTabChange }: Props) {
+export default function SiteTabs({ activeTab, onTabChange, hideDomainTab }: Props) {
   const t = useThemeTokens();
+
+  const visibleTabs = hideDomainTab ? TABS.filter(t => t.id !== 'domaine') : TABS;
 
   return (
     <div className="flex gap-1 overflow-x-auto pb-0.5 scrollbar-none -mx-1 px-1">
-      {TABS.map(tab => {
+      {visibleTabs.map(tab => {
         const active = activeTab === tab.id;
         return (
           <button

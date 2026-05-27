@@ -10,6 +10,7 @@ import SAAdminsDesktopTable from './admins/SAAdminsDesktopTable';
 import SAAdminsActionsPopover from './admins/SAAdminsActionsPopover';
 import { supabase } from '../../../lib/supabase';
 import SiteManagerModal from './site-builder/SiteManagerModal';
+import DomainManagementModal from './admins/DomainManagementModal';
 import useColumnOrder from '../../../components/table/useColumnOrder';
 import useColumnOrderMobile from '../../../components/table/useColumnOrderMobile';
 import ColumnOrganizerModal from '../../../components/table/ColumnOrganizerModal';
@@ -64,6 +65,7 @@ export default function SAAdmins({ onConnectAsAdmin, onOpenChat, cachedAdmins, r
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [homePageAdmin, setHomePageAdmin] = useState<AdminUser | null>(null);
   const [siteAdmin, setSiteAdmin] = useState<AdminUser | null>(null);
+  const [domainAdmin, setDomainAdmin] = useState<AdminUser | null>(null);
   const [orderMap, setOrderMap] = useState<Record<string, number>>({});
   const [reorderMode, setReorderMode] = useState(false);
   const [actionsOpenId, setActionsOpenId] = useState<string | null>(null);
@@ -251,7 +253,7 @@ export default function SAAdmins({ onConnectAsAdmin, onOpenChat, cachedAdmins, r
                 <SAAdminMobileCard key={admin.id} admin={admin} idx={idx} total={admins.length} isSelf={admin.id === currentUserId}
                   selectionMode={selectionMode} selected={selectedIds.has(admin.id)} onToggleSelect={toggleSelect}
                   onMove={moveAdmin} reorderMode={reorderMode} onDetail={setSelectedAdmin} onHomePage={setHomePageAdmin}
-                  onChat={a => onOpenChat?.(a)} onConnect={a => onConnectAsAdmin?.(a)} onSite={setSiteAdmin}
+                  onChat={a => onOpenChat?.(a)} onConnect={a => onConnectAsAdmin?.(a)} onSite={setSiteAdmin} onDomain={setDomainAdmin}
                   onAccessToggled={fetchAdmins} formatDate={formatDate} tokens={tokens} />
               ))}
             </div>
@@ -259,12 +261,13 @@ export default function SAAdmins({ onConnectAsAdmin, onOpenChat, cachedAdmins, r
         )}
       </div>
 
-      {actionsAdmin && <SAAdminsActionsPopover admin={actionsAdmin} popoverPos={popoverPos} onClose={() => setActionsOpenId(null)} onDetail={setSelectedAdmin} onHomePage={setHomePageAdmin} onChat={a => onOpenChat?.(a)} onConnect={a => onConnectAsAdmin?.(a)} onSite={setSiteAdmin} tokens={tokens} />}
+      {actionsAdmin && <SAAdminsActionsPopover admin={actionsAdmin} popoverPos={popoverPos} onClose={() => setActionsOpenId(null)} onDetail={setSelectedAdmin} onHomePage={setHomePageAdmin} onChat={a => onOpenChat?.(a)} onConnect={a => onConnectAsAdmin?.(a)} onSite={setSiteAdmin} onDomain={setDomainAdmin} tokens={tokens} />}
       {selectedAdmin && <AdminDetailModal admin={selectedAdmin} mode="detail" onClose={() => setSelectedAdmin(null)} onUpdate={handleUpdate} onSwitchMode={() => {}} />}
       {showCreateModal && <SAAdminsCreateModal onClose={() => setShowCreateModal(false)} onCreated={() => { setShowCreateModal(false); fetchAdmins(); }} tokens={tokens} />}
       {showDeleteModal && <SAAdminsBulkDeleteModal count={selectedIds.size} loading={deleting} onConfirm={handleBulkDelete} onCancel={() => setShowDeleteModal(false)} />}
       {homePageAdmin && <AdminHomePageModal admin={homePageAdmin} onClose={() => setHomePageAdmin(null)} />}
-      {siteAdmin && <SiteManagerModal ownerType="admin_company" title={`Site de ${siteAdmin.company || siteAdmin.first_name + ' ' + siteAdmin.last_name}`} subtitle={`Gestion du site pour la societe ${siteAdmin.company || siteAdmin.email}`} companyId={siteAdmin.company_id} onClose={() => setSiteAdmin(null)} />}
+      {siteAdmin && <SiteManagerModal ownerType="admin_company" title={`Site de ${siteAdmin.company || siteAdmin.first_name + ' ' + siteAdmin.last_name}`} subtitle={`Gestion du site pour la societe ${siteAdmin.company || siteAdmin.email}`} companyId={siteAdmin.company_id} hideDomainTab onClose={() => setSiteAdmin(null)} />}
+      {domainAdmin && <DomainManagementModal companyId={domainAdmin.company_id} companyName={domainAdmin.company || `${domainAdmin.first_name} ${domainAdmin.last_name}`.trim() || domainAdmin.email} onClose={() => setDomainAdmin(null)} onUpdate={() => { fetchAdmins(); }} />}
       {showColModal && <ColumnOrganizerModal columns={displayColumns} orderedKeys={colOrder.orderedKeys} hiddenDesktopKeys={colOrder.hiddenDesktopKeys} tableKey="sa_liste_admins" onSave={colOrder.saveAll} onReset={colOrder.resetAll} onClose={() => setShowColModal(false)} onCreateCustomColumn={cc.createColumn} onDeleteCustomColumn={cc.deleteColumn} onRenameCustomColumn={cc.renameColumn} onRenameLabel={colOrder.renameLabel} mobileOrder={colMobile.mobileOrder} mobileCardStyle={colMobile.cardStyle} onSaveMobile={colMobile.saveMobile} onResetMobile={colMobile.resetMobile} />}
     </div>
   );

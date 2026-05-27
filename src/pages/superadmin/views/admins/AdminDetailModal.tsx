@@ -6,9 +6,7 @@ import type { AdminUser } from '../SAAdmins';
 import AdminDetailInfoTab from './AdminDetailInfoTab';
 import AdminDetailPasswordTab from './AdminDetailPasswordTab';
 import AdminDetailCommentsTab from './AdminDetailCommentsTab';
-import AdminDetailDomainTab from './AdminDetailDomainTab';
-
-type ModalTab = 'informations' | 'mot-de-passe' | 'commentaires' | 'domaine';
+type ModalTab = 'informations' | 'mot-de-passe' | 'commentaires';
 
 interface AdminDetailModalProps {
   admin: AdminUser;
@@ -29,7 +27,6 @@ export default function AdminDetailModal({ admin, onClose, onUpdate }: AdminDeta
 
   const tabs: { id: ModalTab; label: string }[] = [
     { id: 'informations', label: 'Informations' },
-    { id: 'domaine', label: 'Domaine' },
     { id: 'mot-de-passe', label: 'Mot de passe' },
     { id: 'commentaires', label: 'Commentaires' },
   ];
@@ -93,7 +90,6 @@ export default function AdminDetailModal({ admin, onClose, onUpdate }: AdminDeta
 
         <div className="px-6 py-5 min-h-0 max-h-[26rem] overflow-y-auto">
           {tab === 'informations' && <AdminDetailInfoTab admin={admin} onUpdate={onUpdate} />}
-          {tab === 'domaine' && <AdminDetailDomainTab companyId={admin.company_id} onUpdate={onUpdate} />}
           {tab === 'mot-de-passe' && <AdminDetailPasswordTab adminId={admin.id} currentPin={admin.pin} onUpdate={onUpdate} />}
           {tab === 'commentaires' && <AdminDetailCommentsTab adminId={admin.id} />}
         </div>

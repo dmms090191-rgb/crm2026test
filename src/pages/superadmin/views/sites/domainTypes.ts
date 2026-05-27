@@ -41,6 +41,11 @@ export interface DomainOrder {
   completed_at: string | null;
 }
 
+export const VERCEL_DNS_RECORDS = [
+  { type: 'A', name: '@', value: '76.76.21.21', desc: 'Pour le domaine principal' },
+  { type: 'CNAME', name: 'www', value: 'cname.vercel-dns.com', desc: 'Pour www' },
+] as const;
+
 export const YEAR_OPTIONS = [1, 2, 3, 5, 10] as const;
 
 export const SUGGESTION_TLDS = ['.com', '.net', '.org', '.co', '.io', '.app', '.dev', '.company', '.community', '.computer'] as const;

@@ -8,10 +8,11 @@ interface Props {
   subtitle: string;
   companyId?: string | null;
   societeId?: string | null;
+  hideDomainTab?: boolean;
   onClose: () => void;
 }
 
-export default function SiteManagerModal({ ownerType, title, subtitle, companyId, societeId, onClose }: Props) {
+export default function SiteManagerModal({ ownerType, title, subtitle, companyId, societeId, hideDomainTab, onClose }: Props) {
   const t = useThemeTokens();
 
   return createPortal(
@@ -31,6 +32,7 @@ export default function SiteManagerModal({ ownerType, title, subtitle, companyId
           subtitle={subtitle}
           companyId={companyId}
           societeId={societeId}
+          hideDomainTab={hideDomainTab}
           onClose={onClose}
         />
       </div>

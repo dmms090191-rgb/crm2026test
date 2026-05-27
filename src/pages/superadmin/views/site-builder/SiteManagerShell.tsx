@@ -29,10 +29,11 @@ interface Props {
   companyId?: string | null;
   companyName?: string;
   societeId?: string | null;
+  hideDomainTab?: boolean;
   onClose?: () => void;
 }
 
-export default function SiteManagerShell({ ownerType, title, subtitle, companyId: companyIdProp, companyName: companyNameProp, onClose }: Props) {
+export default function SiteManagerShell({ ownerType, title, subtitle, companyId: companyIdProp, companyName: companyNameProp, hideDomainTab, onClose }: Props) {
   const t = useThemeTokens();
   const [activeTab, setActiveTab] = useState<SiteTab>('apercu');
   const [loading, setLoading] = useState(true);
@@ -166,7 +167,7 @@ export default function SiteManagerShell({ ownerType, title, subtitle, companyId
         className="rounded-2xl p-4 space-y-4"
         style={{ background: t.card.bg, border: `1px solid ${t.card.border}`, boxShadow: t.card.shadow }}
       >
-        <SiteTabs activeTab={activeTab} onTabChange={setActiveTab} />
+        <SiteTabs activeTab={activeTab} onTabChange={setActiveTab} hideDomainTab={hideDomainTab} />
 
         <div className="min-h-[200px]">
           {loading ? (

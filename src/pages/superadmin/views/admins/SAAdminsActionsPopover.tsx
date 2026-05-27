@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Eye, Megaphone, MessageSquare, LogIn, LayoutTemplate, Settings2 } from 'lucide-react';
+import { X, Eye, Megaphone, MessageSquare, LogIn, LayoutTemplate, Settings2, Globe } from 'lucide-react';
 import { useActionMenuOrder } from '../../../../components/action-menu/useActionMenuOrder';
 import ActionMenuReorderPanel, { type ActionMenuItem } from '../../../../components/action-menu/ActionMenuReorderPanel';
 import type { AdminUser } from '../SAAdmins';
 
 const STORAGE_KEY = 'action_menu_order_superadmin_admins';
-const DEFAULT_ORDER = ['detail', 'annonce', 'msg', 'site', 'connecter'];
+const DEFAULT_ORDER = ['detail', 'annonce', 'msg', 'domaine', 'site', 'connecter'];
 
 interface Props {
   admin: AdminUser;
@@ -17,6 +17,7 @@ interface Props {
   onChat: (admin: AdminUser) => void;
   onConnect: (admin: AdminUser) => void;
   onSite: (admin: AdminUser) => void;
+  onDomain: (admin: AdminUser) => void;
   tokens: ReturnType<typeof import('../../../../hooks/useThemeTokens').useThemeTokens>;
 }
 
@@ -25,6 +26,7 @@ function buildItems(tokens: Props['tokens']): ActionMenuItem[] {
     { id: 'detail', label: 'Detail', icon: <Eye className="w-3.5 h-3.5" />, color: tokens.accent.text },
     { id: 'annonce', label: 'Annonce', icon: <Megaphone className="w-3.5 h-3.5" />, color: '#f59e0b' },
     { id: 'msg', label: 'MSG', icon: <MessageSquare className="w-3.5 h-3.5" />, color: '#f59e0b' },
+    { id: 'domaine', label: 'Domaine', icon: <Globe className="w-3.5 h-3.5" />, color: '#06b6d4' },
     { id: 'site', label: 'Site', icon: <LayoutTemplate className="w-3.5 h-3.5" />, color: '#0ea5e9' },
     { id: 'connecter', label: 'Connecter', icon: <LogIn className="w-3.5 h-3.5" />, color: tokens.success.text },
   ];
@@ -35,6 +37,7 @@ function getButtonStyle(id: string, tokens: Props['tokens']) {
     case 'detail': return { background: tokens.accent.bg, border: `1px solid ${tokens.accent.border}`, color: tokens.accent.text };
     case 'annonce': return { background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)', color: '#f59e0b' };
     case 'msg': return { background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.25)', color: '#f59e0b' };
+    case 'domaine': return { background: 'rgba(6,182,212,0.08)', border: '1px solid rgba(6,182,212,0.2)', color: '#06b6d4' };
     case 'site': return { background: 'rgba(14,165,233,0.08)', border: '1px solid rgba(14,165,233,0.2)', color: '#0ea5e9' };
     case 'connecter': return { background: tokens.success.bg, border: `1px solid ${tokens.success.border}`, color: tokens.success.text };
     default: return {};
@@ -42,7 +45,7 @@ function getButtonStyle(id: string, tokens: Props['tokens']) {
 }
 
 export default function SAAdminsActionsPopover({
-  admin, popoverPos, onClose, onDetail, onHomePage, onChat, onConnect, onSite, tokens,
+  admin, popoverPos, onClose, onDetail, onHomePage, onChat, onConnect, onSite, onDomain, tokens,
 }: Props) {
   const [reorderMode, setReorderMode] = useState(false);
   const { order, save } = useActionMenuOrder(STORAGE_KEY, DEFAULT_ORDER);
@@ -52,6 +55,7 @@ export default function SAAdminsActionsPopover({
     detail: () => { onClose(); onDetail(admin); },
     annonce: () => { onClose(); onHomePage(admin); },
     msg: () => { onClose(); onChat(admin); },
+    domaine: () => { onClose(); onDomain(admin); },
     site: () => { onClose(); onSite(admin); },
     connecter: () => { onClose(); onConnect(admin); },
   };

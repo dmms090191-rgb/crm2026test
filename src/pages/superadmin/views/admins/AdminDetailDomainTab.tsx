@@ -1,9 +1,13 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Globe, ShieldCheck, Clock, AlertCircle, ExternalLink, RefreshCw, Trash2, Save, Loader2 } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { Globe, ShieldCheck, Clock, AlertCircle, ExternalLink, RefreshCw, Trash2, Save, Loader2, AlertTriangle } from 'lucide-react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 import { getHomePageByCompanyId, type CompanyHomePage } from '../../../../lib/companyHomePages';
-import { callManageDomain } from '../../../superadmin/views/sites/domainTypes';
+import { callManageDomain, VERCEL_DNS_RECORDS } from '../../../superadmin/views/sites/domainTypes';
 import CopyButton from '../../../../components/CopyButton';
+import { formatRelativeTime } from '../../../../lib/formatRelativeTime';
+
+const RECHECK_THRESHOLD_MS = 60 * 60 * 1000;
+const STALE_THRESHOLD_MS = 24 * 60 * 60 * 1000;
 
 const STATUS_MAP: Record<string, { label: string; color: string; bg: string; border: string }> = {
   not_configured: { label: 'Non configure', color: '#6b7280', bg: 'rgba(107,114,128,0.08)', border: 'rgba(107,114,128,0.15)' },
@@ -12,10 +16,7 @@ const STATUS_MAP: Record<string, { label: string; color: string; bg: string; bor
   error: { label: 'Erreur', color: '#ef4444', bg: 'rgba(239,68,68,0.08)', border: 'rgba(239,68,68,0.15)' },
 };
 
-const DNS_RECORDS = [
-  { type: 'A', name: '@', value: '76.76.21.21', desc: 'Pour le domaine principal' },
-  { type: 'CNAME', name: 'www', value: 'cname.vercel-dns.com', desc: 'Pour www' },
-];
+const DNS_RECORDS = VERCEL_DNS_RECORDS;
 
 interface Props {
   companyId: string;
@@ -31,6 +32,8 @@ export default function AdminDetailDomainTab({ companyId, onUpdate }: Props) {
   const [verifying, setVerifying] = useState(false);
   const [removing, setRemoving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [autoRechecking, setAutoRechecking] = useState(false);
+  const autoRecheckDone = useRef(false);
 
   const loadPage = useCallback(async () => {
     setLoading(true);
@@ -46,6 +49,25 @@ export default function AdminDetailDomainTab({ companyId, onUpdate }: Props) {
   }, [companyId]);
 
   useEffect(() => { loadPage(); }, [loadPage]);
+
+  useEffect(() => {
+    if (loading || autoRecheckDone.current || !page?.custom_domain) return;
+    if (page.domain_status !== 'verified') return;
+    const lastCheck = page.last_domain_check_at ? new Date(page.last_domain_check_at).getTime() : 0;
+    if (Date.now() - lastCheck < RECHECK_THRESHOLD_MS) return;
+    autoRecheckDone.current = true;
+    setAutoRechecking(true);
+    callManageDomain('verify', page.custom_domain, page.id)
+      .then(res => {
+        if (!res.verified) {
+          setMessage({ type: 'error', text: 'Le domaine n\'est plus valide. Le DNS a peut-etre ete modifie.' });
+          onUpdate();
+        }
+        return loadPage();
+      })
+      .catch(() => {})
+      .finally(() => setAutoRechecking(false));
+  }, [loading, page, loadPage, onUpdate]);
 
   const clearMsg = () => setTimeout(() => setMessage(null), 4000);
 
@@ -176,15 +198,33 @@ export default function AdminDetailDomainTab({ companyId, onUpdate }: Props) {
 
       {/* Status badge */}
       {hasDomain && (
-        <div className="flex items-center justify-between">
-          <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: t.text.quaternary }}>Statut</span>
-          <span
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold"
-            style={{ background: status.bg, border: `1px solid ${status.border}`, color: status.color }}
-          >
-            {isVerified ? <ShieldCheck className="w-3 h-3" /> : page.domain_status === 'error' ? <AlertCircle className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
-            {status.label}
-          </span>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: t.text.quaternary }}>Statut</span>
+            <div className="flex items-center gap-2">
+              {autoRechecking && <Loader2 className="w-3 h-3 animate-spin" style={{ color: '#0ea5e9' }} />}
+              <span
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold"
+                style={{ background: status.bg, border: `1px solid ${status.border}`, color: status.color }}
+              >
+                {isVerified ? <ShieldCheck className="w-3 h-3" /> : page.domain_status === 'error' ? <AlertCircle className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
+                {status.label}
+              </span>
+            </div>
+          </div>
+          {page.last_domain_check_at && (
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: t.text.quaternary }}>Derniere verification</span>
+              <span className="text-[11px]" style={{
+                color: (Date.now() - new Date(page.last_domain_check_at).getTime() > STALE_THRESHOLD_MS) ? '#f59e0b' : t.text.tertiary,
+              }}>
+                {(Date.now() - new Date(page.last_domain_check_at).getTime() > STALE_THRESHOLD_MS) && (
+                  <AlertTriangle className="w-3 h-3 inline mr-1" style={{ color: '#f59e0b' }} />
+                )}
+                {formatRelativeTime(page.last_domain_check_at)}
+              </span>
+            </div>
+          )}
         </div>
       )}
 
@@ -255,12 +295,15 @@ export default function AdminDetailDomainTab({ companyId, onUpdate }: Props) {
             Enregistrer
           </button>
         )}
-        {hasDomain && !isVerified && (
-          <button onClick={handleVerify} disabled={verifying}
+        {hasDomain && (
+          <button onClick={handleVerify} disabled={verifying || autoRechecking}
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all disabled:opacity-50"
-            style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.2)', color: '#f59e0b' }}>
+            style={isVerified
+              ? { background: 'rgba(14,165,233,0.08)', border: '1px solid rgba(14,165,233,0.15)', color: '#0ea5e9' }
+              : { background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.2)', color: '#f59e0b' }
+            }>
             {verifying ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
-            Verifier le domaine
+            {isVerified ? 'Re-verifier' : 'Verifier le domaine'}
           </button>
         )}
         {hasDomain && (
