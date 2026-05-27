@@ -32,14 +32,16 @@ export function useVendorRdvData(vendorDbId?: string | null, initialLead?: RdvLe
   const [detailRdv, setDetailRdv] = useState<RdvProposal | null>(null);
 
   const load = useCallback(async () => {
+    if (!companyId) return;
     setLoading(true);
     const { data } = await supabase
       .from('rdv_proposals')
       .select('*')
+      .eq('company_id', companyId)
       .order('created_at', { ascending: false });
     if (data) setRdvs(data as RdvProposal[]);
     setLoading(false);
-  }, []);
+  }, [companyId]);
 
   useEffect(() => { load(); }, [load]);
 
