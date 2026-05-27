@@ -14,9 +14,7 @@ const TABS: { id: InternalView; label: string; icon: React.ReactNode }[] = [
   { id: 'projects', label: 'Nos projets', icon: <Rocket className="w-3.5 h-3.5" /> },
 ];
 
-import type { SitePageProps } from './templateRegistry';
-
-export default function TalvexOfficialTemplate(_props: SitePageProps) {
+export default function TalvexOfficialTemplate() {
   const [activeView, setActiveView] = useState<InternalView>('interactive');
   const [loginOpen, setLoginOpen] = useState(false);
   const [registerOpen, setRegisterOpen] = useState(false);

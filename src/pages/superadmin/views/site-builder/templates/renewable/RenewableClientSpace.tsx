@@ -9,7 +9,7 @@ const FEATURES = [
   { icon: <Clock className="w-4 h-4" />, label: 'Prochain RDV', value: 'Jeudi 14h', color: '#ec4899' },
 ];
 
-export default function RenewableClientSpace({ brandName = 'Nova Energie' }: { brandName?: string }) {
+export default function RenewableClientSpace() {
   return (
     <section className="relative py-20 sm:py-28">
       <div className="absolute inset-0">
@@ -54,7 +54,7 @@ export default function RenewableClientSpace({ brandName = 'Nova Energie' }: { b
                   <span className="w-2.5 h-2.5 rounded-full bg-yellow-400/60" />
                   <span className="w-2.5 h-2.5 rounded-full bg-emerald-400/60" />
                 </div>
-                <span className="text-[10px] text-white/25 ml-2 font-mono">Espace client - {brandName}</span>
+                <span className="text-[10px] text-white/25 ml-2 font-mono">Mon espace client</span>
               </div>
 
               {/* Content */}

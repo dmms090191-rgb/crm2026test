@@ -58,15 +58,15 @@ export async function getAllHomePages(): Promise<CompanyHomePageWithCompany[]> {
   return (data ?? []) as CompanyHomePageWithCompany[];
 }
 
-export async function getHomePageByCompanyId(companyId: string): Promise<CompanyHomePageWithCompany | null> {
+export async function getHomePageByCompanyId(companyId: string): Promise<CompanyHomePage | null> {
   const { data, error } = await supabase
     .from('company_home_pages')
-    .select('*, companies(name)')
+    .select('*')
     .eq('company_id', companyId)
     .eq('site_scope', 'company')
     .maybeSingle();
   if (error) throw error;
-  return data as CompanyHomePageWithCompany | null;
+  return data;
 }
 
 export async function getPlatformHomePage(): Promise<CompanyHomePage | null> {
@@ -79,27 +79,27 @@ export async function getPlatformHomePage(): Promise<CompanyHomePage | null> {
   return data;
 }
 
-export async function getHomePageBySlug(slug: string): Promise<CompanyHomePageWithCompany | null> {
+export async function getHomePageBySlug(slug: string): Promise<CompanyHomePage | null> {
   const { data, error } = await supabase
     .from('company_home_pages')
-    .select('*, companies(name)')
+    .select('*')
     .eq('slug', slug)
     .eq('is_active', true)
     .maybeSingle();
   if (error) throw error;
-  return data as CompanyHomePageWithCompany | null;
+  return data;
 }
 
-export async function getHomePageByDomain(domain: string): Promise<CompanyHomePageWithCompany | null> {
+export async function getHomePageByDomain(domain: string): Promise<CompanyHomePage | null> {
   const { data, error } = await supabase
     .from('company_home_pages')
-    .select('*, companies(name)')
+    .select('*')
     .eq('custom_domain', domain)
     .eq('is_active', true)
     .eq('domain_verified', true)
     .maybeSingle();
   if (error) throw error;
-  return data as CompanyHomePageWithCompany | null;
+  return data;
 }
 
 export async function upsertHomePage(page: CompanyHomePageUpsert): Promise<CompanyHomePage> {
@@ -141,14 +141,11 @@ export async function getLandingTemplateKey(): Promise<string | null> {
 /* ── Template application ── */
 
 export async function applyTemplate(homePageId: string, templateId: string): Promise<void> {
-  const { data, error } = await supabase
+  const { error } = await supabase
     .from('company_home_pages')
     .update({ active_template_id: templateId, is_active: true, updated_at: new Date().toISOString() })
-    .eq('id', homePageId)
-    .select('id')
-    .maybeSingle();
+    .eq('id', homePageId);
   if (error) throw error;
-  if (!data) throw new Error('Mise a jour refusee. Verifiez vos permissions.');
 }
 
 export async function createHomePageWithTemplate(companyId: string, templateId: string): Promise<CompanyHomePage> {

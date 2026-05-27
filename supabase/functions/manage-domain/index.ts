@@ -77,7 +77,7 @@ Deno.serve(async (req: Request) => {
       return jsonResponse({ error: "Parametres requis: action, page_id" }, 400);
     }
 
-    if (isAdmin && action !== "verify" && action !== "health-check") {
+    if (isAdmin && action !== "verify") {
       return jsonResponse({ error: "Les admins peuvent uniquement verifier un domaine" }, 403);
     }
 
@@ -168,55 +168,17 @@ Deno.serve(async (req: Request) => {
       }
 
       const verified = body.verified === true;
-
-      let reallyActive = verified;
-      let healthNote: string | null = null;
-      if (verified) {
-        try {
-          const controller = new AbortController();
-          const timeout = setTimeout(() => controller.abort(), 8000);
-          const hRes = await fetch(`https://${domain}`, {
-            method: "GET",
-            headers: { "User-Agent": "TalvexHealthCheck/1.0" },
-            signal: controller.signal,
-            redirect: "follow",
-          });
-          clearTimeout(timeout);
-          const hBody = await hRes.text();
-          const lower = hBody.toLowerCase();
-          const isParked =
-            lower.includes("start your online journey") ||
-            lower.includes("hostinger") ||
-            lower.includes("this domain is parked") ||
-            lower.includes("domain parking") ||
-            lower.includes("godaddy") ||
-            (lower.includes("buy this domain") && !lower.includes("talvex"));
-          if (isParked) {
-            reallyActive = false;
-            healthNote = "DNS verifie par Vercel mais le domaine pointe vers une page parking. Configurez les DNS chez votre registrar.";
-          } else if (!hRes.ok) {
-            reallyActive = false;
-            healthNote = `DNS verifie mais le site repond avec le statut ${hRes.status}.`;
-          }
-        } catch {
-          reallyActive = false;
-          healthNote = "DNS verifie par Vercel mais le site n'est pas encore accessible. Attendez la propagation DNS.";
-        }
-      }
-
       await updatePage(supabaseAdmin, page_id, {
-        domain_status: reallyActive ? "verified" : verified ? "pending" : "pending",
-        domain_verified: reallyActive,
-        domain_notes: reallyActive ? null : (healthNote || "DNS non configure. Verification requise."),
+        domain_status: verified ? "verified" : "pending",
+        domain_verified: verified,
+        domain_notes: verified ? null : "DNS non configure. Verification requise.",
         last_domain_check_at: now,
       });
 
       return jsonResponse({
         success: true,
-        domain_status: reallyActive ? "verified" : "pending",
-        verified: reallyActive,
-        vercel_verified: verified,
-        health_note: healthNote,
+        domain_status: verified ? "verified" : "pending",
+        verified,
         verification: body.verification ?? null,
       });
     }
@@ -272,72 +234,6 @@ Deno.serve(async (req: Request) => {
       });
 
       return jsonResponse({ success: true, domain_status: "not_configured" });
-    }
-
-    if (action === "health-check") {
-      if (!domain) {
-        return jsonResponse({ error: "Le domaine est requis" }, 400);
-      }
-
-      let siteReachable = false;
-      let isParkedPage = false;
-      let httpStatus = 0;
-      try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 8000);
-        const res = await fetch(`https://${domain}`, {
-          method: "GET",
-          headers: { "User-Agent": "TalvexHealthCheck/1.0" },
-          signal: controller.signal,
-          redirect: "follow",
-        });
-        clearTimeout(timeout);
-        httpStatus = res.status;
-        siteReachable = res.ok;
-        const body = await res.text();
-        const lower = body.toLowerCase();
-        isParkedPage =
-          lower.includes("start your online journey") ||
-          lower.includes("hostinger") ||
-          lower.includes("this domain is parked") ||
-          lower.includes("domain parking") ||
-          lower.includes("godaddy") ||
-          lower.includes("this site can't be reached") ||
-          (lower.includes("buy this domain") && !lower.includes("talvex"));
-      } catch {
-        siteReachable = false;
-      }
-
-      const isReallyActive = siteReachable && !isParkedPage;
-
-      if (!isReallyActive) {
-        await updatePage(supabaseAdmin, page_id, {
-          domain_status: "pending",
-          domain_verified: false,
-          domain_notes: isParkedPage
-            ? "Le domaine pointe vers une page parking (DNS non configure vers Vercel)."
-            : siteReachable
-              ? "Le site repond mais ne semble pas etre Talvex."
-              : "Le site n'est pas accessible (DNS non propage ou mal configure).",
-          last_domain_check_at: now,
-        });
-      } else {
-        await updatePage(supabaseAdmin, page_id, {
-          domain_status: "verified",
-          domain_verified: true,
-          domain_notes: null,
-          last_domain_check_at: now,
-        });
-      }
-
-      return jsonResponse({
-        success: true,
-        site_reachable: siteReachable,
-        is_parked_page: isParkedPage,
-        is_really_active: isReallyActive,
-        http_status: httpStatus,
-        domain_status: isReallyActive ? "verified" : "pending",
-      });
     }
 
     return jsonResponse({ error: `Action inconnue: ${action}` }, 400);

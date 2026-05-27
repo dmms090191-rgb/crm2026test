@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { Globe, X, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Globe, X, Loader2 } from 'lucide-react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 import { supabase } from '../../../../lib/supabase';
 import {
@@ -9,6 +9,7 @@ import {
   getTemplateById,
   applyTemplate,
   createOrUpdateSite,
+  type CompanyHomePage,
   type CompanyHomePageWithCompany,
   type SiteTemplate,
   type SiteScope,
@@ -31,33 +32,18 @@ interface Props {
   onClose?: () => void;
 }
 
-async function resolveCompanyFromSession(): Promise<{ cid: string | null; cname: string }> {
-  const { data: { session } } = await supabase.auth.getSession();
-  const cid = session?.user?.app_metadata?.company_id ?? null;
-  let cname = '';
-  if (cid) {
-    const { data: co } = await supabase.from('companies').select('name').eq('id', cid).maybeSingle();
-    if (co?.name) cname = co.name;
-  }
-  return { cid, cname };
-}
-
 export default function SiteManagerShell({ ownerType, title, subtitle, companyId: companyIdProp, companyName: companyNameProp, onClose }: Props) {
   const t = useThemeTokens();
   const [activeTab, setActiveTab] = useState<SiteTab>('apercu');
   const [loading, setLoading] = useState(true);
   const [resolvedCompanyId, setResolvedCompanyId] = useState<string | null>(companyIdProp ?? null);
   const [resolvedCompanyName, setResolvedCompanyName] = useState<string>(companyNameProp || '');
-  const [companyIdReady, setCompanyIdReady] = useState(ownerType === 'super_admin' || !!companyIdProp);
-  const [page, setPage] = useState<CompanyHomePageWithCompany | null>(null);
+  const [page, setPage] = useState<CompanyHomePage | null>(null);
   const [templates, setTemplates] = useState<SiteTemplate[]>([]);
   const [activeTemplate, setActiveTemplate] = useState<SiteTemplate | null>(null);
   const [previewTemplateKey, setPreviewTemplateKey] = useState<string | null>(null);
   const [previewTemplateName, setPreviewTemplateName] = useState<string | null>(null);
   const [domainModalOpen, setDomainModalOpen] = useState(false);
-  const [applyError, setApplyError] = useState<string | null>(null);
-  const [applySuccess, setApplySuccess] = useState<string | null>(null);
-  const resolvedCompanyIdRef = useRef<string | null>(companyIdProp ?? null);
 
   const siteScope: SiteScope = ownerType === 'super_admin' ? 'platform' : 'company';
 
@@ -65,41 +51,30 @@ export default function SiteManagerShell({ ownerType, title, subtitle, companyId
     if (ownerType === 'super_admin') return;
     if (companyIdProp) {
       setResolvedCompanyId(companyIdProp);
-      resolvedCompanyIdRef.current = companyIdProp;
-      setCompanyIdReady(true);
       if (companyNameProp) setResolvedCompanyName(companyNameProp);
       return;
     }
     (async () => {
-      try {
-        const { cid, cname } = await resolveCompanyFromSession();
-        if (cid) {
-          setResolvedCompanyId(cid);
-          resolvedCompanyIdRef.current = cid;
-          if (cname) setResolvedCompanyName(cname);
-        }
-      } finally {
-        setCompanyIdReady(true);
+      const { data: user } = await supabase.auth.getUser();
+      const cid = user?.user?.app_metadata?.company_id;
+      if (cid) {
+        setResolvedCompanyId(cid);
+        const { data: co } = await supabase.from('companies').select('name').eq('id', cid).maybeSingle();
+        if (co?.name) setResolvedCompanyName(co.name);
       }
     })();
   }, [companyIdProp, companyNameProp, ownerType]);
 
-  const loadTemplates = useCallback(async () => {
-    try {
-      const tmpls = await getAllTemplates();
-      setTemplates(tmpls);
-    } catch {
-      // silent
-    }
-  }, []);
-
-  const loadPage = useCallback(async (silent = false) => {
+  const loadData = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     try {
-      const cid = resolvedCompanyIdRef.current;
-      const homePage = siteScope === 'platform'
-        ? await getPlatformHomePage()
-        : cid ? await getHomePageByCompanyId(cid) : null;
+      const [tmpls, homePage] = await Promise.all([
+        getAllTemplates(),
+        siteScope === 'platform'
+          ? getPlatformHomePage()
+          : resolvedCompanyId ? getHomePageByCompanyId(resolvedCompanyId) : Promise.resolve(null),
+      ]);
+      setTemplates(tmpls);
       setPage(homePage);
       if (homePage?.active_template_id) {
         const tmpl = await getTemplateById(homePage.active_template_id);
@@ -112,85 +87,29 @@ export default function SiteManagerShell({ ownerType, title, subtitle, companyId
     } finally {
       if (!silent) setLoading(false);
     }
-  }, [siteScope]);
+  }, [resolvedCompanyId, siteScope]);
 
   useEffect(() => {
-    loadTemplates();
-  }, [loadTemplates]);
-
-  useEffect(() => {
-    if (!companyIdReady) return;
-    if (siteScope === 'company' && !resolvedCompanyId) {
-      setLoading(false);
-      return;
-    }
-    loadPage();
-  }, [loadPage, siteScope, resolvedCompanyId, companyIdReady]);
-
-  const loadData = useCallback(async (silent = false) => {
-    await Promise.all([loadTemplates(), loadPage(silent)]);
-  }, [loadTemplates, loadPage]);
+    if (siteScope === 'company' && !resolvedCompanyId) return;
+    loadData();
+  }, [loadData, siteScope, resolvedCompanyId]);
 
   const handleApply = async (template: SiteTemplate) => {
-    setApplyError(null);
-    setApplySuccess(null);
-
-    const { data: { session } } = await supabase.auth.getSession();
-    const role = session?.user?.app_metadata?.role ?? 'unknown';
-    const userId = session?.user?.id ?? 'none';
-
-    console.log('[ApplyTemplate] start', { templateId: template.id, templateKey: template.template_key });
-    console.log('[ApplyTemplate] user', userId);
-    console.log('[ApplyTemplate] role', role);
-
-    try {
-      let cid = resolvedCompanyIdRef.current;
-      let cname = resolvedCompanyName;
-
-      if (siteScope === 'company' && !cid) {
-        console.log('[ApplyTemplate] company_id not resolved, fetching from session...');
-        const resolved = await resolveCompanyFromSession();
-        cid = resolved.cid;
-        cname = resolved.cname || cname;
-        if (cid) {
-          resolvedCompanyIdRef.current = cid;
-          setResolvedCompanyId(cid);
-          if (resolved.cname) setResolvedCompanyName(resolved.cname);
-        }
-      }
-
-      console.log('[ApplyTemplate] company_id', cid);
-      console.log('[ApplyTemplate] page id', page?.id ?? 'none (will create)');
-
-      if (page) {
-        const payload = { pageId: page.id, templateId: template.id, active_template_id: template.id };
-        console.log('[ApplyTemplate] payload', payload);
-        await applyTemplate(page.id, template.id);
-        console.log('[ApplyTemplate] response: update success');
-      } else {
-        const payload = { siteScope, companyId: cid, companyName: cname, templateId: template.id };
-        console.log('[ApplyTemplate] payload (create)', payload);
-        await createOrUpdateSite({ siteScope, companyId: cid, companyName: cname, templateId: template.id });
-        console.log('[ApplyTemplate] response: create success');
-      }
-
-      await loadData(true);
-
-      setActiveTemplate(template);
-      setPreviewTemplateKey(null);
-      setPreviewTemplateName(null);
-      setApplySuccess('Template applique avec succes.');
-      setActiveTab('apercu');
-      setTimeout(() => setApplySuccess(null), 4000);
-    } catch (err: unknown) {
-      const supaErr = err as { code?: string; message?: string; details?: string; hint?: string };
-      const parts = [supaErr.message || (err instanceof Error ? err.message : String(err))];
-      if (supaErr.code) parts.unshift(`[${supaErr.code}]`);
-      if (supaErr.details) parts.push(supaErr.details);
-      const msg = parts.join(' ');
-      console.error('[ApplyTemplate] error', { code: supaErr.code, message: supaErr.message, details: supaErr.details, hint: supaErr.hint, raw: err });
-      setApplyError(msg);
+    if (page) {
+      await applyTemplate(page.id, template.id);
+    } else {
+      await createOrUpdateSite({
+        siteScope,
+        companyId: resolvedCompanyId,
+        companyName: resolvedCompanyName,
+        templateId: template.id,
+      });
     }
+    setActiveTemplate(template);
+    setPreviewTemplateKey(null);
+    setPreviewTemplateName(null);
+    setActiveTab('apercu');
+    await loadData(true);
   };
 
   const handlePreview = (template: SiteTemplate) => {
@@ -248,23 +167,6 @@ export default function SiteManagerShell({ ownerType, title, subtitle, companyId
         style={{ background: t.card.bg, border: `1px solid ${t.card.border}`, boxShadow: t.card.shadow }}
       >
         <SiteTabs activeTab={activeTab} onTabChange={setActiveTab} />
-
-        {applySuccess && (
-          <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl" style={{ background: 'rgba(22,163,106,0.08)', border: '1px solid rgba(22,163,106,0.15)' }}>
-            <CheckCircle2 className="w-4 h-4 flex-shrink-0" style={{ color: '#16a34a' }} />
-            <p className="text-xs font-medium" style={{ color: '#16a34a' }}>{applySuccess}</p>
-          </div>
-        )}
-
-        {applyError && (
-          <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)' }}>
-            <AlertCircle className="w-4 h-4 flex-shrink-0" style={{ color: '#ef4444' }} />
-            <p className="text-xs" style={{ color: '#f87171' }}>{applyError}</p>
-            <button onClick={() => setApplyError(null)} className="ml-auto text-xs font-medium px-2 py-1 rounded-lg transition-colors" style={{ color: '#f87171' }}>
-              <X className="w-3 h-3" />
-            </button>
-          </div>
-        )}
 
         <div className="min-h-[200px]">
           {loading ? (

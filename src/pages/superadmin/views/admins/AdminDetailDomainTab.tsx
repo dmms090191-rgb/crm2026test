@@ -1,9 +1,21 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Globe, Save, Loader2, Trash2 } from 'lucide-react';
+import { Globe, ShieldCheck, Clock, AlertCircle, ExternalLink, RefreshCw, Trash2, Save, Loader2 } from 'lucide-react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 import { getHomePageByCompanyId, type CompanyHomePage } from '../../../../lib/companyHomePages';
 import { callManageDomain } from '../../../superadmin/views/sites/domainTypes';
-import DomainChecklist from '../../../../components/domain/DomainChecklist';
+import CopyButton from '../../../../components/CopyButton';
+
+const STATUS_MAP: Record<string, { label: string; color: string; bg: string; border: string }> = {
+  not_configured: { label: 'Non configure', color: '#6b7280', bg: 'rgba(107,114,128,0.08)', border: 'rgba(107,114,128,0.15)' },
+  pending: { label: 'En attente de verification', color: '#f59e0b', bg: 'rgba(245,158,11,0.08)', border: 'rgba(245,158,11,0.15)' },
+  verified: { label: 'Verifie', color: '#16a34a', bg: 'rgba(22,163,106,0.08)', border: 'rgba(22,163,106,0.15)' },
+  error: { label: 'Erreur', color: '#ef4444', bg: 'rgba(239,68,68,0.08)', border: 'rgba(239,68,68,0.15)' },
+};
+
+const DNS_RECORDS = [
+  { type: 'A', name: '@', value: '76.76.21.21', desc: 'Pour le domaine principal' },
+  { type: 'CNAME', name: 'www', value: 'cname.vercel-dns.com', desc: 'Pour www' },
+];
 
 interface Props {
   companyId: string;
@@ -16,6 +28,7 @@ export default function AdminDetailDomainTab({ companyId, onUpdate }: Props) {
   const [loading, setLoading] = useState(true);
   const [domainInput, setDomainInput] = useState('');
   const [saving, setSaving] = useState(false);
+  const [verifying, setVerifying] = useState(false);
   const [removing, setRemoving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -34,10 +47,7 @@ export default function AdminDetailDomainTab({ companyId, onUpdate }: Props) {
 
   useEffect(() => { loadPage(); }, [loadPage]);
 
-  const flash = (type: 'success' | 'error', text: string) => {
-    setMessage({ type, text });
-    setTimeout(() => setMessage(null), 4000);
-  };
+  const clearMsg = () => setTimeout(() => setMessage(null), 4000);
 
   function cleanDomain(raw: string): string {
     let d = raw.trim().toLowerCase();
@@ -47,8 +57,8 @@ export default function AdminDetailDomainTab({ companyId, onUpdate }: Props) {
 
   async function handleSave() {
     const domain = cleanDomain(domainInput);
-    if (!domain) { flash('error', 'Entrez un nom de domaine.'); return; }
-    if (!page) { flash('error', 'Aucun site trouve pour cette societe. Creez d\'abord un site.'); return; }
+    if (!domain) { setMessage({ type: 'error', text: 'Entrez un nom de domaine.' }); clearMsg(); return; }
+    if (!page) { setMessage({ type: 'error', text: 'Aucun site trouve pour cette societe. Creez d\'abord un site.' }); clearMsg(); return; }
 
     setSaving(true);
     setMessage(null);
@@ -61,16 +71,40 @@ export default function AdminDetailDomainTab({ companyId, onUpdate }: Props) {
         domain_type: 'external_connected',
       });
       if (res.error) {
-        flash('error', res.error);
+        setMessage({ type: 'error', text: res.error });
       } else {
-        flash('success', `Domaine ${domain} enregistre et ajoute a Vercel.`);
+        setMessage({ type: 'success', text: `Domaine ${domain} enregistre. Configurez le DNS chez Hostinger puis verifiez.` });
         onUpdate();
       }
       await loadPage();
     } catch (e) {
-      flash('error', String(e));
+      setMessage({ type: 'error', text: String(e) });
     } finally {
       setSaving(false);
+      clearMsg();
+    }
+  }
+
+  async function handleVerify() {
+    if (!page?.custom_domain) return;
+    setVerifying(true);
+    setMessage(null);
+    try {
+      const res = await callManageDomain('verify', page.custom_domain, page.id);
+      if (res.error) {
+        setMessage({ type: 'error', text: res.error });
+      } else if (res.verified) {
+        setMessage({ type: 'success', text: 'Domaine verifie avec succes !' });
+        onUpdate();
+      } else {
+        setMessage({ type: 'error', text: 'DNS pas encore propage. Reessayez dans quelques minutes.' });
+      }
+      await loadPage();
+    } catch (e) {
+      setMessage({ type: 'error', text: String(e) });
+    } finally {
+      setVerifying(false);
+      clearMsg();
     }
   }
 
@@ -81,17 +115,18 @@ export default function AdminDetailDomainTab({ companyId, onUpdate }: Props) {
     try {
       const res = await callManageDomain('remove', page.custom_domain, page.id);
       if (res.error) {
-        flash('error', res.error);
+        setMessage({ type: 'error', text: res.error });
       } else {
-        flash('success', 'Domaine retire.');
+        setMessage({ type: 'success', text: 'Domaine retire.' });
         setDomainInput('');
         onUpdate();
       }
       await loadPage();
     } catch (e) {
-      flash('error', String(e));
+      setMessage({ type: 'error', text: String(e) });
     } finally {
       setRemoving(false);
+      clearMsg();
     }
   }
 
@@ -114,7 +149,11 @@ export default function AdminDetailDomainTab({ companyId, onUpdate }: Props) {
     );
   }
 
+  const status = STATUS_MAP[page.domain_status] ?? STATUS_MAP.not_configured;
   const hasDomain = !!page.custom_domain;
+  const isVerified = page.domain_verified && page.domain_status === 'verified';
+  const isPending = hasDomain && !isVerified;
+  const domainUrl = isVerified ? `https://${page.custom_domain}` : null;
   const inputChanged = cleanDomain(domainInput) !== (page.custom_domain || '');
 
   return (
@@ -135,6 +174,69 @@ export default function AdminDetailDomainTab({ companyId, onUpdate }: Props) {
         />
       </div>
 
+      {/* Status badge */}
+      {hasDomain && (
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: t.text.quaternary }}>Statut</span>
+          <span
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold"
+            style={{ background: status.bg, border: `1px solid ${status.border}`, color: status.color }}
+          >
+            {isVerified ? <ShieldCheck className="w-3 h-3" /> : page.domain_status === 'error' ? <AlertCircle className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
+            {status.label}
+          </span>
+        </div>
+      )}
+
+      {/* Verified link */}
+      {domainUrl && (
+        <a href={domainUrl} target="_blank" rel="noopener noreferrer"
+          className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all hover:scale-[1.01]"
+          style={{ background: 'rgba(22,163,106,0.06)', border: '1px solid rgba(22,163,106,0.15)', color: '#16a34a' }}>
+          <ExternalLink className="w-3.5 h-3.5" />
+          {page.custom_domain}
+        </a>
+      )}
+
+      {/* DNS instructions when pending */}
+      {isPending && (
+        <div className="rounded-xl p-4 space-y-3" style={{ background: 'rgba(245,158,11,0.04)', border: '1px solid rgba(245,158,11,0.12)' }}>
+          <p className="text-[11px] font-bold uppercase tracking-wider" style={{ color: '#f59e0b' }}>
+            Configuration DNS chez Hostinger
+          </p>
+          <div className="space-y-2">
+            {DNS_RECORDS.map(r => (
+              <div key={r.name} className="rounded-lg px-3 py-2.5" style={{ background: t.surface.primary, border: `1px solid ${t.surface.border}` }}>
+                <p className="text-[10px] mb-1.5" style={{ color: t.text.tertiary }}>{r.desc}</p>
+                <div className="grid grid-cols-3 gap-2 text-[11px]">
+                  <div>
+                    <span className="block text-[9px] uppercase font-bold" style={{ color: t.text.quaternary }}>Type</span>
+                    <span style={{ color: t.text.primary }}>{r.type}</span>
+                  </div>
+                  <div className="flex items-end gap-1">
+                    <div className="min-w-0">
+                      <span className="block text-[9px] uppercase font-bold" style={{ color: t.text.quaternary }}>Nom</span>
+                      <span className="font-mono" style={{ color: t.text.primary }}>{r.name}</span>
+                    </div>
+                    <CopyButton value={r.name} label="Copier le nom" />
+                  </div>
+                  <div className="flex items-end gap-1">
+                    <div className="min-w-0 overflow-hidden">
+                      <span className="block text-[9px] uppercase font-bold" style={{ color: t.text.quaternary }}>Valeur</span>
+                      <span className="font-mono truncate block" style={{ color: t.text.primary }}>{r.value}</span>
+                    </div>
+                    <CopyButton value={r.value} label="Copier la valeur" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className="text-[10px]" style={{ color: t.text.tertiary }}>
+            La propagation DNS peut prendre jusqu'a 48h.
+          </p>
+        </div>
+      )}
+
       {/* Feedback message */}
       {message && (
         <p className="text-xs px-3 py-2 rounded-lg" style={{
@@ -144,13 +246,21 @@ export default function AdminDetailDomainTab({ companyId, onUpdate }: Props) {
       )}
 
       {/* Action buttons */}
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2 pt-1">
         {(inputChanged || !hasDomain) && (
           <button onClick={handleSave} disabled={saving || !domainInput.trim()}
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all disabled:opacity-50"
             style={{ background: t.accent.solid, color: t.text.primary, boxShadow: `0 0 12px ${t.accent.border}` }}>
             {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
             Enregistrer
+          </button>
+        )}
+        {hasDomain && !isVerified && (
+          <button onClick={handleVerify} disabled={verifying}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all disabled:opacity-50"
+            style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.2)', color: '#f59e0b' }}>
+            {verifying ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+            Verifier le domaine
           </button>
         )}
         {hasDomain && (
@@ -162,25 +272,6 @@ export default function AdminDetailDomainTab({ companyId, onUpdate }: Props) {
           </button>
         )}
       </div>
-
-      {/* 5-step checklist */}
-      {hasDomain && (
-        <>
-          <div className="pt-2" style={{ borderTop: `1px solid ${t.surface.border}` }}>
-            <p className="text-[10px] font-bold uppercase tracking-[0.15em] mb-3" style={{ color: t.text.quaternary }}>
-              Checklist domaine
-            </p>
-          </div>
-          <DomainChecklist
-            domain={page.custom_domain}
-            domainStatus={page.domain_status as 'not_configured' | 'pending' | 'verified' | 'error'}
-            domainVerified={page.domain_verified}
-            domainNotes={page.domain_notes || null}
-            pageId={page.id}
-            onRefresh={loadPage}
-          />
-        </>
-      )}
     </div>
   );
 }

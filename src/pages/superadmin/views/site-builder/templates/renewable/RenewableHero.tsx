@@ -4,8 +4,6 @@ interface Props {
   onLogin: () => void;
   onRegister: () => void;
   onScroll: (id: string) => void;
-  subtitle?: string;
-  welcomeMessage?: string;
 }
 
 function DashboardMockup() {
@@ -84,7 +82,7 @@ function StatusPill({ label, color }: { label: string; color: string }) {
   );
 }
 
-export default function RenewableHero({ onLogin, onRegister, onScroll, subtitle, welcomeMessage }: Props) {
+export default function RenewableHero({ onLogin, onRegister, onScroll }: Props) {
   return (
     <section className="relative overflow-hidden">
       <div className="absolute inset-0">
@@ -104,19 +102,15 @@ export default function RenewableHero({ onLogin, onRegister, onScroll, subtitle,
             </div>
 
             <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-[3.4rem] font-extrabold leading-[1.1] tracking-tight text-white">
-              {subtitle ? (
-                <>{subtitle}</>
-              ) : (
-                <>Passez a une energie{' '}
-                <span className="text-transparent bg-clip-text" style={{ backgroundImage: 'linear-gradient(135deg, #34d399, #22d3ee)' }}>
-                  plus propre, plus intelligente
-                </span>{' '}
-                et plus economique</>
-              )}
+              Passez a une energie{' '}
+              <span className="text-transparent bg-clip-text" style={{ backgroundImage: 'linear-gradient(135deg, #34d399, #22d3ee)' }}>
+                plus propre, plus intelligente
+              </span>{' '}
+              et plus economique
             </h1>
 
             <p className="text-base sm:text-lg text-slate-400 leading-relaxed max-w-xl mx-auto lg:mx-0">
-              {welcomeMessage || "Installez des solutions d'energie renouvelable adaptees a votre maison, reduisez vos factures et suivez votre projet de A a Z avec un accompagnement professionnel."}
+              Installez des solutions d'energie renouvelable adaptees a votre maison, reduisez vos factures et suivez votre projet de A a Z avec un accompagnement professionnel.
             </p>
 
             <div className="flex flex-col sm:flex-row items-center gap-3 justify-center lg:justify-start">

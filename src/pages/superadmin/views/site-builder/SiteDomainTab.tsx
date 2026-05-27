@@ -1,7 +1,21 @@
-import { Globe, ExternalLink, CheckCircle2, AlertCircle, Link2, Info, Settings2 } from 'lucide-react';
+import { useState } from 'react';
+import { Globe, ExternalLink, ShieldCheck, AlertCircle, Clock, Settings2, Link2, CheckCircle2, Info, RefreshCw, Loader2 } from 'lucide-react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 import type { CompanyHomePage } from '../../../../lib/companyHomePages';
-import DomainChecklist from '../../../../components/domain/DomainChecklist';
+import { callManageDomain } from '../sites/domainTypes';
+import CopyButton from '../../../../components/CopyButton';
+
+const STATUS_MAP: Record<string, { label: string; color: string; bg: string; border: string }> = {
+  not_configured: { label: 'Non configure', color: '#6b7280', bg: 'rgba(107,114,128,0.08)', border: 'rgba(107,114,128,0.15)' },
+  pending: { label: 'En attente', color: '#f59e0b', bg: 'rgba(245,158,11,0.08)', border: 'rgba(245,158,11,0.15)' },
+  verified: { label: 'Verifie', color: '#16a34a', bg: 'rgba(22,163,106,0.08)', border: 'rgba(22,163,106,0.15)' },
+  error: { label: 'Erreur', color: '#ef4444', bg: 'rgba(239,68,68,0.08)', border: 'rgba(239,68,68,0.15)' },
+};
+
+const DNS_RECORDS = [
+  { type: 'A', name: '@', value: '76.76.21.21', desc: 'Pour le domaine principal' },
+  { type: 'CNAME', name: 'www', value: 'cname.vercel-dns.com', desc: 'Pour www' },
+];
 
 interface Props {
   page: CompanyHomePage | null;
@@ -12,6 +26,9 @@ interface Props {
 
 export default function SiteDomainTab({ page, onOpenDomainManager, ownerType = 'super_admin', onPageRefresh }: Props) {
   const t = useThemeTokens();
+  const [verifying, setVerifying] = useState(false);
+  const [verifyMsg, setVerifyMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
   const isAdmin = ownerType === 'admin_company';
 
   if (!page) {
@@ -31,21 +48,93 @@ export default function SiteDomainTab({ page, onOpenDomainManager, ownerType = '
           Aucun site actif
         </p>
         <p className="text-xs mt-2 text-center max-w-xs" style={{ color: t.text.tertiary }}>
-          Creez d'abord un site en appliquant un template avant de configurer un domaine.
+          {isAdmin
+            ? 'Aucun site configure. Contactez votre administrateur.'
+            : 'Creez d\'abord un site en appliquant un template avant de configurer un domaine.'}
         </p>
       </div>
     );
   }
 
+  const status = STATUS_MAP[page.domain_status] ?? STATUS_MAP.not_configured;
   const hasDomain = !!page.custom_domain;
+  const isVerified = page.domain_verified && page.domain_status === 'verified';
+  const isPending = hasDomain && !isVerified;
+  const domainUrl = hasDomain && page.domain_verified ? `https://${page.custom_domain}` : null;
   const publicUrl = page.slug ? `${window.location.origin}/site/${page.slug}` : null;
+
+  async function handleVerify() {
+    if (!page?.custom_domain) return;
+    setVerifying(true);
+    setVerifyMsg(null);
+    try {
+      const res = await callManageDomain('verify', page.custom_domain, page.id);
+      if (res.error) {
+        setVerifyMsg({ type: 'error', text: res.error });
+      } else if (res.verified) {
+        setVerifyMsg({ type: 'success', text: 'Domaine verifie avec succes !' });
+        onPageRefresh?.();
+      } else {
+        setVerifyMsg({ type: 'error', text: 'DNS pas encore propage. Reessayez dans quelques minutes.' });
+      }
+    } catch (e) {
+      setVerifyMsg({ type: 'error', text: String(e) });
+    } finally {
+      setVerifying(false);
+      setTimeout(() => setVerifyMsg(null), 4000);
+    }
+  }
 
   return (
     <div className="space-y-4">
       {/* Internal link card */}
-      <InternalLinkCard page={page} publicUrl={publicUrl} t={t} />
+      <div className="rounded-xl p-5 space-y-4" style={{ background: t.surface.primary, border: `1px solid ${t.surface.border}` }}>
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+            style={{ background: 'linear-gradient(135deg, #16a34a, #15803d)', boxShadow: '0 0 16px rgba(22,163,106,0.3)' }}>
+            <Link2 className="w-5 h-5 text-white" />
+          </div>
+          <div className="min-w-0">
+            <h3 className="text-sm font-bold" style={{ color: t.text.primary }}>Lien interne Talvex</h3>
+            <p className="text-[10px]" style={{ color: t.text.quaternary }}>Accessible sans domaine personnalise</p>
+          </div>
+        </div>
 
-      {/* Domain section */}
+        <div className="space-y-3 pt-2" style={{ borderTop: `1px solid ${t.surface.border}` }}>
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: t.text.quaternary }}>Site interne actif</span>
+            <span
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold"
+              style={{
+                background: page.is_active ? 'rgba(22,163,106,0.08)' : 'rgba(239,68,68,0.08)',
+                border: `1px solid ${page.is_active ? 'rgba(22,163,106,0.15)' : 'rgba(239,68,68,0.15)'}`,
+                color: page.is_active ? '#16a34a' : '#ef4444',
+              }}
+            >
+              {page.is_active ? <CheckCircle2 className="w-3 h-3" /> : <AlertCircle className="w-3 h-3" />}
+              {page.is_active ? 'Oui' : 'Non'}
+            </span>
+          </div>
+
+          {page.slug && (
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: t.text.quaternary }}>Lien interne</span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-mono" style={{ color: t.text.secondary }}>/site/{page.slug}</span>
+                {publicUrl && (
+                  <a href={publicUrl} target="_blank" rel="noopener noreferrer"
+                    className="w-6 h-6 rounded-md flex items-center justify-center transition-all hover:scale-110"
+                    style={{ background: t.surface.secondary, border: `1px solid ${t.surface.border}` }}>
+                    <ExternalLink className="w-3 h-3" style={{ color: '#0ea5e9' }} />
+                  </a>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Domain configuration card */}
       <div className="rounded-xl p-5 space-y-4" style={{ background: t.surface.primary, border: `1px solid ${t.surface.border}` }}>
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
@@ -55,37 +144,115 @@ export default function SiteDomainTab({ page, onOpenDomainManager, ownerType = '
           <div className="min-w-0">
             <h3 className="text-sm font-bold" style={{ color: t.text.primary }}>Domaine personnalise</h3>
             <p className="text-[10px]" style={{ color: t.text.quaternary }}>
-              {hasDomain ? page.custom_domain : isAdmin ? 'Gere par votre Super Admin' : 'Aucun domaine configure'}
+              {isAdmin ? 'Gere par votre Super Admin' : 'Optionnel - connectez un domaine plus tard'}
             </p>
           </div>
         </div>
 
-        {/* Checklist when domain exists */}
-        {hasDomain && (
-          <div className="pt-3" style={{ borderTop: `1px solid ${t.surface.border}` }}>
-            <DomainChecklist
-              domain={page.custom_domain}
-              domainStatus={page.domain_status as 'not_configured' | 'pending' | 'verified' | 'error'}
-              domainVerified={page.domain_verified}
-              domainNotes={page.domain_notes || null}
-              pageId={page.id}
-              readOnly={isAdmin}
-              onRefresh={onPageRefresh}
-            />
+        <div className="space-y-3 pt-2" style={{ borderTop: `1px solid ${t.surface.border}` }}>
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: t.text.quaternary }}>Statut</span>
+            <span
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold"
+              style={{ background: status.bg, border: `1px solid ${status.border}`, color: status.color }}
+            >
+              {page.domain_status === 'verified' ? <ShieldCheck className="w-3 h-3" /> :
+               page.domain_status === 'error' ? <AlertCircle className="w-3 h-3" /> :
+               <Clock className="w-3 h-3" />}
+              {status.label}
+            </span>
           </div>
-        )}
 
-        {/* No domain message */}
-        {!hasDomain && (
-          <div className="pt-3" style={{ borderTop: `1px solid ${t.surface.border}` }}>
-            <p className="text-xs" style={{ color: t.text.tertiary }}>
-              {isAdmin
-                ? 'Aucun domaine attribue. Contactez votre Super Admin pour en configurer un.'
-                : 'Attribuez un domaine via le panneau d\'administration de la societe ou le gestionnaire de domaines.'}
-            </p>
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: t.text.quaternary }}>Domaine</span>
+            {hasDomain ? (
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold" style={{ color: t.text.primary }}>{page.custom_domain}</span>
+                {domainUrl && (
+                  <a href={domainUrl} target="_blank" rel="noopener noreferrer"
+                    className="w-6 h-6 rounded-md flex items-center justify-center transition-all hover:scale-110"
+                    style={{ background: t.surface.secondary, border: `1px solid ${t.surface.border}` }}>
+                    <ExternalLink className="w-3 h-3" style={{ color: '#0ea5e9' }} />
+                  </a>
+                )}
+              </div>
+            ) : (
+              <span className="text-xs" style={{ color: t.text.tertiary }}>
+                {isAdmin ? 'Aucun domaine attribue' : 'Aucun domaine configure'}
+              </span>
+            )}
           </div>
-        )}
+
+          {hasDomain && page.domain_provider && (
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: t.text.quaternary }}>Fournisseur</span>
+              <span className="text-xs font-medium capitalize" style={{ color: t.text.secondary }}>
+                {page.domain_provider}
+              </span>
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* DNS instructions for admin when pending */}
+      {isAdmin && isPending && (
+        <div className="rounded-xl p-4 space-y-3" style={{ background: 'rgba(245,158,11,0.04)', border: '1px solid rgba(245,158,11,0.12)' }}>
+          <p className="text-[11px] font-bold uppercase tracking-wider" style={{ color: '#f59e0b' }}>
+            Configuration DNS requise
+          </p>
+          <div className="space-y-2">
+            {DNS_RECORDS.map(r => (
+              <div key={r.name} className="rounded-lg px-3 py-2.5" style={{ background: t.surface.primary, border: `1px solid ${t.surface.border}` }}>
+                <p className="text-[10px] mb-1.5" style={{ color: t.text.tertiary }}>{r.desc}</p>
+                <div className="grid grid-cols-3 gap-2 text-[11px]">
+                  <div>
+                    <span className="block text-[9px] uppercase font-bold" style={{ color: t.text.quaternary }}>Type</span>
+                    <span style={{ color: t.text.primary }}>{r.type}</span>
+                  </div>
+                  <div className="flex items-end gap-1">
+                    <div className="min-w-0">
+                      <span className="block text-[9px] uppercase font-bold" style={{ color: t.text.quaternary }}>Nom</span>
+                      <span className="font-mono" style={{ color: t.text.primary }}>{r.name}</span>
+                    </div>
+                    <CopyButton value={r.name} label="Copier le nom" />
+                  </div>
+                  <div className="flex items-end gap-1">
+                    <div className="min-w-0 overflow-hidden">
+                      <span className="block text-[9px] uppercase font-bold" style={{ color: t.text.quaternary }}>Valeur</span>
+                      <span className="font-mono truncate block" style={{ color: t.text.primary }}>{r.value}</span>
+                    </div>
+                    <CopyButton value={r.value} label="Copier la valeur" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className="text-[10px]" style={{ color: t.text.tertiary }}>
+            La propagation DNS peut prendre jusqu'a 48h.
+          </p>
+        </div>
+      )}
+
+      {/* Verify feedback */}
+      {verifyMsg && (
+        <p className="text-xs px-3 py-2 rounded-lg" style={{
+          background: verifyMsg.type === 'success' ? 'rgba(22,163,106,0.08)' : 'rgba(239,68,68,0.08)',
+          color: verifyMsg.type === 'success' ? '#16a34a' : '#f87171',
+        }}>{verifyMsg.text}</p>
+      )}
+
+      {/* Admin: verify button */}
+      {isAdmin && isPending && (
+        <button
+          onClick={handleVerify}
+          disabled={verifying}
+          className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-xs font-semibold transition-all hover:scale-[1.01] disabled:opacity-50"
+          style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.2)', color: '#f59e0b' }}
+        >
+          {verifying ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+          Verifier maintenant
+        </button>
+      )}
 
       {/* Info card */}
       <div className="rounded-xl px-4 py-3" style={{ background: 'rgba(14,165,233,0.05)', border: '1px solid rgba(14,165,233,0.12)' }}>
@@ -98,7 +265,7 @@ export default function SiteDomainTab({ page, onOpenDomainManager, ownerType = '
             <p className="text-xs leading-relaxed" style={{ color: t.text.tertiary }}>
               {isAdmin
                 ? 'Le domaine est gere par votre Super Admin. Contactez-le pour tout changement.'
-                : 'Quand un domaine sera connecte, il pointera vers ce site. Le contenu et le template resteront les memes.'}
+                : 'Quand un domaine sera connecte, il pointera vers ce site deja enregistre. Le contenu et le template resteront les memes.'}
             </p>
           </div>
         </div>
@@ -119,56 +286,6 @@ export default function SiteDomainTab({ page, onOpenDomainManager, ownerType = '
           Gerer les domaines
         </button>
       )}
-    </div>
-  );
-}
-
-function InternalLinkCard({ page, publicUrl, t }: { page: CompanyHomePage; publicUrl: string | null; t: ReturnType<typeof useThemeTokens> }) {
-  return (
-    <div className="rounded-xl p-5 space-y-4" style={{ background: t.surface.primary, border: `1px solid ${t.surface.border}` }}>
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-          style={{ background: 'linear-gradient(135deg, #16a34a, #15803d)', boxShadow: '0 0 16px rgba(22,163,106,0.3)' }}>
-          <Link2 className="w-5 h-5 text-white" />
-        </div>
-        <div className="min-w-0">
-          <h3 className="text-sm font-bold" style={{ color: t.text.primary }}>Lien interne Talvex</h3>
-          <p className="text-[10px]" style={{ color: t.text.quaternary }}>Accessible sans domaine personnalise</p>
-        </div>
-      </div>
-
-      <div className="space-y-3 pt-2" style={{ borderTop: `1px solid ${t.surface.border}` }}>
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: t.text.quaternary }}>Site interne actif</span>
-          <span
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold"
-            style={{
-              background: page.is_active ? 'rgba(22,163,106,0.08)' : 'rgba(239,68,68,0.08)',
-              border: `1px solid ${page.is_active ? 'rgba(22,163,106,0.15)' : 'rgba(239,68,68,0.15)'}`,
-              color: page.is_active ? '#16a34a' : '#ef4444',
-            }}
-          >
-            {page.is_active ? <CheckCircle2 className="w-3 h-3" /> : <AlertCircle className="w-3 h-3" />}
-            {page.is_active ? 'Oui' : 'Non'}
-          </span>
-        </div>
-
-        {page.slug && (
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: t.text.quaternary }}>Lien interne</span>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-mono" style={{ color: t.text.secondary }}>/site/{page.slug}</span>
-              {publicUrl && (
-                <a href={publicUrl} target="_blank" rel="noopener noreferrer"
-                  className="w-6 h-6 rounded-md flex items-center justify-center transition-all hover:scale-110"
-                  style={{ background: t.surface.secondary, border: `1px solid ${t.surface.border}` }}>
-                  <ExternalLink className="w-3 h-3" style={{ color: '#0ea5e9' }} />
-                </a>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
     </div>
   );
 }

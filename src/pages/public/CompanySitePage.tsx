@@ -1,29 +1,27 @@
 import { useState, useEffect } from 'react';
 import { LogIn, Loader2, AlertCircle } from 'lucide-react';
 import LoginModal from '../../components/LoginModal';
-import { getHomePageBySlug, getHomePageByDomain, getTemplateById, type CompanyHomePageWithCompany } from '../../lib/companyHomePages';
+import { getHomePageBySlug, getTemplateById, type CompanyHomePage } from '../../lib/companyHomePages';
 import { getTemplateComponent } from '../superadmin/views/site-builder/templates/templateRegistry';
 
 interface Props {
-  slug?: string;
-  domain?: string;
+  slug: string;
 }
 
-export default function CompanySitePage({ slug, domain }: Props) {
-  const [page, setPage] = useState<CompanyHomePageWithCompany | null>(null);
+export default function CompanySitePage({ slug }: Props) {
+  const [page, setPage] = useState<CompanyHomePage | null>(null);
   const [templateKey, setTemplateKey] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
 
   useEffect(() => {
-    const fetchPage = slug
-      ? getHomePageBySlug(slug)
-      : domain
-        ? getHomePageByDomain(domain)
-        : Promise.resolve(null);
-
-    fetchPage
+    if (slug === '__domain_not_found__') {
+      setNotFound(true);
+      setLoading(false);
+      return;
+    }
+    getHomePageBySlug(slug)
       .then(async (data) => {
         if (!data) { setNotFound(true); return; }
         setPage(data);
@@ -34,30 +32,17 @@ export default function CompanySitePage({ slug, domain }: Props) {
       })
       .catch(() => setNotFound(true))
       .finally(() => setLoading(false));
-  }, [slug, domain]);
+  }, [slug]);
 
   const handleLogin = () => {
-    window.location.reload();
+    window.location.href = '/';
   };
 
   if (loading) return <LoadingScreen />;
   if (notFound || !page) return <NotFoundScreen />;
 
-  const companyName = page.companies?.name || page.title || undefined;
-
   const TemplateComponent = templateKey ? getTemplateComponent(templateKey) : null;
-  if (TemplateComponent) return (
-    <TemplateComponent
-      companyName={companyName}
-      title={page.title || undefined}
-      subtitle={page.subtitle || undefined}
-      welcomeMessage={page.welcome_message || undefined}
-      logoUrl={page.logo_url}
-      heroImageUrl={page.hero_image_url}
-      mainColor={page.main_color}
-      secondaryColor={page.secondary_color}
-    />
-  );
+  if (TemplateComponent) return <TemplateComponent />;
 
   const mainColor = page.main_color || '#0ea5e9';
   const secondaryColor = page.secondary_color || '#10b981';

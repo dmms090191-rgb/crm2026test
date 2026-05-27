@@ -7,10 +7,7 @@ const SERVICES = [
   { icon: <CalendarCheck className="w-5 h-5" />, title: 'Suivi & Rendez-vous', desc: 'Reservez vos seances, suivez vos progres et gerez votre abonnement en ligne.' },
 ];
 
-import type { SitePageProps } from './templateRegistry';
-
-export default function FitnessTemplate({ companyName, welcomeMessage }: SitePageProps) {
-  const brand = companyName || 'Fitness Club';
+export default function FitnessTemplate() {
   return (
     <div className="min-h-full bg-slate-950 text-white">
       {/* Hero */}
@@ -28,7 +25,8 @@ export default function FitnessTemplate({ companyName, welcomeMessage }: SitePag
             </span>
           </h1>
           <p className="text-lg text-slate-400 max-w-2xl mx-auto mb-8">
-            {welcomeMessage || "Musculation, coaching, cours collectifs et suivi personnalise. Rejoignez une communaute motivee et atteignez vos objectifs."}
+            Musculation, coaching, cours collectifs et suivi personnalise.
+            Rejoignez une communaute motivee et atteignez vos objectifs.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <button className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl bg-gradient-to-r from-red-500 to-red-600 text-white font-semibold text-sm shadow-lg shadow-red-500/25">
@@ -76,7 +74,7 @@ export default function FitnessTemplate({ companyName, welcomeMessage }: SitePag
 
       {/* Footer */}
       <footer className="border-t border-slate-800 py-8 text-center">
-        <p className="text-xs text-slate-500">&copy; {new Date().getFullYear()} {brand}. Tous droits reserves.</p>
+        <p className="text-xs text-slate-500">&copy; {new Date().getFullYear()} Fitness Club. Tous droits reserves.</p>
       </footer>
     </div>
   );

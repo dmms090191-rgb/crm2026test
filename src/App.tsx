@@ -38,11 +38,11 @@ function App() {
   const [impersonatedVendor, setImpersonatedVendor] = useState<ImpersonatedVendor | null>(null);
   const [impersonatedClient, setImpersonatedClient] = useState<ImpersonatedClientInfo | null>(null);
   const [impersonatedAdmin, setImpersonatedAdmin] = useState<ImpersonatedAdmin | null>(null);
-  const { customDomain } = useCustomDomain();
+  const { customDomainSlug, customDomainNotFound } = useCustomDomain();
   const [saUserId, setSaUserId] = useState<string | null>(null);
   const [saDisplayName, setSaDisplayName] = useState('Support Talvex');
   const [landingTemplateKey, setLandingTemplateKey] = useState<string | null>(null);
-  const [landingTemplateLoaded, setLandingTemplateLoaded] = useState(!!customDomain);
+  const [landingTemplateLoaded, setLandingTemplateLoaded] = useState(false);
 
   async function detectRole() {
     const { data: { session } } = await supabase.auth.getSession();
@@ -99,12 +99,11 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (customDomain) return;
     getLandingTemplateKey()
       .then(key => { if (key) setLandingTemplateKey(key); })
       .catch(() => {})
       .finally(() => setLandingTemplateLoaded(true));
-  }, [customDomain]);
+  }, []);
 
   const handleLogin = () => { detectRole(); setIsModalOpen(false); };
 
@@ -126,8 +125,11 @@ function App() {
   }
 
   // --- Custom domain detection ---
-  if (customDomain && !role) {
-    return <CompanySitePage domain={customDomain} />;
+  if (customDomainSlug && !role) {
+    return <CompanySitePage slug={customDomainSlug} />;
+  }
+  if (customDomainNotFound && !role) {
+    return <CompanySitePage slug="__domain_not_found__" />;
   }
 
   // --- Super Admin branches ---
