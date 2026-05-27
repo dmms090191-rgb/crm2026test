@@ -6,7 +6,12 @@ import FitnessTemplate from './FitnessTemplate';
 import RealEstateTemplate from './RealEstateTemplate';
 import RenovationTemplate from './RenovationTemplate';
 
-const TEMPLATE_REGISTRY: Record<string, ComponentType> = {
+export interface TemplateProps {
+  domainCompanyId?: string | null;
+  onDomainLogin?: () => void;
+}
+
+const TEMPLATE_REGISTRY: Record<string, ComponentType<TemplateProps>> = {
   talvex_official: TalvexOfficialTemplate,
   renewable_energy: RenewableEnergyTemplate,
   heat_pump: HeatPumpTemplate,
@@ -15,7 +20,7 @@ const TEMPLATE_REGISTRY: Record<string, ComponentType> = {
   renovation: RenovationTemplate,
 };
 
-export function getTemplateComponent(templateKey: string): ComponentType | null {
+export function getTemplateComponent(templateKey: string): ComponentType<TemplateProps> | null {
   return TEMPLATE_REGISTRY[templateKey] ?? null;
 }
 

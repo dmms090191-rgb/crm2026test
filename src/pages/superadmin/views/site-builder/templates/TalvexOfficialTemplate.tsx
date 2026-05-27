@@ -14,14 +14,20 @@ const TABS: { id: InternalView; label: string; icon: React.ReactNode }[] = [
   { id: 'projects', label: 'Nos projets', icon: <Rocket className="w-3.5 h-3.5" /> },
 ];
 
-export default function TalvexOfficialTemplate() {
+interface TemplateProps {
+  domainCompanyId?: string | null;
+  onDomainLogin?: () => void;
+}
+
+export default function TalvexOfficialTemplate({ domainCompanyId, onDomainLogin }: TemplateProps = {}) {
   const [activeView, setActiveView] = useState<InternalView>('interactive');
   const [loginOpen, setLoginOpen] = useState(false);
   const [registerOpen, setRegisterOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const handleLogin = () => {
-    window.location.href = '/';
+    if (onDomainLogin) onDomainLogin();
+    else window.location.href = '/';
   };
 
   const handleOpenLogin = () => setLoginOpen(true);
@@ -71,7 +77,7 @@ export default function TalvexOfficialTemplate() {
       </div>
 
       {/* Auth modals */}
-      <TalvexLoginModal isOpen={loginOpen} onClose={() => setLoginOpen(false)} onLogin={handleLogin} onRegister={() => { setLoginOpen(false); setRegisterOpen(true); }} />
+      <TalvexLoginModal isOpen={loginOpen} onClose={() => setLoginOpen(false)} onLogin={handleLogin} onRegister={() => { setLoginOpen(false); setRegisterOpen(true); }} domainCompanyId={domainCompanyId} />
       <TalvexRegisterModal isOpen={registerOpen} onClose={() => setRegisterOpen(false)} onBackToLogin={() => { setRegisterOpen(false); setLoginOpen(true); }} />
     </div>
   );

@@ -15,12 +15,18 @@ import RenewableFooter from './renewable/RenewableFooter';
 
 const RENEWABLE_MODAL_THEME = getSiteModalTheme('renewable_energy');
 
-export default function RenewableEnergyTemplate() {
+interface TemplateProps {
+  domainCompanyId?: string | null;
+  onDomainLogin?: () => void;
+}
+
+export default function RenewableEnergyTemplate({ domainCompanyId, onDomainLogin }: TemplateProps = {}) {
   const [loginOpen, setLoginOpen] = useState(false);
   const [registerOpen, setRegisterOpen] = useState(false);
 
   const handleLogin = () => {
-    window.location.href = '/';
+    if (onDomainLogin) onDomainLogin();
+    else window.location.href = '/';
   };
 
   const handleOpenLogin = () => setLoginOpen(true);
@@ -49,7 +55,7 @@ export default function RenewableEnergyTemplate() {
         <RenewableFooter onLogin={handleOpenLogin} onRegister={handleOpenRegister} onScroll={handleScroll} />
       </div>
 
-      <TalvexLoginModal isOpen={loginOpen} onClose={() => setLoginOpen(false)} onLogin={handleLogin} onRegister={() => { setLoginOpen(false); setRegisterOpen(true); }} theme={RENEWABLE_MODAL_THEME} />
+      <TalvexLoginModal isOpen={loginOpen} onClose={() => setLoginOpen(false)} onLogin={handleLogin} onRegister={() => { setLoginOpen(false); setRegisterOpen(true); }} theme={RENEWABLE_MODAL_THEME} domainCompanyId={domainCompanyId} />
       <TalvexRegisterModal isOpen={registerOpen} onClose={() => setRegisterOpen(false)} onBackToLogin={() => { setRegisterOpen(false); setLoginOpen(true); }} theme={RENEWABLE_MODAL_THEME} />
     </div>
   );

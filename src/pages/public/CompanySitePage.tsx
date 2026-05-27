@@ -7,9 +7,10 @@ import { getTemplateComponent } from '../superadmin/views/site-builder/templates
 interface Props {
   slug: string;
   domainCompanyId?: string | null;
+  onLogin?: () => void;
 }
 
-export default function CompanySitePage({ slug, domainCompanyId }: Props) {
+export default function CompanySitePage({ slug, domainCompanyId, onLogin: onLoginProp }: Props) {
   const [page, setPage] = useState<CompanyHomePage | null>(null);
   const [templateKey, setTemplateKey] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -35,15 +36,18 @@ export default function CompanySitePage({ slug, domainCompanyId }: Props) {
       .finally(() => setLoading(false));
   }, [slug]);
 
+  const effectiveCompanyId = domainCompanyId ?? page?.company_id ?? null;
+
   const handleLogin = () => {
-    window.location.href = '/';
+    if (onLoginProp) onLoginProp();
+    else window.location.href = '/';
   };
 
   if (loading) return <LoadingScreen />;
   if (notFound || !page) return <NotFoundScreen />;
 
   const TemplateComponent = templateKey ? getTemplateComponent(templateKey) : null;
-  if (TemplateComponent) return <TemplateComponent />;
+  if (TemplateComponent) return <TemplateComponent domainCompanyId={effectiveCompanyId} onDomainLogin={handleLogin} />;
 
   const mainColor = page.main_color || '#0ea5e9';
   const secondaryColor = page.secondary_color || '#10b981';
@@ -145,7 +149,7 @@ export default function CompanySitePage({ slug, domainCompanyId }: Props) {
       </footer>
 
       {/* Login modal */}
-      <LoginModal isOpen={loginOpen} onClose={() => setLoginOpen(false)} onLogin={handleLogin} domainCompanyId={domainCompanyId ?? page.company_id} />
+      <LoginModal isOpen={loginOpen} onClose={() => setLoginOpen(false)} onLogin={handleLogin} domainCompanyId={effectiveCompanyId} />
     </div>
   );
 }

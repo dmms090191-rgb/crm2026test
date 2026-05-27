@@ -14,9 +14,10 @@ interface Props {
   onLogin: () => void;
   onRegister?: () => void;
   theme?: SiteModalTheme;
+  domainCompanyId?: string | null;
 }
 
-export default function TalvexLoginModal({ isOpen, onClose, onLogin, onRegister, theme: themeProp }: Props) {
+export default function TalvexLoginModal({ isOpen, onClose, onLogin, onRegister, theme: themeProp, domainCompanyId }: Props) {
   const t = themeProp ?? getSiteModalTheme();
   const [email, setEmail] = useState('');
   const [showPin, setShowPin] = useState(false);
@@ -62,16 +63,47 @@ export default function TalvexLoginModal({ isOpen, onClose, onLogin, onRegister,
     if (!email || pin.length !== 6) return;
     setLoading(true); setError('');
     const { error: authError } = await supabase.auth.signInWithPassword({ email, password: pin });
-    setLoading(false);
+
     if (authError) {
+      setLoading(false);
       setError('Email ou mot de passe incorrect.');
       setDigits(['', '', '', '', '', '']);
       setTimeout(() => pinRefs.current[0]?.focus(), 0);
-    } else {
-      supabase.auth.updateUser({ data: { pin } });
-      onLogin();
+      return;
     }
-  }, [email, digits, onLogin, setDigits, pinRefs]);
+
+    if (domainCompanyId) {
+      const { data: { user } } = await supabase.auth.getUser();
+      const meta = user?.app_metadata;
+      const appRole = meta?.role as string | undefined;
+
+      if (appRole !== 'super_admin') {
+        let userCompanyId: string | null = (meta?.company_id as string) ?? null;
+
+        if (!userCompanyId && appRole === 'client') {
+          const { data: reg } = await supabase
+            .from('registrations')
+            .select('company_id')
+            .eq('email', email.toLowerCase().trim())
+            .maybeSingle();
+          userCompanyId = reg?.company_id ?? null;
+        }
+
+        if (userCompanyId !== domainCompanyId) {
+          await supabase.auth.signOut();
+          setLoading(false);
+          setError('Ce compte n\'est pas autorise sur ce domaine.');
+          setDigits(['', '', '', '', '', '']);
+          setTimeout(() => pinRefs.current[0]?.focus(), 0);
+          return;
+        }
+      }
+    }
+
+    setLoading(false);
+    supabase.auth.updateUser({ data: { pin } });
+    onLogin();
+  }, [email, digits, onLogin, setDigits, pinRefs, domainCompanyId]);
 
   validateRef.current = handleValidate;
 

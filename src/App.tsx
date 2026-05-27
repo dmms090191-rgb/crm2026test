@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy } from 'react';
+import { useState, useEffect, useCallback, lazy } from 'react';
 import LoginModal from './components/LoginModal';
 import type { ImpersonatedVendor } from './pages/vendor/VendorDashboard';
 import type { ImpersonatedClientInfo } from './pages/client/ClientDashboard';
@@ -45,20 +45,55 @@ function App() {
   const [landingTemplateKey, setLandingTemplateKey] = useState<string | null>(null);
   const [landingTemplateLoaded, setLandingTemplateLoaded] = useState(false);
 
-  async function resolveUserCompanyId(userId: string, appRole: string, metaCompanyId?: string): Promise<string | null> {
+  async function resolveUserCompanyId(userEmail: string, appRole: string, metaCompanyId?: string): Promise<string | null> {
     if (metaCompanyId) return metaCompanyId;
     if (appRole === 'client') {
       const { data } = await supabase
         .from('registrations')
         .select('company_id')
-        .eq('email', (await supabase.auth.getUser()).data.user?.email ?? '')
+        .eq('email', userEmail)
         .maybeSingle();
       return data?.company_id ?? null;
     }
     return null;
   }
 
-  async function detectRole() {
+  function applySession(session: { user: { id: string; email?: string; app_metadata: Record<string, unknown>; user_metadata: Record<string, unknown> } }, domainCid: string | null) {
+    const meta = session.user.app_metadata;
+    const appRole = meta?.role as string | undefined;
+    if (appRole === 'admin' && meta?.access_enabled === false) {
+      setAccessBlocked(true);
+      setRole(null);
+      setDomainBlocked(false);
+      return Promise.resolve();
+    }
+    setAccessBlocked(false);
+
+    return (async () => {
+      if (domainCid && appRole !== 'super_admin') {
+        const userCompanyId = await resolveUserCompanyId(session.user.email ?? '', appRole ?? '', meta?.company_id as string | undefined);
+        if (userCompanyId !== domainCid) {
+          setDomainBlocked(true);
+          setRole(null);
+          return;
+        }
+      }
+      setDomainBlocked(false);
+
+      if (appRole === 'super_admin') {
+        setRole('super_admin');
+        setSaUserId(session.user.id);
+        const um = session.user.user_metadata ?? {};
+        const name = [um.first_name as string, um.last_name as string].filter(Boolean).join(' ');
+        setSaDisplayName(name || 'Support Talvex');
+      }
+      else if (appRole === 'vendor') setRole('vendor');
+      else if (appRole === 'client') setRole('client');
+      else setRole('admin');
+    })();
+  }
+
+  const detectRole = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
       setRole(null);
@@ -67,39 +102,9 @@ function App() {
       setLoading(false);
       return;
     }
-    const meta = session.user.app_metadata;
-    const appRole = meta?.role;
-    if (appRole === 'admin' && meta?.access_enabled === false) {
-      setAccessBlocked(true);
-      setRole(null);
-      setLoading(false);
-      return;
-    }
-    setAccessBlocked(false);
-
-    if (customDomainCompanyId && appRole !== 'super_admin') {
-      const userCompanyId = await resolveUserCompanyId(session.user.id, appRole, meta?.company_id);
-      if (userCompanyId !== customDomainCompanyId) {
-        setDomainBlocked(true);
-        setRole(null);
-        setLoading(false);
-        return;
-      }
-    }
-    setDomainBlocked(false);
-
-    if (appRole === 'super_admin') {
-      setRole('super_admin');
-      setSaUserId(session.user.id);
-      const um = session.user.user_metadata ?? {};
-      const name = [um.first_name, um.last_name].filter(Boolean).join(' ');
-      setSaDisplayName(name || 'Support Talvex');
-    }
-    else if (appRole === 'vendor') setRole('vendor');
-    else if (appRole === 'client') setRole('client');
-    else setRole('admin');
+    await applySession(session, customDomainCompanyId);
     setLoading(false);
-  }
+  }, [customDomainCompanyId]);
 
   useEffect(() => {
     detectRole();
@@ -109,35 +114,11 @@ function App() {
         setAccessBlocked(false);
         setDomainBlocked(false);
       } else {
-        (async () => {
-          const meta = session.user.app_metadata;
-          const appRole = meta?.role;
-          if (appRole === 'admin' && meta?.access_enabled === false) {
-            setAccessBlocked(true);
-            setRole(null);
-            return;
-          }
-          setAccessBlocked(false);
-
-          if (customDomainCompanyId && appRole !== 'super_admin') {
-            const userCompanyId = await resolveUserCompanyId(session.user.id, appRole, meta?.company_id);
-            if (userCompanyId !== customDomainCompanyId) {
-              setDomainBlocked(true);
-              setRole(null);
-              return;
-            }
-          }
-          setDomainBlocked(false);
-
-          if (appRole === 'super_admin') setRole('super_admin');
-          else if (appRole === 'vendor') setRole('vendor');
-          else if (appRole === 'client') setRole('client');
-          else setRole('admin');
-        })();
+        applySession(session, customDomainCompanyId);
       }
     });
     return () => subscription.unsubscribe();
-  }, []);
+  }, [customDomainCompanyId]);
 
   useEffect(() => {
     getLandingTemplateKey()
@@ -147,6 +128,7 @@ function App() {
   }, []);
 
   const handleLogin = () => { detectRole(); setIsModalOpen(false); };
+  const handleDomainLogin = useCallback(() => { detectRole(); }, [detectRole]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -168,7 +150,7 @@ function App() {
 
   // --- Custom domain detection ---
   if (customDomainSlug && !role) {
-    return <CompanySitePage slug={customDomainSlug} domainCompanyId={customDomainCompanyId} />;
+    return <CompanySitePage slug={customDomainSlug} domainCompanyId={customDomainCompanyId} onLogin={handleDomainLogin} />;
   }
   if (customDomainNotFound && !role) {
     return <CompanySitePage slug="__domain_not_found__" />;
