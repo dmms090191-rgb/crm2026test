@@ -38,7 +38,7 @@ function App() {
   const [impersonatedVendor, setImpersonatedVendor] = useState<ImpersonatedVendor | null>(null);
   const [impersonatedClient, setImpersonatedClient] = useState<ImpersonatedClientInfo | null>(null);
   const [impersonatedAdmin, setImpersonatedAdmin] = useState<ImpersonatedAdmin | null>(null);
-  const { customDomainSlug, customDomainNotFound } = useCustomDomain();
+  const { customDomainSlug, customDomainNotFound, checking: customDomainChecking } = useCustomDomain();
   const [saUserId, setSaUserId] = useState<string | null>(null);
   const [saDisplayName, setSaDisplayName] = useState('Support Talvex');
   const [landingTemplateKey, setLandingTemplateKey] = useState<string | null>(null);
@@ -115,7 +115,7 @@ function App() {
     setImpersonatedAdmin(null);
   };
 
-  if (loading || (!role && !landingTemplateLoaded)) return <AppLoadingScreen />;
+  if (loading || (!role && !landingTemplateLoaded) || customDomainChecking) return <AppLoadingScreen />;
   if (accessBlocked) return <AppAccessBlocked onClear={() => setAccessBlocked(false)} />;
 
   // --- Public company site (/site/:slug) ---

@@ -16,23 +16,32 @@ function isKnownHost(hostname: string): boolean {
   return hostname.includes('localhost') || hostname.includes('webcontainer') || hostname.includes('stackblitz');
 }
 
+function stripWww(hostname: string): string {
+  return hostname.startsWith('www.') ? hostname.slice(4) : hostname;
+}
+
 export function useCustomDomain() {
   const [customDomainSlug, setCustomDomainSlug] = useState<string | null>(null);
   const [customDomainNotFound, setCustomDomainNotFound] = useState(false);
+  const [checking, setChecking] = useState(false);
   const checkedRef = useRef(false);
+
+  const isCustomDomainHost = !isKnownHost(window.location.hostname);
 
   useEffect(() => {
     if (checkedRef.current) return;
     checkedRef.current = true;
-    const hostname = window.location.hostname;
+    const hostname = stripWww(window.location.hostname);
     if (isKnownHost(hostname)) return;
+    setChecking(true);
     getHomePageByDomain(hostname)
       .then(page => {
         if (page?.slug) setCustomDomainSlug(page.slug);
         else setCustomDomainNotFound(true);
       })
-      .catch(() => setCustomDomainNotFound(false));
+      .catch(() => setCustomDomainNotFound(true))
+      .finally(() => setChecking(false));
   }, []);
 
-  return { customDomainSlug, customDomainNotFound };
+  return { customDomainSlug, customDomainNotFound, checking: checking && isCustomDomainHost };
 }
