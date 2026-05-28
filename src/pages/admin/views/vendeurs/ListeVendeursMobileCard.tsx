@@ -1,8 +1,10 @@
-import { ChevronDown, LogIn, MessageSquare, Mail, Phone, Lock, Unlock } from 'lucide-react';
+import { useState } from 'react';
+import { MoreHorizontal, Mail, Phone, Lock, Unlock } from 'lucide-react';
 import type { ThemeTokens } from '../../../../lib/themeTokensTypes';
 import type { Vendor } from './vendeurTypes';
 import CheckBox from '../crm/CheckBox';
 import CopyButton from '../../../../components/CopyButton';
+import VendorActionModal from './VendorActionModal';
 
 interface ListeVendeursMobileCardProps {
   vendor: Vendor;
@@ -19,6 +21,7 @@ export default function ListeVendeursMobileCard({
   vendor, isSelected, selectMode, onToggleSelect,
   onDetail, onOpenChat, onConnectAsVendor, tokens,
 }: ListeVendeursMobileCardProps) {
+  const [actionsOpen, setActionsOpen] = useState(false);
   const initials = `${(vendor.first_name?.[0] ?? '').toUpperCase()}${(vendor.last_name?.[0] ?? '').toUpperCase()}`;
   const unlocked = vendor.can_customize_columns !== false;
 
@@ -59,16 +62,24 @@ export default function ListeVendeursMobileCard({
           {unlocked ? <Unlock className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
           Colonnes : {unlocked ? 'Debloquees' : 'Bloquees'}
         </span>
-        <button onClick={() => onDetail(vendor)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: tokens.accent.bg, border: `1px solid ${tokens.accent.border}`, color: tokens.accent.text }}>
-          <ChevronDown className="w-3 h-3" />Details
-        </button>
-        <button onClick={() => onOpenChat?.(vendor)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: tokens.accent.bg, border: `1px solid ${tokens.accent.border}`, color: tokens.accent.text }}>
-          <MessageSquare className="w-3 h-3" />Message
-        </button>
-        <button onClick={() => onConnectAsVendor?.(vendor)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: tokens.success.bg, border: `1px solid ${tokens.success.border}`, color: tokens.success.text }}>
-          <LogIn className="w-3 h-3" />Connect
+        <button
+          onClick={() => setActionsOpen(true)}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all active:scale-95"
+          style={{ background: tokens.accent.bg, border: `1px solid ${tokens.accent.border}`, color: tokens.accent.text }}
+        >
+          <MoreHorizontal className="w-3.5 h-3.5" />Actions
         </button>
       </div>
+      {actionsOpen && (
+        <VendorActionModal
+          vendor={vendor}
+          tokens={tokens}
+          onClose={() => setActionsOpen(false)}
+          onDetail={() => { setActionsOpen(false); onDetail(vendor); }}
+          onConnect={() => { setActionsOpen(false); onConnectAsVendor?.(vendor); }}
+          onChat={() => { setActionsOpen(false); onOpenChat?.(vendor); }}
+        />
+      )}
     </div>
   );
 }

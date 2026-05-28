@@ -1,10 +1,11 @@
 import { forwardRef, useState } from 'react';
-import { Mail, Phone, ChevronDown, LogIn, MessageCircle, CalendarClock, Undo2, Redo2, CheckCircle2, ExternalLink, Bot } from 'lucide-react';
+import { Mail, Phone, ChevronDown, Undo2, Redo2, CheckCircle2, ExternalLink, Bot, MoreHorizontal } from 'lucide-react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 import { getStatutCfg, FALLBACK_COLOR } from '../../../admin/views/crm/utils';
 import MobileStatutModal from '../../../admin/views/crm/MobileStatutModal';
 import CheckBox from '../../../admin/views/crm/CheckBox';
 import CopyButton from '../../../../components/CopyButton';
+import VendorLeadActionModal from './VendorLeadActionModal';
 import type { ImportedLead, StatutDef } from '../vendorLeadsTypes';
 import type { ColumnDef } from '../../../../components/table/useColumnOrder';
 
@@ -58,6 +59,7 @@ const VendorLeadDesktopRow = forwardRef<HTMLTableRowElement, Props>(({
   const cols = columnOrder ?? DEFAULT_VENDOR_COLUMN_ORDER;
   const tokens = useThemeTokens();
   const [statutModalOpen, setStatutModalOpen] = useState(false);
+  const [actionsOpen, setActionsOpen] = useState(false);
   const nom = lead.data['Nom'] ?? '';
   const prenom = lead.data['Prenom'] ?? '';
   const email = lead.data['Email'] ?? '';
@@ -169,25 +171,26 @@ const VendorLeadDesktopRow = forwardRef<HTMLTableRowElement, Props>(({
           );
           case 'actions': return (
             <td key={key} className="px-5 py-5">
-              <div className="flex items-center gap-1.5">
-                {[
-                  { label: 'Detail', icon: ChevronDown, onClick: () => onDetail(lead, index), bg: tokens.accent.bg, bgH: tokens.accent.bgHover, border: tokens.accent.border, color: tokens.accent.text },
-                  { label: 'Connect', icon: LogIn, onClick: () => onConnectAsClient?.({ id: lead.id, nom, prenom, email }), bg: tokens.success.bg, bgH: tokens.success.bg, border: tokens.success.border, color: tokens.success.text },
-                  { label: 'Chat', icon: MessageCircle, onClick: () => onOpenChat?.({ id: lead.id, nom, prenom, email, tel }), bg: tokens.warning.bg, bgH: tokens.warning.bg, border: tokens.warning.border, color: tokens.warning.text },
-                  { label: 'RDV', icon: CalendarClock, onClick: () => onOpenRdv?.({ id: lead.id, nom, prenom, email, tel }), bg: 'rgba(34,211,238,0.08)', bgH: 'rgba(34,211,238,0.14)', border: 'rgba(34,211,238,0.18)', color: '#06b6d4' },
-                ].map(btn => (
-                  <button
-                    key={btn.label}
-                    onClick={btn.onClick}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold transition-all duration-200"
-                    style={{ background: btn.bg, border: `1px solid ${btn.border}`, color: btn.color }}
-                    onMouseEnter={e => { e.currentTarget.style.background = btn.bgH; e.currentTarget.style.boxShadow = `0 2px 8px ${btn.bg}`; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = btn.bg; e.currentTarget.style.boxShadow = 'none'; }}
-                  >
-                    <btn.icon className="w-3 h-3" />{btn.label}
-                  </button>
-                ))}
-              </div>
+              <button
+                onClick={() => setActionsOpen(true)}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold transition-all duration-200"
+                style={{ background: tokens.accent.bg, border: `1px solid ${tokens.accent.border}`, color: tokens.accent.text }}
+                onMouseEnter={e => { e.currentTarget.style.background = tokens.accent.bgHover; e.currentTarget.style.boxShadow = `0 2px 8px ${tokens.accent.bg}`; }}
+                onMouseLeave={e => { e.currentTarget.style.background = tokens.accent.bg; e.currentTarget.style.boxShadow = 'none'; }}
+              >
+                <MoreHorizontal className="w-3.5 h-3.5" />Actions
+              </button>
+              {actionsOpen && (
+                <VendorLeadActionModal
+                  lead={{ nom, prenom, email, tel }}
+                  tokens={tokens}
+                  onClose={() => setActionsOpen(false)}
+                  onDetail={() => onDetail(lead, index)}
+                  onConnect={() => onConnectAsClient?.({ id: lead.id, nom, prenom, email })}
+                  onChat={() => onOpenChat?.({ id: lead.id, nom, prenom, email, tel })}
+                  onRdv={() => onOpenRdv?.({ id: lead.id, nom, prenom, email, tel })}
+                />
+              )}
             </td>
           );
           case 'acces': return (

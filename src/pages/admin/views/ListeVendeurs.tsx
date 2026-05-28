@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { List, ChevronDown, LogIn, MessageSquare, Mail, Phone, CheckSquare, Trash2, X, Lock, Unlock } from 'lucide-react';
+import { List, MoreHorizontal, Mail, Phone, CheckSquare, Trash2, X, Lock, Unlock } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { useThemeTokens } from '../../../hooks/useThemeTokens';
 import { useSimulation } from '../../../contexts/SimulationContext';
@@ -7,6 +7,7 @@ import { useCompanyId } from '../../../hooks/useCompanyId';
 import type { Vendor } from './vendeurs/vendeurTypes';
 import VendorDetailModal from './vendeurs/VendorDetailModal';
 import VendorDeleteModal from './vendeurs/VendorDeleteModal';
+import VendorActionModal from './vendeurs/VendorActionModal';
 import ListeVendeursMobileCard from './vendeurs/ListeVendeursMobileCard';
 import DualScrollWrapper from '../../../components/DualScrollWrapper';
 import CheckBox from './crm/CheckBox';
@@ -26,6 +27,7 @@ export default function ListeVendeurs({ onConnectAsVendor, onOpenChat }: ListeVe
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
+  const [actionVendor, setActionVendor] = useState<Vendor | null>(null);
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -210,17 +212,15 @@ export default function ListeVendeurs({ onConnectAsVendor, onOpenChat }: ListeVe
                           })()}
                         </td>
                         <td className="px-5 py-3.5">
-                          <div className="flex items-center gap-2">
-                            <button onClick={() => setSelectedVendor(vendor)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105" style={{ background: tokens.accent.bg, border: `1px solid ${tokens.accent.border}`, color: tokens.accent.text }}>
-                              <ChevronDown className="w-3 h-3" />Detail
-                            </button>
-                            <button onClick={() => onConnectAsVendor?.(vendor)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105" style={{ background: tokens.success.bg, border: `1px solid ${tokens.success.border}`, color: tokens.success.text }}>
-                              <LogIn className="w-3 h-3" />Connect
-                            </button>
-                            <button onClick={() => onOpenChat?.(vendor)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105" style={{ background: tokens.accent.bg, border: `1px solid ${tokens.accent.border}`, color: tokens.accent.text }} title="Ouvrir le chat">
-                              <MessageSquare className="w-3 h-3" />Chat
-                            </button>
-                          </div>
+                          <button
+                            onClick={() => setActionVendor(vendor)}
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold transition-all duration-200"
+                            style={{ background: tokens.accent.bg, border: `1px solid ${tokens.accent.border}`, color: tokens.accent.text }}
+                            onMouseEnter={e => { e.currentTarget.style.background = tokens.accent.bgHover; e.currentTarget.style.boxShadow = `0 2px 8px ${tokens.accent.bg}`; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = tokens.accent.bg; e.currentTarget.style.boxShadow = 'none'; }}
+                          >
+                            <MoreHorizontal className="w-3.5 h-3.5" />Actions
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -251,6 +251,17 @@ export default function ListeVendeurs({ onConnectAsVendor, onOpenChat }: ListeVe
 
       {selectedVendor && (
         <VendorDetailModal vendor={selectedVendor} onClose={() => setSelectedVendor(null)} onUpdate={handleUpdate} />
+      )}
+
+      {actionVendor && (
+        <VendorActionModal
+          vendor={actionVendor}
+          tokens={tokens}
+          onClose={() => setActionVendor(null)}
+          onDetail={() => { setSelectedVendor(actionVendor); setActionVendor(null); }}
+          onConnect={() => { onConnectAsVendor?.(actionVendor); setActionVendor(null); }}
+          onChat={() => { onOpenChat?.(actionVendor); setActionVendor(null); }}
+        />
       )}
 
       {showDeleteModal && (

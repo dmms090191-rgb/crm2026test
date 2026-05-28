@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, lazy } from 'react';
+import { useState, useEffect, useCallback, useMemo, lazy } from 'react';
 import LoginModal from './components/LoginModal';
 import type { ImpersonatedVendor } from './pages/vendor/VendorDashboard';
 import type { ImpersonatedClientInfo } from './pages/client/ClientDashboard';
@@ -13,6 +13,9 @@ import { getLandingTemplateKey } from './lib/companyHomePages';
 import { getTemplateComponent } from './pages/superadmin/views/site-builder/templates/templateRegistry';
 import { DemoSessionProvider } from './components/demo/DemoSessionContext';
 import { useCustomDomain } from './app/useCustomDomain';
+import { useSessionTimeout } from './hooks/useSessionTimeout';
+import SessionExpiryWarning from './components/SessionExpiryWarning';
+import { SessionTimeoutProvider } from './contexts/SessionTimeoutContext';
 
 export interface ImpersonatedAdmin {
   id: string;
@@ -44,6 +47,7 @@ function App() {
   const [saDisplayName, setSaDisplayName] = useState('Support Talvex');
   const [landingTemplateKey, setLandingTemplateKey] = useState<string | null>(null);
   const [landingTemplateLoaded, setLandingTemplateLoaded] = useState(false);
+  const [userCompanyId, setUserCompanyId] = useState<string | null>(null);
 
   async function resolveUserCompanyId(userEmail: string, appRole: string, metaCompanyId?: string): Promise<string | null> {
     if (metaCompanyId) return metaCompanyId;
@@ -80,6 +84,9 @@ function App() {
       }
       setDomainBlocked(false);
 
+      const metaCid = (meta?.company_id as string) ?? null;
+      setUserCompanyId(metaCid);
+
       if (appRole === 'super_admin') {
         setRole('super_admin');
         setSaUserId(session.user.id);
@@ -114,7 +121,7 @@ function App() {
         setAccessBlocked(false);
         setDomainBlocked(false);
       } else {
-        applySession(session, customDomainCompanyId);
+        applySession(session, null);
       }
     });
     return () => subscription.unsubscribe();
@@ -133,10 +140,25 @@ function App() {
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setRole(null);
+    setUserCompanyId(null);
     setImpersonatedVendor(null);
     setImpersonatedClient(null);
     setImpersonatedAdmin(null);
   };
+
+  const sessionTimeout = useSessionTimeout(userCompanyId, !!role, handleLogout);
+
+  const sessionCtxValue = useMemo(() => ({
+    onTimeoutChanged: sessionTimeout.updateTimeout,
+  }), [sessionTimeout.updateTimeout]);
+
+  const expiryWarning = sessionTimeout.showWarning && role ? (
+    <SessionExpiryWarning
+      remainingSeconds={sessionTimeout.remainingSeconds}
+      onStay={sessionTimeout.dismissWarning}
+      onLogout={handleLogout}
+    />
+  ) : null;
 
   if (loading || (!role && !landingTemplateLoaded) || customDomainChecking) return <AppLoadingScreen />;
   if (domainBlocked) return <AppDomainBlocked onClear={() => setDomainBlocked(false)} />;
@@ -156,40 +178,36 @@ function App() {
     return <CompanySitePage slug="__domain_not_found__" />;
   }
 
-  // --- Super Admin branches ---
+  // --- Dashboard content (logged in) ---
+
+  let dashboard: React.ReactNode = null;
 
   if (role === 'super_admin' && impersonatedAdmin && impersonatedVendor && impersonatedClient) {
-    return (
+    dashboard = (
       <DemoSessionProvider saUserId={saUserId ?? undefined} saDisplayName={saDisplayName}>
         <AppShell panelRole="client" useCompanyProvider companyId={impersonatedAdmin.company_id} effectiveUserId={impersonatedClient.id}>
           <ClientDashboard onLogout={handleLogout} impersonatedClient={impersonatedClient} onBackToAdmin={() => setImpersonatedClient(null)} backLabel="Retour vendeur" isSAViewing />
         </AppShell>
       </DemoSessionProvider>
     );
-  }
-
-  if (role === 'super_admin' && impersonatedAdmin && impersonatedVendor) {
-    return (
+  } else if (role === 'super_admin' && impersonatedAdmin && impersonatedVendor) {
+    dashboard = (
       <DemoSessionProvider saUserId={saUserId ?? undefined} saDisplayName={saDisplayName}>
         <AppShell panelRole="vendor" useCompanyProvider companyId={impersonatedAdmin.company_id} effectiveUserId={impersonatedVendor.auth_user_id ?? impersonatedVendor.id}>
           <VendorDashboard onLogout={handleLogout} impersonatedVendor={impersonatedVendor} onBackToAdmin={() => setImpersonatedVendor(null)} onConnectAsClient={(client) => setImpersonatedClient(client)} isSAViewing />
         </AppShell>
       </DemoSessionProvider>
     );
-  }
-
-  if (role === 'super_admin' && impersonatedAdmin && impersonatedClient) {
-    return (
+  } else if (role === 'super_admin' && impersonatedAdmin && impersonatedClient) {
+    dashboard = (
       <DemoSessionProvider saUserId={saUserId ?? undefined} saDisplayName={saDisplayName}>
         <AppShell panelRole="client" useCompanyProvider companyId={impersonatedAdmin.company_id} effectiveUserId={impersonatedClient.id}>
           <ClientDashboard onLogout={handleLogout} impersonatedClient={impersonatedClient} onBackToAdmin={() => setImpersonatedClient(null)} isSAViewing />
         </AppShell>
       </DemoSessionProvider>
     );
-  }
-
-  if (role === 'super_admin' && impersonatedAdmin) {
-    return (
+  } else if (role === 'super_admin' && impersonatedAdmin) {
+    dashboard = (
       <DemoSessionProvider saUserId={saUserId ?? undefined} saDisplayName={saDisplayName}>
         <AppShell panelRole="admin" useCompanyProvider companyId={impersonatedAdmin.company_id}>
           <AdminDashboard
@@ -203,10 +221,8 @@ function App() {
         </AppShell>
       </DemoSessionProvider>
     );
-  }
-
-  if (role === 'super_admin') {
-    return (
+  } else if (role === 'super_admin') {
+    dashboard = (
       <AppShell panelRole="super_admin">
         <SuperAdminDashboard
           onLogout={handleLogout}
@@ -214,64 +230,44 @@ function App() {
         />
       </AppShell>
     );
-  }
-
-  // --- Client branch ---
-
-  if (role === 'client') {
-    return (
+  } else if (role === 'client') {
+    dashboard = (
       <AppShell panelRole="client">
         <ClientDashboard onLogout={handleLogout} />
       </AppShell>
     );
-  }
-
-  // --- Vendor branches ---
-
-  if (role === 'vendor' && impersonatedClient) {
-    return (
+  } else if (role === 'vendor' && impersonatedClient) {
+    dashboard = (
       <AppShell panelRole="client" useCompanyProvider effectiveUserId={impersonatedClient.id}>
         <ClientDashboard onLogout={handleLogout} impersonatedClient={impersonatedClient} onBackToAdmin={() => setImpersonatedClient(null)} backLabel="Retour vendeur" />
       </AppShell>
     );
-  }
-
-  if (role === 'vendor') {
-    return (
+  } else if (role === 'vendor') {
+    dashboard = (
       <AppShell panelRole="vendor" useCompanyProvider>
         <VendorDashboard onLogout={handleLogout} onConnectAsClient={(client) => setImpersonatedClient(client)} />
       </AppShell>
     );
-  }
-
-  // --- Admin branches ---
-
-  if (role === 'admin' && impersonatedVendor && impersonatedClient) {
-    return (
+  } else if (role === 'admin' && impersonatedVendor && impersonatedClient) {
+    dashboard = (
       <AppShell panelRole="client" useCompanyProvider effectiveUserId={impersonatedClient.id}>
         <ClientDashboard onLogout={handleLogout} impersonatedClient={impersonatedClient} onBackToAdmin={() => setImpersonatedClient(null)} backLabel="Retour vendeur" />
       </AppShell>
     );
-  }
-
-  if (role === 'admin' && impersonatedClient) {
-    return (
+  } else if (role === 'admin' && impersonatedClient) {
+    dashboard = (
       <AppShell panelRole="client" useCompanyProvider effectiveUserId={impersonatedClient.id}>
         <ClientDashboard onLogout={handleLogout} impersonatedClient={impersonatedClient} onBackToAdmin={() => setImpersonatedClient(null)} />
       </AppShell>
     );
-  }
-
-  if (role === 'admin' && impersonatedVendor) {
-    return (
+  } else if (role === 'admin' && impersonatedVendor) {
+    dashboard = (
       <AppShell panelRole="vendor" useCompanyProvider effectiveUserId={impersonatedVendor.auth_user_id ?? impersonatedVendor.id}>
         <VendorDashboard onLogout={handleLogout} impersonatedVendor={impersonatedVendor} onBackToAdmin={() => setImpersonatedVendor(null)} onConnectAsClient={(client) => setImpersonatedClient(client)} />
       </AppShell>
     );
-  }
-
-  if (role === 'admin') {
-    return (
+  } else if (role === 'admin') {
+    dashboard = (
       <AppShell panelRole="admin" useCompanyProvider>
         <AdminDashboard
           onLogout={handleLogout}
@@ -279,6 +275,14 @@ function App() {
           onConnectAsClient={(client) => setImpersonatedClient(client)}
         />
       </AppShell>
+    );
+  }
+
+  if (dashboard) {
+    return (
+      <SessionTimeoutProvider value={sessionCtxValue}>
+        {dashboard}{expiryWarning}
+      </SessionTimeoutProvider>
     );
   }
 

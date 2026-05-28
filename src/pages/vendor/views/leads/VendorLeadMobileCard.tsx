@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Mail, Phone, ChevronDown, LogIn, MessageCircle, CalendarClock, Undo2, Redo2, CheckCircle2, Calendar, RotateCcw, Bot } from 'lucide-react';
+import { Mail, Phone, ChevronDown, Undo2, Redo2, CheckCircle2, Calendar, RotateCcw, Bot, MoreHorizontal } from 'lucide-react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 import { getInitials, gradients, getStatutCfg, FALLBACK_COLOR } from '../../../admin/views/crm/utils';
 import CheckBox from '../../../admin/views/crm/CheckBox';
 import MobileStatutModal from '../../../admin/views/crm/MobileStatutModal';
 import CopyButton from '../../../../components/CopyButton';
+import VendorLeadActionModal from './VendorLeadActionModal';
 import type { ImportedLead, StatutDef } from '../vendorLeadsTypes';
 
 function formatImportedAtShort(isoDate: string, tz: string): string {
@@ -50,6 +51,7 @@ export default function VendorLeadMobileCard({
 }: Props) {
   const tokens = useThemeTokens();
   const [statutModalOpen, setStatutModalOpen] = useState(false);
+  const [actionsOpen, setActionsOpen] = useState(false);
   const nom = lead.data['Nom'] ?? '';
   const prenom = lead.data['Prenom'] ?? '';
   const email = lead.data['Email'] ?? '';
@@ -176,19 +178,25 @@ export default function VendorLeadMobileCard({
       </div>
 
       {/* Actions */}
-      <div className="grid grid-cols-4 gap-2">
-        <button onClick={() => onDetail(lead, index)} className="flex items-center justify-center gap-1 px-2 py-2 rounded-lg text-[11px] font-semibold transition-all active:scale-95" style={{ background: tokens.accent.bg, border: `1px solid ${tokens.accent.border}`, color: tokens.accent.text }}>
-          <ChevronDown className="w-3 h-3" />Detail
+      <div>
+        <button
+          onClick={() => setActionsOpen(true)}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-[11px] font-semibold transition-all active:scale-95"
+          style={{ background: tokens.accent.bg, border: `1px solid ${tokens.accent.border}`, color: tokens.accent.text }}
+        >
+          <MoreHorizontal className="w-3.5 h-3.5" />Actions
         </button>
-        <button onClick={() => onOpenChat?.({ id: lead.id, nom, prenom, email, tel })} className="flex items-center justify-center gap-1 px-2 py-2 rounded-lg text-[11px] font-semibold transition-all active:scale-95" style={{ background: tokens.warning.bg, border: `1px solid ${tokens.warning.border}`, color: tokens.warning.text }}>
-          <MessageCircle className="w-3 h-3" />Msg
-        </button>
-        <button onClick={() => onOpenRdv?.({ id: lead.id, nom, prenom, email, tel })} className="flex items-center justify-center gap-1 px-2 py-2 rounded-lg text-[11px] font-semibold transition-all active:scale-95" style={{ background: 'rgba(34,211,238,0.08)', border: '1px solid rgba(34,211,238,0.18)', color: '#22d3ee' }}>
-          <CalendarClock className="w-3 h-3" />RDV
-        </button>
-        <button onClick={() => onConnectAsClient?.({ id: lead.id, nom, prenom, email })} className="flex items-center justify-center gap-1 px-2 py-2 rounded-lg text-[11px] font-semibold transition-all active:scale-95" style={{ background: tokens.success.bg, border: `1px solid ${tokens.success.border}`, color: tokens.success.text }}>
-          <LogIn className="w-3 h-3" />Connect
-        </button>
+        {actionsOpen && (
+          <VendorLeadActionModal
+            lead={{ nom, prenom, email, tel }}
+            tokens={tokens}
+            onClose={() => setActionsOpen(false)}
+            onDetail={() => onDetail(lead, index)}
+            onConnect={() => onConnectAsClient?.({ id: lead.id, nom, prenom, email })}
+            onChat={() => onOpenChat?.({ id: lead.id, nom, prenom, email, tel })}
+            onRdv={() => onOpenRdv?.({ id: lead.id, nom, prenom, email, tel })}
+          />
+        )}
       </div>
 
       {statutModalOpen && (

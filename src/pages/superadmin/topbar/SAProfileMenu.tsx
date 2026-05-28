@@ -1,14 +1,18 @@
 import { useState, useEffect, useRef } from 'react';
-import { ChevronDown, Palette, Bell } from 'lucide-react';
+import { ChevronDown, Palette, Bell, Clock } from 'lucide-react';
 import { useThemeTokens } from '../../../hooks/useThemeTokens';
 import ThemeSelectorModal from '../../../components/theme/ThemeSelectorModal';
 import PushNotificationSettings from '../../../components/notifications/PushNotificationSettings';
+import SessionTimeoutModal from '../../../components/SessionTimeoutModal';
+import { useSessionTimeoutConfig } from '../../../contexts/SessionTimeoutContext';
 import { supabase } from '../../../lib/supabase';
 
 export default function SAProfileMenu({ tokens, firstName, lastName }: { tokens: ReturnType<typeof useThemeTokens>; firstName?: string; lastName?: string }) {
+  const { onTimeoutChanged } = useSessionTimeoutConfig();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [themeModalOpen, setThemeModalOpen] = useState(false);
   const [pushModalOpen, setPushModalOpen] = useState(false);
+  const [sessionModalOpen, setSessionModalOpen] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -113,12 +117,26 @@ export default function SAProfileMenu({ tokens, firstName, lastName }: { tokens:
                 <span className="text-[10px] opacity-60">Alertes push en temps reel</span>
               </div>
             </button>
+            <button
+              onClick={() => { setDropdownOpen(false); setSessionModalOpen(true); }}
+              className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs transition-colors duration-150 hover:opacity-80"
+              style={{ color: d.itemText }}
+              onMouseEnter={e => { e.currentTarget.style.background = d.itemBgHover; e.currentTarget.style.color = d.itemTextHover; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = d.itemText; }}
+            >
+              <Clock className="w-4 h-4" />
+              <div className="flex flex-col items-start">
+                <span className="font-semibold">Duree de session</span>
+                <span className="text-[10px] opacity-60">Deconnexion automatique</span>
+              </div>
+            </button>
           </div>
         </div>
       )}
 
       <ThemeSelectorModal open={themeModalOpen} onClose={() => setThemeModalOpen(false)} />
       <PushNotificationSettings open={pushModalOpen} onClose={() => setPushModalOpen(false)} userId={userId} role="super_admin" companyId={null} tokens={tokens} />
+      <SessionTimeoutModal open={sessionModalOpen} onClose={() => setSessionModalOpen(false)} tokens={tokens} role="super_admin" companyId={null} onSaved={onTimeoutChanged} />
     </div>
   );
 }

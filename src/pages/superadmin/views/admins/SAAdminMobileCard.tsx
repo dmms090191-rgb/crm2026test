@@ -1,15 +1,11 @@
 import { useState } from 'react';
-import { createPortal } from 'react-dom';
-import { ChevronDown, ChevronUp, LogIn, Mail, Phone, Calendar, MessageSquare, Megaphone, MoreHorizontal, X, Eye, LayoutTemplate, Settings2, Globe } from 'lucide-react';
+import { ChevronDown, ChevronUp, Mail, Phone, Calendar, MoreHorizontal, Eye, Megaphone, MessageSquare, Globe, LayoutTemplate, LogIn, Building2 } from 'lucide-react';
 import CopyButton from '../../../../components/CopyButton';
 import SAAdminsAccessSwitch from './SAAdminsAccessSwitch';
 import SAAdminsAiSwitch from './SAAdminsAiSwitch';
-import { useActionMenuOrder } from '../../../../components/action-menu/useActionMenuOrder';
-import ActionMenuReorderPanel, { type ActionMenuItem } from '../../../../components/action-menu/ActionMenuReorderPanel';
+import ActionModal from '../../../../components/action-menu/ActionModal';
+import type { ActionSectionDef } from '../../../../components/action-menu/ActionModal';
 import type { AdminUser } from '../SAAdmins';
-
-const STORAGE_KEY = 'action_menu_order_superadmin_admins';
-const DEFAULT_ORDER = ['detail', 'annonce', 'msg', 'domaine', 'site', 'connecter'];
 
 interface Props {
   admin: AdminUser;
@@ -32,50 +28,44 @@ interface Props {
   tokens: ReturnType<typeof import('../../../../hooks/useThemeTokens').useThemeTokens>;
 }
 
-function buildItems(tokens: Props['tokens']): ActionMenuItem[] {
-  return [
-    { id: 'detail', label: 'Detail', icon: <Eye className="w-3.5 h-3.5" />, color: tokens.accent.text },
-    { id: 'annonce', label: 'Annonce', icon: <Megaphone className="w-3.5 h-3.5" />, color: '#f59e0b' },
-    { id: 'msg', label: 'MSG', icon: <MessageSquare className="w-3.5 h-3.5" />, color: '#f59e0b' },
-    { id: 'domaine', label: 'Domaine', icon: <Globe className="w-3.5 h-3.5" />, color: '#06b6d4' },
-    { id: 'site', label: 'Site', icon: <LayoutTemplate className="w-3.5 h-3.5" />, color: '#0ea5e9' },
-    { id: 'connecter', label: 'Connecter', icon: <LogIn className="w-3.5 h-3.5" />, color: tokens.success.text },
-  ];
-}
-
-function getButtonStyle(id: string, tokens: Props['tokens']) {
-  switch (id) {
-    case 'detail': return { background: tokens.accent.bg, border: `1px solid ${tokens.accent.border}`, color: tokens.accent.text };
-    case 'annonce': return { background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)', color: '#f59e0b' };
-    case 'msg': return { background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.25)', color: '#f59e0b' };
-    case 'domaine': return { background: 'rgba(6,182,212,0.08)', border: '1px solid rgba(6,182,212,0.2)', color: '#06b6d4' };
-    case 'site': return { background: 'rgba(14,165,233,0.08)', border: '1px solid rgba(14,165,233,0.2)', color: '#0ea5e9' };
-    case 'connecter': return { background: tokens.success.bg, border: `1px solid ${tokens.success.border}`, color: tokens.success.text };
-    default: return {};
-  }
-}
-
 export default function SAAdminMobileCard({
   admin, idx, total, isSelf, selectionMode, selected,
   onToggleSelect, onMove, reorderMode, onDetail, onHomePage, onChat, onConnect, onSite, onDomain, onAccessToggled,
   formatDate, tokens,
 }: Props) {
   const [actionsOpen, setActionsOpen] = useState(false);
-  const [menuReorder, setMenuReorder] = useState(false);
-  const { order, save } = useActionMenuOrder(STORAGE_KEY, DEFAULT_ORDER);
-  const items = buildItems(tokens);
   const initials = `${(admin.first_name?.[0] ?? '').toUpperCase()}${(admin.last_name?.[0] ?? '').toUpperCase()}`;
+  const name = [admin.first_name, admin.last_name].filter(Boolean).join(' ') || admin.email;
 
-  const handlers: Record<string, () => void> = {
-    detail: () => { setActionsOpen(false); onDetail(admin); },
-    annonce: () => { setActionsOpen(false); onHomePage(admin); },
-    msg: () => { setActionsOpen(false); onChat(admin); },
-    domaine: () => { setActionsOpen(false); onDomain(admin); },
-    site: () => { setActionsOpen(false); onSite(admin); },
-    connecter: () => { setActionsOpen(false); onConnect(admin); },
-  };
+  const sections: ActionSectionDef[] = [
+    {
+      title: 'Gestion',
+      actions: [
+        { id: 'detail', label: 'Detail', description: 'Voir les informations', icon: <Eye className="w-4 h-4" />, color: tokens.accent.text, colorBg: tokens.accent.bg, colorBorder: tokens.accent.border, onClick: () => { setActionsOpen(false); onDetail(admin); } },
+        { id: 'connecter', label: 'Connecter', description: 'Se connecter en tant que', icon: <LogIn className="w-4 h-4" />, color: tokens.success.text, colorBg: tokens.success.bg, colorBorder: tokens.success.border, onClick: () => { setActionsOpen(false); onConnect(admin); } },
+      ],
+    },
+    {
+      title: 'Communication',
+      actions: [
+        { id: 'annonce', label: 'Annonce', description: 'Page d\'accueil admin', icon: <Megaphone className="w-4 h-4" />, color: '#f59e0b', colorBg: 'rgba(245,158,11,0.08)', colorBorder: 'rgba(245,158,11,0.2)', onClick: () => { setActionsOpen(false); onHomePage(admin); } },
+        { id: 'msg', label: 'Message', description: 'Envoyer un message', icon: <MessageSquare className="w-4 h-4" />, color: '#f59e0b', colorBg: 'rgba(245,158,11,0.1)', colorBorder: 'rgba(245,158,11,0.25)', onClick: () => { setActionsOpen(false); onChat(admin); } },
+      ],
+    },
+    {
+      title: 'Site & Domaine',
+      actions: [
+        { id: 'domaine', label: 'Domaine', description: 'Gestion DNS', icon: <Globe className="w-4 h-4" />, color: '#06b6d4', colorBg: 'rgba(6,182,212,0.08)', colorBorder: 'rgba(6,182,212,0.2)', onClick: () => { setActionsOpen(false); onDomain(admin); } },
+        { id: 'site', label: 'Site', description: 'Constructeur de site', icon: <LayoutTemplate className="w-4 h-4" />, color: '#0ea5e9', colorBg: 'rgba(14,165,233,0.08)', colorBorder: 'rgba(14,165,233,0.2)', onClick: () => { setActionsOpen(false); onSite(admin); } },
+      ],
+    },
+  ];
 
-  const sortedItems = order.map(id => items.find(i => i.id === id)).filter(Boolean) as ActionMenuItem[];
+  const subtitleFields = [
+    { label: 'Nom', value: name },
+    ...(admin.company ? [{ label: 'Societe', value: admin.company, icon: <Building2 className="w-3.5 h-3.5" /> }] : []),
+    ...(admin.email ? [{ label: 'Email', value: admin.email, icon: <Mail className="w-3.5 h-3.5" /> }] : []),
+  ];
 
   return (
     <div data-row-id={admin.id} data-testid="admin-row" className="px-4 py-4" style={{ borderColor: tokens.table.rowBorder }}>
@@ -107,36 +97,8 @@ export default function SAAdminMobileCard({
         <button onClick={() => setActionsOpen(true)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all active:scale-95" style={{ background: tokens.accent.bg, border: `1px solid ${tokens.accent.border}`, color: tokens.accent.text }}>
           <MoreHorizontal className="w-3.5 h-3.5" />Actions
         </button>
-        {actionsOpen && createPortal(
-          <div className="fixed inset-0 flex items-center justify-center p-4" style={{ zIndex: 99998, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }} onClick={() => { setActionsOpen(false); setMenuReorder(false); }}>
-            <div className="w-full max-w-[260px] rounded-xl p-4" style={{ background: tokens.modal.bg, border: `1px solid ${tokens.modal.border}`, boxShadow: '0 8px 32px rgba(0,0,0,0.35), 0 2px 8px rgba(0,0,0,0.2)' }} onClick={e => e.stopPropagation()}>
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-xs font-bold truncate" style={{ color: tokens.heading.primary }}>
-                  {admin.first_name || admin.last_name ? `${admin.first_name} ${admin.last_name}`.trim() : admin.email}
-                </p>
-                <div className="flex items-center gap-1 flex-shrink-0">
-                  <button onClick={() => setMenuReorder(r => !r)} className="w-6 h-6 rounded-md flex items-center justify-center" style={menuReorder ? { background: tokens.accent.bg, color: tokens.accent.text } : { background: tokens.modal.closeBtnBg, color: tokens.modal.closeBtnText }} title="Reorganiser">
-                    <Settings2 className="w-3.5 h-3.5" />
-                  </button>
-                  <button onClick={() => { setActionsOpen(false); setMenuReorder(false); }} className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0" style={{ background: tokens.modal.closeBtnBg, color: tokens.modal.closeBtnText }}>
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-              {menuReorder ? (
-                <ActionMenuReorderPanel items={items} order={order} onSave={(o) => { save(o); setMenuReorder(false); }} onCancel={() => setMenuReorder(false)} tokens={tokens} />
-              ) : (
-                <div className="flex flex-col gap-2">
-                  {sortedItems.map(item => (
-                    <button key={item.id} onClick={handlers[item.id]} className="flex items-center gap-2 w-full px-3 py-2.5 rounded-lg text-xs font-semibold transition-all active:scale-95" style={getButtonStyle(item.id, tokens)}>
-                      {item.icon}{item.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>,
-          document.body
+        {actionsOpen && (
+          <ActionModal title="Actions societe" subtitleFields={subtitleFields} sections={sections} tokens={tokens} onClose={() => setActionsOpen(false)} />
         )}
       </div>
     </div>

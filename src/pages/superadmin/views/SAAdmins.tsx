@@ -69,7 +69,6 @@ export default function SAAdmins({ onConnectAsAdmin, onOpenChat, cachedAdmins, r
   const [orderMap, setOrderMap] = useState<Record<string, number>>({});
   const [reorderMode, setReorderMode] = useState(false);
   const [actionsOpenId, setActionsOpenId] = useState<string | null>(null);
-  const [popoverPos, setPopoverPos] = useState<{ top: number; left: number } | null>(null);
   const actionsBtnRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const cc = useCustomColumns('sa_liste_admins');
   const allColumns = useMemo(() => [...SA_ADMINS_COLUMNS, ...cc.customDefs], [cc.customDefs]);
@@ -142,19 +141,6 @@ export default function SAAdmins({ onConnectAsAdmin, onOpenChat, cachedAdmins, r
     setActionsOpenId(prev => prev === adminId ? null : adminId);
   }, []);
 
-  useEffect(() => {
-    if (!actionsOpenId) { setPopoverPos(null); return; }
-    const btn = actionsBtnRefs.current[actionsOpenId];
-    if (!btn) { setPopoverPos(null); return; }
-    const rect = btn.getBoundingClientRect();
-    const popW = 220, popH = 260;
-    let top = rect.bottom + 6;
-    let left = rect.left + rect.width / 2 - popW / 2;
-    if (left < 8) left = 8;
-    if (left + popW > window.innerWidth - 8) left = window.innerWidth - 8 - popW;
-    if (top + popH > window.innerHeight - 8) top = rect.top - popH - 6;
-    setPopoverPos({ top, left });
-  }, [actionsOpenId]);
 
   const selectableAdmins = admins.filter(a => a.id !== currentUserId);
   const allSelected = selectableAdmins.length > 0 && selectableAdmins.every(a => selectedIds.has(a.id));
@@ -261,7 +247,7 @@ export default function SAAdmins({ onConnectAsAdmin, onOpenChat, cachedAdmins, r
         )}
       </div>
 
-      {actionsAdmin && <SAAdminsActionsPopover admin={actionsAdmin} popoverPos={popoverPos} onClose={() => setActionsOpenId(null)} onDetail={setSelectedAdmin} onHomePage={setHomePageAdmin} onChat={a => onOpenChat?.(a)} onConnect={a => onConnectAsAdmin?.(a)} onSite={setSiteAdmin} onDomain={setDomainAdmin} tokens={tokens} />}
+      {actionsAdmin && <SAAdminsActionsPopover admin={actionsAdmin} onClose={() => setActionsOpenId(null)} onDetail={setSelectedAdmin} onHomePage={setHomePageAdmin} onChat={a => onOpenChat?.(a)} onConnect={a => onConnectAsAdmin?.(a)} onSite={setSiteAdmin} onDomain={setDomainAdmin} tokens={tokens} />}
       {selectedAdmin && <AdminDetailModal admin={selectedAdmin} mode="detail" onClose={() => setSelectedAdmin(null)} onUpdate={handleUpdate} onSwitchMode={() => {}} />}
       {showCreateModal && <SAAdminsCreateModal onClose={() => setShowCreateModal(false)} onCreated={() => { setShowCreateModal(false); fetchAdmins(); }} tokens={tokens} />}
       {showDeleteModal && <SAAdminsBulkDeleteModal count={selectedIds.size} loading={deleting} onConfirm={handleBulkDelete} onCancel={() => setShowDeleteModal(false)} />}

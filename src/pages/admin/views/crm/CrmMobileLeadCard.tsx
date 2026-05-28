@@ -1,12 +1,11 @@
 import { useState } from 'react';
-import { createPortal } from 'react-dom';
-import { Mail, Phone, ChevronDown, Undo2, Redo2, CheckCircle2, Calendar, User, RotateCcw, Bot, MoreHorizontal, X } from 'lucide-react';
+import { Mail, Phone, ChevronDown, Undo2, Redo2, CheckCircle2, Calendar, User, RotateCcw, Bot, MoreHorizontal } from 'lucide-react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 import { getInitials, gradients, getStatutCfg, FALLBACK_COLOR } from './utils';
 import CheckBox from './CheckBox';
 import MobileStatutModal from './MobileStatutModal';
 import CopyButton from '../../../../components/CopyButton';
-import CrmActionsMenu from './CrmActionsMenu';
+import CrmActionModal from './CrmActionModal';
 import type { ImportedLead, StatutDef, Vendor, ImpersonatedClient, ChatLead } from './types';
 
 function formatImportedAtShort(isoDate: string, tz: string): string {
@@ -195,46 +194,16 @@ export default function CrmMobileLeadCard({
           <MoreHorizontal className="w-3.5 h-3.5" />
           Actions
         </button>
-        {actionsOpen && createPortal(
-          <div
-            className="fixed inset-0 flex items-center justify-center p-4"
-            style={{ zIndex: 99998, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}
-            onClick={() => setActionsOpen(false)}
-          >
-            <div
-              className="w-full max-w-[260px] rounded-xl p-4"
-              style={{
-                background: tokens.modal.bg,
-                border: `1px solid ${tokens.modal.border}`,
-                boxShadow: '0 8px 32px rgba(0,0,0,0.35), 0 2px 8px rgba(0,0,0,0.2)',
-              }}
-              onClick={e => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-xs font-bold truncate" style={{ color: tokens.heading.primary }}>
-                  {prenom ? `${prenom} ${nom}` : nom || 'Lead'}
-                </p>
-                <button
-                  onClick={() => setActionsOpen(false)}
-                  className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0"
-                  style={{ background: tokens.modal.closeBtnBg, color: tokens.modal.closeBtnText }}
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              </div>
-              <CrmActionsMenu
-                handlers={{
-                  detail: () => { setActionsOpen(false); onDetail(lead, index); },
-                  connect: () => { setActionsOpen(false); onConnectAsClient?.({ id: lead.id, nom, prenom, email }); },
-                  chat: () => { setActionsOpen(false); onOpenChat?.({ id: lead.id, nom, prenom, email, tel }); },
-                  rdv: () => { setActionsOpen(false); onOpenRdv?.({ id: lead.id, nom, prenom, email, tel }); },
-                }}
-                tokens={tokens}
-                buttonPadding="py-2.5"
-              />
-            </div>
-          </div>,
-          document.body
+        {actionsOpen && (
+          <CrmActionModal
+            lead={{ nom, prenom, email, tel }}
+            tokens={tokens}
+            onClose={() => setActionsOpen(false)}
+            onDetail={() => onDetail(lead, index)}
+            onConnect={() => onConnectAsClient?.({ id: lead.id, nom, prenom, email })}
+            onChat={() => onOpenChat?.({ id: lead.id, nom, prenom, email, tel })}
+            onRdv={() => onOpenRdv?.({ id: lead.id, nom, prenom, email, tel })}
+          />
         )}
       </div>
 

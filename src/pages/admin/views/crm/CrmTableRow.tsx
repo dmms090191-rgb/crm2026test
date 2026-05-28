@@ -1,13 +1,12 @@
-import { forwardRef, useState, useRef, useEffect } from 'react';
-import { createPortal } from 'react-dom';
-import { Phone, Mail, ChevronDown, CheckCircle2, Undo2, Redo2, MoreHorizontal, X, ExternalLink } from 'lucide-react';
+import { forwardRef, useState } from 'react';
+import { Phone, Mail, ChevronDown, CheckCircle2, Undo2, Redo2, MoreHorizontal, ExternalLink } from 'lucide-react';
 import type { ImportedLead, Vendor, StatutDef, ImpersonatedClient, ChatLead } from './types';
 import type { ThemeTokens } from '../../../../lib/themeTokens';
 import { getStatutCfg, FALLBACK_COLOR } from './utils';
 import CheckBox from './CheckBox';
 import MobileStatutModal from './MobileStatutModal';
 import CopyButton from '../../../../components/CopyButton';
-import CrmActionsMenu from './CrmActionsMenu';
+import CrmActionModal from './CrmActionModal';
 import type { ColumnDef } from '../../../../components/table/useColumnOrder';
 
 function formatImportedAt(isoDate: string, tz: string): string {
@@ -57,20 +56,6 @@ const CrmTableRow = forwardRef<HTMLTableRowElement, Props>(function CrmTableRow(
   const cols = columnOrder ?? DEFAULT_COLUMN_ORDER;
   const [statutModalOpen, setStatutModalOpen] = useState(false);
   const [actionsOpen, setActionsOpen] = useState(false);
-  const actionsBtnRef = useRef<HTMLButtonElement>(null);
-  const [popoverPos, setPopoverPos] = useState<{ top: number; left: number } | null>(null);
-
-  useEffect(() => {
-    if (!actionsOpen || !actionsBtnRef.current) { setPopoverPos(null); return; }
-    const rect = actionsBtnRef.current.getBoundingClientRect();
-    const popW = 220; const popH = 240;
-    let top = rect.bottom + 6;
-    let left = rect.left + rect.width / 2 - popW / 2;
-    if (left < 8) left = 8;
-    if (left + popW > window.innerWidth - 8) left = window.innerWidth - 8 - popW;
-    if (top + popH > window.innerHeight - 8) top = rect.top - popH - 6;
-    setPopoverPos({ top, left });
-  }, [actionsOpen]);
 
   const nom = lead.data['Nom'] ?? '';
   const prenom = lead.data['Prenom'] ?? '';
@@ -185,8 +170,7 @@ const CrmTableRow = forwardRef<HTMLTableRowElement, Props>(function CrmTableRow(
           case 'actions': return (
             <td key={key} className="px-5 py-5">
               <button
-                ref={actionsBtnRef}
-                onClick={() => setActionsOpen(v => !v)}
+                onClick={() => setActionsOpen(true)}
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold transition-all duration-200"
                 style={{ background: tokens.accent.bg, border: `1px solid ${tokens.accent.border}`, color: tokens.accent.text }}
                 onMouseEnter={e => { e.currentTarget.style.background = tokens.accent.bgHover; e.currentTarget.style.boxShadow = `0 2px 8px ${tokens.accent.bg}`; }}
@@ -194,31 +178,16 @@ const CrmTableRow = forwardRef<HTMLTableRowElement, Props>(function CrmTableRow(
               >
                 <MoreHorizontal className="w-3.5 h-3.5" />Actions
               </button>
-              {actionsOpen && createPortal(
-                <div className="fixed inset-0" style={{ zIndex: 99998 }} onClick={() => setActionsOpen(false)}>
-                  {popoverPos && (
-                    <div
-                      className="absolute rounded-xl p-3 w-[220px]"
-                      style={{ top: popoverPos.top, left: popoverPos.left, zIndex: 99999, background: tokens.modal.bg, border: `1px solid ${tokens.modal.border}`, boxShadow: tokens.modal.shadow, backdropFilter: 'blur(12px)' }}
-                      onClick={e => e.stopPropagation()}
-                    >
-                      <div className="flex items-center justify-between mb-2.5">
-                        <p className="text-xs font-bold truncate" style={{ color: tokens.heading.primary }}>{prenom ? `${prenom} ${nom}` : nom || 'Lead'}</p>
-                        <button onClick={() => setActionsOpen(false)} className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0" style={{ background: tokens.modal.closeBtnBg, color: tokens.modal.closeBtnText }}><X className="w-3 h-3" /></button>
-                      </div>
-                      <CrmActionsMenu
-                        handlers={{
-                          detail: () => { setActionsOpen(false); onDetail(lead, index); },
-                          connect: () => { setActionsOpen(false); onConnectAsClient?.({ id: lead.id, nom, prenom, email }); },
-                          chat: () => { setActionsOpen(false); onOpenChat?.({ id: lead.id, nom, prenom, email, tel }); },
-                          rdv: () => { setActionsOpen(false); onOpenRdv?.({ id: lead.id, nom, prenom, email, tel }); },
-                        }}
-                        tokens={tokens}
-                      />
-                    </div>
-                  )}
-                </div>,
-                document.body
+              {actionsOpen && (
+                <CrmActionModal
+                  lead={{ nom, prenom, email, tel }}
+                  tokens={tokens}
+                  onClose={() => setActionsOpen(false)}
+                  onDetail={() => onDetail(lead, index)}
+                  onConnect={() => onConnectAsClient?.({ id: lead.id, nom, prenom, email })}
+                  onChat={() => onOpenChat?.({ id: lead.id, nom, prenom, email, tel })}
+                  onRdv={() => onOpenRdv?.({ id: lead.id, nom, prenom, email, tel })}
+                />
               )}
             </td>
           );
