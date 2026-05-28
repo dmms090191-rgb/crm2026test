@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Globe, X, Loader2 } from 'lucide-react';
+import { Globe, X, Loader2, SlidersHorizontal } from 'lucide-react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 import { supabase } from '../../../../lib/supabase';
 import {
@@ -19,8 +19,11 @@ import SitePreviewTab from './SitePreviewTab';
 import SiteTemplatesTab from './SiteTemplatesTab';
 import SiteDomainTab from './SiteDomainTab';
 import SADomainsModal from '../sites/SADomainsModal';
+import SiteTabReorderModal, { type SiteTabConfig } from './SiteTabReorderModal';
 
 export type SiteOwnerType = 'super_admin' | 'admin_company' | 'crm_societe';
+
+const DEFAULT_TAB_CONFIG: SiteTabConfig = { order: ['apercu', 'templates', 'domaine'], hidden: [] };
 
 interface Props {
   ownerType: SiteOwnerType;
@@ -45,25 +48,47 @@ export default function SiteManagerShell({ ownerType, title, subtitle, companyId
   const [previewTemplateKey, setPreviewTemplateKey] = useState<string | null>(null);
   const [previewTemplateName, setPreviewTemplateName] = useState<string | null>(null);
   const [domainModalOpen, setDomainModalOpen] = useState(false);
+  const [reorderOpen, setReorderOpen] = useState(false);
+  const [tabConfig, setTabConfig] = useState<SiteTabConfig>(DEFAULT_TAB_CONFIG);
 
   const siteScope: SiteScope = ownerType === 'super_admin' ? 'platform' : 'company';
 
   useEffect(() => {
-    if (ownerType === 'super_admin') return;
-    if (companyIdProp) {
-      setResolvedCompanyId(companyIdProp);
-      if (companyNameProp) setResolvedCompanyName(companyNameProp);
-      return;
-    }
     (async () => {
       const { data: user } = await supabase.auth.getUser();
-      const cid = user?.user?.app_metadata?.company_id;
-      if (cid) {
-        setResolvedCompanyId(cid);
-        const { data: co } = await supabase.from('companies').select('name').eq('id', cid).maybeSingle();
-        if (co?.name) setResolvedCompanyName(co.name);
+      if (!user?.user) return;
+      const uid = user.user.id;
+
+      if (ownerType !== 'super_admin' && !companyIdProp) {
+        const cid = user.user.app_metadata?.company_id;
+        if (cid) {
+          setResolvedCompanyId(cid);
+          const { data: co } = await supabase.from('companies').select('name').eq('id', cid).maybeSingle();
+          if (co?.name) setResolvedCompanyName(co.name);
+        }
+      }
+
+      const { data: pref } = await supabase
+        .from('user_preferences')
+        .select('site_tab_config')
+        .eq('user_id', uid)
+        .maybeSingle();
+      if (pref?.site_tab_config) {
+        const cfg = pref.site_tab_config as SiteTabConfig;
+        if (Array.isArray(cfg.order) && cfg.order.length > 0) {
+          setTabConfig(cfg);
+          const firstVisible = cfg.order.find(id => !cfg.hidden?.includes(id));
+          if (firstVisible) setActiveTab(firstVisible);
+        }
       }
     })();
+  }, [companyIdProp, companyNameProp, ownerType]);
+
+  useEffect(() => {
+    if (ownerType !== 'super_admin' && companyIdProp) {
+      setResolvedCompanyId(companyIdProp);
+      if (companyNameProp) setResolvedCompanyName(companyNameProp);
+    }
   }, [companyIdProp, companyNameProp, ownerType]);
 
   const loadData = useCallback(async (silent = false) => {
@@ -133,6 +158,21 @@ export default function SiteManagerShell({ ownerType, title, subtitle, companyId
     setPreviewTemplateName(null);
   };
 
+  const handleSaveTabConfig = async (cfg: SiteTabConfig) => {
+    setTabConfig(cfg);
+    if (cfg.hidden.includes(activeTab)) {
+      const firstVisible = cfg.order.find(id => !cfg.hidden.includes(id));
+      if (firstVisible) setActiveTab(firstVisible);
+    }
+    const { data: user } = await supabase.auth.getUser();
+    if (!user?.user) return;
+    const uid = user.user.id;
+    await supabase.from('user_preferences').upsert(
+      { user_id: uid, site_tab_config: cfg, updated_at: new Date().toISOString() },
+      { onConflict: 'user_id' }
+    );
+  };
+
   const pageAsWithCompany: CompanyHomePageWithCompany | null = page
     ? { ...page, companies: resolvedCompanyName ? { name: resolvedCompanyName } : null }
     : null;
@@ -167,7 +207,25 @@ export default function SiteManagerShell({ ownerType, title, subtitle, companyId
         className="rounded-2xl p-4 space-y-4"
         style={{ background: t.card.bg, border: `1px solid ${t.card.border}`, boxShadow: t.card.shadow }}
       >
-        <SiteTabs activeTab={activeTab} onTabChange={setActiveTab} hideDomainTab={hideDomainTab} />
+        <div className="flex items-center gap-2">
+          <div className="flex-1 min-w-0">
+            <SiteTabs
+              activeTab={activeTab}
+              onTabChange={setActiveTab}
+              hideDomainTab={hideDomainTab}
+              customOrder={tabConfig.order}
+              hiddenTabs={tabConfig.hidden}
+            />
+          </div>
+          <button
+            onClick={() => setReorderOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-[11px] sm:text-xs font-semibold whitespace-nowrap transition-all flex-shrink-0 hover:scale-105"
+            style={{ background: 'rgba(14,165,233,0.08)', border: '1px solid rgba(14,165,233,0.18)', color: '#0ea5e9' }}
+          >
+            <SlidersHorizontal className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Reorganiser</span>
+          </button>
+        </div>
 
         <div className="min-h-[200px]">
           {loading ? (
@@ -210,6 +268,17 @@ export default function SiteManagerShell({ ownerType, title, subtitle, companyId
           page={pageAsWithCompany}
           onClose={() => setDomainModalOpen(false)}
           onChanged={() => { setDomainModalOpen(false); loadData(true); }}
+        />
+      )}
+
+      {/* Tab reorder modal */}
+      {reorderOpen && (
+        <SiteTabReorderModal
+          config={tabConfig}
+          onSave={handleSaveTabConfig}
+          onClose={() => setReorderOpen(false)}
+          t={t}
+          hideDomainTab={hideDomainTab}
         />
       )}
     </div>

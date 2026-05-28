@@ -14,48 +14,48 @@ export default function SADashboard({ onNavigate, onNavigateToAudit, adminCount 
   const t = useThemeTokens();
 
   return (
-    <div className="p-4 md:p-8 space-y-6 max-w-5xl">
+    <div className="p-4 md:p-8 space-y-4 md:space-y-6 max-w-5xl">
       <div>
-        <h1 className="text-xl md:text-2xl font-bold" style={{ color: t.text.primary }}>
+        <h1 className="text-lg md:text-2xl font-bold" style={{ color: t.text.primary }}>
           Dashboard Super Admin
         </h1>
-        <p className="text-sm mt-1" style={{ color: t.text.secondary }}>
+        <p className="text-xs md:text-sm mt-0.5 md:mt-1" style={{ color: t.text.secondary }}>
           Vue globale de la plateforme Talvex.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
         {/* Entreprises card */}
         <div
           className="rounded-2xl overflow-hidden"
           style={{ background: t.card.bg, border: `1px solid ${t.card.border}`, boxShadow: t.card.shadow }}
         >
-          <div className="p-5">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2.5">
+          <div className="p-3 md:p-5">
+            <div className="flex items-center justify-between mb-2 md:mb-4">
+              <div className="flex items-center gap-2">
                 <div
-                  className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                  className="w-7 h-7 md:w-9 md:h-9 rounded-lg md:rounded-xl flex items-center justify-center flex-shrink-0"
                   style={{
                     background: 'linear-gradient(135deg, #2563eb, #1d4ed8)',
                     boxShadow: '0 0 20px rgba(37,99,235,0.25)',
                   }}
                 >
-                  <Building2 className="w-4.5 h-4.5 text-white" />
+                  <Building2 className="w-3.5 h-3.5 md:w-[18px] md:h-[18px] text-white" />
                 </div>
-                <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: t.text.tertiary }}>
+                <span className="text-[10px] md:text-xs font-semibold uppercase tracking-wider" style={{ color: t.text.tertiary }}>
                   Entreprises
                 </span>
               </div>
             </div>
 
             {adminsLoading ? (
-              <div className="flex items-end gap-2 mb-2">
-                <div className="h-10 w-12 rounded-lg animate-pulse" style={{ background: t.surface.tertiary }} />
+              <div className="flex items-end gap-2 mb-1 md:mb-2">
+                <div className="h-8 md:h-10 w-10 md:w-12 rounded-lg animate-pulse" style={{ background: t.surface.tertiary }} />
               </div>
             ) : (
-              <div className="flex items-end gap-2 mb-2">
+              <div className="flex items-end gap-2 mb-1 md:mb-2">
                 <span
-                  className="text-4xl font-extrabold tabular-nums leading-none"
+                  className="text-2xl md:text-4xl font-extrabold tabular-nums leading-none"
                   style={{ color: t.text.primary }}
                 >
                   {adminCount}
@@ -63,7 +63,7 @@ export default function SADashboard({ onNavigate, onNavigateToAudit, adminCount 
               </div>
             )}
 
-            <p className="text-xs" style={{ color: t.text.tertiary }}>
+            <p className="text-[10px] md:text-xs" style={{ color: t.text.tertiary }}>
               {adminCount === 1 ? 'Societe cliente active' : 'Societes clientes actives'} dans Talvex
             </p>
           </div>
@@ -72,13 +72,13 @@ export default function SADashboard({ onNavigate, onNavigateToAudit, adminCount 
 
           <button
             onClick={() => onNavigate?.('admins')}
-            className="w-full flex items-center justify-between px-5 py-3 text-xs font-medium transition-all"
+            className="w-full flex items-center justify-between px-3 md:px-5 py-2 md:py-3 text-[11px] md:text-xs font-medium transition-all"
             style={{ color: t.accent.text }}
             onMouseEnter={e => { e.currentTarget.style.background = t.surface.hover; }}
             onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
           >
             Voir la liste des admins
-            <ArrowRight className="w-3.5 h-3.5" />
+            <ArrowRight className="w-3 h-3 md:w-3.5 md:h-3.5" />
           </button>
         </div>
       </div>

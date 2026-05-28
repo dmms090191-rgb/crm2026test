@@ -108,7 +108,7 @@ export default function SuperAdminTopBar({ activeView, onMobileMenuToggle, unrea
             </button>
             {msgDropdownOpen && (
               <div
-                className="absolute right-0 top-full mt-2 w-72 rounded-xl overflow-hidden z-50"
+                className="fixed right-3 left-3 sm:left-auto sm:absolute sm:right-0 sm:w-72 top-14 sm:top-full sm:mt-2 rounded-xl overflow-hidden z-50"
                 style={{ background: t.dropdown.bg, border: `1px solid ${t.dropdown.border}`, boxShadow: t.dropdown.shadow, backdropFilter: 'blur(16px)' }}
               >
                 <div className="px-3 py-2" style={{ borderBottom: `1px solid ${t.dropdown.border}` }}>
