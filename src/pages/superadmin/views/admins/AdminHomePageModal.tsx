@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Megaphone, PlusCircle, List, Loader2 } from 'lucide-react';
+import { X, ArrowLeft, Megaphone, PlusCircle, List, Loader2 } from 'lucide-react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 import { supabase } from '../../../../lib/supabase';
 import type { AdminUser } from '../SAAdmins';
@@ -11,6 +11,7 @@ import type { Announcement } from './AdminAnnouncementForm';
 interface AdminHomePageModalProps {
   admin: AdminUser;
   onClose: () => void;
+  onBack?: () => void;
 }
 
 const TABS = [
@@ -20,7 +21,7 @@ const TABS = [
 
 type TabKey = (typeof TABS)[number]['key'];
 
-function AdminHomePageModal({ admin, onClose }: AdminHomePageModalProps) {
+function AdminHomePageModal({ admin, onClose, onBack }: AdminHomePageModalProps) {
   const tokens = useThemeTokens();
   const [tab, setTab] = useState<TabKey>('create');
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -78,8 +79,17 @@ function AdminHomePageModal({ admin, onClose }: AdminHomePageModalProps) {
         className="w-full max-w-lg rounded-2xl overflow-hidden flex flex-col"
         style={{ background: tokens.modal.bg, border: `1px solid ${tokens.modal.border}`, boxShadow: tokens.modal.shadow, height: 'min(540px, 90dvh)' }}
       >
-        <div className="flex items-center justify-between px-6 py-4 flex-shrink-0" style={{ borderBottom: `1px solid ${tokens.surface.border}` }}>
+        <div className="flex items-center justify-between px-6 py-4 flex-shrink-0 gap-3" style={{ borderBottom: `1px solid ${tokens.surface.border}` }}>
           <div className="flex items-center gap-3 min-w-0">
+            {onBack && (
+              <button
+                onClick={onBack}
+                className="w-8 h-8 rounded-lg flex items-center justify-center transition-all flex-shrink-0 hover:scale-105"
+                style={{ background: tokens.surface.secondary, border: `1px solid ${tokens.surface.border}`, color: tokens.text.secondary }}
+              >
+                <ArrowLeft className="w-4 h-4" />
+              </button>
+            )}
             <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(245,158,11,0.12)', color: '#f59e0b' }}>
               <Megaphone className="w-4 h-4" />
             </div>
@@ -87,7 +97,7 @@ function AdminHomePageModal({ admin, onClose }: AdminHomePageModalProps) {
               <p className="font-semibold text-sm truncate" style={{ color: tokens.modal.title }}>
                 Annonces — {admin.company || 'Sans societe'}
               </p>
-              <p className="text-xs" style={{ color: tokens.modal.subtitle }}>{admin.email}</p>
+              <p className="text-xs truncate" style={{ color: tokens.modal.subtitle }}>{admin.email}</p>
             </div>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: tokens.modal.closeBtnBg, color: tokens.modal.closeBtnText }}>

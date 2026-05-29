@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Columns3, Lock, Unlock } from 'lucide-react';
+import { X, Columns3, Lock, Unlock, ArrowLeft } from 'lucide-react';
 import { supabase } from '../../../../lib/supabase';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 import { useSimulation } from '../../../../contexts/SimulationContext';
@@ -9,7 +9,7 @@ import PinDisplay from './PinDisplay';
 import CommentsTab from './CommentsTab';
 import CopyButton from '../../../../components/CopyButton';
 
-export default function VendorDetailModal({ vendor, onClose, onUpdate }: { vendor: Vendor; onClose: () => void; onUpdate: () => void }) {
+export default function VendorDetailModal({ vendor, onClose, onUpdate, onBack }: { vendor: Vendor; onClose: () => void; onUpdate: () => void; onBack?: () => void }) {
   const tokens = useThemeTokens();
   const { isSimulating } = useSimulation();
   const [tab, setTab] = useState<ModalTab>('informations');
@@ -70,14 +70,25 @@ export default function VendorDetailModal({ vendor, onClose, onUpdate }: { vendo
           boxShadow: tokens.modal.shadow,
         }}
       >
-        <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: `1px solid ${tokens.surface.border}` }}>
-          <div>
-            <p className="font-semibold text-sm" style={{ color: tokens.modal.title }}>{vendor.first_name} {vendor.last_name}</p>
-            <p className="text-xs" style={{ color: tokens.modal.subtitle }}>{vendor.email}</p>
+        <div className="flex items-center justify-between px-6 py-4 gap-3" style={{ borderBottom: `1px solid ${tokens.surface.border}` }}>
+          <div className="flex items-center gap-3 min-w-0">
+            {onBack && (
+              <button
+                onClick={onBack}
+                className="w-8 h-8 rounded-lg flex items-center justify-center transition-all flex-shrink-0 hover:scale-105"
+                style={{ background: tokens.surface.secondary, border: `1px solid ${tokens.surface.border}`, color: tokens.text.secondary }}
+              >
+                <ArrowLeft className="w-4 h-4" />
+              </button>
+            )}
+            <div className="min-w-0">
+              <p className="font-semibold text-sm truncate" style={{ color: tokens.modal.title }}>{vendor.first_name} {vendor.last_name}</p>
+              <p className="text-xs truncate" style={{ color: tokens.modal.subtitle }}>{vendor.email}</p>
+            </div>
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
+            className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors flex-shrink-0"
             style={{ background: tokens.modal.closeBtnBg, color: tokens.modal.closeBtnText }}
           >
             <X className="w-4 h-4" />

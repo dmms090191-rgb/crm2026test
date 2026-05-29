@@ -1,9 +1,17 @@
 import { supabase } from '../../../../lib/supabase';
 import type { CreditInfo } from './apiIaTypes';
 
-export async function fetchProviderBalance(provider: string): Promise<{
-  total_balance?: string; currency?: string; status: string; error?: string; checked_at: string;
-}> {
+export interface ProviderBalanceResult {
+  provider?: string;
+  total_balance?: string | null;
+  currency?: string;
+  status: string;
+  error?: string;
+  checked_at: string;
+  key_configured?: boolean;
+}
+
+export async function fetchProviderBalance(provider: string): Promise<ProviderBalanceResult> {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) return { status: 'error', error: 'Non authentifie', checked_at: new Date().toISOString() };
   const res = await fetch(
@@ -13,13 +21,25 @@ export async function fetchProviderBalance(provider: string): Promise<{
   return res.json();
 }
 
-export function parseCreditResult(result: Awaited<ReturnType<typeof fetchProviderBalance>>): CreditInfo {
+export function parseCreditResult(result: ProviderBalanceResult, provider: string): CreditInfo {
   if (result.status === 'key_missing') {
     return { credit: 'Cle manquante', checkedAt: result.checked_at, status: null };
   }
   if (result.status === 'error') {
     return { credit: 'Erreur verification', checkedAt: result.checked_at, status: null };
   }
+
+  if (provider === 'recraft') {
+    const credit = result.total_balance != null
+      ? `${result.total_balance} unites API`
+      : 'Non disponible via API';
+    return {
+      credit,
+      checkedAt: result.checked_at,
+      status: result.status === 'available' ? 'active' : 'inactive',
+    };
+  }
+
   const symbol = result.currency === 'CNY' ? '\u00a5' : '$';
   return {
     credit: `${result.total_balance} ${symbol}`,

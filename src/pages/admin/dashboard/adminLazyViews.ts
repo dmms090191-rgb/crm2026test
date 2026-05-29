@@ -2,6 +2,7 @@ import { lazy } from 'react';
 
 export const VueEnsemble = lazy(() => import('../views/VueEnsemble'));
 export const AdminSite = lazy(() => import('../views/AdminSite'));
+export const AdminLogoPage = lazy(() => import('../views/AdminLogoPage'));
 export const Inscription = lazy(() => import('../views/Inscription'));
 export const AjouterLeads = lazy(() => import('../views/AjouterLeads'));
 export const AjouterVendeur = lazy(() => import('../views/AjouterVendeur'));

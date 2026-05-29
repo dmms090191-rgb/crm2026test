@@ -2,10 +2,11 @@ import { useState, useEffect, useMemo } from 'react';
 import {
   LayoutDashboard, Info, UserPlus, Upload, Users, Database, UserCheck, List,
   MessageCircle, MessageSquare, Shield, Calendar, CalendarRange, CalendarCheck,
-  Settings, Hexagon, Globe, Brain,
+  Settings, Hexagon, Globe, Brain, Image as ImageIcon,
 } from 'lucide-react';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
 import { useSidebarOrder } from '../../hooks/useSidebarOrder';
+import { useActiveLogo } from '../../hooks/useActiveLogo';
 import SidebarReorderControls from '../../components/SidebarReorderControls';
 import SidebarFooterActions from '../../components/layout/SidebarFooterActions';
 import type { SidebarSection } from '../../lib/sidebarOrderTypes';
@@ -24,6 +25,7 @@ const DEFAULT_SECTIONS: SidebarSection[] = [
   { title: 'Principal', items: [
     { id: 'vue-ensemble', label: "Vue d'ensemble", icon: <LayoutDashboard className="w-4 h-4" /> },
     { id: 'site', label: 'Site', icon: <Globe className="w-4 h-4" /> },
+    { id: 'logo', label: 'Logo', icon: <ImageIcon className="w-4 h-4" /> },
     { id: 'info-admin', label: 'Info admin', icon: <Info className="w-4 h-4" /> },
   ] },
   { title: 'Gestion des leads', items: [
@@ -65,6 +67,8 @@ export default function Sidebar({ activeView, onNavigate, collapsed, onCollapse,
     });
   }, []);
 
+  const { url: activeLogo, scale: logoScale } = useActiveLogo(companyId);
+
   const sections = useMemo(() => DEFAULT_SECTIONS, []);
   const order = useSidebarOrder({ role: 'admin', sections, userId, companyId });
 
@@ -73,17 +77,31 @@ export default function Sidebar({ activeView, onNavigate, collapsed, onCollapse,
       className={`relative flex flex-col flex-shrink-0 h-full transition-[width] duration-300 ${collapsed ? 'w-16' : 'w-full md:w-60'}`}
       style={{ background: t.sidebar.bg, borderRight: `1px solid ${t.sidebar.border}`, backdropFilter: 'blur(16px) saturate(1.4)', WebkitBackdropFilter: 'blur(16px) saturate(1.4)' }}
     >
-      <div className="flex items-center gap-3 px-4 h-16 flex-shrink-0" style={{ borderBottom: `1px solid ${t.sidebar.border}` }}>
-        <div className="relative flex-shrink-0">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center shadow-lg" style={{ boxShadow: '0 0 20px rgba(34,211,238,0.4)' }}>
-            <Hexagon className="w-4 h-4 text-white fill-white/20" strokeWidth={2} />
-          </div>
-        </div>
-        {!collapsed && (
-          <div className="min-w-0 leading-tight">
-            <p className="text-sm font-bold tracking-tight truncate" style={{ color: t.sidebar.logoText }}>DesignSpace3D</p>
-            <p className="text-[9px] tracking-[0.2em] uppercase" style={{ color: t.sidebar.logoSub }}>Admin Panel</p>
-          </div>
+      <div
+        className={`flex items-center h-16 flex-shrink-0 overflow-hidden ${activeLogo ? (collapsed ? 'justify-center px-2' : 'justify-center px-3') : 'gap-3 px-4'}`}
+        style={{ borderBottom: `1px solid ${t.sidebar.border}` }}
+      >
+        {activeLogo ? (
+          <img
+            src={activeLogo}
+            alt="Logo"
+            className={`object-contain transition-transform duration-200 ${collapsed ? 'h-9 max-w-[40px]' : 'max-h-[44px] max-w-[180px]'}`}
+            style={{ transform: `scale(${logoScale})` }}
+          />
+        ) : (
+          <>
+            <div className="relative flex-shrink-0">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center shadow-lg" style={{ boxShadow: '0 0 20px rgba(34,211,238,0.4)' }}>
+                <Hexagon className="w-4 h-4 text-white fill-white/20" strokeWidth={2} />
+              </div>
+            </div>
+            {!collapsed && (
+              <div className="min-w-0 leading-tight">
+                <p className="text-sm font-bold tracking-tight truncate" style={{ color: t.sidebar.logoText }}>DesignSpace3D</p>
+                <p className="text-[9px] tracking-[0.2em] uppercase" style={{ color: t.sidebar.logoSub }}>Admin Panel</p>
+              </div>
+            )}
+          </>
         )}
       </div>
 

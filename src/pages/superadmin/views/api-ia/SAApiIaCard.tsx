@@ -25,7 +25,7 @@ export function ApiCard({ api, tokens, pwdVisible, keyVisible, copied, liveCredi
   const checkedAt = liveCredit?.checkedAt ?? api.last_checked_at;
   const liveStatus = liveCredit?.status ?? api.status;
   const isError = credit === 'Erreur verification' || credit === 'Cle manquante';
-  const isDeepSeek = api.name === 'DeepSeek';
+  const isLive = api.name === 'DeepSeek' || api.name === 'Recraft';
 
   return (
     <div className="px-4 py-4 space-y-2.5">
@@ -72,16 +72,24 @@ export function ApiCard({ api, tokens, pwdVisible, keyVisible, copied, liveCredi
           <div className="flex items-center gap-1">
             <span
               className="font-semibold transition-colors duration-500"
-              style={{ color: (creditFlash && isDeepSeek) ? '#16a34a' : isError ? '#ef4444' : tokens.text.primary }}
+              style={{ color: (creditFlash && isLive) ? '#16a34a' : isError ? '#ef4444' : tokens.text.primary }}
             >
               {credit || '-'}
             </span>
-            {creditLoading && isDeepSeek && (
+            {creditLoading && isLive && (
               <div className="w-2.5 h-2.5 border border-t-amber-400 rounded-full animate-spin" style={{ borderColor: tokens.text.quaternary, borderTopColor: '#f59e0b' }} />
             )}
           </div>
           {checkedAt && <RelativeTime iso={checkedAt} tokens={tokens} />}
         </CardRow>
+        <CardRow label="Cout" tokens={tokens}>
+          <span style={{ color: tokens.text.secondary }}>{api.cost || 'Non renseigne'}</span>
+        </CardRow>
+        {api.purchase_date && (
+          <CardRow label="Date achat" tokens={tokens}>
+            <span style={{ color: tokens.text.secondary }}>{api.purchase_date}</span>
+          </CardRow>
+        )}
       </div>
     </div>
   );

@@ -2,9 +2,9 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Globe, ShieldCheck, Clock, AlertCircle, ExternalLink, RefreshCw, Trash2, Save, Loader2, AlertTriangle } from 'lucide-react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 import { getHomePageByCompanyId, type CompanyHomePage } from '../../../../lib/companyHomePages';
-import { callManageDomain, VERCEL_DNS_RECORDS } from '../../../superadmin/views/sites/domainTypes';
-import CopyButton from '../../../../components/CopyButton';
+import { callManageDomain } from '../../../superadmin/views/sites/domainTypes';
 import { formatRelativeTime } from '../../../../lib/formatRelativeTime';
+import AdminDomainDnsPanel from './AdminDomainDnsPanel';
 
 const RECHECK_THRESHOLD_MS = 60 * 60 * 1000;
 const STALE_THRESHOLD_MS = 24 * 60 * 60 * 1000;
@@ -15,8 +15,6 @@ const STATUS_MAP: Record<string, { label: string; color: string; bg: string; bor
   verified: { label: 'Verifie', color: '#16a34a', bg: 'rgba(22,163,106,0.08)', border: 'rgba(22,163,106,0.15)' },
   error: { label: 'Erreur', color: '#ef4444', bg: 'rgba(239,68,68,0.08)', border: 'rgba(239,68,68,0.15)' },
 };
-
-const DNS_RECORDS = VERCEL_DNS_RECORDS;
 
 interface Props {
   companyId: string;
@@ -238,44 +236,7 @@ export default function AdminDetailDomainTab({ companyId, onUpdate }: Props) {
         </a>
       )}
 
-      {/* DNS instructions when pending */}
-      {isPending && (
-        <div className="rounded-xl p-4 space-y-3" style={{ background: 'rgba(245,158,11,0.04)', border: '1px solid rgba(245,158,11,0.12)' }}>
-          <p className="text-[11px] font-bold uppercase tracking-wider" style={{ color: '#f59e0b' }}>
-            Configuration DNS chez Hostinger
-          </p>
-          <div className="space-y-2">
-            {DNS_RECORDS.map(r => (
-              <div key={r.name} className="rounded-lg px-3 py-2.5" style={{ background: t.surface.primary, border: `1px solid ${t.surface.border}` }}>
-                <p className="text-[10px] mb-1.5" style={{ color: t.text.tertiary }}>{r.desc}</p>
-                <div className="grid grid-cols-3 gap-2 text-[11px]">
-                  <div>
-                    <span className="block text-[9px] uppercase font-bold" style={{ color: t.text.quaternary }}>Type</span>
-                    <span style={{ color: t.text.primary }}>{r.type}</span>
-                  </div>
-                  <div className="flex items-end gap-1">
-                    <div className="min-w-0">
-                      <span className="block text-[9px] uppercase font-bold" style={{ color: t.text.quaternary }}>Nom</span>
-                      <span className="font-mono" style={{ color: t.text.primary }}>{r.name}</span>
-                    </div>
-                    <CopyButton value={r.name} label="Copier le nom" />
-                  </div>
-                  <div className="flex items-end gap-1">
-                    <div className="min-w-0 overflow-hidden">
-                      <span className="block text-[9px] uppercase font-bold" style={{ color: t.text.quaternary }}>Valeur</span>
-                      <span className="font-mono truncate block" style={{ color: t.text.primary }}>{r.value}</span>
-                    </div>
-                    <CopyButton value={r.value} label="Copier la valeur" />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-          <p className="text-[10px]" style={{ color: t.text.tertiary }}>
-            La propagation DNS peut prendre jusqu'a 48h.
-          </p>
-        </div>
-      )}
+      {isPending && <AdminDomainDnsPanel />}
 
       {/* Feedback message */}
       {message && (

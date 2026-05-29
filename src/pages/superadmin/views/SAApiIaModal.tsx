@@ -13,6 +13,8 @@ export interface AiApi {
   saas_function: string | null;
   status: string;
   notes: string | null;
+  cost: string | null;
+  purchase_date: string | null;
   created_at: string;
   updated_at: string;
   last_checked_at: string | null;
@@ -35,6 +37,8 @@ export default function SAApiIaModal({ api, onClose, onSave }: Props) {
   const [saasFunction, setSaasFunction] = useState('');
   const [status, setStatus] = useState('active');
   const [notes, setNotes] = useState('');
+  const [cost, setCost] = useState('');
+  const [purchaseDate, setPurchaseDate] = useState('');
   const [showPwd, setShowPwd] = useState(false);
   const [showKey, setShowKey] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -50,6 +54,8 @@ export default function SAApiIaModal({ api, onClose, onSave }: Props) {
       setSaasFunction(api.saas_function ?? '');
       setStatus(api.status);
       setNotes(api.notes ?? '');
+      setCost(api.cost ?? '');
+      setPurchaseDate(api.purchase_date ?? '');
     }
   }, [api]);
 
@@ -66,6 +72,8 @@ export default function SAApiIaModal({ api, onClose, onSave }: Props) {
       saas_function: saasFunction.trim() || null,
       status,
       notes: notes.trim() || null,
+      cost: cost.trim() || null,
+      purchase_date: purchaseDate.trim() || null,
     });
     setSaving(false);
   };
@@ -149,6 +157,14 @@ export default function SAApiIaModal({ api, onClose, onSave }: Props) {
 
           <Field label="Fonction dans le SaaS" tokens={tokens}>
             <input value={saasFunction} onChange={e => setSaasFunction(e.target.value)} placeholder="Ex: Reponse automatique IA chat client" className="w-full px-3 py-2 rounded-lg text-sm" style={fieldStyle} />
+          </Field>
+
+          <Field label="Cout" tokens={tokens}>
+            <input value={cost} onChange={e => setCost(e.target.value)} placeholder="Ex: 20 $" className="w-full px-3 py-2 rounded-lg text-sm" style={fieldStyle} />
+          </Field>
+
+          <Field label="Date paiement / achat" tokens={tokens}>
+            <input value={purchaseDate} onChange={e => setPurchaseDate(e.target.value)} placeholder="Ex: 28/05/2026" className="w-full px-3 py-2 rounded-lg text-sm" style={fieldStyle} />
           </Field>
 
           <Field label="Statut" tokens={tokens}>

@@ -1,13 +1,14 @@
 import { useState, useEffect, useMemo } from 'react';
-import { LayoutDashboard, Shield, UserCog, BookOpen, Monitor, HardDriveDownload, MessageSquare, CircleUser as UserCircle, FlaskConical, Building2, Settings, Bot, Globe, Blocks, LayoutTemplate, Brain } from 'lucide-react';
+import { LayoutDashboard, Shield, UserCog, BookOpen, Monitor, HardDriveDownload, MessageSquare, CircleUser as UserCircle, FlaskConical, Building2, Settings, Bot, Globe, Blocks, LayoutTemplate, Brain, Image as ImageIcon } from 'lucide-react';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
 import { useSidebarOrder } from '../../hooks/useSidebarOrder';
+import { useActiveLogo } from '../../hooks/useActiveLogo';
 import SidebarReorderControls from '../../components/SidebarReorderControls';
 import SidebarFooterActions from '../../components/layout/SidebarFooterActions';
 import type { SidebarSection } from '../../lib/sidebarOrderTypes';
 import { supabase } from '../../lib/supabase';
 
-export type SAView = 'dashboard' | 'admins' | 'chat-admin' | 'documentation-crm' | 'system' | 'sauvegarde' | 'mon-compte' | 'tests-systeme' | 'crm-societe' | 'statuts' | 'api-ia' | 'cerveau-ia' | 'sites' | 'fonctions-talvex' | 'site-talvex';
+export type SAView = 'dashboard' | 'admins' | 'chat-admin' | 'documentation-crm' | 'system' | 'sauvegarde' | 'mon-compte' | 'tests-systeme' | 'crm-societe' | 'statuts' | 'api-ia' | 'cerveau-ia' | 'sites' | 'fonctions-talvex' | 'site-talvex' | 'logo' | 'ameliorations';
 
 interface SuperAdminSidebarProps {
   activeView: SAView;
@@ -23,6 +24,7 @@ const DEFAULT_SECTIONS: SidebarSection[] = [
     items: [
       { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-4 h-4" /> },
       { id: 'site-talvex', label: 'Site', icon: <LayoutTemplate className="w-4 h-4" /> },
+      { id: 'logo', label: 'Logo', icon: <ImageIcon className="w-4 h-4" /> },
     ],
   },
   {
@@ -58,10 +60,19 @@ const DEFAULT_SECTIONS: SidebarSection[] = [
 export default function SuperAdminSidebar({ activeView, onNavigate, collapsed, onCollapse, onLogout }: SuperAdminSidebarProps) {
   const t = useThemeTokens();
   const [userId, setUserId] = useState<string | null>(null);
+  const [companyId, setCompanyId] = useState<string | null>(null);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => { if (user) setUserId(user.id); });
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      setUserId(user.id);
+      const metaId = user.app_metadata?.company_id;
+      if (metaId) setCompanyId(metaId);
+    })();
   }, []);
+
+  const { url: activeLogo, scale: logoScale } = useActiveLogo(companyId);
 
   const sections = useMemo(() => DEFAULT_SECTIONS, []);
   const order = useSidebarOrder({ role: 'super_admin', sections, userId });
@@ -71,17 +82,31 @@ export default function SuperAdminSidebar({ activeView, onNavigate, collapsed, o
       className={`relative flex flex-col flex-shrink-0 h-full transition-[width] duration-300 ${collapsed ? 'w-16' : 'w-full md:w-60'}`}
       style={{ background: t.sidebar.bg, borderRight: `1px solid ${t.sidebar.border}`, backdropFilter: 'blur(16px) saturate(1.4)', WebkitBackdropFilter: 'blur(16px) saturate(1.4)' }}
     >
-      <div className="flex items-center gap-3 px-4 h-16 flex-shrink-0" style={{ borderBottom: `1px solid ${t.sidebar.border}` }}>
-        <div className="relative flex-shrink-0">
-          <div className="w-8 h-8 rounded-xl flex items-center justify-center shadow-lg" style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', boxShadow: '0 0 20px rgba(245,158,11,0.4)' }}>
-            <Shield className="w-4 h-4 text-white" strokeWidth={2} />
-          </div>
-        </div>
-        {!collapsed && (
-          <div className="min-w-0 leading-tight">
-            <p className="text-sm font-bold tracking-tight truncate" style={{ color: t.sidebar.logoText }}>Super Admin</p>
-            <p className="text-[9px] tracking-[0.2em] uppercase" style={{ color: t.sidebar.logoSub }}>Plateforme SaaS</p>
-          </div>
+      <div
+        className={`flex items-center h-16 flex-shrink-0 overflow-hidden ${activeLogo ? (collapsed ? 'justify-center px-2' : 'justify-center px-3') : 'gap-3 px-4'}`}
+        style={{ borderBottom: `1px solid ${t.sidebar.border}` }}
+      >
+        {activeLogo ? (
+          <img
+            src={activeLogo}
+            alt="Logo"
+            className={`object-contain transition-transform duration-200 ${collapsed ? 'h-9 max-w-[40px]' : 'max-h-[44px] max-w-[180px]'}`}
+            style={{ transform: `scale(${logoScale})` }}
+          />
+        ) : (
+          <>
+            <div className="relative flex-shrink-0">
+              <div className="w-8 h-8 rounded-xl flex items-center justify-center shadow-lg" style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', boxShadow: '0 0 20px rgba(245,158,11,0.4)' }}>
+                <Shield className="w-4 h-4 text-white" strokeWidth={2} />
+              </div>
+            </div>
+            {!collapsed && (
+              <div className="min-w-0 leading-tight">
+                <p className="text-sm font-bold tracking-tight truncate" style={{ color: t.sidebar.logoText }}>Super Admin</p>
+                <p className="text-[9px] tracking-[0.2em] uppercase" style={{ color: t.sidebar.logoSub }}>Plateforme SaaS</p>
+              </div>
+            )}
+          </>
         )}
       </div>
 

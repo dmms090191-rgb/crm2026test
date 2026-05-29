@@ -22,7 +22,7 @@ export function useCrmData() {
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState(false);
-  const [detailLead, setDetailLead] = useState<{ lead: ImportedLead; index: number } | null>(null);
+  const [detailLead, setDetailLead] = useState<{ lead: ImportedLead; index: number; fromActions?: boolean } | null>(null);
   const [showTransfer, setShowTransfer] = useState(false);
   const [authUserId, setAuthUserId] = useState<string>('');
   const workMode = useWorkMode(authUserId ? `crm_work_mode_admin_${authUserId}` : '');

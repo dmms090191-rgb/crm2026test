@@ -23,48 +23,65 @@ export default function SAApiIa() {
   const [creditMap, setCreditMap] = useState<Record<string, CreditInfo>>({});
   const [creditLoading, setCreditLoading] = useState(false);
   const [creditFlash, setCreditFlash] = useState(false);
-  const lastCreditRef = useRef<string | null>(null);
+  const lastCreditRef = useRef<Record<string, string>>({});
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const apisRef = useRef(apis);
   apisRef.current = apis;
 
+  const PROVIDER_MAP: Record<string, string> = { DeepSeek: 'deepseek', Recraft: 'recraft' };
+
   const load = useCallback(async () => {
-    const { data } = await supabase.from('sa_ai_apis').select('*').order('created_at', { ascending: false });
+    const { data } = await supabase.from('sa_ai_apis').select('*').order('created_at', { ascending: true });
     setApis((data ?? []) as AiApi[]);
     setLoading(false);
   }, []);
 
   const refreshCredit = useCallback(async () => {
-    const deepseek = apisRef.current.find(a => a.name === 'DeepSeek');
-    if (!deepseek) return;
+    const providers = apisRef.current.filter(a => PROVIDER_MAP[a.name]);
+    if (providers.length === 0) return;
 
     setCreditLoading(true);
     try {
-      const result = await fetchProviderBalance('deepseek');
-      const info = parseCreditResult(result);
+      const results = await Promise.all(
+        providers.map(async (api) => {
+          const providerKey = PROVIDER_MAP[api.name];
+          const result = await fetchProviderBalance(providerKey);
+          const info = parseCreditResult(result, providerKey);
+          return { api, info };
+        }),
+      );
 
-      const changed = lastCreditRef.current !== null && lastCreditRef.current !== info.credit;
-      lastCreditRef.current = info.credit;
+      let anyChanged = false;
+      const newMap: Record<string, CreditInfo> = {};
 
-      setCreditMap(prev => ({ ...prev, [deepseek.id]: info }));
+      for (const { api, info } of results) {
+        newMap[api.id] = info;
 
-      if (changed) {
-        setCreditFlash(true);
-        setTimeout(() => setCreditFlash(false), 1200);
+        const prev = lastCreditRef.current[api.id];
+        if (prev && prev !== info.credit) anyChanged = true;
+        lastCreditRef.current[api.id] = info.credit;
+
+        if (info.credit !== api.remaining_credit || !api.last_checked_at) {
+          const payload: Record<string, string> = {
+            remaining_credit: info.credit,
+            last_checked_at: info.checkedAt,
+            updated_at: new Date().toISOString(),
+          };
+          if (info.status) payload.status = info.status;
+          supabase.from('sa_ai_apis').update(payload).eq('id', api.id).then(() => {});
+        }
       }
 
-      if (info.credit !== deepseek.remaining_credit || !deepseek.last_checked_at) {
-        const payload: Record<string, string> = {
-          remaining_credit: info.credit,
-          last_checked_at: info.checkedAt,
-          updated_at: new Date().toISOString(),
-        };
-        if (info.status) payload.status = info.status;
-        supabase.from('sa_ai_apis').update(payload).eq('id', deepseek.id).then(() => {});
+      setCreditMap(prev => ({ ...prev, ...newMap }));
+
+      if (anyChanged) {
+        setCreditFlash(true);
+        setTimeout(() => setCreditFlash(false), 1200);
       }
     } finally {
       setCreditLoading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -72,13 +89,14 @@ export default function SAApiIa() {
   useEffect(() => {
     if (loading || apis.length === 0) return;
 
-    const ds = apis.find(a => a.name === 'DeepSeek');
-    if (ds && ds.remaining_credit) {
-      lastCreditRef.current = ds.remaining_credit;
-      setCreditMap(prev => ({
-        ...prev,
-        [ds.id]: { credit: ds.remaining_credit!, checkedAt: ds.last_checked_at ?? '', status: ds.status },
-      }));
+    for (const api of apis) {
+      if (api.remaining_credit) {
+        lastCreditRef.current[api.id] = api.remaining_credit;
+        setCreditMap(prev => ({
+          ...prev,
+          [api.id]: { credit: api.remaining_credit!, checkedAt: api.last_checked_at ?? '', status: api.status },
+        }));
+      }
     }
 
     refreshCredit();

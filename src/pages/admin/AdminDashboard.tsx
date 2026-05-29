@@ -8,7 +8,7 @@ import AgendaEquipe from './views/AgendaEquipe';
 import { SimulationProvider } from '../../contexts/SimulationContext';
 import { SimulationBanner } from './views/sauvegarde/SimulationBanner';
 import {
-  VueEnsemble, AdminSite, Inscription, AjouterLeads, AjouterVendeur, ListeVendeurs,
+  VueEnsemble, AdminSite, AdminLogoPage, Inscription, AjouterLeads, AjouterVendeur, ListeVendeurs,
   ChatClient, ChatVendeur, ChatSuperAdmin, Agenda, PropositionsRdv, Statuts, Crm,
   ImportLeads, importDocumentationCrm, DocumentationCrm, SauvegardeRestauration,
   SystemPage, AdminCerveauIA,
@@ -50,6 +50,7 @@ interface AdminDashboardProps {
 export type ActiveView =
   | 'vue-ensemble'
   | 'site'
+  | 'logo'
   | 'info-admin'
   | 'inscription'
   | 'import-leads'
@@ -163,6 +164,7 @@ export default function AdminDashboard({ onLogout, onConnectAsVendor, onConnectA
     switch (activeView) {
       case 'vue-ensemble': return <Suspense fallback={lazyFallback}><VueEnsemble onNavigate={handleNavigate} unreadClientConversations={unreadEntries.length} unreadVendorConversations={unreadVendorEntries.length} /></Suspense>;
       case 'site': return <Suspense fallback={lazyFallback}><AdminSite /></Suspense>;
+      case 'logo': return <Suspense fallback={lazyFallback}><AdminLogoPage /></Suspense>;
       case 'inscription': return <Suspense fallback={lazyFallback}><Inscription /></Suspense>;
       case 'import-leads': return <Suspense fallback={lazyFallback}><ImportLeads onNavigateToCrm={() => handleNavigate('crm')} /></Suspense>;
       case 'ajouter-leads': return <Suspense fallback={lazyFallback}><AjouterLeads /></Suspense>;

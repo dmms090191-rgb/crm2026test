@@ -11,7 +11,7 @@ interface ListeVendeursMobileCardProps {
   isSelected: boolean;
   selectMode: boolean;
   onToggleSelect: (id: string) => void;
-  onDetail: (vendor: Vendor) => void;
+  onDetail: (vendor: Vendor, fromActions?: boolean) => void;
   onOpenChat?: (vendor: Vendor) => void;
   onConnectAsVendor?: (vendor: Vendor) => void;
   tokens: ThemeTokens;
@@ -75,7 +75,7 @@ export default function ListeVendeursMobileCard({
           vendor={vendor}
           tokens={tokens}
           onClose={() => setActionsOpen(false)}
-          onDetail={() => { setActionsOpen(false); onDetail(vendor); }}
+          onDetail={() => { setActionsOpen(false); onDetail(vendor, true); }}
           onConnect={() => { setActionsOpen(false); onConnectAsVendor?.(vendor); }}
           onChat={() => { setActionsOpen(false); onOpenChat?.(vendor); }}
         />

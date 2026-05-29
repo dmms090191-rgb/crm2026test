@@ -1,17 +1,18 @@
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { Users, CheckSquare, Briefcase, Columns3, SlidersHorizontal, Bot } from 'lucide-react';
 import { useThemeTokens } from '../../../hooks/useThemeTokens';
 import { useTimezone } from '../../../hooks/useTimezone';
-import { supabase } from '../../../lib/supabase';
 import { useCompanyId } from '../../../hooks/useCompanyId';
-import type { ImpersonatedClient, ChatLead } from './crm/types';
-import { CRM_COLUMNS, VENDOR_BASE_COLUMNS, CRM_HEADER_ICONS } from './crm/types';
+import type { ImportedLead, ImpersonatedClient, ChatLead } from './crm/types';
+import { CRM_COLUMNS, CRM_HEADER_ICONS } from './crm/types';
 import CrmTableRow from './crm/CrmTableRow';
 import CrmActionBar from './crm/CrmActionBar';
 import CrmFilters from './crm/CrmFilters';
 import CrmWorkModeBar from './crm/CrmWorkModeBar';
 import CrmMobileLeadCard from './crm/CrmMobileLeadCard';
+import CrmFooterBar from './crm/CrmFooterBar';
 import DetailModal from './crm/DetailModal';
+import CrmActionModal from './crm/CrmActionModal';
 import TransferModal from './crm/TransferModal';
 import { useCrmData } from './crm/useCrmData';
 import useColumnOrder from '../../../components/table/useColumnOrder';
@@ -21,7 +22,7 @@ import { useCustomColumns } from '../../../hooks/useCustomColumns';
 import { useActionMenuOrder } from '../../../components/action-menu/useActionMenuOrder';
 import ToolbarOrganizerModal from '../../../components/toolbar/ToolbarOrganizerModal';
 import type { ToolbarItem } from '../../../components/toolbar/ToolbarOrganizerModal';
-import type { VendorColumnConfig } from '../../../components/table/TabVendorColumns';
+import { useVendorColumnConfig } from './crm/useVendorColumnConfig';
 
 export type { ImpersonatedClient, ChatLead } from './crm/types';
 
@@ -45,6 +46,7 @@ export default function Crm({ onConnectAsClient, onOpenChat, onOpenRdv }: CrmPro
   const [showOrgModal, setShowOrgModal] = useState(false);
   const displayColumns = useMemo(() => allColumns.map(c => colOrder.labelOverrides[c.key] ? { ...c, label: colOrder.labelOverrides[c.key] } : c), [allColumns, colOrder.labelOverrides]);
   const colMap = useMemo(() => new Map(displayColumns.map(c => [c.key, c])), [displayColumns]);
+  const vendorTabConfig = useVendorColumnConfig(companyId);
 
   const CRM_TOOLBAR_DEFAULT = ['select', 'ia', 'workmode', 'columns', 'organize'];
   const tbOrder = useActionMenuOrder('talvex_toolbar_order_admin_crm', CRM_TOOLBAR_DEFAULT);
@@ -58,6 +60,7 @@ export default function Crm({ onConnectAsClient, onOpenChat, onOpenRdv }: CrmPro
 
   const allAiEnabled = useMemo(() => d.leads.length > 0 && d.leads.every(l => l.ai_enabled === true), [d.leads]);
 
+  const [actionLeadModal, setActionLeadModal] = useState<{ lead: ImportedLead; index: number } | null>(null);
   const [selectMode, setSelectMode] = useState(false);
   const handleToggleSelectMode = useCallback(() => {
     setSelectMode(prev => {
@@ -66,66 +69,16 @@ export default function Crm({ onConnectAsClient, onOpenChat, onOpenRdv }: CrmPro
     });
   }, [d]);
 
-  // --- Vendor column config ---
-  const defaultVendorOrder = useMemo(() => VENDOR_BASE_COLUMNS.map(c => c.key), []);
-  const [vendorColOrder, setVendorColOrder] = useState<string[]>(defaultVendorOrder);
-  const [vendorColHidden, setVendorColHidden] = useState<string[]>([]);
-  const [vendorConfigLoaded, setVendorConfigLoaded] = useState(false);
-
-  useEffect(() => {
-    if (!companyId) return;
-    supabase.from('company_column_config')
-      .select('desktop_order, desktop_hidden')
-      .eq('company_id', companyId)
-      .eq('table_key', 'vendor_leads')
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data) {
-          const validKeys = new Set(VENDOR_BASE_COLUMNS.map(c => c.key));
-          const order = (data.desktop_order as string[] || []).filter(k => validKeys.has(k));
-          const missing = defaultVendorOrder.filter(k => !order.includes(k));
-          if (order.length > 0) setVendorColOrder([...order, ...missing]);
-          setVendorColHidden((data.desktop_hidden as string[] || []).filter(k => validKeys.has(k)));
-        }
-        setVendorConfigLoaded(true);
-      });
-  }, [companyId, defaultVendorOrder]);
-
-  const handleSaveVendorConfig = useCallback(async (config: VendorColumnConfig) => {
-    setVendorColOrder(config.order);
-    setVendorColHidden(config.hidden);
-    if (!companyId) return;
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    await supabase.from('company_column_config').upsert({
-      company_id: companyId,
-      table_key: 'vendor_leads',
-      desktop_order: config.order,
-      desktop_hidden: config.hidden,
-      pushed_by: user.id,
-      pushed_at: new Date().toISOString(),
-    }, { onConflict: 'company_id,table_key' });
-  }, [companyId]);
-
-  const vendorTabConfig = useMemo(() => {
-    if (!vendorConfigLoaded) return undefined;
-    return {
-      columns: VENDOR_BASE_COLUMNS,
-      order: vendorColOrder,
-      hidden: vendorColHidden,
-      onSave: handleSaveVendorConfig,
-    };
-  }, [vendorConfigLoaded, vendorColOrder, vendorColHidden, handleSaveVendorConfig]);
+  function leadSummary(lead: ImportedLead) {
+    const g = (k: string) => lead.data[k] ?? '';
+    return { id: lead.id, nom: g('Nom'), prenom: g('Prenom'), email: g('Email'), tel: g('Telephone') };
+  }
 
   return (
     <div className="space-y-5">
       <CrmActionBar
-        totalLeads={d.leads.length}
-        selectedCount={selectMode ? d.selected.size : 0}
-        deleting={d.deleting}
-        tokens={tokens}
-        onTransfer={() => d.setShowTransfer(true)}
-        onDelete={d.handleDeleteSelected}
+        totalLeads={d.leads.length} selectedCount={selectMode ? d.selected.size : 0} deleting={d.deleting} tokens={tokens}
+        onTransfer={() => d.setShowTransfer(true)} onDelete={d.handleDeleteSelected}
       />
 
       <CrmFilters
@@ -154,7 +107,6 @@ export default function Crm({ onConnectAsClient, onOpenChat, onOpenRdv }: CrmPro
           </div>
         ) : (
           <>
-            {/* Desktop table */}
             <div className="hidden md:block">
               <CrmWorkModeBar
                 allChecked={d.allChecked} someChecked={d.someChecked} toggleAll={d.toggleAll}
@@ -164,12 +116,8 @@ export default function Crm({ onConnectAsClient, onOpenChat, onOpenRdv }: CrmPro
                 historyPosition={d.workMode.historyPosition} historyLength={d.workMode.historyLength}
                 onLocate={() => { if (d.workMode.activeId) d.rowRefsMap.current.get(d.workMode.activeId)?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }}
                 canLocate={!!d.workMode.activeId && d.filtered.some(l => l.id === d.workMode.activeId)}
-                onResetHistory={d.workMode.resetHistory}
-                allAiEnabled={allAiEnabled}
-                onGlobalAiToggle={d.handleGlobalAiToggle}
-                onOpenColumns={() => setShowColModal(true)}
-                onOpenOrganize={() => setShowOrgModal(true)}
-                toolbarOrder={tbOrder.order}
+                onResetHistory={d.workMode.resetHistory} allAiEnabled={allAiEnabled} onGlobalAiToggle={d.handleGlobalAiToggle}
+                onOpenColumns={() => setShowColModal(true)} onOpenOrganize={() => setShowOrgModal(true)} toolbarOrder={tbOrder.order}
               />
               <div ref={d.topScrollRef} onScroll={d.handleTopScroll} className="dual-scroll-top">
                 <div ref={d.topInnerRef} className="dual-scroll-top-inner" />
@@ -201,7 +149,7 @@ export default function Crm({ onConnectAsClient, onOpenChat, onOpenRdv }: CrmPro
                         lead={lead} index={i} isSelected={d.selected.has(lead.id)}
                         statutDefs={d.statutDefs} vendors={d.vendors} tokens={tokens} timezone={timezone} colSep={colSep}
                         onToggle={d.toggleOne} onStatutChange={d.handleStatut} onToggleActif={d.handleToggleActif} onToggleAi={d.handleToggleAi}
-                        onDetail={(l, idx) => d.setDetailLead({ lead: l, index: idx })}
+                        onDetail={(l, idx, fromActions) => d.setDetailLead({ lead: l, index: idx, fromActions })}
                         onConnectAsClient={onConnectAsClient} onOpenChat={onOpenChat} onOpenRdv={onOpenRdv}
                         selectMode={selectMode}
                         workModeEnabled={d.workMode.enabled} isWorkActive={d.workMode.activeId === lead.id}
@@ -209,8 +157,7 @@ export default function Crm({ onConnectAsClient, onOpenChat, onOpenRdv }: CrmPro
                         canWorkUndo={d.workMode.canUndo} canWorkRedo={d.workMode.canRedo}
                         workHistoryPosition={d.workMode.historyPosition} workHistoryLength={d.workMode.historyLength}
                         columnOrder={colOrder.visibleOrderedKeys}
-                        customColumnDefs={cc.customDefs}
-                        customColumnValues={cc.getValuesForRow(lead.id)}
+                        customColumnDefs={cc.customDefs} customColumnValues={cc.getValuesForRow(lead.id)}
                       />
                     ))}
                   </tbody>
@@ -218,7 +165,6 @@ export default function Crm({ onConnectAsClient, onOpenChat, onOpenRdv }: CrmPro
               </div>
             </div>
 
-            {/* Mobile */}
             <div className="md:hidden">
               <CrmWorkModeBar
                 allChecked={d.allChecked} someChecked={d.someChecked} toggleAll={d.toggleAll}
@@ -228,12 +174,8 @@ export default function Crm({ onConnectAsClient, onOpenChat, onOpenRdv }: CrmPro
                 historyPosition={d.workMode.historyPosition} historyLength={d.workMode.historyLength}
                 onLocate={() => { if (d.workMode.activeId) d.cardRefsMap.current.get(d.workMode.activeId)?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }}
                 canLocate={!!d.workMode.activeId && d.filtered.some(l => l.id === d.workMode.activeId)}
-                onResetHistory={d.workMode.resetHistory}
-                allAiEnabled={allAiEnabled}
-                onGlobalAiToggle={d.handleGlobalAiToggle}
-                onOpenColumns={() => setShowColModal(true)}
-                onOpenOrganize={() => setShowOrgModal(true)}
-                toolbarOrder={tbOrder.order}
+                onResetHistory={d.workMode.resetHistory} allAiEnabled={allAiEnabled} onGlobalAiToggle={d.handleGlobalAiToggle}
+                onOpenColumns={() => setShowColModal(true)} onOpenOrganize={() => setShowOrgModal(true)} toolbarOrder={tbOrder.order}
               />
               <div className="divide-y" style={{ borderColor: tokens.table.rowBorder }}>
                 {d.filtered.map((lead, i) => (
@@ -246,7 +188,7 @@ export default function Crm({ onConnectAsClient, onOpenChat, onOpenRdv }: CrmPro
                     canUndo={d.workMode.canUndo} canRedo={d.workMode.canRedo}
                     onWorkSelect={d.workMode.select} onWorkUndo={d.workMode.undo} onWorkRedo={d.workMode.redo} onWorkReset={d.workMode.resetHistory}
                     onToggle={d.toggleOne} onStatutChange={d.handleStatut} onToggleActif={d.handleToggleActif} onToggleAi={d.handleToggleAi}
-                    onDetail={(l, idx) => d.setDetailLead({ lead: l, index: idx })}
+                    onDetail={(l, idx, fromActions) => d.setDetailLead({ lead: l, index: idx, fromActions })}
                     onOpenChat={onOpenChat} onOpenRdv={onOpenRdv} onConnectAsClient={onConnectAsClient}
                     selectMode={selectMode}
                     cardRef={el => { if (el) d.cardRefsMap.current.set(lead.id, el); else d.cardRefsMap.current.delete(lead.id); }}
@@ -255,33 +197,45 @@ export default function Crm({ onConnectAsClient, onOpenChat, onOpenRdv }: CrmPro
               </div>
             </div>
 
-            <div className="flex items-center justify-between px-6 py-3.5" style={{ borderTop: `1px solid ${tokens.surface.border}`, background: tokens.table.headerBg }}>
-              <div className="flex items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold" style={{ background: tokens.accent.bg, color: tokens.accent.text, border: `1px solid ${tokens.accent.border}` }}>
-                  <Users className="w-3 h-3" />{d.filtered.length}
-                </span>
-                <span className="text-xs" style={{ color: tokens.table.footerText }}>lead{d.filtered.length !== 1 ? 's' : ''} affiche{d.filtered.length !== 1 ? 's' : ''}</span>
-              </div>
-              {d.selected.size > 0 && (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold" style={{ background: tokens.danger.bg, color: tokens.danger.text, border: `1px solid ${tokens.danger.border}` }}>{d.selected.size} selectionne{d.selected.size > 1 ? 's' : ''}</span>
-              )}
-              {d.filtered.length === 0 && (d.filterNom || d.filterPrenom || d.filterEmail || d.filterTel) && (
-                <p className="text-xs" style={{ color: tokens.table.footerText }}>Aucun resultat pour ces filtres</p>
-              )}
-            </div>
+            <CrmFooterBar filteredCount={d.filtered.length} selectedCount={d.selected.size}
+              hasActiveFilters={!!(d.filterNom || d.filterPrenom || d.filterEmail || d.filterTel)} tokens={tokens} />
           </>
         )}
       </div>
 
       {d.detailLead && (
-        <DetailModal lead={d.detailLead.lead} gradIndex={d.detailLead.index} onClose={() => d.setDetailLead(null)} statutDefs={d.statutDefs} />
+        <DetailModal lead={d.detailLead.lead} gradIndex={d.detailLead.index} onClose={() => d.setDetailLead(null)} statutDefs={d.statutDefs}
+          onBack={d.detailLead.fromActions ? () => {
+            const { lead, index: idx } = d.detailLead!;
+            d.setDetailLead(null);
+            setActionLeadModal({ lead, index: idx });
+          } : undefined}
+        />
       )}
 
-      {d.showTransfer && (
-        <TransferModal count={d.selected.size} onClose={() => d.setShowTransfer(false)} onConfirm={d.handleTransfer} />
-      )}
+      {actionLeadModal && (() => {
+        const s = leadSummary(actionLeadModal.lead);
+        return (
+          <CrmActionModal
+            lead={{ nom: s.nom, prenom: s.prenom, email: s.email, tel: s.tel }} tokens={tokens}
+            onClose={() => setActionLeadModal(null)}
+            onDetail={() => { const m = actionLeadModal; setActionLeadModal(null); d.setDetailLead({ lead: m.lead, index: m.index, fromActions: true }); }}
+            onConnect={() => { onConnectAsClient?.({ id: s.id, nom: s.nom, prenom: s.prenom, email: s.email }); setActionLeadModal(null); }}
+            onChat={() => { onOpenChat?.(s); setActionLeadModal(null); }}
+            onRdv={() => { onOpenRdv?.(s); setActionLeadModal(null); }}
+          />
+        );
+      })()}
 
-      {showColModal && <ColumnOrganizerModal columns={displayColumns} orderedKeys={colOrder.orderedKeys} hiddenDesktopKeys={colOrder.hiddenDesktopKeys} tableKey="admin_crm" onSave={colOrder.saveAll} onReset={colOrder.resetAll} onClose={() => setShowColModal(false)} onCreateCustomColumn={cc.createColumn} onDeleteCustomColumn={cc.deleteColumn} onRenameCustomColumn={cc.renameColumn} onRenameLabel={colOrder.renameLabel} mobileOrder={colMobile.mobileOrder} mobileCardStyle={colMobile.cardStyle} onSaveMobile={colMobile.saveMobile} onResetMobile={colMobile.resetMobile} vendorTab={vendorTabConfig} />}
+      {d.showTransfer && <TransferModal count={d.selected.size} onClose={() => d.setShowTransfer(false)} onConfirm={d.handleTransfer} />}
+
+      {showColModal && (
+        <ColumnOrganizerModal columns={displayColumns} orderedKeys={colOrder.orderedKeys} hiddenDesktopKeys={colOrder.hiddenDesktopKeys}
+          tableKey="admin_crm" onSave={colOrder.saveAll} onReset={colOrder.resetAll} onClose={() => setShowColModal(false)}
+          onCreateCustomColumn={cc.createColumn} onDeleteCustomColumn={cc.deleteColumn} onRenameCustomColumn={cc.renameColumn}
+          onRenameLabel={colOrder.renameLabel} mobileOrder={colMobile.mobileOrder} mobileCardStyle={colMobile.cardStyle}
+          onSaveMobile={colMobile.saveMobile} onResetMobile={colMobile.resetMobile} vendorTab={vendorTabConfig} />
+      )}
 
       {showOrgModal && <ToolbarOrganizerModal items={toolbarItems} order={tbOrder.order} onSave={tbOrder.save} onClose={() => setShowOrgModal(false)} t={tokens} />}
     </div>

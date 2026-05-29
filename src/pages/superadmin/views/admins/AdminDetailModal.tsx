@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X } from 'lucide-react';
+import { X, ArrowLeft } from 'lucide-react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 import type { AdminUser } from '../SAAdmins';
 import AdminDetailInfoTab from './AdminDetailInfoTab';
@@ -14,9 +14,10 @@ interface AdminDetailModalProps {
   onClose: () => void;
   onUpdate: () => void;
   onSwitchMode: (mode: 'detail' | 'edit') => void;
+  onBack?: () => void;
 }
 
-export default function AdminDetailModal({ admin, onClose, onUpdate }: AdminDetailModalProps) {
+export default function AdminDetailModal({ admin, onClose, onUpdate, onBack }: AdminDetailModalProps) {
   const tokens = useThemeTokens();
   const [tab, setTab] = useState<ModalTab>('informations');
 
@@ -55,16 +56,27 @@ export default function AdminDetailModal({ admin, onClose, onUpdate }: AdminDeta
           boxShadow: tokens.modal.shadow,
         }}
       >
-        <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: `1px solid ${tokens.surface.border}` }}>
-          <div>
-            <p className="font-semibold text-sm" style={{ color: tokens.modal.title }}>
-              {admin.first_name || admin.last_name ? `${admin.first_name} ${admin.last_name}`.trim() : 'Admin'}
-            </p>
-            <p className="text-xs" style={{ color: tokens.modal.subtitle }}>{admin.email}</p>
+        <div className="flex items-center justify-between px-6 py-4 gap-3" style={{ borderBottom: `1px solid ${tokens.surface.border}` }}>
+          <div className="flex items-center gap-3 min-w-0">
+            {onBack && (
+              <button
+                onClick={onBack}
+                className="w-8 h-8 rounded-lg flex items-center justify-center transition-all flex-shrink-0 hover:scale-105"
+                style={{ background: tokens.surface.secondary, border: `1px solid ${tokens.surface.border}`, color: tokens.text.secondary }}
+              >
+                <ArrowLeft className="w-4 h-4" />
+              </button>
+            )}
+            <div className="min-w-0">
+              <p className="font-semibold text-sm truncate" style={{ color: tokens.modal.title }}>
+                {admin.first_name || admin.last_name ? `${admin.first_name} ${admin.last_name}`.trim() : 'Admin'}
+              </p>
+              <p className="text-xs truncate" style={{ color: tokens.modal.subtitle }}>{admin.email}</p>
+            </div>
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
+            className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors flex-shrink-0"
             style={{ background: tokens.modal.closeBtnBg, color: tokens.modal.closeBtnText }}
           >
             <X className="w-4 h-4" />

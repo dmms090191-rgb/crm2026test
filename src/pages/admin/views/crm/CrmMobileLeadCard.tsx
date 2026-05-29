@@ -36,7 +36,7 @@ interface Props {
   onStatutChange: (id: string, statut: string) => void;
   onToggleActif: (id: string, current: boolean) => void;
   onToggleAi: (id: string, current: boolean) => void;
-  onDetail: (lead: ImportedLead, index: number) => void;
+  onDetail: (lead: ImportedLead, index: number, fromActions?: boolean) => void;
   onOpenChat?: (lead: ChatLead) => void;
   onOpenRdv?: (lead: ChatLead) => void;
   onConnectAsClient?: (client: ImpersonatedClient) => void;
@@ -199,7 +199,7 @@ export default function CrmMobileLeadCard({
             lead={{ nom, prenom, email, tel }}
             tokens={tokens}
             onClose={() => setActionsOpen(false)}
-            onDetail={() => onDetail(lead, index)}
+            onDetail={() => onDetail(lead, index, true)}
             onConnect={() => onConnectAsClient?.({ id: lead.id, nom, prenom, email })}
             onChat={() => onOpenChat?.({ id: lead.id, nom, prenom, email, tel })}
             onRdv={() => onOpenRdv?.({ id: lead.id, nom, prenom, email, tel })}

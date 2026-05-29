@@ -5,6 +5,9 @@ import type { AiApi } from '../SAApiIaModal';
 import type { CreditInfo } from './apiIaTypes';
 import { maskValue } from './apiIaTypes';
 
+const LIVE_PROVIDERS = new Set(['DeepSeek', 'Recraft']);
+function isLiveProvider(name: string) { return LIVE_PROVIDERS.has(name); }
+
 export function StatusBadge({ status }: { status: string | null }) {
   const isActive = status === 'active';
   return (
@@ -101,8 +104,10 @@ export function ApiTable({ apis, tokens, visiblePwd, visibleKey, copied, deleteC
           <th className="text-left px-4 py-3 text-[10px] font-bold tracking-[0.12em] uppercase" style={thStyle}>Mot de passe</th>
           <th className="text-left px-4 py-3 text-[10px] font-bold tracking-[0.12em] uppercase" style={thStyle}>Cle API</th>
           <th className="text-left px-4 py-3 text-[10px] font-bold tracking-[0.12em] uppercase" style={thStyle}>Credit</th>
+          <th className="text-left px-4 py-3 text-[10px] font-bold tracking-[0.12em] uppercase" style={thStyle}>Cout</th>
           <th className="text-left px-4 py-3 text-[10px] font-bold tracking-[0.12em] uppercase" style={thStyle}>Fonction</th>
           <th className="text-left px-4 py-3 text-[10px] font-bold tracking-[0.12em] uppercase" style={thStyle}>Statut</th>
+          <th className="text-left px-4 py-3 text-[10px] font-bold tracking-[0.12em] uppercase" style={thStyle}>Date achat</th>
           <th className="text-left px-4 py-3 text-[10px] font-bold tracking-[0.12em] uppercase" style={{ color: tokens.table.headerText }}>Actions</th>
         </tr>
       </thead>
@@ -181,16 +186,22 @@ function ApiTableRow({ api, tokens, colSep, visiblePwd, visibleKey, copied, dele
           liveCredit={creditMap[api.id]}
           fallbackCredit={api.remaining_credit}
           fallbackCheckedAt={api.last_checked_at}
-          isLoading={creditLoading && api.name === 'DeepSeek'}
-          flash={creditFlash && api.name === 'DeepSeek'}
+          isLoading={creditLoading && isLiveProvider(api.name)}
+          flash={creditFlash && isLiveProvider(api.name)}
           tokens={tokens}
         />
+      </td>
+      <td className="px-4 py-3 text-xs" style={{ ...colSep, color: tokens.text.secondary }}>
+        {api.cost || 'Non renseigne'}
       </td>
       <td className="px-4 py-3 text-xs" style={{ ...colSep, color: tokens.text.secondary }}>
         <span className="truncate max-w-[160px] block">{api.saas_function || '-'}</span>
       </td>
       <td className="px-4 py-3" style={colSep}>
         <StatusBadge status={creditMap[api.id]?.status ?? api.status} />
+      </td>
+      <td className="px-4 py-3 text-xs" style={{ ...colSep, color: tokens.text.secondary }}>
+        {api.purchase_date || 'A verifier'}
       </td>
       <td className="px-4 py-3">
         <div className="flex items-center gap-1">

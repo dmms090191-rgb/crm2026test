@@ -39,18 +39,21 @@ Deno.serve(async (req: Request) => {
     const url = new URL(req.url);
     const provider = url.searchParams.get("provider") ?? "deepseek";
 
+    const json = (body: Record<string, unknown>, status = 200) =>
+      new Response(JSON.stringify(body), {
+        status,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+
     if (provider === "deepseek") {
       const apiKey = Deno.env.get("DEEPSEEK_API_KEY");
       if (!apiKey) {
-        return new Response(
-          JSON.stringify({
-            provider: "deepseek",
-            status: "key_missing",
-            error: "Cle manquante",
-            checked_at: new Date().toISOString(),
-          }),
-          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-        );
+        return json({
+          provider: "deepseek",
+          status: "key_missing",
+          error: "Cle manquante",
+          checked_at: new Date().toISOString(),
+        });
       }
 
       const balanceRes = await fetch("https://api.deepseek.com/user/balance", {
@@ -58,15 +61,12 @@ Deno.serve(async (req: Request) => {
       });
 
       if (!balanceRes.ok) {
-        return new Response(
-          JSON.stringify({
-            provider: "deepseek",
-            status: "error",
-            error: `DeepSeek API ${balanceRes.status}`,
-            checked_at: new Date().toISOString(),
-          }),
-          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-        );
+        return json({
+          provider: "deepseek",
+          status: "error",
+          error: `DeepSeek API ${balanceRes.status}`,
+          checked_at: new Date().toISOString(),
+        });
       }
 
       const body = await balanceRes.json();
@@ -75,25 +75,60 @@ Deno.serve(async (req: Request) => {
       const currency = info?.currency ?? "USD";
       const isAvailable = body.is_available ?? false;
 
-      return new Response(
-        JSON.stringify({
-          provider: "deepseek",
-          status: isAvailable ? "available" : "unavailable",
-          total_balance: totalBalance,
-          currency,
-          is_available: isAvailable,
-          granted_balance: info?.granted_balance ?? "0",
-          topped_up_balance: info?.topped_up_balance ?? "0",
-          checked_at: new Date().toISOString(),
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+      return json({
+        provider: "deepseek",
+        status: isAvailable ? "available" : "unavailable",
+        total_balance: totalBalance,
+        currency,
+        is_available: isAvailable,
+        granted_balance: info?.granted_balance ?? "0",
+        topped_up_balance: info?.topped_up_balance ?? "0",
+        checked_at: new Date().toISOString(),
+      });
     }
 
-    return new Response(
-      JSON.stringify({ error: `Provider inconnu: ${provider}` }),
-      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
+    if (provider === "recraft") {
+      const apiKey = Deno.env.get("RECRAFT_API_KEY");
+      if (!apiKey) {
+        return json({
+          provider: "recraft",
+          status: "key_missing",
+          key_configured: false,
+          error: "Cle manquante",
+          checked_at: new Date().toISOString(),
+        });
+      }
+
+      const meRes = await fetch("https://external.api.recraft.ai/v1/users/me", {
+        headers: { Authorization: `Bearer ${apiKey}` },
+      });
+
+      if (!meRes.ok) {
+        const errText = await meRes.text();
+        console.error(`[ai-provider-status] Recraft /users/me ${meRes.status}: ${errText}`);
+        return json({
+          provider: "recraft",
+          status: "error",
+          key_configured: true,
+          error: `Recraft API ${meRes.status}`,
+          checked_at: new Date().toISOString(),
+        });
+      }
+
+      const me = await meRes.json();
+      const credits = me?.credits;
+
+      return json({
+        provider: "recraft",
+        status: "available",
+        key_configured: true,
+        total_balance: credits != null ? String(credits) : null,
+        currency: "units",
+        checked_at: new Date().toISOString(),
+      });
+    }
+
+    return json({ error: `Provider inconnu: ${provider}` }, 400);
   } catch (err) {
     return new Response(
       JSON.stringify({ error: String(err) }),

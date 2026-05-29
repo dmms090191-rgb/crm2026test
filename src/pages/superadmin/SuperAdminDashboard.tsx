@@ -24,6 +24,7 @@ const SASites = lazy(() => import('./views/sites/SASites'));
 const SAFonctionsTalvex = lazy(() => import('./views/fonctions-talvex/SAFonctionsTalvex'));
 const SASiteTalvex = lazy(() => import('./views/site-builder/SASiteTalvex'));
 const SACerveauIA = lazy(() => import('./views/cerveau-ia/SACerveauIA'));
+const SALogoPage = lazy(() => import('./views/SALogoPage'));
 
 interface SuperAdminDashboardProps {
   onLogout: () => void;
@@ -150,6 +151,7 @@ export default function SuperAdminDashboard({ onLogout, onConnectAsAdmin }: Supe
       case 'fonctions-talvex': return <SAFonctionsTalvex />;
       case 'site-talvex': return <SASiteTalvex />;
       case 'cerveau-ia': return <SACerveauIA />;
+      case 'logo': return <SALogoPage />;
       default: return <SADashboard onNavigate={handleNavigate} adminCount={cachedAdmins.length} adminsLoading={adminsRefreshing && cachedAdmins.length === 0} />;
     }
   }

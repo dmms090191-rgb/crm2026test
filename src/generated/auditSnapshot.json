@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-28T17:46:25.631Z",
+  "generatedAt": "2026-05-29T03:22:28.706Z",
   "anyCount": 3,
   "anyOccurrences": [
     {
@@ -20,35 +20,14 @@
   ],
   "unusedImportCount": 0,
   "unusedImports": [],
-  "largeFileCount": 4,
-  "largeFiles": [
-    {
-      "file": "src/App.tsx",
-      "lines": 312,
-      "overflow": 12
-    },
-    {
-      "file": "src/pages/superadmin/views/admins/AdminDetailDomainTab.tsx",
-      "lines": 321,
-      "overflow": 21
-    },
-    {
-      "file": "src/pages/superadmin/views/admins/DomainManagementModal.tsx",
-      "lines": 394,
-      "overflow": 94
-    },
-    {
-      "file": "src/pages/superadmin/views/site-builder/SiteDomainTab.tsx",
-      "lines": 525,
-      "overflow": 225
-    }
-  ],
+  "largeFileCount": 0,
+  "largeFiles": [],
   "tscErrorCount": 0,
   "tscErrors": [],
   "eslintErrorCount": 0,
   "eslintWarningCount": 0,
   "eslintIssues": [],
-  "totalFilesAnalyzed": 567,
-  "totalLinesAnalyzed": 78345,
-  "totalOverflowLines": 352
+  "totalFilesAnalyzed": 598,
+  "totalLinesAnalyzed": 81081,
+  "totalOverflowLines": 0
 }

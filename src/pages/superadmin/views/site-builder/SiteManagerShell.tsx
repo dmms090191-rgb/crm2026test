@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Globe, X, Loader2, SlidersHorizontal } from 'lucide-react';
+import { Globe, X, Loader2, SlidersHorizontal, ArrowLeft } from 'lucide-react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 import { supabase } from '../../../../lib/supabase';
 import {
@@ -34,9 +34,10 @@ interface Props {
   societeId?: string | null;
   hideDomainTab?: boolean;
   onClose?: () => void;
+  onBack?: () => void;
 }
 
-export default function SiteManagerShell({ ownerType, title, subtitle, companyId: companyIdProp, companyName: companyNameProp, hideDomainTab, onClose }: Props) {
+export default function SiteManagerShell({ ownerType, title, subtitle, companyId: companyIdProp, companyName: companyNameProp, hideDomainTab, onClose, onBack }: Props) {
   const t = useThemeTokens();
   const [activeTab, setActiveTab] = useState<SiteTab>('apercu');
   const [loading, setLoading] = useState(true);
@@ -184,6 +185,15 @@ export default function SiteManagerShell({ ownerType, title, subtitle, companyId
         className="flex items-center gap-3 rounded-2xl p-4"
         style={{ background: t.card.bg, border: `1px solid ${t.card.border}`, boxShadow: t.card.shadow }}
       >
+        {onBack && (
+          <button
+            onClick={onBack}
+            className="w-8 h-8 rounded-lg flex items-center justify-center transition-all flex-shrink-0 hover:scale-105"
+            style={{ background: t.surface.secondary, border: `1px solid ${t.surface.border}`, color: t.text.secondary }}
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </button>
+        )}
         <div
           className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
           style={{ background: 'linear-gradient(135deg, #0ea5e9, #0284c7)', boxShadow: '0 0 20px rgba(14,165,233,0.35)' }}

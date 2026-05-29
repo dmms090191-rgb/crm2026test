@@ -28,6 +28,7 @@ export default function ListeVendeurs({ onConnectAsVendor, onOpenChat }: ListeVe
   const [loading, setLoading] = useState(true);
   const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
   const [actionVendor, setActionVendor] = useState<Vendor | null>(null);
+  const [actionsSourceVendor, setActionsSourceVendor] = useState<Vendor | null>(null);
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -238,7 +239,7 @@ export default function ListeVendeurs({ onConnectAsVendor, onOpenChat }: ListeVe
                   isSelected={selected.has(vendor.id)}
                   selectMode={selectMode}
                   onToggleSelect={toggleSelect}
-                  onDetail={setSelectedVendor}
+                  onDetail={(v, fromActions) => { if (fromActions) setActionsSourceVendor(v); setSelectedVendor(v); }}
                   onOpenChat={onOpenChat}
                   onConnectAsVendor={onConnectAsVendor}
                   tokens={tokens}
@@ -250,17 +251,22 @@ export default function ListeVendeurs({ onConnectAsVendor, onOpenChat }: ListeVe
       </div>
 
       {selectedVendor && (
-        <VendorDetailModal vendor={selectedVendor} onClose={() => setSelectedVendor(null)} onUpdate={handleUpdate} />
+        <VendorDetailModal
+          vendor={selectedVendor}
+          onClose={() => { setSelectedVendor(null); setActionsSourceVendor(null); }}
+          onUpdate={handleUpdate}
+          onBack={actionsSourceVendor ? () => { setSelectedVendor(null); setActionVendor(actionsSourceVendor); } : undefined}
+        />
       )}
 
       {actionVendor && (
         <VendorActionModal
           vendor={actionVendor}
           tokens={tokens}
-          onClose={() => setActionVendor(null)}
-          onDetail={() => { setSelectedVendor(actionVendor); setActionVendor(null); }}
-          onConnect={() => { onConnectAsVendor?.(actionVendor); setActionVendor(null); }}
-          onChat={() => { onOpenChat?.(actionVendor); setActionVendor(null); }}
+          onClose={() => { setActionVendor(null); setActionsSourceVendor(null); }}
+          onDetail={() => { setActionsSourceVendor(actionVendor); setSelectedVendor(actionVendor); setActionVendor(null); }}
+          onConnect={() => { onConnectAsVendor?.(actionVendor); setActionVendor(null); setActionsSourceVendor(null); }}
+          onChat={() => { onOpenChat?.(actionVendor); setActionVendor(null); setActionsSourceVendor(null); }}
         />
       )}
 

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, LogIn } from 'lucide-react';
+import { X, LogIn, ArrowLeft } from 'lucide-react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 import type { ImportedLead, StatutDef } from './types';
 import { getStatutCfg, FALLBACK_COLOR, getInitials, gradients } from './utils';
@@ -14,9 +14,10 @@ interface DetailModalProps {
   gradIndex: number;
   onClose: () => void;
   statutDefs: StatutDef[];
+  onBack?: () => void;
 }
 
-export default function DetailModal({ lead, gradIndex, onClose, statutDefs }: DetailModalProps) {
+export default function DetailModal({ lead, gradIndex, onClose, statutDefs, onBack }: DetailModalProps) {
   const tokens = useThemeTokens();
   const [tab, setTab] = useState<TabId>('commentaires');
   const [leadData, setLeadData] = useState<Record<string, string>>(lead.data);
@@ -75,15 +76,26 @@ export default function DetailModal({ lead, gradIndex, onClose, statutDefs }: De
       >
         <div className="h-1 w-full flex-shrink-0" style={{ background: grad }} />
 
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 w-8 h-8 rounded-xl flex items-center justify-center transition-all z-10"
-          style={{ background: tokens.modal.closeBtnBg, color: tokens.modal.closeBtnText }}
-          onMouseEnter={e => { e.currentTarget.style.background = tokens.modal.closeBtnHoverBg; e.currentTarget.style.color = tokens.modal.closeBtnHoverText; }}
-          onMouseLeave={e => { e.currentTarget.style.background = tokens.modal.closeBtnBg; e.currentTarget.style.color = tokens.modal.closeBtnText; }}
-        >
-          <X className="w-4 h-4" />
-        </button>
+        <div className="absolute top-4 right-4 flex items-center gap-2 z-10">
+          {onBack && (
+            <button
+              onClick={onBack}
+              className="w-8 h-8 rounded-xl flex items-center justify-center transition-all hover:scale-105"
+              style={{ background: tokens.surface.secondary, border: `1px solid ${tokens.surface.border}`, color: tokens.text.secondary }}
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </button>
+          )}
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-xl flex items-center justify-center transition-all"
+            style={{ background: tokens.modal.closeBtnBg, color: tokens.modal.closeBtnText }}
+            onMouseEnter={e => { e.currentTarget.style.background = tokens.modal.closeBtnHoverBg; e.currentTarget.style.color = tokens.modal.closeBtnHoverText; }}
+            onMouseLeave={e => { e.currentTarget.style.background = tokens.modal.closeBtnBg; e.currentTarget.style.color = tokens.modal.closeBtnText; }}
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
 
         {/* Header */}
         <div className="px-6 pt-6 pb-4 flex items-center gap-4 flex-shrink-0">
