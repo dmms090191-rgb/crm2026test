@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { LayoutDashboard, Shield, UserCog, BookOpen, Monitor, HardDriveDownload, MessageSquare, CircleUser as UserCircle, FlaskConical, Building2, Settings, Bot, Globe, Blocks, LayoutTemplate, Brain, Image as ImageIcon } from 'lucide-react';
+import { LayoutDashboard, Shield, UserCog, BookOpen, Monitor, HardDriveDownload, MessageSquare, CircleUser as UserCircle, FlaskConical, Building2, Settings, Bot, Globe, Blocks, LayoutTemplate, Brain, Image as ImageIcon, TrendingUp, GraduationCap } from 'lucide-react';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
 import { useSidebarOrder } from '../../hooks/useSidebarOrder';
 import { useActiveLogo } from '../../hooks/useActiveLogo';
@@ -8,7 +8,7 @@ import SidebarFooterActions from '../../components/layout/SidebarFooterActions';
 import type { SidebarSection } from '../../lib/sidebarOrderTypes';
 import { supabase } from '../../lib/supabase';
 
-export type SAView = 'dashboard' | 'admins' | 'chat-admin' | 'documentation-crm' | 'system' | 'sauvegarde' | 'mon-compte' | 'tests-systeme' | 'crm-societe' | 'statuts' | 'api-ia' | 'cerveau-ia' | 'sites' | 'fonctions-talvex' | 'site-talvex' | 'logo' | 'ameliorations';
+export type SAView = 'dashboard' | 'admins' | 'chat-admin' | 'documentation-crm' | 'system' | 'sauvegarde' | 'mon-compte' | 'tests-systeme' | 'crm-societe' | 'statuts' | 'api-ia' | 'cerveau-ia' | 'sites' | 'fonctions-talvex' | 'site-talvex' | 'logo' | 'ameliorations' | 'tuto';
 
 interface SuperAdminSidebarProps {
   activeView: SAView;
@@ -23,8 +23,9 @@ const DEFAULT_SECTIONS: SidebarSection[] = [
     title: 'Principal',
     items: [
       { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-4 h-4" /> },
-      { id: 'site-talvex', label: 'Site', icon: <LayoutTemplate className="w-4 h-4" /> },
       { id: 'logo', label: 'Logo', icon: <ImageIcon className="w-4 h-4" /> },
+      { id: 'site-talvex', label: 'Site', icon: <LayoutTemplate className="w-4 h-4" /> },
+      { id: 'tuto', label: 'Tuto', icon: <GraduationCap className="w-4 h-4" /> },
     ],
   },
   {
@@ -33,10 +34,8 @@ const DEFAULT_SECTIONS: SidebarSection[] = [
       { id: 'admins', label: 'Liste admins', icon: <UserCog className="w-4 h-4" /> },
       { id: 'mon-compte', label: 'Mon compte', icon: <UserCircle className="w-4 h-4" /> },
       { id: 'crm-societe', label: 'CRM Societe', icon: <Building2 className="w-4 h-4" /> },
-      { id: 'statuts', label: 'Statuts', icon: <Settings className="w-4 h-4" /> },
-      { id: 'api-ia', label: 'API IA', icon: <Bot className="w-4 h-4" /> },
-      { id: 'cerveau-ia', label: 'Cerveau IA SA', icon: <Brain className="w-4 h-4" /> },
       { id: 'sites', label: 'Sites & Domaines', icon: <Globe className="w-4 h-4" /> },
+      { id: 'statuts', label: 'Statuts', icon: <Settings className="w-4 h-4" /> },
     ],
   },
   {
@@ -46,13 +45,21 @@ const DEFAULT_SECTIONS: SidebarSection[] = [
     ],
   },
   {
-    title: 'Ressources',
+    title: 'Outils & Système',
     items: [
-      { id: 'documentation-crm', label: 'Documentation CRM', icon: <BookOpen className="w-4 h-4" /> },
+      { id: 'api-ia', label: 'API IA', icon: <Bot className="w-4 h-4" /> },
+      { id: 'ameliorations', label: 'Ameliorations', icon: <TrendingUp className="w-4 h-4" /> },
       { id: 'fonctions-talvex', label: 'Fonctions Talvex', icon: <Blocks className="w-4 h-4" /> },
+      { id: 'cerveau-ia', label: 'Cerveau IA SA', icon: <Brain className="w-4 h-4" /> },
+    ],
+  },
+  {
+    title: 'Maintenance',
+    items: [
       { id: 'system', label: 'System', icon: <Monitor className="w-4 h-4" /> },
-      { id: 'sauvegarde', label: 'Sauvegarde & restauration', icon: <HardDriveDownload className="w-4 h-4" /> },
+      { id: 'documentation-crm', label: 'Documentation CRM', icon: <BookOpen className="w-4 h-4" /> },
       { id: 'tests-systeme', label: 'Tests Système', icon: <FlaskConical className="w-4 h-4" /> },
+      { id: 'sauvegarde', label: 'Sauvegarde & restauration', icon: <HardDriveDownload className="w-4 h-4" /> },
     ],
   },
 ];
@@ -117,6 +124,8 @@ export default function SuperAdminSidebar({ activeView, onNavigate, collapsed, o
         move={order.move} handleDragStart={order.handleDragStart} handleDragOver={order.handleDragOver} handleDragEnd={order.handleDragEnd}
         draftLength={order.draftLength}
         renameEntry={order.renameEntry} addSection={order.addSection} addDivider={order.addDivider} removeEntry={order.removeEntry}
+        resetToDefault={order.resetToDefault}
+        dragSourceIdx={order.dragSourceIdx} dropTargetIdx={order.dropTargetIdx} dropEdge={order.dropEdge}
         renderItem={(entry, isActive) => (
           <SAItem id={entry.id} label={entry.label} icon={entry.icon} isActive={isActive} collapsed={collapsed} onClick={() => onNavigate(entry.id as SAView)} tokens={t.sidebar} />
         )}

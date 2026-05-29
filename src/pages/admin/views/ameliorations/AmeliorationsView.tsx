@@ -199,6 +199,7 @@ export default function AmeliorationsView({ ameliorations, categories, onAmelior
         <AmeliorationModal
           initial={actions.editingItem}
           categories={categories}
+          saveError={actions.saveError}
           onSave={actions.handleSaveAmelioration}
           onClose={actions.closeModal}
         />

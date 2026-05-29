@@ -55,17 +55,27 @@ function buildPresetPrompt(
   preset: Preset,
   brandName: string,
   userHints: string,
+  siblingPresets?: Preset[],
 ): string {
   const brand = brandName || "BRAND";
   const initial = brand.charAt(0).toUpperCase();
+
+  const hasSibling = siblingPresets && siblingPresets.length > 0;
+  const isPartOfLogoSet = hasSibling && siblingPresets.some(
+    (s) => s === "typographic" || s === "color_variant" || s === "monogram",
+  );
 
   const base: Record<Preset, string> = {
     typographic:
       `Clean premium wordmark logo. Text only: ${brand}. Modern geometric bold typography. Minimal professional SaaS brand. No icon, no people, no objects, no scene, no decoration.`,
     abstract_symbol:
-      "Abstract geometric symbol icon only. Simple flat vector mark. No text, no people, no objects, no scene, no decoration.",
+      isPartOfLogoSet
+        ? `Abstract geometric symbol derived from the brand ${brand}. Same visual identity, same style, same color palette as the main logo. Simple flat vector mark. No text, no people, no objects, no scene, no decoration.`
+        : "Abstract geometric symbol icon only. Simple flat vector mark. No text, no people, no objects, no scene, no decoration.",
     app_icon:
-      "Simple app icon. Rounded square shape, flat design, single centered geometric symbol, minimal. No text, no people, no scene, no decoration.",
+      isPartOfLogoSet
+        ? `App icon for the brand ${brand}. This icon must be a coherent derivative of the ${brand} main logo: same visual identity, same design language, same color scheme, same style. Rounded square shape, flat design, single centered symbol inspired by the brand, minimal. No text, no people, no scene, no decoration.`
+        : "Simple app icon. Rounded square shape, flat design, single centered geometric symbol, minimal. No text, no people, no scene, no decoration.",
     monogram:
       `Single letter ${initial} monogram logo. Geometric elegant letterform. Clean minimal vector. No people, no objects, no scene, no decoration.`,
     color_variant:
@@ -156,6 +166,105 @@ function buildTextLayout(
   return layout;
 }
 
+// ---------- Recraft API call helper ----------
+
+interface RecraftControls {
+  colors?: { rgb: number[] }[];
+  background_color?: { rgb: number[] };
+  no_text?: boolean;
+}
+
+async function callRecraftV4(
+  recraftKey: string,
+  prompt: string,
+  numImages: number,
+  controls: RecraftControls | null,
+): Promise<string[]> {
+  const payload: Record<string, unknown> = {
+    prompt,
+    model: "recraftv4_1_vector",
+    size: "1:1",
+    n: numImages,
+    response_format: "url",
+  };
+  if (controls && Object.keys(controls).length > 0) {
+    payload.controls = controls;
+  }
+
+  const res = await fetch(
+    "https://external.api.recraft.ai/v1/images/generations",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${recraftKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    },
+  );
+
+  if (!res.ok) {
+    const errText = await res.text();
+    let detail = errText;
+    try {
+      const parsed = JSON.parse(errText);
+      detail = parsed?.error?.message || parsed?.message || errText;
+    } catch {
+      // keep raw text
+    }
+    throw new Error(`Recraft (${res.status}): ${detail}`);
+  }
+
+  const data = await res.json();
+  const images: { url: string }[] = data?.data ?? [];
+  return images.map((img) => img.url).filter(Boolean);
+}
+
+// ---------- Storage helper ----------
+
+async function storeImages(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  companyId: string,
+  urls: string[],
+  tsPrefix: number,
+  indexOffset: number,
+): Promise<string[]> {
+  const stored: string[] = [];
+  for (let i = 0; i < urls.length; i++) {
+    try {
+      const imgRes = await fetch(urls[i]);
+      if (!imgRes.ok) {
+        stored.push(urls[i]);
+        continue;
+      }
+      const blob = await imgRes.blob();
+      const isSvg = blob.type.includes("svg");
+      const ext = isSvg ? "svg" : "png";
+      const ct = isSvg ? "image/svg+xml" : "image/png";
+      const filePath = `${companyId}/logo-ai-${tsPrefix}-${indexOffset + i}.${ext}`;
+
+      const { error: upErr } = await supabaseAdmin.storage
+        .from("company-logos")
+        .upload(filePath, blob, { contentType: ct, upsert: true });
+
+      if (upErr) {
+        console.error(`[generate-logo] Storage upload failed: ${upErr.message}`);
+        stored.push(urls[i]);
+        continue;
+      }
+
+      const { data: pub } = supabaseAdmin.storage
+        .from("company-logos")
+        .getPublicUrl(filePath);
+      stored.push(pub.publicUrl);
+    } catch (dlErr) {
+      console.error("[generate-logo] Error storing image:", dlErr);
+      stored.push(urls[i]);
+    }
+  }
+  return stored;
+}
+
 // ---------- Main handler ----------
 
 Deno.serve(async (req: Request) => {
@@ -204,28 +313,17 @@ Deno.serve(async (req: Request) => {
     // ---------- Parse body ----------
 
     const body = await req.json();
-    const engine =
-      body.engine === "v3" ? "v3" : "v4_1";
-    const preset: Preset | null =
-      typeof body.preset === "string" &&
-      (VALID_PRESETS as readonly string[]).includes(body.preset)
-        ? (body.preset as Preset)
-        : null;
+    const engine = body.engine === "v3" ? "v3" : "v4_1";
     const userPrompt =
       typeof body.prompt === "string" ? body.prompt.trim() : "";
     const brandName =
       typeof body.brand_name === "string" ? body.brand_name.trim() : "";
-    const logoType =
-      body.logo_type === "symbol_only" ? "symbol_only" : "symbol_and_text";
-    const recraftStyle: string =
-      typeof body.recraft_style === "string" &&
-      (VALID_V3_STYLES as readonly string[]).includes(body.recraft_style)
-        ? body.recraft_style
-        : "Vector art";
     const numImages = Math.min(
       Math.max(typeof body.n === "number" ? Math.floor(body.n) : 1, 1),
       4,
     );
+    const companyId =
+      typeof body.company_id === "string" ? body.company_id.trim() : "";
 
     // Colors (V4.1 controls)
     const rawColors = Array.isArray(body.colors) ? body.colors : null;
@@ -233,7 +331,139 @@ Deno.serve(async (req: Request) => {
       ? body.background_color
       : null;
 
-    // ---------- Build prompt ----------
+    // Build V4.1 controls object
+    const v4Controls: RecraftControls = {};
+    if (rawColors && rawColors.length > 0) {
+      const validColors = rawColors
+        .filter(
+          (c: unknown) =>
+            Array.isArray(c) &&
+            c.length === 3 &&
+            c.every((v: unknown) => typeof v === "number"),
+        )
+        .map((c: number[]) => ({ rgb: c }));
+      if (validColors.length > 0) {
+        v4Controls.colors = validColors;
+      }
+    }
+    if (
+      rawBgColor &&
+      rawBgColor.length === 3 &&
+      rawBgColor.every((v: unknown) => typeof v === "number")
+    ) {
+      v4Controls.background_color = { rgb: rawBgColor };
+    }
+
+    // Parse presets: support both `presets` (array) and `preset` (single string)
+    const presetsArray: Preset[] = [];
+    if (Array.isArray(body.presets)) {
+      for (const p of body.presets) {
+        if (
+          typeof p === "string" &&
+          (VALID_PRESETS as readonly string[]).includes(p)
+        ) {
+          presetsArray.push(p as Preset);
+        }
+      }
+    }
+
+    const singlePreset: Preset | null =
+      typeof body.preset === "string" &&
+      (VALID_PRESETS as readonly string[]).includes(body.preset)
+        ? (body.preset as Preset)
+        : null;
+
+    // ---------- Multi-preset path (V4.1 only) ----------
+
+    if (presetsArray.length > 0 && engine === "v4_1") {
+      console.log(
+        `[generate-logo] Multi-preset: ${presetsArray.join(",")} user=${user.id} brand="${brandName}" n=${numImages}`,
+      );
+
+      const groups: { preset: string; image_urls: string[] }[] = [];
+      const ts = Date.now();
+      let totalStored = 0;
+
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const supabaseAdmin = companyId
+        ? createClient(supabaseUrl, serviceKey)
+        : null;
+
+      const otherPresets = (p: Preset) =>
+        presetsArray.filter((s) => s !== p);
+
+      for (let pi = 0; pi < presetsArray.length; pi++) {
+        const preset = presetsArray[pi];
+        const prompt = buildPresetPrompt(
+          preset,
+          brandName,
+          userPrompt,
+          otherPresets(preset),
+        );
+
+        console.log(
+          `[generate-logo] Generating preset ${pi + 1}/${presetsArray.length}: ${preset}`,
+        );
+
+        const urls = await callRecraftV4(
+          recraftKey,
+          prompt,
+          numImages,
+          Object.keys(v4Controls).length > 0 ? v4Controls : null,
+        );
+
+        if (urls.length === 0) {
+          groups.push({ preset, image_urls: [] });
+          continue;
+        }
+
+        let finalUrls = urls;
+        if (companyId && supabaseAdmin) {
+          finalUrls = await storeImages(
+            supabaseAdmin,
+            companyId,
+            urls,
+            ts,
+            totalStored,
+          );
+          totalStored += finalUrls.length;
+        }
+
+        groups.push({ preset, image_urls: finalUrls });
+      }
+
+      console.log(
+        `[generate-logo] Multi-preset done: ${groups.length} group(s), ${totalStored} stored`,
+      );
+
+      const generationGroupId =
+        presetsArray.length > 1
+          ? `gen-${ts}-${crypto.randomUUID().slice(0, 8)}`
+          : null;
+
+      return jsonResponse(
+        {
+          success: true,
+          generation_group_id: generationGroupId,
+          groups: groups.map((g) => ({
+            preset: g.preset,
+            urls: g.image_urls,
+          })),
+        },
+        200,
+      );
+    }
+
+    // ---------- Single-preset / legacy path ----------
+
+    const preset = singlePreset ?? (presetsArray.length === 1 ? presetsArray[0] : null);
+    const logoType =
+      body.logo_type === "symbol_only" ? "symbol_only" : "symbol_and_text";
+    const recraftStyle: string =
+      typeof body.recraft_style === "string" &&
+      (VALID_V3_STYLES as readonly string[]).includes(body.recraft_style)
+        ? body.recraft_style
+        : "Vector art";
 
     let finalPrompt: string;
 
@@ -257,8 +487,6 @@ Deno.serve(async (req: Request) => {
       finalPrompt = buildV3Prompt(userPrompt, brandName, logoType);
     }
 
-    // ---------- Build Recraft payload ----------
-
     const recraftPayload: Record<string, unknown> = {
       prompt: finalPrompt,
       size: "1:1",
@@ -268,30 +496,8 @@ Deno.serve(async (req: Request) => {
 
     if (engine === "v4_1") {
       recraftPayload.model = "recraftv4_1_vector";
-
-      const controls: Record<string, unknown> = {};
-      if (rawColors && rawColors.length > 0) {
-        const validColors = rawColors
-          .filter(
-            (c: unknown) =>
-              Array.isArray(c) &&
-              c.length === 3 &&
-              c.every((v: unknown) => typeof v === "number"),
-          )
-          .map((c: number[]) => ({ rgb: c }));
-        if (validColors.length > 0) {
-          controls.colors = validColors;
-        }
-      }
-      if (
-        rawBgColor &&
-        rawBgColor.length === 3 &&
-        rawBgColor.every((v: unknown) => typeof v === "number")
-      ) {
-        controls.background_color = { rgb: rawBgColor };
-      }
-      if (Object.keys(controls).length > 0) {
-        recraftPayload.controls = controls;
+      if (Object.keys(v4Controls).length > 0) {
+        recraftPayload.controls = v4Controls;
       }
     } else {
       recraftPayload.model = "recraftv3_vector";
@@ -311,12 +517,6 @@ Deno.serve(async (req: Request) => {
     console.log(
       `[generate-logo] engine=${engine} user=${user.id} preset=${preset ?? "none"} brand="${brandName}" n=${numImages}`,
     );
-    console.log(
-      "[generate-logo] Recraft payload:",
-      JSON.stringify(recraftPayload),
-    );
-
-    // ---------- Call Recraft API ----------
 
     const recraftRes = await fetch(
       "https://external.api.recraft.ai/v1/images/generations",
@@ -355,24 +555,11 @@ Deno.serve(async (req: Request) => {
     const recraftUrls = images.map((img) => img.url).filter(Boolean);
 
     if (recraftUrls.length === 0) {
-      console.error(
-        "[generate-logo] No image URLs in Recraft response",
-        JSON.stringify(recraftData),
-      );
       return jsonResponse(
         { error: "Aucune image retournee par Recraft." },
         502,
       );
     }
-
-    console.log(
-      `[generate-logo] Generation successful: ${recraftUrls.length} image(s)`,
-    );
-
-    // ---------- Store images in Supabase storage ----------
-
-    const companyId =
-      typeof body.company_id === "string" ? body.company_id.trim() : "";
 
     if (!companyId) {
       return jsonResponse(
@@ -383,50 +570,14 @@ Deno.serve(async (req: Request) => {
 
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabaseAdmin = createClient(supabaseUrl, serviceKey);
-
-    const storedUrls: string[] = [];
     const ts = Date.now();
-
-    for (let i = 0; i < recraftUrls.length; i++) {
-      try {
-        const imgRes = await fetch(recraftUrls[i]);
-        if (!imgRes.ok) {
-          console.error(
-            `[generate-logo] Failed to download image ${i}: ${imgRes.status}`,
-          );
-          storedUrls.push(recraftUrls[i]);
-          continue;
-        }
-        const blob = await imgRes.blob();
-        const isSvg = blob.type.includes("svg");
-        const ext = isSvg ? "svg" : "png";
-        const ct = isSvg ? "image/svg+xml" : "image/png";
-        const filePath = `${companyId}/logo-ai-${ts}-${i}.${ext}`;
-
-        const { error: upErr } = await supabaseAdmin.storage
-          .from("company-logos")
-          .upload(filePath, blob, { contentType: ct, upsert: true });
-
-        if (upErr) {
-          console.error(
-            `[generate-logo] Storage upload failed for ${i}: ${upErr.message}`,
-          );
-          storedUrls.push(recraftUrls[i]);
-          continue;
-        }
-
-        const { data: pub } = supabaseAdmin.storage
-          .from("company-logos")
-          .getPublicUrl(filePath);
-        storedUrls.push(pub.publicUrl);
-      } catch (dlErr) {
-        console.error(
-          `[generate-logo] Error storing image ${i}:`,
-          dlErr,
-        );
-        storedUrls.push(recraftUrls[i]);
-      }
-    }
+    const storedUrls = await storeImages(
+      supabaseAdmin,
+      companyId,
+      recraftUrls,
+      ts,
+      0,
+    );
 
     console.log(
       `[generate-logo] Stored ${storedUrls.length} image(s) in Supabase storage`,

@@ -16,6 +16,7 @@ export function useAmeliorationActions({ ameliorations, categories, onAmeliorati
   const [editingItem, setEditingItem] = useState<Amelioration | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [confirmDeleteCatId, setConfirmDeleteCatId] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [reorderingCatId, setReorderingCatId] = useState<string | null>(null);
   const [reorderItems, setReorderItems] = useState<Amelioration[]>([]);
   const [movedId, setMovedId] = useState<string | null>(null);
@@ -61,6 +62,7 @@ export function useAmeliorationActions({ ameliorations, categories, onAmeliorati
   }, [categories, ameliorations, onCategoriesChange, onAmeliorationsChange]);
 
   const handleSaveAmelioration = useCallback(async (data: AmeliorationFormData) => {
+    setSaveError(null);
     const timestamp = `${data.date}T${data.time}:00`;
     if (editingItem) {
       const payload: Record<string, string | number> = {
@@ -84,9 +86,11 @@ export function useAmeliorationActions({ ameliorations, categories, onAmeliorati
         .eq('id', editingItem.id)
         .select()
         .single();
-      if (!error && updated) {
-        onAmeliorationsChange(ameliorations.map((a) => a.id === editingItem.id ? (updated as Amelioration) : a));
+      if (error || !updated) {
+        setSaveError(error?.message ?? 'Erreur lors de la modification');
+        return;
       }
+      onAmeliorationsChange(ameliorations.map((a) => a.id === editingItem.id ? (updated as Amelioration) : a));
     } else {
       const catItems = ameliorations.filter((a) => a.category_id === modalCategoryId);
       const maxPos = catItems.length > 0 ? Math.max(...catItems.map((a) => a.position)) + 1 : 0;
@@ -95,9 +99,11 @@ export function useAmeliorationActions({ ameliorations, categories, onAmeliorati
         .insert({ title: data.title, description: data.description, status: data.status, category_id: modalCategoryId, created_at: timestamp, position: maxPos })
         .select()
         .single();
-      if (!error && inserted) {
-        onAmeliorationsChange([...ameliorations, inserted as Amelioration]);
+      if (error || !inserted) {
+        setSaveError(error?.message ?? "Erreur lors de l'enregistrement");
+        return;
       }
+      onAmeliorationsChange([...ameliorations, inserted as Amelioration]);
     }
     setModalOpen(false);
     setEditingItem(null);
@@ -217,12 +223,14 @@ export function useAmeliorationActions({ ameliorations, categories, onAmeliorati
   };
 
   const openModal = (catId: string | null, item: Amelioration | null = null) => {
+    setSaveError(null);
     setModalCategoryId(catId);
     setEditingItem(item);
     setModalOpen(true);
   };
 
   const closeModal = () => {
+    setSaveError(null);
     setModalOpen(false);
     setEditingItem(null);
     setModalCategoryId(null);
@@ -231,6 +239,7 @@ export function useAmeliorationActions({ ameliorations, categories, onAmeliorati
   return {
     modalOpen,
     editingItem,
+    saveError,
     confirmDeleteId,
     setConfirmDeleteId,
     confirmDeleteCatId,

@@ -16,9 +16,19 @@ interface Props {
   onRename: (idx: number, label: string) => void;
   onRemove?: (idx: number) => void;
   t: ReturnType<typeof useThemeTokens>;
+  isDragging?: boolean;
+  showIndicatorBefore?: boolean;
+  showIndicatorAfter?: boolean;
 }
 
-export default function SidebarReorderEntry({ entry, idx, total, collapsed, move, onDragStart, onDragOver, onDragEnd, onRename, onRemove, t }: Props) {
+const INDICATOR_STYLE: React.CSSProperties = {
+  height: 2,
+  background: 'linear-gradient(90deg, #f59e0b, #d97706)',
+  borderRadius: 1,
+  boxShadow: '0 0 6px rgba(245,158,11,0.5)',
+};
+
+export default function SidebarReorderEntry({ entry, idx, total, collapsed, move, onDragStart, onDragOver, onDragEnd, onRename, onRemove, t, isDragging, showIndicatorBefore, showIndicatorAfter }: Props) {
   const [editing, setEditing] = useState(false);
   const [editVal, setEditVal] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -60,38 +70,47 @@ export default function SidebarReorderEntry({ entry, idx, total, collapsed, move
   }
 
   return (
-    <div draggable onDragStart={() => onDragStart(idx)} onDragOver={e => onDragOver(e, idx)} onDragEnd={onDragEnd}
-      className="flex items-center gap-1 py-1.5 px-1.5 rounded-lg text-xs font-medium cursor-grab active:cursor-grabbing select-none mb-0.5"
-      style={{
-        background: t.surface.secondary,
-        border: isDivider ? `1px dashed ${t.surface.borderLight}` : isSection ? '1px solid rgba(245,158,11,0.25)' : `1px solid ${t.surface.borderLight}`,
-      }}>
-      <GripVertical className="w-3.5 h-3.5 flex-shrink-0 opacity-50" style={{ color: t.text.quaternary }} />
-      {isDivider && <Minus className="w-3.5 h-3.5 flex-shrink-0" style={{ color: t.text.quaternary }} />}
-      {isSection && <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: '#f59e0b' }} />}
-      {entry.kind === 'item' && <span className="flex-shrink-0 opacity-60">{entry.icon}</span>}
-      {!collapsed && (
-        <span className={`flex-1 truncate ${isDivider ? 'text-[10px] opacity-60' : isSection ? 'text-[10px] font-bold uppercase tracking-wider' : ''}`}
-          style={{ color: isSection ? '#f59e0b' : isDivider ? t.text.quaternary : t.text.secondary }}>
-          {label}
-        </span>
+    <div className="relative">
+      {showIndicatorBefore && (
+        <div className="mx-1 -mb-px" style={INDICATOR_STYLE} />
       )}
-      {!collapsed && canRename && (
-        <button onClick={startEdit} className="p-0.5 rounded opacity-60 hover:opacity-100 transition-opacity" style={{ color: t.text.tertiary }}>
-          <Pencil className="w-3 h-3" />
+      <div draggable onDragStart={() => onDragStart(idx)} onDragOver={e => onDragOver(e, idx)} onDragEnd={onDragEnd}
+        className="flex items-center gap-1 py-1.5 px-1.5 rounded-lg text-xs font-medium cursor-grab active:cursor-grabbing select-none mb-0.5 transition-opacity duration-150"
+        style={{
+          background: t.surface.secondary,
+          border: isDivider ? `1px dashed ${t.surface.borderLight}` : isSection ? '1px solid rgba(245,158,11,0.25)' : `1px solid ${t.surface.borderLight}`,
+          opacity: isDragging ? 0.35 : 1,
+        }}>
+        <GripVertical className="w-3.5 h-3.5 flex-shrink-0 opacity-50" style={{ color: t.text.quaternary }} />
+        {isDivider && <Minus className="w-3.5 h-3.5 flex-shrink-0" style={{ color: t.text.quaternary }} />}
+        {isSection && <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: '#f59e0b' }} />}
+        {entry.kind === 'item' && <span className="flex-shrink-0 opacity-60">{entry.icon}</span>}
+        {!collapsed && (
+          <span className={`flex-1 truncate ${isDivider ? 'text-[10px] opacity-60' : isSection ? 'text-[10px] font-bold uppercase tracking-wider' : ''}`}
+            style={{ color: isSection ? '#f59e0b' : isDivider ? t.text.quaternary : t.text.secondary }}>
+            {label}
+          </span>
+        )}
+        {!collapsed && canRename && (
+          <button onClick={startEdit} className="p-0.5 rounded opacity-60 hover:opacity-100 transition-opacity" style={{ color: t.text.tertiary }}>
+            <Pencil className="w-3 h-3" />
+          </button>
+        )}
+        {!collapsed && canRemove && onRemove && (
+          <button onClick={() => onRemove(idx)} className="p-0.5 rounded opacity-60 hover:opacity-100 transition-opacity" style={{ color: '#f87171' }}>
+            <Trash2 className="w-3 h-3" />
+          </button>
+        )}
+        <button onClick={() => move(idx, idx - 1)} disabled={idx === 0} className="p-0.5 rounded disabled:opacity-20 transition-opacity" style={{ color: t.text.tertiary }}>
+          <ArrowUp className="w-3 h-3" />
         </button>
-      )}
-      {!collapsed && canRemove && onRemove && (
-        <button onClick={() => onRemove(idx)} className="p-0.5 rounded opacity-60 hover:opacity-100 transition-opacity" style={{ color: '#f87171' }}>
-          <Trash2 className="w-3 h-3" />
+        <button onClick={() => move(idx, idx + 1)} disabled={idx === total - 1} className="p-0.5 rounded disabled:opacity-20 transition-opacity" style={{ color: t.text.tertiary }}>
+          <ArrowDown className="w-3 h-3" />
         </button>
+      </div>
+      {showIndicatorAfter && (
+        <div className="mx-1 -mt-px" style={INDICATOR_STYLE} />
       )}
-      <button onClick={() => move(idx, idx - 1)} disabled={idx === 0} className="p-0.5 rounded disabled:opacity-20 transition-opacity" style={{ color: t.text.tertiary }}>
-        <ArrowUp className="w-3 h-3" />
-      </button>
-      <button onClick={() => move(idx, idx + 1)} disabled={idx === total - 1} className="p-0.5 rounded disabled:opacity-20 transition-opacity" style={{ color: t.text.tertiary }}>
-        <ArrowDown className="w-3 h-3" />
-      </button>
     </div>
   );
 }

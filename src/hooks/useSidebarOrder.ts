@@ -44,6 +44,9 @@ export function useSidebarOrder({ role, sections, userId, companyId }: UseSideba
   const [draft, setDraft] = useState<SidebarEntry[]>([]);
   const [draftLabels, setDraftLabels] = useState<Record<string, string>>({});
   const dragIdx = useRef<number | null>(null);
+  const [dragSourceIdx, setDragSourceIdx] = useState<number | null>(null);
+  const [dropTargetIdx, setDropTargetIdx] = useState<number | null>(null);
+  const [dropEdge, setDropEdge] = useState<'before' | 'after'>('before');
 
   useEffect(() => {
     defaultEntries.current = sectionsToEntries(sections);
@@ -83,15 +86,41 @@ export function useSidebarOrder({ role, sections, userId, companyId }: UseSideba
     });
   }, []);
 
-  const handleDragStart = useCallback((idx: number) => { dragIdx.current = idx; }, []);
+  const handleDragStart = useCallback((idx: number) => {
+    dragIdx.current = idx;
+    setDragSourceIdx(idx);
+    setDropTargetIdx(null);
+  }, []);
+
   const handleDragOver = useCallback((e: React.DragEvent, idx: number) => {
     e.preventDefault();
-    if (dragIdx.current === null || dragIdx.current === idx) return;
+    if (dragIdx.current === null || dragIdx.current === idx) {
+      if (dragIdx.current === idx) setDropTargetIdx(null);
+      return;
+    }
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const midY = rect.top + rect.height / 2;
+    const edge: 'before' | 'after' = e.clientY < midY ? 'before' : 'after';
+    setDropTargetIdx(idx);
+    setDropEdge(edge);
+  }, []);
+
+  const applyDrop = useCallback(() => {
+    if (dragIdx.current === null || dropTargetIdx === null) return;
     const from = dragIdx.current;
-    dragIdx.current = idx;
-    move(from, idx);
-  }, [move]);
-  const handleDragEnd = useCallback(() => { dragIdx.current = null; }, []);
+    let to = dropEdge === 'after' ? dropTargetIdx + 1 : dropTargetIdx;
+    if (from < to) to -= 1;
+    if (from !== to && to >= 0) {
+      move(from, to);
+    }
+    dragIdx.current = null;
+    setDragSourceIdx(null);
+    setDropTargetIdx(null);
+  }, [dropTargetIdx, dropEdge, move]);
+
+  const handleDragEnd = useCallback(() => {
+    applyDrop();
+  }, [applyDrop]);
 
   const renameEntry = useCallback((idx: number, newLabel: string) => {
     setDraft(prev => {
@@ -122,12 +151,21 @@ export function useSidebarOrder({ role, sections, userId, companyId }: UseSideba
     setDraft(prev => prev.filter((_, i) => i !== idx));
   }, []);
 
+  const resetToDefault = useCallback(() => {
+    const fresh = sectionsToEntries(sections);
+    setDraft(fresh);
+    setDraftLabels({});
+  }, [sections]);
+
   return {
     entries: reordering ? draft : entries,
     reordering,
     startReorder, cancelReorder, confirmReorder,
     move, handleDragStart, handleDragOver, handleDragEnd,
     draftLength: draft.length,
-    renameEntry, addSection, addDivider, removeEntry,
+    renameEntry, addSection, addDivider, removeEntry, resetToDefault,
+    dragSourceIdx,
+    dropTargetIdx,
+    dropEdge,
   };
 }

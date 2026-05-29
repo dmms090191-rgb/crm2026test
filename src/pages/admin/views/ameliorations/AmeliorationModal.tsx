@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X } from 'lucide-react';
+import { X, AlertTriangle } from 'lucide-react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 import type { Amelioration, AmeliorationCategory } from './types';
 
@@ -16,6 +16,7 @@ export interface AmeliorationFormData {
 interface Props {
   initial: Amelioration | null;
   categories?: AmeliorationCategory[];
+  saveError?: string | null;
   onSave: (data: AmeliorationFormData) => void;
   onClose: () => void;
 }
@@ -28,7 +29,7 @@ function nowTime() {
   return new Date().toTimeString().slice(0, 5);
 }
 
-export default function AmeliorationModal({ initial, categories, onSave, onClose }: Props) {
+export default function AmeliorationModal({ initial, categories, saveError, onSave, onClose }: Props) {
   const tokens = useThemeTokens();
   const isEdit = !!initial;
 
@@ -45,6 +46,49 @@ export default function AmeliorationModal({ initial, categories, onSave, onClose
     return nowTime();
   });
   const [useNewDate, setUseNewDate] = useState(false);
+
+  const handleTitleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    const ta = e.currentTarget;
+    const start = ta.selectionStart;
+    const lines = title.slice(0, start).split('\n');
+    const currentLine = lines[lines.length - 1];
+    const match = currentLine.match(/^(\d+)\.\s?/);
+
+    if (match && currentLine.trim() === match[0].trim()) {
+      const cleared = lines.slice(0, -1).join('\n');
+      setTitle(cleared + title.slice(start));
+      requestAnimationFrame(() => { ta.selectionStart = ta.selectionEnd = cleared.length; });
+      return;
+    }
+
+    const nextNum = match ? parseInt(match[1], 10) + 1 : (lines.length === 1 && !currentLine.match(/^\d+\./) ? 1 : lines.length);
+    const prefix = title.length === 0 ? '1. ' : `\n${nextNum}. `;
+    const before = title.slice(0, start);
+    const after = title.slice(start);
+
+    if (title.length === 0) {
+      setTitle(prefix);
+      requestAnimationFrame(() => { ta.selectionStart = ta.selectionEnd = prefix.length; });
+    } else {
+      const newVal = before + prefix;
+      setTitle(newVal + after);
+      requestAnimationFrame(() => { ta.selectionStart = ta.selectionEnd = newVal.length; });
+    }
+  };
+
+  const handleTitleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    if (title === '' && val.length === 1) {
+      setTitle('1. ' + val);
+      requestAnimationFrame(() => {
+        e.target.selectionStart = e.target.selectionEnd = 3 + val.length;
+      });
+      return;
+    }
+    setTitle(val);
+  };
 
   const canSubmit = title.trim().length > 0;
 
@@ -177,7 +221,8 @@ export default function AmeliorationModal({ initial, categories, onSave, onClose
               </label>
               <textarea
                 value={title}
-                onChange={(e) => setTitle(e.target.value)}
+                onChange={handleTitleChange}
+                onKeyDown={handleTitleKeyDown}
                 placeholder="Décrivez ce qui a été amélioré..."
                 rows={3}
                 className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-none transition-colors"
@@ -200,6 +245,16 @@ export default function AmeliorationModal({ initial, categories, onSave, onClose
               />
             </div>
           </div>
+
+          {saveError && (
+            <div
+              className="flex items-center gap-2 mt-4 px-3 py-2.5 rounded-lg text-xs"
+              style={{ background: tokens.danger.bg, border: `1px solid ${tokens.danger.border}`, color: tokens.danger.text }}
+            >
+              <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
+              <span>Erreur : {saveError}</span>
+            </div>
+          )}
 
           <div className="flex justify-end gap-2 mt-6">
             <button

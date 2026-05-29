@@ -1,4 +1,6 @@
-import { Globe, LayoutGrid, Eye, ExternalLink, Settings2, CheckCircle2, Link2 } from 'lucide-react';
+import { useState, useCallback, useEffect } from 'react';
+import { createPortal } from 'react-dom';
+import { Globe, LayoutGrid, Eye, ExternalLink, Settings2, CheckCircle2, Link2, Maximize2, Minimize2 } from 'lucide-react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 import { getTemplateComponent } from './templates/templateRegistry';
 import type { CompanyHomePage } from '../../../../lib/companyHomePages';
@@ -24,8 +26,26 @@ export default function SitePreviewTab({
   onClearPreview,
 }: Props) {
   const t = useThemeTokens();
+  const [fullscreen, setFullscreen] = useState(false);
   const isPreview = !!previewTemplateKey;
   const displayKey = previewTemplateKey ?? activeTemplateKey;
+
+  const handleEsc = useCallback((e: KeyboardEvent) => {
+    if (e.key === 'Escape') setFullscreen(false);
+  }, []);
+
+  useEffect(() => {
+    if (fullscreen) {
+      document.addEventListener('keydown', handleEsc);
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.removeEventListener('keydown', handleEsc);
+      document.body.style.overflow = '';
+    };
+  }, [fullscreen, handleEsc]);
 
   if (!displayKey) {
     return (
@@ -162,20 +182,65 @@ export default function SitePreviewTab({
       )}
 
       {/* Template render area */}
-      <div
-        className="rounded-xl overflow-hidden"
-        style={{ border: `1px solid ${t.surface.border}`, height: 600, maxHeight: '75vh' }}
-      >
-        {TemplateComponent ? (
-          <div className="w-full h-full overflow-y-auto" style={{ background: '#020617' }}>
-            <TemplateComponent />
-          </div>
-        ) : (
-          <div className="w-full h-full flex items-center justify-center" style={{ background: t.surface.secondary }}>
-            <p className="text-xs" style={{ color: t.text.tertiary }}>Template non disponible</p>
-          </div>
+      <div className="relative">
+        <div
+          className="rounded-xl overflow-hidden"
+          style={{ border: `1px solid ${t.surface.border}`, height: 600, maxHeight: '75vh' }}
+        >
+          {TemplateComponent ? (
+            <div className="w-full h-full overflow-y-auto" style={{ background: '#020617' }}>
+              <TemplateComponent />
+            </div>
+          ) : (
+            <div className="w-full h-full flex items-center justify-center" style={{ background: t.surface.secondary }}>
+              <p className="text-xs" style={{ color: t.text.tertiary }}>Template non disponible</p>
+            </div>
+          )}
+        </div>
+
+        {TemplateComponent && (
+          <button
+            onClick={() => setFullscreen(true)}
+            className="absolute top-3 right-3 z-[60] inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-[11px] font-semibold transition-all duration-200 hover:scale-105"
+            style={{
+              background: 'rgba(0,0,0,0.65)',
+              backdropFilter: 'blur(12px)',
+              border: '1px solid rgba(255,255,255,0.12)',
+              color: '#fff',
+              boxShadow: '0 2px 12px rgba(0,0,0,0.3)',
+            }}
+          >
+            <Maximize2 className="w-3.5 h-3.5" />
+            Plein ecran
+          </button>
         )}
       </div>
+
+      {/* Fullscreen overlay — portalled to body to escape any parent stacking/overflow */}
+      {fullscreen && TemplateComponent && createPortal(
+        <div className="fixed inset-0 flex flex-col" style={{ background: '#020617', zIndex: 99999 }}>
+          <div className="absolute top-4 right-4" style={{ zIndex: 100000 }}>
+            <button
+              onClick={() => setFullscreen(false)}
+              className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all duration-200 hover:scale-105"
+              style={{
+                background: 'rgba(0,0,0,0.7)',
+                backdropFilter: 'blur(16px)',
+                border: '1px solid rgba(255,255,255,0.15)',
+                color: '#fff',
+                boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
+              }}
+            >
+              <Minimize2 className="w-3.5 h-3.5" />
+              Quitter
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto">
+            <TemplateComponent />
+          </div>
+        </div>,
+        document.body,
+      )}
     </div>
   );
 }

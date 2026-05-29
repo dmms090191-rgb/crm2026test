@@ -68,7 +68,8 @@ export type ActiveView =
   | 'documentation-crm'
   | 'system'
   | 'sauvegarde'
-  | 'cerveau-ia';
+  | 'cerveau-ia'
+  | 'tuto';
 
 export default function AdminDashboard({ onLogout, onConnectAsVendor, onConnectAsClient, impersonatedAdmin, onBackToSuperAdmin, isSAViewing }: AdminDashboardProps) {
   const t = useThemeTokens();
@@ -164,7 +165,7 @@ export default function AdminDashboard({ onLogout, onConnectAsVendor, onConnectA
     switch (activeView) {
       case 'vue-ensemble': return <Suspense fallback={lazyFallback}><VueEnsemble onNavigate={handleNavigate} unreadClientConversations={unreadEntries.length} unreadVendorConversations={unreadVendorEntries.length} /></Suspense>;
       case 'site': return <Suspense fallback={lazyFallback}><AdminSite /></Suspense>;
-      case 'logo': return <Suspense fallback={lazyFallback}><AdminLogoPage /></Suspense>;
+      case 'logo': return <Suspense fallback={lazyFallback}><AdminLogoPage isSAViewing={isSAViewing} /></Suspense>;
       case 'inscription': return <Suspense fallback={lazyFallback}><Inscription /></Suspense>;
       case 'import-leads': return <Suspense fallback={lazyFallback}><ImportLeads onNavigateToCrm={() => handleNavigate('crm')} /></Suspense>;
       case 'ajouter-leads': return <Suspense fallback={lazyFallback}><AjouterLeads /></Suspense>;
@@ -182,6 +183,7 @@ export default function AdminDashboard({ onLogout, onConnectAsVendor, onConnectA
       case 'system': return <Suspense fallback={lazyFallback}><SystemPage /></Suspense>;
       case 'sauvegarde': return <Suspense fallback={lazyFallback}><SauvegardeRestauration /></Suspense>;
       case 'cerveau-ia': return <Suspense fallback={lazyFallback}><AdminCerveauIA /></Suspense>;
+      case 'tuto': return <div className="p-6"><p className="text-sm" style={{ color: 'inherit' }}>Tuto - Contenu a venir</p></div>;
       default: return <Suspense fallback={lazyFallback}><VueEnsemble unreadClientConversations={unreadEntries.length} unreadVendorConversations={unreadVendorEntries.length} /></Suspense>;
     }
   };

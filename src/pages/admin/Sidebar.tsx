@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import {
   LayoutDashboard, Info, UserPlus, Upload, Users, Database, UserCheck, List,
   MessageCircle, MessageSquare, Shield, Calendar, CalendarRange, CalendarCheck,
-  Settings, Hexagon, Globe, Brain, Image as ImageIcon,
+  Settings, Hexagon, Globe, Brain, Image as ImageIcon, GraduationCap,
 } from 'lucide-react';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
 import { useSidebarOrder } from '../../hooks/useSidebarOrder';
@@ -51,6 +51,7 @@ const DEFAULT_SECTIONS: SidebarSection[] = [
   { title: 'Configuration', items: [
     { id: 'statuts', label: 'Statuts', icon: <Settings className="w-4 h-4" /> },
     { id: 'cerveau-ia', label: 'Cerveau IA AD', icon: <Brain className="w-4 h-4" /> },
+    { id: 'tuto', label: 'Tuto', icon: <GraduationCap className="w-4 h-4" /> },
   ] },
 ];
 
@@ -112,6 +113,8 @@ export default function Sidebar({ activeView, onNavigate, collapsed, onCollapse,
         move={order.move} handleDragStart={order.handleDragStart} handleDragOver={order.handleDragOver} handleDragEnd={order.handleDragEnd}
         draftLength={order.draftLength}
         renameEntry={order.renameEntry} addSection={order.addSection} addDivider={order.addDivider} removeEntry={order.removeEntry}
+        resetToDefault={order.resetToDefault}
+        dragSourceIdx={order.dragSourceIdx} dropTargetIdx={order.dropTargetIdx} dropEdge={order.dropEdge}
         renderItem={(entry, isActive) => (
           <AdminItem entry={entry} isActive={isActive} collapsed={collapsed} onClick={() => onNavigate(entry.id as ActiveView)} tokens={t.sidebar} />
         )}

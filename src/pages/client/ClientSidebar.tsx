@@ -4,6 +4,7 @@ import {
   CalendarDays,
   CalendarClock,
   Hexagon,
+  GraduationCap,
 } from 'lucide-react';
 import type { ClientActiveView } from './ClientDashboard';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
@@ -46,6 +47,12 @@ const sections: NavSection[] = [
     items: [
       { id: 'agenda', label: 'Agenda', icon: <CalendarDays className="w-4 h-4" /> },
       { id: 'propositions-rdv', label: 'Propositions RDV', icon: <CalendarClock className="w-4 h-4" /> },
+    ],
+  },
+  {
+    title: 'Ressources',
+    items: [
+      { id: 'tuto', label: 'Tuto', icon: <GraduationCap className="w-4 h-4" /> },
     ],
   },
 ];

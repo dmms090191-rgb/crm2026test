@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Check, X, Minus, FolderPlus } from 'lucide-react';
+import { Check, X, Minus, FolderPlus, RotateCcw } from 'lucide-react';
 import type { SidebarEntry } from '../lib/sidebarOrderTypes';
 import { useThemeTokens } from '../hooks/useThemeTokens';
 import SidebarReorderEntry from './SidebarReorderEntry';
@@ -23,6 +23,10 @@ interface Props {
   addDivider: () => void;
   removeEntry: (idx: number) => void;
   renderItem?: (entry: SidebarEntry & { kind: 'item' }, isActive: boolean) => React.ReactNode;
+  dragSourceIdx?: number | null;
+  dropTargetIdx?: number | null;
+  dropEdge?: 'before' | 'after';
+  resetToDefault?: () => void;
 }
 
 export default function SidebarReorderControls({
@@ -31,6 +35,8 @@ export default function SidebarReorderControls({
   move, handleDragStart, handleDragOver, handleDragEnd, draftLength,
   renameEntry, addSection, addDivider, removeEntry,
   renderItem,
+  dragSourceIdx, dropTargetIdx, dropEdge,
+  resetToDefault,
 }: Props) {
   const t = useThemeTokens();
   const [addingSectionName, setAddingSectionName] = useState('');
@@ -46,7 +52,20 @@ export default function SidebarReorderControls({
       <nav className="flex-1 overflow-y-auto py-3 px-2">
         {entries.map((entry, idx) => {
           if (reordering) {
-            return <SidebarReorderEntry key={reorderKey(entry, idx)} entry={entry} idx={idx} total={draftLength} collapsed={collapsed} move={move} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd} onRename={renameEntry} onRemove={removeEntry} t={t} />;
+            const isDragging = dragSourceIdx === idx;
+            const showIndicatorBefore = dropTargetIdx === idx && dropEdge === 'before' && dragSourceIdx !== idx && dragSourceIdx !== idx - 1;
+            const showIndicatorAfter = dropTargetIdx === idx && dropEdge === 'after' && dragSourceIdx !== idx && dragSourceIdx !== idx + 1;
+            return (
+              <SidebarReorderEntry
+                key={reorderKey(entry, idx)}
+                entry={entry} idx={idx} total={draftLength} collapsed={collapsed}
+                move={move} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}
+                onRename={renameEntry} onRemove={removeEntry} t={t}
+                isDragging={isDragging}
+                showIndicatorBefore={showIndicatorBefore}
+                showIndicatorAfter={showIndicatorAfter}
+              />
+            );
           }
           if (entry.kind === 'section') {
             if (collapsed) return null;
@@ -87,6 +106,12 @@ export default function SidebarReorderControls({
                     <Minus className="w-3.5 h-3.5" />Separateur
                   </button>
                 </div>
+              )}
+              {resetToDefault && (
+                <button onClick={resetToDefault} className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[11px] font-medium transition-all hover:scale-[1.02] active:scale-[0.98]"
+                  style={{ background: 'rgba(148,163,184,0.08)', border: '1px solid rgba(148,163,184,0.2)', color: '#94a3b8' }}>
+                  <RotateCcw className="w-3.5 h-3.5" />Par defaut
+                </button>
               )}
               <div className="flex gap-1.5">
                 <button onClick={confirmReorder} className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[11px] font-semibold transition-all hover:scale-[1.02] active:scale-[0.98]" style={{ background: 'rgba(52,211,153,0.1)', border: '1px solid rgba(52,211,153,0.25)', color: '#34d399' }}>

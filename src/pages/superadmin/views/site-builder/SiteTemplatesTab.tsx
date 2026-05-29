@@ -148,4 +148,5 @@ const CATEGORY_GRADIENT: Record<string, string> = {
   fitness: 'linear-gradient(135deg, rgba(239,68,68,0.3), rgba(249,115,22,0.15))',
   real_estate: 'linear-gradient(135deg, rgba(14,165,233,0.3), rgba(16,185,129,0.15))',
   renovation: 'linear-gradient(135deg, rgba(245,158,11,0.3), rgba(120,113,108,0.15))',
+  gold_buying: 'linear-gradient(135deg, rgba(212,160,23,0.4), rgba(184,134,11,0.15))',
 };

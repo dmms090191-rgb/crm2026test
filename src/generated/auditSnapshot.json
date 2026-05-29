@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-29T03:22:28.706Z",
+  "generatedAt": "2026-05-29T23:40:42.691Z",
   "anyCount": 3,
   "anyOccurrences": [
     {
@@ -20,14 +20,40 @@
   ],
   "unusedImportCount": 0,
   "unusedImports": [],
-  "largeFileCount": 0,
-  "largeFiles": [],
+  "largeFileCount": 5,
+  "largeFiles": [
+    {
+      "file": "src/pages/admin/AdminDashboard.tsx",
+      "lines": 301,
+      "overflow": 1
+    },
+    {
+      "file": "src/pages/client/ClientDashboard.tsx",
+      "lines": 301,
+      "overflow": 1
+    },
+    {
+      "file": "src/pages/admin/views/ameliorations/AmeliorationRow.tsx",
+      "lines": 308,
+      "overflow": 8
+    },
+    {
+      "file": "src/components/logo/LogoAiResultsGrid.tsx",
+      "lines": 320,
+      "overflow": 20
+    },
+    {
+      "file": "src/components/logo/LogoAiTab.tsx",
+      "lines": 1674,
+      "overflow": 1374
+    }
+  ],
   "tscErrorCount": 0,
   "tscErrors": [],
   "eslintErrorCount": 0,
   "eslintWarningCount": 0,
   "eslintIssues": [],
-  "totalFilesAnalyzed": 598,
-  "totalLinesAnalyzed": 81081,
-  "totalOverflowLines": 0
+  "totalFilesAnalyzed": 600,
+  "totalLinesAnalyzed": 82805,
+  "totalOverflowLines": 1404
 }

@@ -30,7 +30,7 @@ interface ClientDashboardProps {
   isSAViewing?: boolean;
 }
 
-export type ClientActiveView = 'vue-ensemble' | 'messagerie' | 'agenda' | 'propositions-rdv';
+export type ClientActiveView = 'vue-ensemble' | 'messagerie' | 'agenda' | 'propositions-rdv' | 'tuto';
 
 export default function ClientDashboard({ onLogout, impersonatedClient, onBackToAdmin, backLabel = 'Retour admin', isSAViewing }: ClientDashboardProps) {
   const tokens = useThemeTokens();
@@ -194,6 +194,7 @@ export default function ClientDashboard({ onLogout, impersonatedClient, onBackTo
       'messagerie': 'Support',
       'agenda': 'Agenda',
       'propositions-rdv': 'Propositions RDV',
+      'tuto': 'Tuto',
     };
     return labels[activeView];
   }, [activeView]);
@@ -205,6 +206,7 @@ export default function ClientDashboard({ onLogout, impersonatedClient, onBackTo
       case 'messagerie': return <ClientMessagerie clientName={clientName} clientAuthId={clientAuthId} isAdmin={!!impersonatedClient} />;
       case 'agenda': return <ClientAgenda clientEmail={clientEmail} />;
       case 'propositions-rdv': return <ClientPropositionsRdv clientEmail={clientEmail} onMount={markProposalsSeen} />;
+      case 'tuto': return <div className="p-6"><p className="text-sm" style={{ color: 'inherit' }}>Tuto - Contenu a venir</p></div>;
       default: return <ClientVueEnsemble clientName={clientName} clientAuthId={clientAuthId} onNavigate={(v) => setActiveView(v as ClientActiveView)} />;
     }
   };

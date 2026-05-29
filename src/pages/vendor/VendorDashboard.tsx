@@ -35,7 +35,7 @@ interface VendorDashboardProps {
   isSAViewing?: boolean;
 }
 
-export type VendorActiveView = 'vue-ensemble' | 'leads' | 'chat-admin' | 'chat-client' | 'agenda' | 'propositions-rdv';
+export type VendorActiveView = 'vue-ensemble' | 'leads' | 'chat-admin' | 'chat-client' | 'agenda' | 'propositions-rdv' | 'tuto';
 
 export interface VendorChatLead {
   id: string;
@@ -204,6 +204,7 @@ export default function VendorDashboard({ onLogout, impersonatedVendor, onBackTo
       'chat-client': 'Chat Client',
       'agenda': 'Agenda',
       'propositions-rdv': 'Propositions RDV',
+      'tuto': 'Tuto',
     };
     return labels[activeView];
   }, [activeView]);
@@ -216,6 +217,7 @@ export default function VendorDashboard({ onLogout, impersonatedVendor, onBackTo
       case 'chat-client': return <VendorChatClient vendorName={vendorName} vendorDbId={vendorDbId} initialLead={chatLead} onClientViewed={handleClientViewed} onReturnToLeads={handleReturnToLeads} isAdmin={!!impersonatedVendor} />;
       case 'agenda': return <VendorAgenda vendorId={vendorDbId} />;
       case 'propositions-rdv': return <VendorPropositionsRdv vendorDbId={vendorDbId} initialLead={rdvLead} onInitialLeadConsumed={() => setRdvLead(null)} onNavigateToLeads={(leadId?: string) => { if (leadId) pendingScrollRef.current = { leadId, scrollY: 0 }; setActiveView('leads'); }} />;
+      case 'tuto': return <div className="p-6"><p className="text-sm" style={{ color: 'inherit' }}>Tuto - Contenu a venir</p></div>;
       default: return <VendorVueEnsemble vendorId={vendorDbId} unreadConversations={unreadClientEntries.length} />;
     }
   };

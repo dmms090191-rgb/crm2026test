@@ -5,6 +5,7 @@ import HeatPumpTemplate from './HeatPumpTemplate';
 import FitnessTemplate from './FitnessTemplate';
 import RealEstateTemplate from './RealEstateTemplate';
 import RenovationTemplate from './RenovationTemplate';
+import GoldBuyingTemplate from './GoldBuyingTemplate';
 
 export interface TemplateProps {
   domainCompanyId?: string | null;
@@ -18,6 +19,7 @@ const TEMPLATE_REGISTRY: Record<string, ComponentType<TemplateProps>> = {
   fitness: FitnessTemplate,
   real_estate: RealEstateTemplate,
   renovation: RenovationTemplate,
+  gold_buying: GoldBuyingTemplate,
 };
 
 export function getTemplateComponent(templateKey: string): ComponentType<TemplateProps> | null {

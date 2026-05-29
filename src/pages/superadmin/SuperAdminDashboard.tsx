@@ -25,6 +25,7 @@ const SAFonctionsTalvex = lazy(() => import('./views/fonctions-talvex/SAFonction
 const SASiteTalvex = lazy(() => import('./views/site-builder/SASiteTalvex'));
 const SACerveauIA = lazy(() => import('./views/cerveau-ia/SACerveauIA'));
 const SALogoPage = lazy(() => import('./views/SALogoPage'));
+const SAAmeliorations = lazy(() => import('./views/SAAmeliorations'));
 
 interface SuperAdminDashboardProps {
   onLogout: () => void;
@@ -117,10 +118,6 @@ export default function SuperAdminDashboard({ onLogout, onConnectAsAdmin }: Supe
   }, [activeView]);
 
   const handleNavigate = (view: SAView) => {
-    if (view === 'documentation-crm') {
-      setDocInitialTab('ameliorations');
-      setDocKey(k => k + 1);
-    }
     setActiveView(view);
   };
 
@@ -152,6 +149,8 @@ export default function SuperAdminDashboard({ onLogout, onConnectAsAdmin }: Supe
       case 'site-talvex': return <SASiteTalvex />;
       case 'cerveau-ia': return <SACerveauIA />;
       case 'logo': return <SALogoPage />;
+      case 'ameliorations': return <SAAmeliorations />;
+      case 'tuto': return <div className="p-6"><p className="text-sm" style={{ color: 'inherit' }}>Tuto - Contenu a venir</p></div>;
       default: return <SADashboard onNavigate={handleNavigate} adminCount={cachedAdmins.length} adminsLoading={adminsRefreshing && cachedAdmins.length === 0} />;
     }
   }

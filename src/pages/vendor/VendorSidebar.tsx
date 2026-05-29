@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
   LayoutDashboard, Database, MessageSquare, MessageCircle,
-  Hexagon, CalendarDays, CalendarClock,
+  Hexagon, CalendarDays, CalendarClock, GraduationCap,
 } from 'lucide-react';
 import type { VendorActiveView } from './VendorDashboard';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
@@ -33,6 +33,9 @@ const DEFAULT_SECTIONS: SidebarSection[] = [
   { title: 'Contact', items: [
     { id: 'chat-admin', label: 'Chat Admin', icon: <MessageSquare className="w-4 h-4" /> },
     { id: 'chat-client', label: 'Chat Client', icon: <MessageCircle className="w-4 h-4" /> },
+  ] },
+  { title: 'Ressources', items: [
+    { id: 'tuto', label: 'Tuto', icon: <GraduationCap className="w-4 h-4" /> },
   ] },
 ];
 
@@ -83,6 +86,8 @@ export default function VendorSidebar({ activeView, onNavigate, collapsed, onCol
         move={order.move} handleDragStart={order.handleDragStart} handleDragOver={order.handleDragOver} handleDragEnd={order.handleDragEnd}
         draftLength={order.draftLength}
         renameEntry={order.renameEntry} addSection={order.addSection} addDivider={order.addDivider} removeEntry={order.removeEntry}
+        resetToDefault={order.resetToDefault}
+        dragSourceIdx={order.dragSourceIdx} dropTargetIdx={order.dropTargetIdx} dropEdge={order.dropEdge}
         renderItem={(entry, isActive) => (
           <VendorItem entry={entry} isActive={isActive} collapsed={collapsed} onClick={() => onNavigate(entry.id as VendorActiveView)} tokens={tokens} />
         )}

@@ -3,6 +3,57 @@ import { Pencil, Trash2, ArrowUp, ArrowDown, GripVertical, ArrowRightLeft } from
 import type { AmeliorationRowProps } from './types';
 import { formatDate, formatTime } from './types';
 
+function splitNumberedItems(text: string): string[] {
+  const byNewline = text.split('\n').filter(l => l.trim());
+  if (byNewline.length > 1) {
+    return byNewline.map(l => l.replace(/^\s*(?:\d+[\.\)]\s*|[-*]\s+)/, '').trim()).filter(Boolean);
+  }
+
+  const re = /(\d+)\.\s+/g;
+  let m;
+  const allPositions: { idx: number; num: number; end: number }[] = [];
+  while ((m = re.exec(text)) !== null) {
+    allPositions.push({ idx: m.index, num: parseInt(m[1], 10), end: m.index + m[0].length });
+  }
+
+  const first1 = allPositions.find(p => p.num === 1);
+  if (!first1) return [];
+
+  const seqPositions = [first1];
+  let expected = 2;
+  for (const p of allPositions) {
+    if (p.idx > first1.idx && p.num === expected) {
+      seqPositions.push(p);
+      expected++;
+    }
+  }
+  if (seqPositions.length < 2) return [];
+
+  const items: string[] = [];
+  for (let i = 0; i < seqPositions.length; i++) {
+    const begin = seqPositions[i].end;
+    const finish = i + 1 < seqPositions.length ? seqPositions[i + 1].idx : text.length;
+    items.push(text.slice(begin, finish).trim().replace(/\.\s*$/, '').trim());
+  }
+  return items.filter(Boolean);
+}
+
+function renderNumberedTitle(text: string, color: string, numColor: string) {
+  const items = splitNumberedItems(text);
+  if (items.length === 0) return <span>{text}</span>;
+
+  return (
+    <ol className="list-none space-y-1 m-0 p-0">
+      {items.map((line, i) => (
+        <li key={i} className="flex gap-2 text-sm">
+          <span className="font-semibold tabular-nums flex-shrink-0" style={{ color: numColor, minWidth: 22, textAlign: 'right' }}>{i + 1}.</span>
+          <span style={{ color }}>{line}</span>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
 export default function AmeliorationRow({
   item, index, tokens, confirmDeleteId, isReordering, isFirst, isLast,
   isMoved, isDragging, categories, onMoveUp, onMoveDown, onDragStart,
@@ -82,7 +133,7 @@ export default function AmeliorationRow({
           <span className="text-xs" style={{ color: tokens.text.quaternary }}>a {formatTime(item.created_at)}</span>
         </div>
         <div className="text-sm break-words whitespace-normal" style={{ color: tokens.text.secondary }}>
-          {item.title}
+          {renderNumberedTitle(item.title, tokens.text.secondary, tokens.text.tertiary)}
           {item.description && (
             <span className="block text-xs mt-0.5" style={{ color: tokens.text.quaternary }}>
               {item.description}
@@ -157,14 +208,14 @@ export default function AmeliorationRow({
           a {formatTime(item.created_at)}
         </span>
         <span className="mx-0.5 shrink-0 pt-0.5" style={{ color: tokens.text.quaternary }}>{'\u2014'}</span>
-        <span className="text-sm flex-1 min-w-0 break-words whitespace-normal" style={{ color: tokens.text.secondary }}>
-          {item.title}
+        <div className="text-sm flex-1 min-w-0 break-words whitespace-normal" style={{ color: tokens.text.secondary }}>
+          {renderNumberedTitle(item.title, tokens.text.secondary, tokens.text.tertiary)}
           {item.description && (
             <span className="block text-xs mt-0.5" style={{ color: tokens.text.quaternary }}>
               {item.description}
             </span>
           )}
-        </span>
+        </div>
         <span
           className="shrink-0 px-2 py-0.5 rounded-full text-xs font-medium"
           style={{
