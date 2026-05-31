@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
@@ -9,23 +9,56 @@ export type PwaInstallState =
   | 'prompt-ready'
   | 'installed'
   | 'ios-manual'
+  | 'android-manual'
   | 'unsupported';
 
 function isIos(): boolean {
-  return /iPhone|iPad|iPod/.test(navigator.userAgent) && !(window as unknown as Record<string, unknown>).MSStream;
+  return /iPhone|iPad|iPod/.test(navigator.userAgent) &&
+    !(window as unknown as Record<string, unknown>).MSStream;
+}
+
+function isAndroid(): boolean {
+  return /Android/i.test(navigator.userAgent);
 }
 
 function isStandalone(): boolean {
   if (window.matchMedia('(display-mode: standalone)').matches) return true;
   if ((navigator as unknown as Record<string, boolean>).standalone) return true;
-  return false;
+  return document.referrer.includes('android-app://');
+}
+
+// ---- Global early capture ----
+// beforeinstallprompt fires once, very early. If we only listen inside a
+// React component that lazy-loads later, we miss it. Capture at module level.
+let _deferredPrompt: BeforeInstallPromptEvent | null = null;
+let _promptCaptured = false;
+const _listeners: Array<(e: BeforeInstallPromptEvent | null) => void> = [];
+
+function _notifyListeners(e: BeforeInstallPromptEvent | null) {
+  _listeners.forEach(fn => fn(e));
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeinstallprompt', (e: Event) => {
+    e.preventDefault();
+    _deferredPrompt = e as BeforeInstallPromptEvent;
+    _promptCaptured = true;
+    _notifyListeners(_deferredPrompt);
+  });
+
+  window.addEventListener('appinstalled', () => {
+    _deferredPrompt = null;
+    _notifyListeners(null);
+  });
 }
 
 export default function usePwaInstall() {
-  const deferredPrompt = useRef<BeforeInstallPromptEvent | null>(null);
   const [state, setState] = useState<PwaInstallState>(() => {
+    if (typeof window === 'undefined') return 'unsupported';
     if (isStandalone()) return 'installed';
+    if (_promptCaptured && _deferredPrompt) return 'prompt-ready';
     if (isIos()) return 'ios-manual';
+    if (isAndroid()) return 'android-manual';
     return 'unsupported';
   });
   const [installing, setInstalling] = useState(false);
@@ -36,35 +69,32 @@ export default function usePwaInstall() {
       return;
     }
 
-    const handler = (e: Event) => {
-      e.preventDefault();
-      deferredPrompt.current = e as BeforeInstallPromptEvent;
+    // If prompt was already captured globally before this component mounted
+    if (_deferredPrompt) {
       setState('prompt-ready');
-    };
+    }
 
-    window.addEventListener('beforeinstallprompt', handler);
-
-    const installedHandler = () => {
-      setState('installed');
-      deferredPrompt.current = null;
+    const handler = (e: BeforeInstallPromptEvent | null) => {
+      if (e) setState('prompt-ready');
+      else setState('installed');
     };
-    window.addEventListener('appinstalled', installedHandler);
+    _listeners.push(handler);
 
     return () => {
-      window.removeEventListener('beforeinstallprompt', handler);
-      window.removeEventListener('appinstalled', installedHandler);
+      const idx = _listeners.indexOf(handler);
+      if (idx >= 0) _listeners.splice(idx, 1);
     };
   }, []);
 
   const promptInstall = useCallback(async (): Promise<'accepted' | 'dismissed' | 'unavailable'> => {
-    if (!deferredPrompt.current) return 'unavailable';
+    if (!_deferredPrompt) return 'unavailable';
     setInstalling(true);
     try {
-      await deferredPrompt.current.prompt();
-      const { outcome } = await deferredPrompt.current.userChoice;
+      await _deferredPrompt.prompt();
+      const { outcome } = await _deferredPrompt.userChoice;
       if (outcome === 'accepted') {
+        _deferredPrompt = null;
         setState('installed');
-        deferredPrompt.current = null;
       }
       return outcome;
     } catch {
