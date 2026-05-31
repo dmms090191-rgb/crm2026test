@@ -1,9 +1,10 @@
-const CACHE_NAME = 'talvex-v1';
+var CACHE_NAME = 'talvex-v2';
+var SHELL_ASSETS = ['/', '/index.html', '/favicon.svg', '/icons/icon-192x192.png', '/icons/icon-512x512.png'];
 
 self.addEventListener('install', function (event) {
   event.waitUntil(
     caches.open(CACHE_NAME).then(function (cache) {
-      return cache.addAll(['/favicon.svg', '/icons/icon-192x192.png', '/icons/icon-512x512.png']);
+      return cache.addAll(SHELL_ASSETS);
     })
   );
   self.skipWaiting();
@@ -28,9 +29,18 @@ self.addEventListener('fetch', function (event) {
   if (url.pathname.startsWith('/auth/')) return;
   if (url.pathname.startsWith('/storage/')) return;
 
+  var isNavigation = event.request.mode === 'navigate';
+
   event.respondWith(
     fetch(event.request).catch(function () {
-      return caches.match(event.request);
+      if (isNavigation) {
+        return caches.match('/index.html').then(function (r) {
+          return r || new Response('Offline', { status: 503, headers: { 'Content-Type': 'text/plain' } });
+        });
+      }
+      return caches.match(event.request).then(function (r) {
+        return r || new Response('', { status: 404 });
+      });
     })
   );
 });
