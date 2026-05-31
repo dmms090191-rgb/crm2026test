@@ -1,18 +1,44 @@
 {
-  "name": "Talvex CRM",
+  "name": "Talvex",
   "short_name": "Talvex",
-  "description": "Plateforme CRM SaaS professionnelle",
+  "description": "CRM professionnel Talvex",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#0f172a",
-  "theme_color": "#f59e0b",
-  "orientation": "any",
+  "theme_color": "#0ea5e9",
+  "orientation": "portrait",
+  "categories": ["business", "productivity"],
   "icons": [
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-192x192-maskable.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/icon-512x512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
     {
       "src": "/favicon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "purpose": "any"
     }
   ]
 }

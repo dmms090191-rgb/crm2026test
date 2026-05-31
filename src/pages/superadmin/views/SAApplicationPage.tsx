@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Smartphone, Download, ExternalLink, ImagePlus } from 'lucide-react';
+import { Smartphone, Download, ImagePlus, CheckCircle2, Share, Plus } from 'lucide-react';
 import { useThemeTokens } from '../../../hooks/useThemeTokens';
 import { supabase } from '../../../lib/supabase';
+import usePwaInstall from '../../../hooks/usePwaInstall';
 import SimulatedPhone from '../../../components/SimulatedPhone';
 
 interface Props {
@@ -10,8 +11,8 @@ interface Props {
 
 export default function SAApplicationPage({ onChangeAppIcon }: Props) {
   const t = useThemeTokens();
-  const [downloadHovered, setDownloadHovered] = useState(false);
   const [appIconUrl, setAppIconUrl] = useState<string | null>(null);
+  const pwa = usePwaInstall();
 
   useEffect(() => {
     (async () => {
@@ -26,15 +27,6 @@ export default function SAApplicationPage({ onChangeAppIcon }: Props) {
       if (data?.app_icon_url) setAppIconUrl(data.app_icon_url);
     })();
   }, []);
-
-  const downloadUrl: string | null = null;
-  const hasDownloadUrl = !!downloadUrl;
-
-  const handleDownload = () => {
-    if (downloadUrl) {
-      window.open(downloadUrl, '_blank', 'noopener');
-    }
-  };
 
   return (
     <div className="p-4 sm:p-6 md:p-8 max-w-6xl mx-auto">
@@ -81,48 +73,119 @@ export default function SAApplicationPage({ onChangeAppIcon }: Props) {
         </div>
       </div>
 
-      {/* Download button */}
+      {/* Install button */}
       <div className="flex justify-center mt-8 sm:mt-10">
-        {hasDownloadUrl ? (
-          <button
-            onClick={handleDownload}
-            onMouseEnter={() => setDownloadHovered(true)}
-            onMouseLeave={() => setDownloadHovered(false)}
-            className="inline-flex items-center gap-3 px-8 py-4 rounded-2xl text-sm font-bold transition-all hover:scale-[1.03] active:scale-[0.98]"
+        <PwaInstallButton pwa={pwa} />
+      </div>
+    </div>
+  );
+}
+
+function PwaInstallButton({ pwa }: { pwa: ReturnType<typeof usePwaInstall> }) {
+  const t = useThemeTokens();
+  const [showIosHelp, setShowIosHelp] = useState(false);
+
+  if (pwa.state === 'installed') {
+    return (
+      <div className="flex flex-col items-center gap-2">
+        <div
+          className="inline-flex items-center gap-3 px-8 py-4 rounded-2xl text-sm font-bold"
+          style={{
+            background: 'linear-gradient(135deg, rgba(16,185,129,0.08), rgba(5,150,105,0.12))',
+            border: '1px solid rgba(16,185,129,0.2)',
+            color: '#10b981',
+          }}
+        >
+          <CheckCircle2 className="w-5 h-5" />
+          Application deja installee
+        </div>
+      </div>
+    );
+  }
+
+  if (pwa.state === 'prompt-ready') {
+    return (
+      <button
+        onClick={() => pwa.promptInstall()}
+        disabled={pwa.installing}
+        className="inline-flex items-center gap-3 px-8 py-4 rounded-2xl text-sm font-bold transition-all hover:scale-[1.03] active:scale-[0.98] disabled:opacity-60"
+        style={{
+          background: 'linear-gradient(135deg, #0ea5e9, #10b981)',
+          color: '#fff',
+          boxShadow: '0 8px 32px rgba(14,165,233,0.3), 0 2px 8px rgba(14,165,233,0.15), inset 0 1px 0 rgba(255,255,255,0.15)',
+        }}
+      >
+        <Download className="w-5 h-5" />
+        {pwa.installing ? 'Installation...' : 'Installer Talvex'}
+      </button>
+    );
+  }
+
+  if (pwa.state === 'ios-manual') {
+    return (
+      <div className="flex flex-col items-center gap-3">
+        <button
+          onClick={() => setShowIosHelp(!showIosHelp)}
+          className="inline-flex items-center gap-3 px-8 py-4 rounded-2xl text-sm font-bold transition-all hover:scale-[1.03] active:scale-[0.98]"
+          style={{
+            background: 'linear-gradient(135deg, #0ea5e9, #10b981)',
+            color: '#fff',
+            boxShadow: '0 8px 32px rgba(14,165,233,0.3), 0 2px 8px rgba(14,165,233,0.15), inset 0 1px 0 rgba(255,255,255,0.15)',
+          }}
+        >
+          <Download className="w-5 h-5" />
+          Installer Talvex
+        </button>
+        {showIosHelp && (
+          <div
+            className="flex items-start gap-3 px-5 py-4 rounded-xl max-w-sm text-left"
             style={{
-              background: downloadHovered
-                ? 'linear-gradient(135deg, #0ea5e9, #0284c7)'
-                : 'linear-gradient(135deg, #0ea5e9, #10b981)',
-              color: '#fff',
-              boxShadow: downloadHovered
-                ? '0 8px 32px rgba(14,165,233,0.4), 0 0 0 1px rgba(14,165,233,0.2)'
-                : '0 4px 20px rgba(14,165,233,0.25)',
+              background: t.surface.secondary,
+              border: `1px solid ${t.surface.border}`,
+              boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
             }}
           >
-            <Download className="w-5 h-5" />
-            Telecharger l'application
-            <ExternalLink className="w-4 h-4 opacity-60" />
-          </button>
-        ) : (
-          <div className="flex flex-col items-center gap-3">
-            <div
-              className="inline-flex items-center gap-3 px-8 py-4 rounded-2xl text-sm font-bold"
-              style={{
-                background: t.surface.secondary,
-                border: `1.5px dashed ${t.surface.border}`,
-                color: t.text.quaternary,
-                cursor: 'not-allowed',
-              }}
-            >
-              <Download className="w-5 h-5 opacity-40" />
-              Telecharger l'application
+            <div className="flex-shrink-0 mt-0.5">
+              <Share className="w-5 h-5" style={{ color: '#0ea5e9' }} />
             </div>
-            <p className="text-[11px] font-medium" style={{ color: t.text.quaternary }}>
-              Telechargement bientot disponible
-            </p>
+            <div>
+              <p className="text-[12px] font-bold mb-1.5" style={{ color: t.text.primary }}>
+                Installation sur iPhone
+              </p>
+              <div className="space-y-1.5">
+                <p className="text-[11px] flex items-center gap-2" style={{ color: t.text.secondary }}>
+                  <span className="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold" style={{ background: 'rgba(14,165,233,0.1)', color: '#0ea5e9' }}>1</span>
+                  Appuyez sur <Share className="w-3.5 h-3.5 inline" style={{ color: '#0ea5e9' }} /> Partager
+                </p>
+                <p className="text-[11px] flex items-center gap-2" style={{ color: t.text.secondary }}>
+                  <span className="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold" style={{ background: 'rgba(14,165,233,0.1)', color: '#0ea5e9' }}>2</span>
+                  Puis <Plus className="w-3.5 h-3.5 inline" style={{ color: '#0ea5e9' }} /> Ajouter a l'ecran d'accueil
+                </p>
+              </div>
+            </div>
           </div>
         )}
       </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col items-center gap-3">
+      <div
+        className="inline-flex items-center gap-3 px-8 py-4 rounded-2xl text-sm font-bold"
+        style={{
+          background: t.surface.secondary,
+          border: `1.5px dashed ${t.surface.border}`,
+          color: t.text.quaternary,
+          cursor: 'not-allowed',
+        }}
+      >
+        <Download className="w-5 h-5 opacity-40" />
+        Installer Talvex
+      </div>
+      <p className="text-[11px] font-medium" style={{ color: t.text.quaternary }}>
+        Installation non disponible sur ce navigateur
+      </p>
     </div>
   );
 }
