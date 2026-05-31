@@ -25,7 +25,12 @@ function AnimatedCounter({ target, visible }: { target: number; visible: boolean
   return <span>{count}</span>;
 }
 
-export default function GoldBuyingOffers() {
+interface Props {
+  title?: string;
+  subtitle?: string;
+}
+
+export default function GoldBuyingOffers({ title, subtitle }: Props = {}) {
   const [isVisible, setIsVisible] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -49,14 +54,16 @@ export default function GoldBuyingOffers() {
             <span className="text-xs font-bold tracking-wide" style={{ color: '#d4a017' }}>Offres speciales</span>
           </div>
           <h2 className="text-3xl sm:text-4xl font-black mb-4 text-white/90">
-            Bonus{' '}
-            <span className="text-transparent bg-clip-text" style={{
-              background: 'linear-gradient(135deg, #f5d060, #d4a017)',
-              WebkitBackgroundClip: 'text',
-            }}>exceptionnels</span>
+            {title ? title : (
+              <>Bonus{' '}
+              <span className="text-transparent bg-clip-text" style={{
+                background: 'linear-gradient(135deg, #f5d060, #d4a017)',
+                WebkitBackgroundClip: 'text',
+              }}>exceptionnels</span></>
+            )}
           </h2>
           <p className="text-sm text-white/40 max-w-lg mx-auto">
-            Le cours de l'or est a la hausse. Profitez-en maintenant avec nos offres speciales.
+            {subtitle || 'Le cours de l\'or est a la hausse. Profitez-en maintenant avec nos offres speciales.'}
           </p>
         </div>
 

@@ -1,7 +1,7 @@
 import { Eye, X, CheckCircle2, Circle, Brain, Database, BookOpen } from 'lucide-react';
 import { useEffect } from 'react';
 import { D } from './brainTheme';
-import type { AiCompanyBrain } from './brainTypes';
+import type { AiCompanyBrain, DaySchedule } from './brainTypes';
 
 interface Props {
   open: boolean;
@@ -19,7 +19,7 @@ export default function BrainPreviewModal({ open, onClose, brain }: Props) {
   if (!open) return null;
 
   const hours = brain.opening_hours;
-  const hasHours = hours && typeof hours === 'object' && Object.values(hours).some((d: any) => d && !d.closed);
+  const hasHours = hours && typeof hours === 'object' && Object.values(hours).some((d: DaySchedule) => d && !d.closed);
   const forbidden = brain.forbidden_actions ?? [];
   const sensitive = brain.sensitive_requests ?? [];
 

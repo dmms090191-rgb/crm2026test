@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { LogIn, Loader2, AlertCircle } from 'lucide-react';
 import LoginModal from '../../components/LoginModal';
 import { getHomePageBySlug, getTemplateById, type CompanyHomePage } from '../../lib/companyHomePages';
-import { getTemplateComponent } from '../superadmin/views/site-builder/templates/templateRegistry';
+import { getTemplateComponent, type SectionOverride } from '../superadmin/views/site-builder/templates/templateRegistry';
+import { supabase } from '../../lib/supabase';
 
 interface Props {
   slug: string;
@@ -10,9 +11,19 @@ interface Props {
   onLogin?: () => void;
 }
 
+interface PublishedSectionRow {
+  section_key: string;
+  position: number;
+  is_visible: boolean;
+  published_content: Record<string, string> | null;
+  published_styles: Record<string, string> | null;
+}
+
 export default function CompanySitePage({ slug, domainCompanyId, onLogin: onLoginProp }: Props) {
   const [page, setPage] = useState<CompanyHomePage | null>(null);
   const [templateKey, setTemplateKey] = useState<string | null>(null);
+  const [sectionOverrides, setSectionOverrides] = useState<Record<string, SectionOverride> | undefined>();
+  const [sectionOrder, setSectionOrder] = useState<string[] | undefined>();
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
@@ -23,17 +34,44 @@ export default function CompanySitePage({ slug, domainCompanyId, onLogin: onLogi
       setLoading(false);
       return;
     }
-    getHomePageBySlug(slug)
-      .then(async (data) => {
+    (async () => {
+      try {
+        const data = await getHomePageBySlug(slug);
         if (!data) { setNotFound(true); return; }
         setPage(data);
         if (data.active_template_id) {
           const tmpl = await getTemplateById(data.active_template_id);
           if (tmpl) setTemplateKey(tmpl.template_key);
         }
-      })
-      .catch(() => setNotFound(true))
-      .finally(() => setLoading(false));
+        if (data.is_published) {
+          const { data: rows } = await supabase
+            .from('site_sections')
+            .select('section_key, position, is_visible, published_content, published_styles')
+            .eq('home_page_id', data.id)
+            .not('published_content', 'is', null)
+            .order('position', { ascending: true });
+          if (rows && rows.length > 0) {
+            const typed = rows as PublishedSectionRow[];
+            const overrides: Record<string, SectionOverride> = {};
+            const order: string[] = [];
+            for (const row of typed) {
+              overrides[row.section_key] = {
+                content: row.published_content ?? {},
+                styles: row.published_styles ?? {},
+                visible: row.is_visible,
+              };
+              order.push(row.section_key);
+            }
+            setSectionOverrides(overrides);
+            setSectionOrder(order);
+          }
+        }
+      } catch {
+        setNotFound(true);
+      } finally {
+        setLoading(false);
+      }
+    })();
   }, [slug]);
 
   const effectiveCompanyId = domainCompanyId ?? page?.company_id ?? null;
@@ -47,7 +85,16 @@ export default function CompanySitePage({ slug, domainCompanyId, onLogin: onLogi
   if (notFound || !page) return <NotFoundScreen />;
 
   const TemplateComponent = templateKey ? getTemplateComponent(templateKey) : null;
-  if (TemplateComponent) return <TemplateComponent domainCompanyId={effectiveCompanyId} onDomainLogin={handleLogin} />;
+  if (TemplateComponent) {
+    return (
+      <TemplateComponent
+        domainCompanyId={effectiveCompanyId}
+        onDomainLogin={handleLogin}
+        sectionOverrides={sectionOverrides}
+        sectionOrder={sectionOrder}
+      />
+    );
+  }
 
   const mainColor = page.main_color || '#0ea5e9';
   const secondaryColor = page.secondary_color || '#10b981';
@@ -84,20 +131,14 @@ export default function CompanySitePage({ slug, domainCompanyId, onLogin: onLogi
       {/* Hero section */}
       <main className="flex-1 flex items-center justify-center px-4 sm:px-6 py-12 sm:py-20">
         <div className="max-w-4xl w-full">
-          {/* Hero image */}
           {page.hero_image_url && (
             <div className="relative mb-8 sm:mb-12 rounded-2xl overflow-hidden aspect-[21/9] max-h-[320px]">
-              <img
-                src={page.hero_image_url}
-                alt=""
-                className="w-full h-full object-cover"
-              />
+              <img src={page.hero_image_url} alt="" className="w-full h-full object-cover" />
               <div className="absolute inset-0" style={{ background: `linear-gradient(to top, #0f172aee 0%, transparent 60%)` }} />
             </div>
           )}
 
           <div className="text-center space-y-5 sm:space-y-6">
-            {/* Logo centered (when no hero) */}
             {page.logo_url && !page.hero_image_url && (
               <div className="flex justify-center mb-4">
                 <img
@@ -108,27 +149,19 @@ export default function CompanySitePage({ slug, domainCompanyId, onLogin: onLogi
                 />
               </div>
             )}
-
-            {/* Title */}
             <h1 className="text-3xl sm:text-5xl md:text-6xl font-bold text-white leading-tight">
               {page.title || 'Bienvenue'}
             </h1>
-
-            {/* Subtitle */}
             {page.subtitle && (
               <p className="text-lg sm:text-xl md:text-2xl font-medium" style={{ color: mainColor }}>
                 {page.subtitle}
               </p>
             )}
-
-            {/* Welcome message */}
             {page.welcome_message && (
               <p className="max-w-2xl mx-auto text-base sm:text-lg text-slate-400 leading-relaxed">
                 {page.welcome_message}
               </p>
             )}
-
-            {/* CTA */}
             <div className="pt-6 sm:pt-8">
               <button
                 onClick={() => setLoginOpen(true)}
@@ -143,12 +176,10 @@ export default function CompanySitePage({ slug, domainCompanyId, onLogin: onLogi
         </div>
       </main>
 
-      {/* Footer */}
       <footer className="py-4 sm:py-6 text-center text-xs sm:text-sm text-slate-500 px-4">
         &copy; {new Date().getFullYear()} {page.title || 'Bienvenue'}. Tous droits r&eacute;serv&eacute;s.
       </footer>
 
-      {/* Login modal */}
       <LoginModal isOpen={loginOpen} onClose={() => setLoginOpen(false)} onLogin={handleLogin} domainCompanyId={effectiveCompanyId} />
     </div>
   );

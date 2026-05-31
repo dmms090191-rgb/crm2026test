@@ -1,7 +1,11 @@
 import { FileText } from 'lucide-react';
 import type { getThemeTokens } from '../../lib/themeTokens';
+import AudioPlayer from './AudioPlayer';
 
-export default function FilePreview({ url, name, type, tokens }: { url: string; name: string; type?: string | null; tokens: ReturnType<typeof getThemeTokens> }) {
+export default function FilePreview({ url, name, type, tokens, isOwn, accentRgb }: { url: string; name: string; type?: string | null; tokens: ReturnType<typeof getThemeTokens>; isOwn?: boolean; accentRgb?: string }) {
+  if (type === 'audio') {
+    return <AudioPlayer url={url} name={name} tokens={tokens} isOwn={isOwn} accentRgb={accentRgb} />;
+  }
   if (type === 'image') {
     return (
       <a href={url} target="_blank" rel="noopener noreferrer" className="block mt-1.5">

@@ -10,7 +10,12 @@ const GUARANTEES = [
   { icon: BadgeCheck, title: 'Agrement douanes', desc: 'Garantie des douanes n21/066. SIRET : 893 848 846 00018.' },
 ];
 
-export default function GoldBuyingGuarantees() {
+interface Props {
+  title?: string;
+  subtitle?: string;
+}
+
+export default function GoldBuyingGuarantees({ title, subtitle }: Props = {}) {
   const [visibleItems, setVisibleItems] = useState<Set<number>>(new Set());
   const ref = useRef<HTMLDivElement>(null);
 
@@ -40,12 +45,17 @@ export default function GoldBuyingGuarantees() {
             Confiance & Securite
           </span>
           <h2 className="text-3xl sm:text-4xl font-black mt-3 mb-4 text-white/90">
-            Nos{' '}
-            <span className="text-transparent bg-clip-text" style={{
-              background: 'linear-gradient(135deg, #f5d060, #d4a017)',
-              WebkitBackgroundClip: 'text',
-            }}>garanties</span>
+            {title ? title : (
+              <>Nos{' '}
+              <span className="text-transparent bg-clip-text" style={{
+                background: 'linear-gradient(135deg, #f5d060, #d4a017)',
+                WebkitBackgroundClip: 'text',
+              }}>garanties</span></>
+            )}
           </h2>
+          {subtitle && (
+            <p className="text-sm text-white/40 max-w-lg mx-auto">{subtitle}</p>
+          )}
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">

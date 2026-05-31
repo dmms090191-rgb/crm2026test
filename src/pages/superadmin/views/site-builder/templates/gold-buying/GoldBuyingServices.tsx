@@ -12,7 +12,12 @@ const SERVICES = [
   { icon: CircleDollarSign, title: 'Etain & Platine', desc: 'Etain, platine et tous metaux precieux au cours du jour.', accent: '#a78bfa' },
 ];
 
-export default function GoldBuyingServices() {
+interface Props {
+  title?: string;
+  subtitle?: string;
+}
+
+export default function GoldBuyingServices({ title, subtitle }: Props = {}) {
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
 
   return (
@@ -24,15 +29,17 @@ export default function GoldBuyingServices() {
           <span className="text-xs font-bold tracking-[0.3em] uppercase" style={{ color: '#d4a017' }}>
             Ce que nous rachetons
           </span>
-          <h2 className="text-3xl sm:text-4xl font-black mt-3 mb-4 text-white/90">
-            Nous rachetons vos{' '}
-            <span className="text-transparent bg-clip-text" style={{
-              background: 'linear-gradient(135deg, #f5d060, #d4a017)',
-              WebkitBackgroundClip: 'text',
-            }}>metaux precieux</span>
+          <h2 data-studio-field="services-title" className="text-3xl sm:text-4xl font-black mt-3 mb-4 text-white/90">
+            {title ? title : (
+              <>Nous rachetons vos{' '}
+              <span className="text-transparent bg-clip-text" style={{
+                background: 'linear-gradient(135deg, #f5d060, #d4a017)',
+                WebkitBackgroundClip: 'text',
+              }}>metaux precieux</span></>
+            )}
           </h2>
-          <p className="text-sm text-white/40 max-w-lg mx-auto">
-            Expertise gratuite et sans engagement. Paiement immediat par cheque ou virement bancaire.
+          <p data-studio-field="services-subtitle" className="text-sm text-white/40 max-w-lg mx-auto">
+            {subtitle || 'Expertise gratuite et sans engagement. Paiement immediat par cheque ou virement bancaire.'}
           </p>
         </div>
 

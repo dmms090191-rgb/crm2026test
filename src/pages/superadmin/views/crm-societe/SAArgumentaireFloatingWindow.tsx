@@ -14,14 +14,15 @@ export default function SAArgumentaireFloatingWindow({ title, content, onClose }
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
 
   useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 768);
-    window.addEventListener('resize', check);
-    return () => window.removeEventListener('resize', check);
+    const mq = window.matchMedia('(max-width: 767px)');
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
   }, []);
 
   if (isMobile) {
-    return <SAArgumentaireMobileDock title={title} content={content} onClose={onClose} t={t} />;
+    return <SAArgumentaireMobileDock key="mobile" title={title} content={content} onClose={onClose} t={t} />;
   }
 
-  return <SAArgumentaireDesktopFloat title={title} content={content} onClose={onClose} t={t} />;
+  return <SAArgumentaireDesktopFloat key="desktop" title={title} content={content} onClose={onClose} t={t} />;
 }

@@ -427,3 +427,12 @@ html[data-theme="graphite"] .dual-scroll-top::-webkit-scrollbar-thumb:active {
   0% { transform: translateX(-100%); }
   100% { transform: translateX(200%); }
 }
+
+.preview-unframe > * {
+  height: auto !important;
+  min-height: 100vh;
+}
+.preview-unframe > * > * {
+  overflow-y: visible !important;
+  flex: none !important;
+}

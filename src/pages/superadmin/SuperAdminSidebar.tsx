@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { LayoutDashboard, Shield, UserCog, BookOpen, Monitor, HardDriveDownload, MessageSquare, CircleUser as UserCircle, FlaskConical, Building2, Settings, Bot, Globe, Blocks, LayoutTemplate, Brain, Image as ImageIcon, TrendingUp, GraduationCap } from 'lucide-react';
+import { LayoutDashboard, Shield, UserCog, BookOpen, Monitor, HardDriveDownload, MessageSquare, CircleUser as UserCircle, FlaskConical, Building2, Settings, Bot, Globe, Blocks, LayoutTemplate, Brain, Image as ImageIcon, TrendingUp, GraduationCap, Smartphone } from 'lucide-react';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
 import { useSidebarOrder } from '../../hooks/useSidebarOrder';
 import { useActiveLogo } from '../../hooks/useActiveLogo';
@@ -8,7 +8,7 @@ import SidebarFooterActions from '../../components/layout/SidebarFooterActions';
 import type { SidebarSection } from '../../lib/sidebarOrderTypes';
 import { supabase } from '../../lib/supabase';
 
-export type SAView = 'dashboard' | 'admins' | 'chat-admin' | 'documentation-crm' | 'system' | 'sauvegarde' | 'mon-compte' | 'tests-systeme' | 'crm-societe' | 'statuts' | 'api-ia' | 'cerveau-ia' | 'sites' | 'fonctions-talvex' | 'site-talvex' | 'logo' | 'ameliorations' | 'tuto';
+export type SAView = 'dashboard' | 'admins' | 'chat-admin' | 'documentation-crm' | 'system' | 'sauvegarde' | 'mon-compte' | 'tests-systeme' | 'crm-societe' | 'statuts' | 'api-ia' | 'cerveau-ia' | 'sites' | 'fonctions-talvex' | 'site-talvex' | 'logo' | 'ameliorations' | 'tuto' | 'application';
 
 interface SuperAdminSidebarProps {
   activeView: SAView;
@@ -25,6 +25,7 @@ const DEFAULT_SECTIONS: SidebarSection[] = [
       { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-4 h-4" /> },
       { id: 'logo', label: 'Logo', icon: <ImageIcon className="w-4 h-4" /> },
       { id: 'site-talvex', label: 'Site', icon: <LayoutTemplate className="w-4 h-4" /> },
+      { id: 'application', label: 'Application', icon: <Smartphone className="w-4 h-4" /> },
       { id: 'tuto', label: 'Tuto', icon: <GraduationCap className="w-4 h-4" /> },
     ],
   },

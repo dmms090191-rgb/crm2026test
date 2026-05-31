@@ -44,7 +44,12 @@ export interface CompanyHomePage {
   domain_expires_at: string | null;
   domain_auto_renew: boolean | null;
   active_template_id: string | null;
+  draft_canvas_bg_desktop: string | null;
+  draft_canvas_bg_mobile: string | null;
+  published_canvas_bg_desktop: string | null;
+  published_canvas_bg_mobile: string | null;
   is_active: boolean;
+  is_published: boolean;
   created_at: string;
   updated_at: string;
 }

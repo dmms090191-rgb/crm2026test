@@ -24,7 +24,12 @@ const EVENTS = [
   },
 ];
 
-export default function GoldBuyingEvents() {
+interface Props {
+  title?: string;
+  subtitle?: string;
+}
+
+export default function GoldBuyingEvents({ title, subtitle }: Props = {}) {
   const [activeEvent, setActiveEvent] = useState(0);
   const [visibleCards, setVisibleCards] = useState<Set<number>>(new Set());
   const ref = useRef<HTMLDivElement>(null);
@@ -54,14 +59,16 @@ export default function GoldBuyingEvents() {
             Prochains passages
           </span>
           <h2 className="text-3xl sm:text-4xl font-black mt-3 mb-4 text-white/90">
-            Nous serons dans{' '}
-            <span className="text-transparent bg-clip-text" style={{
-              background: 'linear-gradient(135deg, #f5d060, #d4a017)',
-              WebkitBackgroundClip: 'text',
-            }}>votre ville</span>
+            {title ? title : (
+              <>Nous serons dans{' '}
+              <span className="text-transparent bg-clip-text" style={{
+                background: 'linear-gradient(135deg, #f5d060, #d4a017)',
+                WebkitBackgroundClip: 'text',
+              }}>votre ville</span></>
+            )}
           </h2>
           <p className="text-sm text-white/40 max-w-md mx-auto">
-            Retrouvez-nous dans les villes ci-dessous. Sans rendez-vous, venez quand vous voulez.
+            {subtitle || 'Retrouvez-nous dans les villes ci-dessous. Sans rendez-vous, venez quand vous voulez.'}
           </p>
         </div>
 

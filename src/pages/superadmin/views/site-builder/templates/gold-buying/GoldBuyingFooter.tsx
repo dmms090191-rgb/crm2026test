@@ -1,6 +1,10 @@
 import { Phone, Mail, MapPin } from 'lucide-react';
 
-export default function GoldBuyingFooter() {
+interface Props {
+  copyright?: string;
+}
+
+export default function GoldBuyingFooter({ copyright }: Props = {}) {
   return (
     <footer className="relative py-12 overflow-hidden">
       <div className="absolute inset-0 bg-[#050505]" />
@@ -53,7 +57,7 @@ export default function GoldBuyingFooter() {
             Garantie des douanes n 21/066 - 8 rue Etienne Richerand, 69003 Lyon
           </p>
           <p className="text-[10px] text-white/20">
-            &copy; {new Date().getFullYear()} Compagnie de l'Or. Tous droits reserves.
+            &copy; {copyright || `${new Date().getFullYear()} Compagnie de l'Or. Tous droits reserves.`}
           </p>
         </div>
       </div>

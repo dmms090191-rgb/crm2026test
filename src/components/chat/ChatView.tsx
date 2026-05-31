@@ -203,7 +203,7 @@ export default function MessagingPanel({
                           ) : (
                             <>
                               {msg.content && <p className="text-xs md:text-sm leading-normal md:leading-relaxed whitespace-pre-wrap break-words" style={{ color: isOwn ? tokens.chat.messageTextOwn : tokens.chat.messageTextOther }}>{msg.content}</p>}
-                              {msg.file_url && msg.file_name && <FilePreview url={msg.file_url} name={msg.file_name} type={msg.file_type} tokens={tokens} />}
+                              {msg.file_url && msg.file_name && <FilePreview url={msg.file_url} name={msg.file_name} type={msg.file_type} tokens={tokens} isOwn={isOwn} accentRgb={accentRgb} />}
                             </>
                           )}
 

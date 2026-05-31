@@ -4,7 +4,7 @@ import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 import { useCompanyId } from '../../../../hooks/useCompanyId';
 import { fetchBrain, upsertBrain } from '../../../../lib/brainApi';
 import { defaultBrain } from '../../../../lib/brainTypes';
-import type { AiCompanyBrain } from '../../../../lib/brainTypes';
+import type { AiCompanyBrain, DaySchedule } from '../../../../lib/brainTypes';
 import { supabase } from '../../../../lib/supabase';
 import BrainScoreBar from '../../../superadmin/views/cerveau-ia/BrainScoreBar';
 import AdminCerveauCards from './AdminCerveauCards';
@@ -72,7 +72,7 @@ export default function AdminCerveauIA() {
   const scoreSections = brain ? [
     { label: 'Identite', filled: !!(brain.company_name || brain.business_context_text?.trim()) },
     { label: 'Coordonnees', filled: !!(brain.phone || brain.email) },
-    { label: 'Horaires', filled: !!(brain.opening_hours && typeof brain.opening_hours === 'object' && Object.values(brain.opening_hours).some((d: any) => d && !d.closed)) },
+    { label: 'Horaires', filled: !!(brain.opening_hours && typeof brain.opening_hours === 'object' && Object.values(brain.opening_hours).some((d: DaySchedule) => d && !d.closed)) },
     { label: 'Services', filled: (brain.services?.length ?? 0) > 0 },
     { label: 'FAQ', filled: (brain.faq?.length ?? 0) > 0 },
     { label: 'RDV', filled: !!(brain.appointment_rules?.duration_minutes) },

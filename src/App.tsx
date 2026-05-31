@@ -41,6 +41,7 @@ function App() {
   const [landingTemplateKey, setLandingTemplateKey] = useState<string | null>(null);
   const [landingTemplateLoaded, setLandingTemplateLoaded] = useState(false);
   const [userCompanyId, setUserCompanyId] = useState<string | null>(null);
+  const [sessionKey, setSessionKey] = useState(0);
 
   async function resolveUserCompanyId(userEmail: string, appRole: string, metaCompanyId?: string): Promise<string | null> {
     if (metaCompanyId) return metaCompanyId;
@@ -100,8 +101,8 @@ function App() {
       .finally(() => setLandingTemplateLoaded(true));
   }, []);
 
-  const handleLogin = () => { detectRole(); setIsModalOpen(false); };
-  const handleDomainLogin = useCallback(() => { detectRole(); }, [detectRole]);
+  const handleLogin = () => { setSessionKey(k => k + 1); detectRole(); setIsModalOpen(false); };
+  const handleDomainLogin = useCallback(() => { setSessionKey(k => k + 1); detectRole(); }, [detectRole]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -130,6 +131,7 @@ function App() {
     return (
       <SessionTimeoutProvider value={sessionCtxValue}>
         <AppDashboardRouter
+          key={sessionKey}
           role={role} onLogout={handleLogout} saUserId={saUserId} saDisplayName={saDisplayName}
           impersonatedAdmin={impersonatedAdmin} impersonatedVendor={impersonatedVendor} impersonatedClient={impersonatedClient}
           setImpersonatedAdmin={setImpersonatedAdmin} setImpersonatedVendor={setImpersonatedVendor} setImpersonatedClient={setImpersonatedClient}

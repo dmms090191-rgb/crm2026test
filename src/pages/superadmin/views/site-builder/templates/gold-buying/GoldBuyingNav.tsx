@@ -10,9 +10,11 @@ const NAV_LINKS = [
 interface Props {
   onLogin: () => void;
   onRegister: () => void;
+  brandName?: string;
+  ctaText?: string;
 }
 
-export default function GoldBuyingNav({ onLogin, onRegister }: Props) {
+export default function GoldBuyingNav({ onLogin, onRegister, brandName, ctaText }: Props) {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const navRef = useRef<HTMLElement>(null);
@@ -37,12 +39,21 @@ export default function GoldBuyingNav({ onLogin, onRegister }: Props) {
       }}>
       <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
         <a href="#" className="text-base font-black text-white/80 tracking-tight">
-          <span className="text-white/50">C</span>
-          <span className="text-transparent bg-clip-text" style={{
-            background: 'linear-gradient(135deg, #f5d060, #d4a017)',
-            WebkitBackgroundClip: 'text',
-          }}>O</span>
-          <span className="text-white/50">R</span>
+          {brandName ? (
+            <span className="text-transparent bg-clip-text" style={{
+              background: 'linear-gradient(135deg, #f5d060, #d4a017)',
+              WebkitBackgroundClip: 'text',
+            }}>{brandName}</span>
+          ) : (
+            <>
+              <span className="text-white/50">C</span>
+              <span className="text-transparent bg-clip-text" style={{
+                background: 'linear-gradient(135deg, #f5d060, #d4a017)',
+                WebkitBackgroundClip: 'text',
+              }}>O</span>
+              <span className="text-white/50">R</span>
+            </>
+          )}
         </a>
 
         <div className="hidden sm:flex items-center gap-5">
@@ -56,7 +67,7 @@ export default function GoldBuyingNav({ onLogin, onRegister }: Props) {
             className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all duration-300"
             style={{ background: 'rgba(212,160,23,0.1)', border: '1px solid rgba(212,160,23,0.2)', color: '#d4a017' }}>
             <Phone className="w-3 h-3" />
-            Appeler
+            {ctaText || 'Appeler'}
           </a>
 
           <div className="h-4 w-px bg-white/10" />

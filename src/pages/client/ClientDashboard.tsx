@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import ClientSidebar from './ClientSidebar';
 import ClientTopBar from './ClientTopBar';
 import ClientVueEnsemble from './views/ClientVueEnsemble';
@@ -6,14 +6,14 @@ import ClientMessagerie from './views/ClientMessagerie';
 import ClientAgenda from './views/ClientAgenda';
 import ClientPropositionsRdv from './views/ClientPropositionsRdv';
 import { supabase } from '../../lib/supabase';
-import { ArrowLeft } from 'lucide-react';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
 import GlassBackgroundLayer from '../../components/theme/GlassBackgroundLayer';
 import { useUnreadAdminMessages } from '../../hooks/useUnreadAdminMessages';
 import { useAgendaNotifications } from '../../hooks/useAgendaNotifications';
-import DemoEmitterLayer from '../../components/demo/DemoEmitterLayer';
 import DemoReceiverLayer from '../../components/demo/DemoReceiverLayer';
 import { useDemoSessionSafe } from '../../components/demo/DemoSessionContext';
+import { useClientUnseenProposals } from './hooks/useClientUnseenProposals';
+import ClientImpersonationBanner from './components/ClientImpersonationBanner';
 
 export interface ImpersonatedClientInfo {
   id: string;
@@ -32,6 +32,14 @@ interface ClientDashboardProps {
 
 export type ClientActiveView = 'vue-ensemble' | 'messagerie' | 'agenda' | 'propositions-rdv' | 'tuto';
 
+const BREADCRUMB_LABELS: Record<ClientActiveView, string> = {
+  'vue-ensemble': "Vue d'ensemble",
+  'messagerie': 'Support',
+  'agenda': 'Agenda',
+  'propositions-rdv': 'Propositions RDV',
+  'tuto': 'Tuto',
+};
+
 export default function ClientDashboard({ onLogout, impersonatedClient, onBackToAdmin, backLabel = 'Retour admin', isSAViewing }: ClientDashboardProps) {
   const tokens = useThemeTokens();
   const demoCtx = useDemoSessionSafe();
@@ -44,9 +52,7 @@ export default function ClientDashboard({ onLogout, impersonatedClient, onBackTo
   const [clientAuthId, setClientAuthId] = useState('');
   const { unreadCount: unreadMsgCount, latestAt: unreadLatestAt, markAsRead: markMsgRead } = useUnreadAdminMessages(clientAuthId);
   const { notifications: agendaNotifs, count: agendaCount, markAsSeen: markAgendaSeen } = useAgendaNotifications('client', clientEmail || null);
-  type ProposalEntry = { id: string; lead_name: string; created_at: string; created_by_role: string; reschedule_status?: string | null };
-  const [unseenProposals, setUnseenProposals] = useState<ProposalEntry[]>([]);
-  const unseenProposalsRef = useRef<ProposalEntry[]>([]);
+  const { unseenProposals, handleProposalNotifClick, markProposalsSeen } = useClientUnseenProposals(clientEmail);
 
   useEffect(() => {
     if (impersonatedClient) {
@@ -87,62 +93,6 @@ export default function ClientDashboard({ onLogout, impersonatedClient, onBackTo
   }, [impersonatedClient]);
 
   useEffect(() => {
-    if (!clientEmail) return;
-    const fetchUnseen = async () => {
-      const { data: byCol } = await supabase
-        .from('leads')
-        .select('id, vendor_id')
-        .eq('email', clientEmail);
-      const { data: byJson } = await supabase
-        .from('leads')
-        .select('id, vendor_id')
-        .is('email', null)
-        .eq('data->>Email', clientEmail);
-      const merged = [...(byCol ?? []), ...(byJson ?? [])];
-      const seen = new Set<string>();
-      const leads = merged.filter(l => { if (seen.has(l.id)) return false; seen.add(l.id); return true; });
-      if (leads.length === 0) {
-        setUnseenProposals([]);
-        unseenProposalsRef.current = [];
-        return;
-      }
-      const leadIds = leads.map(l => l.id);
-      const cols = 'id, vendor_id, lead_id, lead_name, created_at, status, created_by_role, parent_proposal_id, reschedule_status';
-      const base = () => supabase.from('rdv_proposals').select(cols).in('lead_id', leadIds).eq('seen_by_client', false);
-      const [{ data: d1 }, { data: d2 }, { data: d3 }, { data: d4 }] = await Promise.all([
-        base().eq('status', 'pending').neq('created_by_role', 'client'),
-        base().in('status', ['confirmed', 'cancelled']).eq('created_by_role', 'client'),
-        base().eq('status', 'confirmed').eq('reschedule_status', 'pending'),
-        base().eq('status', 'confirmed').in('reschedule_status', ['accepted', 'refused']),
-      ]);
-      const proposals = [...(d1 ?? []), ...(d2 ?? []), ...(d3 ?? []), ...(d4 ?? [])];
-      if (proposals.length === 0) {
-        setUnseenProposals([]);
-        unseenProposalsRef.current = [];
-        return;
-      }
-      const leadMap = new Map(leads.map(l => [l.id, l.vendor_id]));
-      const valid = proposals.filter(p => {
-        if (!p.lead_id) return false;
-        const leadVendorId = leadMap.get(p.lead_id);
-        if (!leadVendorId) return !p.vendor_id;
-        return p.vendor_id === leadVendorId;
-      });
-      const dedupIds = new Set<string>();
-      const deduped = valid.filter(p => { if (dedupIds.has(p.id)) return false; dedupIds.add(p.id); return true; });
-      const entries = deduped.map(p => ({ id: p.id, lead_name: p.lead_name || '', created_at: p.created_at, created_by_role: p.created_by_role || '', parent_proposal_id: p.parent_proposal_id || null, status: p.status || '', reschedule_status: p.reschedule_status || null }));
-      setUnseenProposals(entries);
-      unseenProposalsRef.current = entries;
-    };
-    fetchUnseen();
-    const ch = supabase
-      .channel(`client-proposals-unseen-${clientEmail}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'rdv_proposals' }, fetchUnseen)
-      .subscribe();
-    return () => { supabase.removeChannel(ch); };
-  }, [clientEmail]);
-
-  useEffect(() => {
     if (activeView === 'messagerie') {
       markMsgRead();
     }
@@ -158,46 +108,12 @@ export default function ClientDashboard({ onLogout, impersonatedClient, onBackTo
     setActiveView('agenda');
   }, [markAgendaSeen]);
 
-  const handleProposalNotifClick = useCallback((proposalId: string) => {
-    const entry = unseenProposalsRef.current.find(p => p.id === proposalId);
-    const isRescheduleResponse = entry?.reschedule_status === 'accepted' || entry?.reschedule_status === 'refused';
-    const updatePayload: Record<string, unknown> = { seen_by_client: true };
-    if (isRescheduleResponse) updatePayload.reschedule_status = null;
-    supabase
-      .from('rdv_proposals')
-      .update(updatePayload)
-      .eq('id', proposalId)
-      .then(() => {
-        setUnseenProposals(prev => prev.filter(p => p.id !== proposalId));
-        unseenProposalsRef.current = unseenProposalsRef.current.filter(p => p.id !== proposalId);
-      });
+  const handleProposalClick = useCallback((proposalId: string) => {
+    handleProposalNotifClick(proposalId);
     setActiveView('propositions-rdv');
-  }, []);
+  }, [handleProposalNotifClick]);
 
-  const markProposalsSeen = useCallback(() => {
-    const ids = unseenProposalsRef.current.map(p => p.id);
-    if (ids.length > 0) {
-      supabase
-        .from('rdv_proposals')
-        .update({ seen_by_client: true })
-        .in('id', ids)
-        .then(() => {
-          setUnseenProposals([]);
-          unseenProposalsRef.current = [];
-        });
-    }
-  }, []);
-
-  const getBreadcrumb = useCallback(() => {
-    const labels: Record<ClientActiveView, string> = {
-      'vue-ensemble': "Vue d'ensemble",
-      'messagerie': 'Support',
-      'agenda': 'Agenda',
-      'propositions-rdv': 'Propositions RDV',
-      'tuto': 'Tuto',
-    };
-    return labels[activeView];
-  }, [activeView]);
+  const getBreadcrumb = () => BREADCRUMB_LABELS[activeView];
 
   const renderView = () => {
     if (!clientAuthId && activeView !== 'vue-ensemble') return null;
@@ -235,43 +151,17 @@ export default function ClientDashboard({ onLogout, impersonatedClient, onBackTo
       </div>
       <div className="flex flex-col flex-1 min-h-0">
         {impersonatedClient && onBackToAdmin && (
-          <div
-            className="flex items-center justify-between gap-2 sm:gap-3 px-3 sm:px-4 md:px-5 py-2"
-            style={{ background: isSAViewing && demoStatus === 'active' ? 'linear-gradient(135deg, rgba(14,165,233,0.08) 0%, rgba(245,158,11,0.06) 100%)' : 'rgba(14,165,233,0.06)', borderBottom: `1px solid ${isSAViewing && demoStatus === 'active' ? 'rgba(245,158,11,0.25)' : 'rgba(14,165,233,0.15)'}` }}
-          >
-            <div className="flex items-center gap-3 min-w-0">
-              {(!isSAViewing || demoStatus !== 'active') && (
-                <button
-                  onClick={onBackToAdmin}
-                  className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold transition-all hover:scale-105 flex-shrink-0 whitespace-nowrap"
-                  style={{ background: 'rgba(14,165,233,0.1)', border: '1px solid rgba(14,165,233,0.25)', color: '#0ea5e9' }}
-                >
-                  <ArrowLeft className="w-3 h-3 flex-shrink-0" />
-                  {backLabel}
-                </button>
-              )}
-              <span className="text-xs truncate" style={{ color: isSAViewing && demoStatus === 'active' ? '#f59e0b' : tokens.text.quaternary }}>
-                {isSAViewing && demoStatus === 'active' ? (
-                  <>Demo en direct active avec <span className="font-medium">{clientName}</span></>
-                ) : isSAViewing && demoStatus === 'pending' ? (
-                  <>Invitation demo envoyee a <span className="font-medium">{clientName}</span></>
-                ) : (
-                  <>Vue client de <span className="font-medium" style={{ color: tokens.text.secondary }}>{clientName}</span></>
-                )}
-              </span>
-            </div>
-            {isSAViewing && impersonatedClient && (
-              <DemoEmitterLayer
-                activeView={activeView}
-                viewLabel={getBreadcrumb()}
-                targetUserId={impersonatedClient.id}
-                targetRole="client"
-                targetName={[impersonatedClient.prenom, impersonatedClient.nom].filter(Boolean).join(' ') || impersonatedClient.email}
-                companyId={null}
-                tokens={tokens}
-              />
-            )}
-          </div>
+          <ClientImpersonationBanner
+            impersonatedClient={impersonatedClient}
+            onBackToAdmin={onBackToAdmin}
+            backLabel={backLabel}
+            isSAViewing={isSAViewing}
+            demoStatus={demoStatus}
+            clientName={clientName}
+            activeView={activeView}
+            breadcrumb={getBreadcrumb()}
+            tokens={tokens}
+          />
         )}
         <ClientTopBar
           breadcrumb={getBreadcrumb()}
@@ -285,7 +175,7 @@ export default function ClientDashboard({ onLogout, impersonatedClient, onBackTo
           onAgendaEntryClick={handleAgendaNotifClick}
           propositionsCount={unseenProposals.length}
           propositionsEntries={unseenProposals}
-          onPropositionEntryClick={handleProposalNotifClick}
+          onPropositionEntryClick={handleProposalClick}
         />
         {!isSAViewing && !impersonatedClient && <DemoReceiverLayer userId={clientAuthId || null} onViewChange={(v) => setActiveView(v as ClientActiveView)} />}
         <main

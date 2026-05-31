@@ -15,12 +15,23 @@ interface LoginModalProps {
   domainCompanyId?: string | null;
 }
 
+const LAST_EMAIL_KEY = 'crm_last_login_email';
+
 export default function LoginModal({ isOpen, onClose, onLogin, domainCompanyId }: LoginModalProps) {
   const { theme } = useTheme();
   const tokens = useThemeTokens();
   const isDark = theme === 'dark';
 
-  const [email, setEmail] = useState('');
+  const [email, setEmailRaw] = useState(() => {
+    try { return localStorage.getItem(LAST_EMAIL_KEY) || ''; } catch { return ''; }
+  });
+  const setEmail = useCallback((v: string | ((prev: string) => string)) => {
+    setEmailRaw(prev => {
+      const next = typeof v === 'function' ? v(prev) : v;
+      try { localStorage.setItem(LAST_EMAIL_KEY, next); } catch { /* ignore */ }
+      return next;
+    });
+  }, []);
   const [showPin, setShowPin] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -107,7 +118,7 @@ export default function LoginModal({ isOpen, onClose, onLogin, domainCompanyId }
 
   useEffect(() => {
     if (isOpen) {
-      setEmail('');
+      try { setEmailRaw(localStorage.getItem(LAST_EMAIL_KEY) || ''); } catch { /* ignore */ }
       setDigits(['', '', '', '', '', '']);
       setError('');
     }

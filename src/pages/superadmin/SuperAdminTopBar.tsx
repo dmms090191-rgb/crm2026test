@@ -1,10 +1,12 @@
-import { useState, useEffect, useRef } from 'react';
-import { ChevronRight, Menu, Clock, MessageSquare } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
+import { ChevronRight, Menu, Clock, MessageSquare, Smartphone, X } from 'lucide-react';
 import { useTimezone } from '../../hooks/useTimezone';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
 import { getCurrentTime } from '../../lib/timezone';
 import TimezoneModal from '../../components/TimezoneSearchDropdown';
 import SAProfileMenu from './topbar/SAProfileMenu';
+import SimulatedPhone from '../../components/SimulatedPhone';
 
 import type { AdminNotifEntry } from '../../hooks/useUnreadSuperAdminMessages';
 
@@ -24,6 +26,10 @@ const viewLabels: Record<string, string> = {
   'sites': 'Sites & Domaines',
   'fonctions-talvex': 'Fonctions Talvex',
   'site-talvex': 'Site',
+  'application': 'Application',
+  'logo': 'Logo',
+  'ameliorations': 'Ameliorations',
+  'tuto': 'Tuto',
 };
 
 interface SuperAdminTopBarProps {
@@ -41,6 +47,7 @@ export default function SuperAdminTopBar({ activeView, onMobileMenuToggle, unrea
   const t = useThemeTokens();
   const [tzModalOpen, setTzModalOpen] = useState(false);
   const [msgDropdownOpen, setMsgDropdownOpen] = useState(false);
+  const [phonePreviewOpen, setPhonePreviewOpen] = useState(false);
   const msgDropdownRef = useRef<HTMLDivElement>(null);
   const [, setTick] = useState(0);
 
@@ -146,6 +153,20 @@ export default function SuperAdminTopBar({ activeView, onMobileMenuToggle, unrea
               </div>
             )}
           </div>
+          <button
+            onClick={() => setPhonePreviewOpen(true)}
+            className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-xl transition-all duration-200 flex-shrink-0"
+            style={{
+              background: 'rgba(14,165,233,0.06)',
+              border: '1px solid rgba(14,165,233,0.15)',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(14,165,233,0.12)'; e.currentTarget.style.borderColor = 'rgba(14,165,233,0.25)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(14,165,233,0.06)'; e.currentTarget.style.borderColor = 'rgba(14,165,233,0.15)'; }}
+            title="Apercu mobile"
+          >
+            <Smartphone className="w-4 h-4 flex-shrink-0" style={{ color: '#0ea5e9' }} />
+            <span className="text-[11px] font-medium hidden sm:inline" style={{ color: '#0ea5e9' }}>Mobile</span>
+          </button>
           <ClockButton
             tzLabel={tzLabel}
             tzCode={tzCode}
@@ -162,7 +183,51 @@ export default function SuperAdminTopBar({ activeView, onMobileMenuToggle, unrea
         onSelect={(tz) => { setTimezone(tz); setTzModalOpen(false); }}
         onClose={() => setTzModalOpen(false)}
       />
+
+      {phonePreviewOpen && (
+        <MobilePreviewOverlay onClose={() => setPhonePreviewOpen(false)} />
+      )}
     </>
+  );
+}
+
+function MobilePreviewOverlay({ onClose }: { onClose: () => void }) {
+  const handleEsc = useCallback((e: KeyboardEvent) => {
+    if (e.key === 'Escape') onClose();
+  }, [onClose]);
+
+  useEffect(() => {
+    document.addEventListener('keydown', handleEsc);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', handleEsc);
+      document.body.style.overflow = '';
+    };
+  }, [handleEsc]);
+
+  return createPortal(
+    <div className="fixed inset-0 z-[99999] flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }}>
+      <div className="absolute inset-0" onClick={onClose} />
+
+      <div className="relative flex flex-col items-center gap-4 z-10">
+        <div className="flex items-center gap-3">
+          <span className="text-[10px] font-medium px-2.5 py-1 rounded-lg" style={{ background: 'rgba(14,165,233,0.1)', border: '1px solid rgba(14,165,233,0.2)', color: '#0ea5e9' }}>
+            Apercu responsive reel
+          </span>
+          <button
+            onClick={onClose}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all hover:scale-105"
+            style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', color: '#fff' }}
+          >
+            <X className="w-3 h-3" />
+            Fermer
+          </button>
+        </div>
+
+        <SimulatedPhone />
+      </div>
+    </div>,
+    document.body,
   );
 }
 

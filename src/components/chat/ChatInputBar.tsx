@@ -2,6 +2,7 @@ import { ChangeEvent, useRef, useCallback, useState } from 'react';
 import { Send, Paperclip, Loader2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import type { ThemeTokens } from '../../lib/themeTokensTypes';
+import VoiceRecorder from './VoiceRecorder';
 
 interface ChatInputBarProps {
   input: string;
@@ -16,6 +17,7 @@ interface ChatInputBarProps {
 
 export default function ChatInputBar({ input, setInput, onSend, sending, onSendMessage, accentRgb, bubbleGradient, tokens }: ChatInputBarProps) {
   const [uploading, setUploading] = useState(false);
+  const [recording, setRecording] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
@@ -43,18 +45,22 @@ export default function ChatInputBar({ input, setInput, onSend, sending, onSendM
     }
   }, [onSendMessage]);
 
+  const hasText = input.trim().length > 0;
+
   return (
     <div className="px-2 md:px-4 py-2 md:py-3 flex-shrink-0" style={{ borderTop: `1px solid ${tokens.chat.border}` }}>
       <div className="flex items-center gap-1.5 md:gap-2">
-        <button
-          onClick={() => fileRef.current?.click()}
-          disabled={uploading}
-          className="w-8 h-8 md:w-9 md:h-9 rounded-lg md:rounded-xl flex items-center justify-center flex-shrink-0 transition-all hover:scale-105 disabled:opacity-40"
-          style={{ background: tokens.chat.inputBg, border: `1px solid ${tokens.chat.inputBorder}`, color: tokens.text.tertiary }}
-          title="Joindre un fichier"
-        >
-          {uploading ? <Loader2 className="w-3.5 h-3.5 md:w-4 md:h-4 animate-spin" /> : <Paperclip className="w-3.5 h-3.5 md:w-4 md:h-4" />}
-        </button>
+        {!recording && (
+          <button
+            onClick={() => fileRef.current?.click()}
+            disabled={uploading}
+            className="w-8 h-8 md:w-9 md:h-9 rounded-lg md:rounded-xl flex items-center justify-center flex-shrink-0 transition-all hover:scale-105 disabled:opacity-40"
+            style={{ background: tokens.chat.inputBg, border: `1px solid ${tokens.chat.inputBorder}`, color: tokens.text.tertiary }}
+            title="Joindre un fichier"
+          >
+            {uploading ? <Loader2 className="w-3.5 h-3.5 md:w-4 md:h-4 animate-spin" /> : <Paperclip className="w-3.5 h-3.5 md:w-4 md:h-4" />}
+          </button>
+        )}
         <input
           ref={fileRef}
           type="file"
@@ -62,29 +68,52 @@ export default function ChatInputBar({ input, setInput, onSend, sending, onSendM
           className="hidden"
           onChange={handleFileChange}
         />
-        <input
-          type="text"
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="Ecrire un message..."
-          className="flex-1 px-3 md:px-4 py-2 md:py-2.5 rounded-lg md:rounded-xl text-xs md:text-sm outline-none transition-all min-w-0"
-          style={{
-            background: tokens.chat.inputBg,
-            border: `1px solid ${tokens.chat.inputBorder}`,
-            color: tokens.chat.inputText,
-          }}
-          onFocus={e => (e.currentTarget.style.borderColor = `rgba(${accentRgb},0.3)`)}
-          onBlur={e => (e.currentTarget.style.borderColor = tokens.chat.inputBorder)}
-        />
-        <button
-          onClick={onSend}
-          disabled={!input.trim() || sending}
-          className="w-8 h-8 md:w-9 md:h-9 rounded-lg md:rounded-xl flex items-center justify-center flex-shrink-0 transition-all hover:scale-105 disabled:opacity-40"
-          style={{ background: bubbleGradient, boxShadow: `0 0 14px rgba(${accentRgb},0.3)` }}
-        >
-          {sending ? <Loader2 className="w-3.5 h-3.5 md:w-4 md:h-4 animate-spin" style={{ color: '#ffffff' }} /> : <Send className="w-3.5 h-3.5 md:w-4 md:h-4" style={{ color: '#ffffff' }} />}
-        </button>
+
+        {recording ? (
+          <VoiceRecorder
+            onSendMessage={onSendMessage}
+            tokens={tokens}
+            accentRgb={accentRgb}
+            bubbleGradient={bubbleGradient}
+            onStateChange={setRecording}
+          />
+        ) : (
+          <>
+            <input
+              type="text"
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Ecrire un message..."
+              className="flex-1 px-3 md:px-4 py-2 md:py-2.5 rounded-lg md:rounded-xl text-xs md:text-sm outline-none transition-all min-w-0"
+              style={{
+                background: tokens.chat.inputBg,
+                border: `1px solid ${tokens.chat.inputBorder}`,
+                color: tokens.chat.inputText,
+              }}
+              onFocus={e => (e.currentTarget.style.borderColor = `rgba(${accentRgb},0.3)`)}
+              onBlur={e => (e.currentTarget.style.borderColor = tokens.chat.inputBorder)}
+            />
+            {hasText ? (
+              <button
+                onClick={onSend}
+                disabled={!hasText || sending}
+                className="w-8 h-8 md:w-9 md:h-9 rounded-lg md:rounded-xl flex items-center justify-center flex-shrink-0 transition-all hover:scale-105 disabled:opacity-40"
+                style={{ background: bubbleGradient, boxShadow: `0 0 14px rgba(${accentRgb},0.3)` }}
+              >
+                {sending ? <Loader2 className="w-3.5 h-3.5 md:w-4 md:h-4 animate-spin" style={{ color: '#ffffff' }} /> : <Send className="w-3.5 h-3.5 md:w-4 md:h-4" style={{ color: '#ffffff' }} />}
+              </button>
+            ) : (
+              <VoiceRecorder
+                onSendMessage={onSendMessage}
+                tokens={tokens}
+                accentRgb={accentRgb}
+                bubbleGradient={bubbleGradient}
+                onStateChange={setRecording}
+              />
+            )}
+          </>
+        )}
       </div>
     </div>
   );

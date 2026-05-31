@@ -26,6 +26,7 @@ const SASiteTalvex = lazy(() => import('./views/site-builder/SASiteTalvex'));
 const SACerveauIA = lazy(() => import('./views/cerveau-ia/SACerveauIA'));
 const SALogoPage = lazy(() => import('./views/SALogoPage'));
 const SAAmeliorations = lazy(() => import('./views/SAAmeliorations'));
+const SAApplicationPage = lazy(() => import('./views/SAApplicationPage'));
 
 interface SuperAdminDashboardProps {
   onLogout: () => void;
@@ -44,6 +45,8 @@ export default function SuperAdminDashboard({ onLogout, onConnectAsAdmin }: Supe
   const [saLastName, setSaLastName] = useState('');
   const pendingScrollRef = useRef<{ adminId?: string; scrollY: number } | null>(null);
   const { unreadCount: unreadAdminMsgCount, unreadEntries: unreadAdminMsgEntries, markAsRead: markAdminMsgRead } = useUnreadSuperAdminMessages();
+
+  const [appIconSelectionMode, setAppIconSelectionMode] = useState(false);
 
   const [cachedAdmins, setCachedAdmins] = useState<AdminUser[]>([]);
   const [adminsRefreshing, setAdminsRefreshing] = useState(false);
@@ -131,6 +134,16 @@ export default function SuperAdminDashboard({ onLogout, onConnectAsAdmin }: Supe
     setActiveView('chat-admin');
   }, []);
 
+  const handleChangeAppIcon = useCallback(() => {
+    setAppIconSelectionMode(true);
+    setActiveView('logo');
+  }, []);
+
+  const handleAppIconSelected = useCallback(() => {
+    setAppIconSelectionMode(false);
+    setActiveView('application');
+  }, []);
+
   function renderView() {
     switch (activeView) {
       case 'dashboard': return <SADashboard onNavigate={handleNavigate} onNavigateToAudit={() => { setDocInitialTab('audit-technique'); setDocKey(k => k + 1); setActiveView('documentation-crm'); }} adminCount={cachedAdmins.length} adminsLoading={adminsRefreshing && cachedAdmins.length === 0} />;
@@ -148,8 +161,9 @@ export default function SuperAdminDashboard({ onLogout, onConnectAsAdmin }: Supe
       case 'fonctions-talvex': return <SAFonctionsTalvex />;
       case 'site-talvex': return <SASiteTalvex />;
       case 'cerveau-ia': return <SACerveauIA />;
-      case 'logo': return <SALogoPage />;
+      case 'logo': return <SALogoPage appIconSelectionMode={appIconSelectionMode} onAppIconSelected={handleAppIconSelected} />;
       case 'ameliorations': return <SAAmeliorations />;
+      case 'application': return <SAApplicationPage onChangeAppIcon={handleChangeAppIcon} />;
       case 'tuto': return <div className="p-6"><p className="text-sm" style={{ color: 'inherit' }}>Tuto - Contenu a venir</p></div>;
       default: return <SADashboard onNavigate={handleNavigate} adminCount={cachedAdmins.length} adminsLoading={adminsRefreshing && cachedAdmins.length === 0} />;
     }

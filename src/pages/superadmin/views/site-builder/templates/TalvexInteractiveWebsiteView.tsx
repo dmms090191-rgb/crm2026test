@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Zap, Menu, X, Rocket, LayoutGrid, RefreshCw, Headphones as HeadphonesIcon, CheckCircle2, ArrowRight } from "lucide-react";
+import { Zap, Menu, X, Rocket, LayoutGrid, RefreshCw, Headphones as HeadphonesIcon, CheckCircle2, ArrowRight, Smartphone, Download } from "lucide-react";
 import TalvexDashboardMockup from "./TalvexDashboardMockup";
 import TalvexFeatureTabs from "./TalvexFeatureTabs";
 import TalvexFooter from "./TalvexFooter";
@@ -184,6 +184,36 @@ export default function TalvexInteractiveWebsiteView({ onLogin, onRegister }: Pr
       <TestimonialsSection />
       <PricingWrapper onLogin={onLogin} />
       <FinalCtaSection onLogin={onLogin} onRegister={onRegister} />
+
+      {/* Download App */}
+      <section className="overflow-hidden py-20 px-4">
+        <div className="max-w-4xl mx-auto text-center">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.08] mb-6">
+            <Smartphone className="w-3.5 h-3.5 text-cyan-400" />
+            <span className="text-xs text-slate-400 font-medium">Application mobile</span>
+          </div>
+          <h2 className="text-3xl md:text-4xl font-bold mb-4">
+            Gerez votre activite <span className={gradText}>partout</span>
+          </h2>
+          <p className="text-slate-400 text-lg mb-10 max-w-xl mx-auto">
+            Retrouvez l'ensemble de vos outils Talvex dans votre poche. Leads, messagerie, rendez-vous — tout est accessible en un instant.
+          </p>
+          <div className="inline-flex flex-col items-center gap-3">
+            <div
+              className="inline-flex items-center gap-3 px-8 py-4 rounded-2xl text-base font-bold cursor-not-allowed"
+              style={{
+                background: 'rgba(255,255,255,0.04)',
+                border: '1.5px dashed rgba(255,255,255,0.1)',
+                color: 'rgba(255,255,255,0.3)',
+              }}
+            >
+              <Download className="w-5 h-5 opacity-50" />
+              Telecharger l'application
+            </div>
+            <span className="text-xs text-slate-500">Telechargement bientot disponible</span>
+          </div>
+        </div>
+      </section>
 
       <TalvexFooter onLogin={onLogin} onRegister={onRegister} />
     </div>

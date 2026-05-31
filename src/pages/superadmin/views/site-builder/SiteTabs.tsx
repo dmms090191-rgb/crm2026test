@@ -1,14 +1,15 @@
-import { Eye, LayoutGrid, Globe } from 'lucide-react';
+import { Eye, LayoutGrid, Globe, Paintbrush } from 'lucide-react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 
-export type SiteTab = 'apercu' | 'templates' | 'domaine';
+export type SiteTab = 'domaine' | 'templates' | 'studio' | 'apercu';
 
 interface TabDef { id: SiteTab; label: string; icon: React.ReactNode }
 
 const TABS: TabDef[] = [
-  { id: 'apercu', label: 'Apercu du site', icon: <Eye className="w-3.5 h-3.5" /> },
-  { id: 'templates', label: 'Templates', icon: <LayoutGrid className="w-3.5 h-3.5" /> },
   { id: 'domaine', label: 'Domaine', icon: <Globe className="w-3.5 h-3.5" /> },
+  { id: 'templates', label: 'Templates', icon: <LayoutGrid className="w-3.5 h-3.5" /> },
+  { id: 'studio', label: 'Studio Site', icon: <Paintbrush className="w-3.5 h-3.5" /> },
+  { id: 'apercu', label: 'Apercu du site', icon: <Eye className="w-3.5 h-3.5" /> },
 ];
 
 interface Props {

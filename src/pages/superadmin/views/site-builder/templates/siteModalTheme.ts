@@ -65,10 +65,27 @@ const GOLD_BUYING_THEME: SiteModalTheme = {
   registerIcon: UserPlus,
 };
 
+const BUILDER_READY_THEME: SiteModalTheme = {
+  primary: '#0ea5e9',
+  secondary: '#10b981',
+  primaryRgb: '14,165,233',
+  secondaryRgb: '16,185,129',
+  gradient: 'linear-gradient(135deg, #0ea5e9, #0284c7)',
+  gradientHover: 'linear-gradient(135deg, #38bdf8, #0ea5e9)',
+  textGradient: 'linear-gradient(to right, #38bdf8, #34d399, #0ea5e9)',
+  orbColor1: '#0ea5e9',
+  orbColor2: '#10b981',
+  caretColor: '#38bdf8',
+  placeholderColor: 'rgba(100,116,139,0.8)',
+  loginIcon: Zap,
+  registerIcon: UserPlus,
+};
+
 const THEME_REGISTRY: Record<string, SiteModalTheme> = {
   talvex_official: TALVEX_THEME,
   renewable_energy: RENEWABLE_THEME,
   gold_buying: GOLD_BUYING_THEME,
+  builder_ready: BUILDER_READY_THEME,
 };
 
 export function getSiteModalTheme(templateKey?: string | null): SiteModalTheme {

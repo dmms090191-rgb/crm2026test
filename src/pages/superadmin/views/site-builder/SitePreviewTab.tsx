@@ -185,14 +185,17 @@ export default function SitePreviewTab({
       <div className="relative">
         <div
           className="rounded-xl overflow-hidden"
-          style={{ border: `1px solid ${t.surface.border}`, height: 600, maxHeight: '75vh' }}
+          style={{ border: `1px solid ${t.surface.border}` }}
         >
           {TemplateComponent ? (
-            <div className="w-full h-full overflow-y-auto" style={{ background: '#020617' }}>
+            <div
+              className="w-full preview-unframe"
+              style={{ background: '#020617' }}
+            >
               <TemplateComponent />
             </div>
           ) : (
-            <div className="w-full h-full flex items-center justify-center" style={{ background: t.surface.secondary }}>
+            <div className="flex items-center justify-center py-24" style={{ background: t.surface.secondary }}>
               <p className="text-xs" style={{ color: t.text.tertiary }}>Template non disponible</p>
             </div>
           )}

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Brain, Save, Loader2, CheckCircle2, XCircle, Eye, Sparkles } from 'lucide-react';
 import { fetchPlatformBrain, upsertBrain } from './brainApi';
 import { defaultBrain } from './brainTypes';
-import type { AiCompanyBrain } from './brainTypes';
+import type { AiCompanyBrain, DaySchedule } from './brainTypes';
 import { D } from './brainTheme';
 import BrainScoreBar from './BrainScoreBar';
 import BrainKnowledgePanel from './BrainKnowledgePanel';
@@ -54,7 +54,7 @@ export default function SACerveauIA() {
   const scoreSections = brain ? [
     { label: 'Presentation', filled: !!(brain.business_context_text?.trim() || brain.company_name) },
     { label: 'Coordonnees', filled: !!(brain.phone || brain.email) },
-    { label: 'Horaires', filled: !!(brain.opening_hours && typeof brain.opening_hours === 'object' && Object.values(brain.opening_hours).some((d: any) => d && !d.closed)) },
+    { label: 'Horaires', filled: !!(brain.opening_hours && typeof brain.opening_hours === 'object' && Object.values(brain.opening_hours).some((d: DaySchedule) => d && !d.closed)) },
     { label: 'FAQ', filled: (brain.faq?.length ?? 0) > 0 },
     { label: 'Reponses types', filled: (brain.official_responses?.length ?? 0) > 0 },
     { label: 'Regles IA', filled: !!brain.tone },

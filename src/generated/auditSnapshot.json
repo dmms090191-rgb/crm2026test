@@ -1,51 +1,15 @@
 {
-  "generatedAt": "2026-05-29T23:40:42.691Z",
-  "anyCount": 3,
-  "anyOccurrences": [
-    {
-      "file": "src/pages/admin/views/cerveau-ia/AdminCerveauIA.tsx",
-      "line": 75,
-      "text": "{ label: 'Horaires', filled: !!(brain.opening_hours && typeof brain.opening_hours === 'object' && Object.values(brain.opening_hours).some((d: any) => d && !d.closed)) },"
-    },
-    {
-      "file": "src/pages/superadmin/views/cerveau-ia/BrainPreviewModal.tsx",
-      "line": 22,
-      "text": "const hasHours = hours && typeof hours === 'object' && Object.values(hours).some((d: any) => d && !d.closed);"
-    },
-    {
-      "file": "src/pages/superadmin/views/cerveau-ia/SACerveauIA.tsx",
-      "line": 57,
-      "text": "{ label: 'Horaires', filled: !!(brain.opening_hours && typeof brain.opening_hours === 'object' && Object.values(brain.opening_hours).some((d: any) => d && !d.closed)) },"
-    }
-  ],
+  "generatedAt": "2026-05-31T17:38:14.109Z",
+  "anyCount": 0,
+  "anyOccurrences": [],
   "unusedImportCount": 0,
   "unusedImports": [],
-  "largeFileCount": 5,
+  "largeFileCount": 1,
   "largeFiles": [
     {
-      "file": "src/pages/admin/AdminDashboard.tsx",
-      "lines": 301,
-      "overflow": 1
-    },
-    {
-      "file": "src/pages/client/ClientDashboard.tsx",
-      "lines": 301,
-      "overflow": 1
-    },
-    {
-      "file": "src/pages/admin/views/ameliorations/AmeliorationRow.tsx",
-      "lines": 308,
-      "overflow": 8
-    },
-    {
-      "file": "src/components/logo/LogoAiResultsGrid.tsx",
-      "lines": 320,
-      "overflow": 20
-    },
-    {
       "file": "src/components/logo/LogoAiTab.tsx",
-      "lines": 1674,
-      "overflow": 1374
+      "lines": 337,
+      "overflow": 37
     }
   ],
   "tscErrorCount": 0,
@@ -53,7 +17,7 @@
   "eslintErrorCount": 0,
   "eslintWarningCount": 0,
   "eslintIssues": [],
-  "totalFilesAnalyzed": 600,
-  "totalLinesAnalyzed": 82805,
-  "totalOverflowLines": 1404
+  "totalFilesAnalyzed": 677,
+  "totalLinesAnalyzed": 91621,
+  "totalOverflowLines": 37
 }

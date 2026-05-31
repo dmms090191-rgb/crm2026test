@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Globe, X, Loader2, SlidersHorizontal, ArrowLeft } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 import { supabase } from '../../../../lib/supabase';
 import {
@@ -14,16 +14,17 @@ import {
   type SiteTemplate,
   type SiteScope,
 } from '../../../../lib/companyHomePages';
-import SiteTabs, { type SiteTab } from './SiteTabs';
+import type { SiteTab } from './SiteTabs';
 import SitePreviewTab from './SitePreviewTab';
 import SiteTemplatesTab from './SiteTemplatesTab';
 import SiteDomainTab from './SiteDomainTab';
+import SiteStudioTab from './SiteStudioTab';
 import SADomainsModal from '../sites/SADomainsModal';
 import SiteTabReorderModal, { type SiteTabConfig } from './SiteTabReorderModal';
+import { type SiteOwnerType, DEFAULT_TAB_CONFIG, reconcileTabConfig } from './siteManagerShellHelpers';
+import SiteManagerShellHeader from './SiteManagerShellHeader';
 
-export type SiteOwnerType = 'super_admin' | 'admin_company' | 'crm_societe';
-
-const DEFAULT_TAB_CONFIG: SiteTabConfig = { order: ['apercu', 'templates', 'domaine'], hidden: [] };
+export type { SiteOwnerType };
 
 interface Props {
   ownerType: SiteOwnerType;
@@ -75,8 +76,9 @@ export default function SiteManagerShell({ ownerType, title, subtitle, companyId
         .eq('user_id', uid)
         .maybeSingle();
       if (pref?.site_tab_config) {
-        const cfg = pref.site_tab_config as SiteTabConfig;
-        if (Array.isArray(cfg.order) && cfg.order.length > 0) {
+        const raw = pref.site_tab_config as SiteTabConfig;
+        if (Array.isArray(raw.order) && raw.order.length > 0) {
+          const cfg = reconcileTabConfig(raw);
           setTabConfig(cfg);
           const firstVisible = cfg.order.find(id => !cfg.hidden?.includes(id));
           if (firstVisible) setActiveTab(firstVisible);
@@ -178,66 +180,19 @@ export default function SiteManagerShell({ ownerType, title, subtitle, companyId
     ? { ...page, companies: resolvedCompanyName ? { name: resolvedCompanyName } : null }
     : null;
 
+  const isStudio = activeTab === 'studio';
+
   return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div
-        className="flex items-center gap-3 rounded-2xl p-4"
-        style={{ background: t.card.bg, border: `1px solid ${t.card.border}`, boxShadow: t.card.shadow }}
-      >
-        {onBack && (
-          <button
-            onClick={onBack}
-            className="w-8 h-8 rounded-lg flex items-center justify-center transition-all flex-shrink-0 hover:scale-105"
-            style={{ background: t.surface.secondary, border: `1px solid ${t.surface.border}`, color: t.text.secondary }}
-          >
-            <ArrowLeft className="w-4 h-4" />
-          </button>
-        )}
-        <div
-          className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-          style={{ background: 'linear-gradient(135deg, #0ea5e9, #0284c7)', boxShadow: '0 0 20px rgba(14,165,233,0.35)' }}
-        >
-          <Globe className="w-5 h-5 text-white" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <h2 className="text-sm sm:text-base font-bold truncate" style={{ color: t.heading.primary }}>{title}</h2>
-          <p className="text-[11px] sm:text-xs truncate" style={{ color: t.label.muted }}>{subtitle}</p>
-        </div>
-        {onClose && (
-          <button onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 transition-all hover:scale-105"
-            style={{ background: t.modal.closeBtnBg, color: t.modal.closeBtnText }}>
-            <X className="w-4 h-4" />
-          </button>
-        )}
-      </div>
+    <div className="flex flex-col h-full min-h-0">
+      <SiteManagerShellHeader
+        t={t} title={title} activeTab={activeTab} onTabChange={setActiveTab}
+        tabConfig={tabConfig} hideDomainTab={hideDomainTab}
+        onReorderOpen={() => setReorderOpen(true)}
+        onClose={onClose} onBack={onBack}
+      />
 
-      {/* Content */}
-      <div
-        className="rounded-2xl p-4 space-y-4"
-        style={{ background: t.card.bg, border: `1px solid ${t.card.border}`, boxShadow: t.card.shadow }}
-      >
-        <div className="flex items-center gap-2">
-          <div className="flex-1 min-w-0">
-            <SiteTabs
-              activeTab={activeTab}
-              onTabChange={setActiveTab}
-              hideDomainTab={hideDomainTab}
-              customOrder={tabConfig.order}
-              hiddenTabs={tabConfig.hidden}
-            />
-          </div>
-          <button
-            onClick={() => setReorderOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-[11px] sm:text-xs font-semibold whitespace-nowrap transition-all flex-shrink-0 hover:scale-105"
-            style={{ background: 'rgba(14,165,233,0.08)', border: '1px solid rgba(14,165,233,0.18)', color: '#0ea5e9' }}
-          >
-            <SlidersHorizontal className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Reorganiser</span>
-          </button>
-        </div>
-
-        <div className="min-h-[200px]">
+      <div className={`flex-1 min-h-0 ${isStudio ? '' : 'overflow-y-auto'}`}>
+        <div className={isStudio ? 'h-full' : 'p-3'}>
           {loading ? (
             <div className="flex items-center justify-center py-16">
               <Loader2 className="w-6 h-6 animate-spin" style={{ color: '#0ea5e9' }} />
@@ -264,6 +219,13 @@ export default function SiteManagerShell({ ownerType, title, subtitle, companyId
                   onTabChange={setActiveTab}
                 />
               )}
+              {activeTab === 'studio' && (
+                <SiteStudioTab
+                  page={page}
+                  activeTemplate={activeTemplate}
+                  onTabChange={setActiveTab}
+                />
+              )}
               {activeTab === 'domaine' && (
                 <SiteDomainTab page={page} onOpenDomainManager={() => setDomainModalOpen(true)} ownerType={ownerType === 'super_admin' ? 'super_admin' : 'admin_company'} onPageRefresh={() => loadData(true)} />
               )}
@@ -272,7 +234,6 @@ export default function SiteManagerShell({ ownerType, title, subtitle, companyId
         </div>
       </div>
 
-      {/* Domain modal */}
       {domainModalOpen && pageAsWithCompany && (
         <SADomainsModal
           page={pageAsWithCompany}
@@ -280,8 +241,6 @@ export default function SiteManagerShell({ ownerType, title, subtitle, companyId
           onChanged={() => { setDomainModalOpen(false); loadData(true); }}
         />
       )}
-
-      {/* Tab reorder modal */}
       {reorderOpen && (
         <SiteTabReorderModal
           config={tabConfig}

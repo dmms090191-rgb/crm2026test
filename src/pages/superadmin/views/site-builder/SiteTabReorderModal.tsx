@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { ChevronUp, ChevronDown, GripVertical, Check, X, SlidersHorizontal, Eye, EyeOff, RotateCcw } from 'lucide-react';
-import { Eye as EyeTab, LayoutGrid, Globe } from 'lucide-react';
+import { Eye as EyeTab, LayoutGrid, Globe, Paintbrush } from 'lucide-react';
 import type { ThemeTokens } from '../../../../lib/themeTokensTypes';
 import type { SiteTab } from './SiteTabs';
 
@@ -9,12 +9,13 @@ export interface SiteTabConfig {
   hidden: SiteTab[];
 }
 
-const DEFAULT_ORDER: SiteTab[] = ['apercu', 'templates', 'domaine'];
+const DEFAULT_ORDER: SiteTab[] = ['domaine', 'templates', 'studio', 'apercu'];
 
 const TAB_META: Record<SiteTab, { label: string; icon: React.ReactNode }> = {
-  apercu: { label: 'Apercu du site', icon: <EyeTab className="w-4 h-4" /> },
-  templates: { label: 'Templates', icon: <LayoutGrid className="w-4 h-4" /> },
   domaine: { label: 'Domaine', icon: <Globe className="w-4 h-4" /> },
+  templates: { label: 'Templates', icon: <LayoutGrid className="w-4 h-4" /> },
+  studio: { label: 'Studio Site', icon: <Paintbrush className="w-4 h-4" /> },
+  apercu: { label: 'Apercu du site', icon: <EyeTab className="w-4 h-4" /> },
 };
 
 interface Props {

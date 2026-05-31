@@ -2,7 +2,12 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
 import LogoPage from '../../../components/logo/LogoPage';
 
-export default function SALogoPage() {
+interface Props {
+  appIconSelectionMode?: boolean;
+  onAppIconSelected?: () => void;
+}
+
+export default function SALogoPage({ appIconSelectionMode, onAppIconSelected }: Props) {
   const [companyId, setCompanyId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -21,6 +26,8 @@ export default function SALogoPage() {
         title="Logo"
         subtitle="Gerez les logos de la plateforme"
         isSA
+        appIconSelectionMode={appIconSelectionMode}
+        onAppIconSelected={onAppIconSelected}
       />
     </div>
   );

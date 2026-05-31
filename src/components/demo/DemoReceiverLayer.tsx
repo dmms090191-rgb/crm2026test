@@ -52,12 +52,14 @@ export default function DemoReceiverLayer({ userId, onViewChange }: Props) {
           <DemoNavigationToast saName={activeSession.sa_display_name} viewLabel={remoteViewLabel} />
           {isMobile ? (
             <DemoTouchOverlay
+              key="touch"
               cursor={cursor}
               clickRipple={clickRipple}
               saName={activeSession.sa_display_name}
             />
           ) : (
             <DemoCursorOverlay
+              key="cursor"
               cursor={cursor}
               clickRipple={clickRipple}
               saName={activeSession.sa_display_name}

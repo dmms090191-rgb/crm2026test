@@ -2,8 +2,8 @@ import SiteManagerShell from './SiteManagerShell';
 
 export default function SASiteTalvex() {
   return (
-    <div className="p-4 md:p-8">
-      <div className="max-w-4xl mx-auto">
+    <div className="h-full flex flex-col">
+      <div className="flex-1 min-h-0 flex flex-col">
         <SiteManagerShell
           ownerType="super_admin"
           title="Site Talvex"

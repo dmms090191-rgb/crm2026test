@@ -41,7 +41,7 @@ export default function SiteTemplatesTab({ templates, activeTemplateId, onPrevie
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
       {templates.map(tmpl => {
         const isActive = tmpl.id === activeTemplateId;
         const isApplying = applyingId === tmpl.id;
@@ -149,4 +149,5 @@ const CATEGORY_GRADIENT: Record<string, string> = {
   real_estate: 'linear-gradient(135deg, rgba(14,165,233,0.3), rgba(16,185,129,0.15))',
   renovation: 'linear-gradient(135deg, rgba(245,158,11,0.3), rgba(120,113,108,0.15))',
   gold_buying: 'linear-gradient(135deg, rgba(212,160,23,0.4), rgba(184,134,11,0.15))',
+  builder_ready: 'linear-gradient(135deg, rgba(14,165,233,0.3), rgba(16,185,129,0.15))',
 };

@@ -1,6 +1,16 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, type CSSProperties } from 'react';
 import { X, GripHorizontal, RotateCcw } from 'lucide-react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
+
+function HtmlContent({ html, className, style }: { html: string; className?: string; style?: CSSProperties }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (el) el.innerHTML = html;
+    return () => { if (el) el.innerHTML = ''; };
+  }, [html]);
+  return <div ref={ref} className={className} style={style} />;
+}
 
 type SnapState = 'collapsed' | 'half' | 'expanded';
 
@@ -186,11 +196,7 @@ export default function SAArgumentaireMobileDock({ title, content, onClose, t }:
 
       {/* Content with internal scroll */}
       {!isCollapsed && (
-        <div
-          className="flex-1 overflow-y-auto overscroll-contain px-4 py-3 text-sm leading-relaxed min-h-0"
-          style={{ color: t.text.secondary, WebkitOverflowScrolling: 'touch' }}
-          dangerouslySetInnerHTML={{ __html: content }}
-        />
+        <HtmlContent className="flex-1 overflow-y-auto overscroll-contain px-4 py-3 text-sm leading-relaxed min-h-0" style={{ color: t.text.secondary, WebkitOverflowScrolling: 'touch' }} html={content} />
       )}
     </div>
   );

@@ -1,6 +1,13 @@
 import { Phone, Mail, MapPin, Clock, Send, Home } from 'lucide-react';
 
-export default function GoldBuyingContact() {
+interface Props {
+  title?: string;
+  address?: string;
+  phone?: string;
+  email?: string;
+}
+
+export default function GoldBuyingContact({ title, address, phone, email }: Props = {}) {
   return (
     <section id="gold-contact" className="relative py-24 overflow-hidden">
       <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, #0a0a0a, #0d0b08, #0a0a0a)' }} />
@@ -10,12 +17,19 @@ export default function GoldBuyingContact() {
           <span className="text-xs font-bold tracking-[0.3em] uppercase" style={{ color: '#d4a017' }}>
             Contactez-nous
           </span>
-          <h2 className="text-3xl sm:text-4xl font-black mt-3 mb-4 text-white/90">
-            Expertise a{' '}
-            <span className="text-transparent bg-clip-text" style={{
-              background: 'linear-gradient(135deg, #f5d060, #d4a017)',
-              WebkitBackgroundClip: 'text',
-            }}>domicile gratuite</span>
+          <h2 data-studio-field="contact-title" className="text-3xl sm:text-4xl font-black mt-3 mb-4 text-white/90">
+            {title ? (
+              <span className="text-transparent bg-clip-text" style={{
+                background: 'linear-gradient(135deg, #f5d060, #d4a017)',
+                WebkitBackgroundClip: 'text',
+              }}>{title}</span>
+            ) : (
+              <>Expertise a{' '}
+              <span className="text-transparent bg-clip-text" style={{
+                background: 'linear-gradient(135deg, #f5d060, #d4a017)',
+                WebkitBackgroundClip: 'text',
+              }}>domicile gratuite</span></>
+            )}
           </h2>
           <p className="text-sm text-white/40 max-w-lg mx-auto">
             Vous ne pouvez pas vous deplacer ? Contactez-nous pour convenir d'un rendez-vous.
@@ -25,7 +39,7 @@ export default function GoldBuyingContact() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="space-y-4">
-            <a href="tel:0981222566"
+            <a data-studio-field="contact-phone" href={`tel:${(phone || '09 81 22 25 66').replace(/\s/g, '')}`}
               className="flex items-center gap-4 p-5 rounded-2xl transition-all duration-300 group"
               style={{ background: 'rgba(212,160,23,0.04)', border: '1px solid rgba(212,160,23,0.12)' }}>
               <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 transition-transform duration-300 group-hover:scale-110"
@@ -34,11 +48,11 @@ export default function GoldBuyingContact() {
               </div>
               <div>
                 <p className="text-xs font-semibold text-white/50 mb-0.5">Telephone</p>
-                <p className="text-lg font-black" style={{ color: '#d4a017' }}>09 81 22 25 66</p>
+                <p className="text-lg font-black" style={{ color: '#d4a017' }}>{phone || '09 81 22 25 66'}</p>
               </div>
             </a>
 
-            <a href="mailto:contact@orexpert.fr"
+            <a data-studio-field="contact-email" href={`mailto:${email || 'contact@orexpert.fr'}`}
               className="flex items-center gap-4 p-5 rounded-2xl transition-all duration-300 group"
               style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
               <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 transition-transform duration-300 group-hover:scale-110"
@@ -47,11 +61,11 @@ export default function GoldBuyingContact() {
               </div>
               <div>
                 <p className="text-xs font-semibold text-white/50 mb-0.5">Email</p>
-                <p className="text-sm font-bold text-white/80">contact@orexpert.fr</p>
+                <p className="text-sm font-bold text-white/80">{email || 'contact@orexpert.fr'}</p>
               </div>
             </a>
 
-            <div className="flex items-center gap-4 p-5 rounded-2xl"
+            <div data-studio-field="contact-address" className="flex items-center gap-4 p-5 rounded-2xl"
               style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
               <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
                 style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
@@ -59,8 +73,14 @@ export default function GoldBuyingContact() {
               </div>
               <div>
                 <p className="text-xs font-semibold text-white/50 mb-0.5">Siege social</p>
-                <p className="text-sm font-bold text-white/80">8 rue Etienne Richerand</p>
-                <p className="text-xs text-white/40">69003 Lyon</p>
+                {address ? (
+                  <p className="text-sm font-bold text-white/80">{address}</p>
+                ) : (
+                  <>
+                    <p className="text-sm font-bold text-white/80">8 rue Etienne Richerand</p>
+                    <p className="text-xs text-white/40">69003 Lyon</p>
+                  </>
+                )}
               </div>
             </div>
           </div>

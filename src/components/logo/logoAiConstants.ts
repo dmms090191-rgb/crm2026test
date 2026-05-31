@@ -5,7 +5,7 @@ import { createElement } from 'react';
 
 export type Preset = 'typographic' | 'abstract_symbol' | 'app_icon' | 'monogram' | 'color_variant';
 export type NumProposals = 1 | 2 | 4;
-export type ColorPaletteId = 'custom' | 'black_white' | 'none';
+export type ColorPaletteId = 'single' | 'custom' | 'none';
 
 export const MAX_SELECTED_PRESETS = 2;
 

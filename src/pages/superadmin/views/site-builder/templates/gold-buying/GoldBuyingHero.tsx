@@ -10,9 +10,13 @@ const TRUST_BADGES = [
 interface Props {
   onLogin: () => void;
   onRegister: () => void;
+  title?: string;
+  subtitle?: string;
+  cta1Text?: string;
+  cta2Text?: string;
 }
 
-export default function GoldBuyingHero({ onLogin, onRegister }: Props) {
+export default function GoldBuyingHero({ onLogin, onRegister, title, subtitle, cta1Text, cta2Text }: Props) {
   const [goldPrice, setGoldPrice] = useState(82.45);
   const [priceDirection, setPriceDirection] = useState<'up' | 'down'>('up');
 
@@ -57,17 +61,30 @@ export default function GoldBuyingHero({ onLogin, onRegister }: Props) {
           </span>
         </div>
 
-        <h1 className="text-5xl sm:text-7xl lg:text-8xl font-black leading-[0.9] mb-6 tracking-tight">
-          <span className="block text-white/90">COMPAGNIE</span>
-          <span className="block text-white/60 text-3xl sm:text-4xl font-light tracking-[0.2em] my-2">de l'</span>
-          <span className="block" style={{
-            background: 'linear-gradient(135deg, #f5d060 0%, #d4a017 30%, #b8860b 60%, #f5d060 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            filter: 'drop-shadow(0 0 40px rgba(212,160,23,0.3))',
-          }}>
-            OR
-          </span>
+        <h1 data-studio-field="hero-title" className="text-5xl sm:text-7xl lg:text-8xl font-black leading-[0.9] mb-6 tracking-tight">
+          {title ? (
+            <span className="block" style={{
+              background: 'linear-gradient(135deg, #f5d060 0%, #d4a017 30%, #b8860b 60%, #f5d060 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              filter: 'drop-shadow(0 0 40px rgba(212,160,23,0.3))',
+            }}>
+              {title}
+            </span>
+          ) : (
+            <>
+              <span className="block text-white/90">COMPAGNIE</span>
+              <span className="block text-white/60 text-3xl sm:text-4xl font-light tracking-[0.2em] my-2">de l'</span>
+              <span className="block" style={{
+                background: 'linear-gradient(135deg, #f5d060 0%, #d4a017 30%, #b8860b 60%, #f5d060 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                filter: 'drop-shadow(0 0 40px rgba(212,160,23,0.3))',
+              }}>
+                OR
+              </span>
+            </>
+          )}
         </h1>
 
         <div className="flex items-center justify-center gap-3 mb-8">
@@ -92,13 +109,12 @@ export default function GoldBuyingHero({ onLogin, onRegister }: Props) {
           }}>Argent</span>, Bijoux & Pieces
         </h2>
 
-        <p className="text-base text-white/40 max-w-xl mx-auto mb-10 leading-relaxed">
-          Expertise gratuite, paiement immediat, prix au cours du jour.
-          Plus de 15 ans d'experience dans le rachat de metaux precieux.
+        <p data-studio-field="hero-subtitle" className="text-base text-white/40 max-w-xl mx-auto mb-10 leading-relaxed">
+          {subtitle || 'Expertise gratuite, paiement immediat, prix au cours du jour. Plus de 15 ans d\'experience dans le rachat de metaux precieux.'}
         </p>
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
-          <a href="tel:0981222566"
+          <a data-studio-field="hero-cta1_text" href="tel:0981222566"
             className="group inline-flex items-center gap-3 px-8 py-4 rounded-2xl text-sm font-bold transition-all duration-300"
             style={{
               background: 'linear-gradient(135deg, #d4a017, #b8860b)',
@@ -106,9 +122,10 @@ export default function GoldBuyingHero({ onLogin, onRegister }: Props) {
               boxShadow: '0 0 30px rgba(212,160,23,0.2), 0 8px 32px rgba(0,0,0,0.4)',
             }}>
             <Phone className="w-4 h-4 group-hover:animate-pulse" />
-            09 81 22 25 66
+            {cta1Text || '09 81 22 25 66'}
           </a>
           <button
+            data-studio-field="hero-cta2_text"
             onClick={() => document.getElementById('gold-services')?.scrollIntoView({ behavior: 'smooth' })}
             className="inline-flex items-center gap-2 px-6 py-4 rounded-2xl text-sm font-semibold transition-all duration-300"
             style={{
@@ -116,7 +133,7 @@ export default function GoldBuyingHero({ onLogin, onRegister }: Props) {
               border: '1px solid rgba(212,160,23,0.2)',
               color: '#d4a017',
             }}>
-            Decouvrir nos services
+            {cta2Text || 'Decouvrir nos services'}
             <ArrowDown className="w-4 h-4" />
           </button>
         </div>

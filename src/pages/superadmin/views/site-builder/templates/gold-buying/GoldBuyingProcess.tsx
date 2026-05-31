@@ -8,7 +8,12 @@ const STEPS = [
   { icon: Banknote, num: '04', title: 'Paiement immediat', desc: 'Reglement par cheque ou virement bancaire. Immediat et securise.', color: '#f5d060' },
 ];
 
-export default function GoldBuyingProcess() {
+interface Props {
+  title?: string;
+  subtitle?: string;
+}
+
+export default function GoldBuyingProcess({ title, subtitle }: Props = {}) {
   const [visibleSteps, setVisibleSteps] = useState<Set<number>>(new Set());
   const sectionRef = useRef<HTMLDivElement>(null);
 
@@ -40,14 +45,16 @@ export default function GoldBuyingProcess() {
             La procedure est simple
           </span>
           <h2 className="text-3xl sm:text-4xl font-black mt-3 mb-4 text-white/90">
-            Comment ca{' '}
-            <span className="text-transparent bg-clip-text" style={{
-              background: 'linear-gradient(135deg, #f5d060, #d4a017)',
-              WebkitBackgroundClip: 'text',
-            }}>fonctionne</span>
+            {title ? title : (
+              <>Comment ca{' '}
+              <span className="text-transparent bg-clip-text" style={{
+                background: 'linear-gradient(135deg, #f5d060, #d4a017)',
+                WebkitBackgroundClip: 'text',
+              }}>fonctionne</span></>
+            )}
           </h2>
           <p className="text-sm text-white/40 max-w-md mx-auto">
-            4 etapes simples pour valoriser vos metaux precieux au meilleur prix.
+            {subtitle || '4 etapes simples pour valoriser vos metaux precieux au meilleur prix.'}
           </p>
         </div>
 

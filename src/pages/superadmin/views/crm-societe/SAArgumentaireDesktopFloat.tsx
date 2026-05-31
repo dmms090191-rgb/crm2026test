@@ -1,6 +1,16 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, type CSSProperties } from 'react';
 import { X, GripHorizontal, RotateCcw } from 'lucide-react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
+
+function HtmlContent({ html, className, style }: { html: string; className?: string; style?: CSSProperties }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (el) el.innerHTML = html;
+    return () => { if (el) el.innerHTML = ''; };
+  }, [html]);
+  return <div ref={ref} className={className} style={style} />;
+}
 
 const STORAGE_KEY = 'sa_arg_float_desktop';
 const MIN_W = 320;
@@ -157,11 +167,7 @@ export default function SAArgumentaireDesktopFloat({ title, content, onClose, t 
         </div>
       </div>
 
-      <div
-        className="flex-1 overflow-y-auto px-4 py-3 text-sm leading-relaxed min-h-0"
-        style={{ color: t.text.secondary }}
-        dangerouslySetInnerHTML={{ __html: content }}
-      />
+      <HtmlContent className="flex-1 overflow-y-auto px-4 py-3 text-sm leading-relaxed min-h-0" style={{ color: t.text.secondary }} html={content} />
 
       <div className="absolute bottom-0.5 right-0.5 pointer-events-none opacity-30">
         <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
