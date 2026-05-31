@@ -1,4 +1,4 @@
-var CACHE_NAME = 'talvex-v3';
+var CACHE_NAME = 'talvex-v4';
 var SHELL_ASSETS = ['/', '/index.html', '/favicon.svg'];
 
 self.addEventListener('install', function (event) {
