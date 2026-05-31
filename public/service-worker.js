@@ -1,5 +1,5 @@
-var CACHE_NAME = 'talvex-v2';
-var SHELL_ASSETS = ['/', '/index.html', '/favicon.svg', '/icons/icon-192x192.png', '/icons/icon-512x512.png'];
+var CACHE_NAME = 'talvex-v3';
+var SHELL_ASSETS = ['/', '/index.html', '/favicon.svg'];
 
 self.addEventListener('install', function (event) {
   event.waitUntil(
@@ -43,6 +43,12 @@ self.addEventListener('fetch', function (event) {
       });
     })
   );
+});
+
+self.addEventListener('message', function (event) {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 self.addEventListener('push', function (event) {

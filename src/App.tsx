@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import LoginModal from './components/LoginModal';
+import PwaLoginPage from './components/PwaLoginPage';
 import type { ImpersonatedVendor } from './pages/vendor/VendorDashboard';
 import type { ImpersonatedClientInfo } from './pages/client/ClientDashboard';
 import { supabase } from './lib/supabase';
@@ -14,6 +15,9 @@ import { useSessionTimeout } from './hooks/useSessionTimeout';
 import SessionExpiryWarning from './components/SessionExpiryWarning';
 import { SessionTimeoutProvider } from './contexts/SessionTimeoutContext';
 import AppDashboardRouter from './app/AppDashboardRouter';
+
+const IS_PWA_STANDALONE = window.matchMedia('(display-mode: standalone)').matches
+  || (navigator as unknown as Record<string, boolean>).standalone === true;
 
 export interface ImpersonatedAdmin {
   id: string;
@@ -66,7 +70,9 @@ function App() {
         if (uid !== domainCid) { setDomainBlocked(true); setRole(null); return; }
       }
       setDomainBlocked(false);
-      setUserCompanyId((meta?.company_id as string) ?? null);
+      const cid = (meta?.company_id as string) ?? null;
+      setUserCompanyId(cid);
+      try { if (cid) localStorage.setItem('crm_company_id', cid); } catch { /* ignore */ }
       if (appRole === 'super_admin') {
         setRole('super_admin'); setSaUserId(session.user.id);
         const um = session.user.user_metadata ?? {};
@@ -139,6 +145,10 @@ function App() {
         {expiryWarning}
       </SessionTimeoutProvider>
     );
+  }
+
+  if (IS_PWA_STANDALONE) {
+    return <PwaLoginPage onLogin={handleLogin} />;
   }
 
   const LandingTemplate = landingTemplateKey ? getTemplateComponent(landingTemplateKey) : null;
