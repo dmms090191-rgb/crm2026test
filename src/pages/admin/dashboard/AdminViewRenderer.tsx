@@ -9,7 +9,7 @@ import {
   VueEnsemble, AdminSite, AdminLogoPage, Inscription, AjouterLeads, AjouterVendeur, ListeVendeurs,
   ChatClient, ChatVendeur, ChatSuperAdmin, Agenda, PropositionsRdv, Statuts, Crm,
   ImportLeads, DocumentationCrm, SauvegardeRestauration,
-  SystemPage, AdminCerveauIA,
+  SystemPage, AdminCerveauIA, AdminApplicationPage,
 } from './adminLazyViews';
 import { saveConnectReturnContext, saveChatReturnContext } from '../../../lib/connectReturnContext';
 import type { ImpersonatedClient } from '../views/Crm';
@@ -101,6 +101,7 @@ export default function AdminViewRenderer({
           case 'system': return <Suspense fallback={lazyFallback}><SystemPage /></Suspense>;
           case 'sauvegarde': return <Suspense fallback={lazyFallback}><SauvegardeRestauration /></Suspense>;
           case 'cerveau-ia': return <Suspense fallback={lazyFallback}><AdminCerveauIA /></Suspense>;
+          case 'application': return <Suspense fallback={lazyFallback}><AdminApplicationPage /></Suspense>;
           case 'tuto': return <div className="p-6"><p className="text-sm" style={{ color: 'inherit' }}>Tuto - Contenu a venir</p></div>;
           default: return <Suspense fallback={lazyFallback}><VueEnsemble unreadClientConversations={unreadClientConversations} unreadVendorConversations={unreadVendorConversations} /></Suspense>;
         }

@@ -1,9 +1,13 @@
 interface Props {
   appIconUrl: string | null;
+  appName?: string;
   onOpenApp: () => void;
 }
 
-export default function SimulatedPhoneHomeScreen({ appIconUrl, onOpenApp }: Props) {
+export default function SimulatedPhoneHomeScreen({ appIconUrl, appName, onOpenApp }: Props) {
+  const displayName = appName ?? 'Talvex';
+  const initial = displayName.charAt(0).toUpperCase() || 'T';
+
   return (
     <div
       className="absolute inset-0 flex flex-col items-center justify-center select-none"
@@ -26,7 +30,7 @@ export default function SimulatedPhoneHomeScreen({ appIconUrl, onOpenApp }: Prop
           {appIconUrl ? (
             <img
               src={appIconUrl}
-              alt="Talvex"
+              alt={displayName}
               className="w-[52px] h-[52px] rounded-[14px] object-cover"
               style={{
                 boxShadow: '0 4px 16px rgba(0,0,0,0.4), 0 1px 4px rgba(0,0,0,0.3)',
@@ -40,16 +44,16 @@ export default function SimulatedPhoneHomeScreen({ appIconUrl, onOpenApp }: Prop
                 boxShadow: '0 4px 16px rgba(14,165,233,0.35), 0 1px 4px rgba(0,0,0,0.3)',
               }}
             >
-              <span className="text-white text-xl font-bold">T</span>
+              <span className="text-white text-xl font-bold">{initial}</span>
             </div>
           )}
         </div>
         {/* Label */}
         <span
-          className="text-[9px] font-medium text-center leading-tight"
+          className="text-[9px] font-medium text-center leading-tight max-w-[64px] truncate"
           style={{ color: 'rgba(255,255,255,0.85)', textShadow: '0 1px 3px rgba(0,0,0,0.6)' }}
         >
-          Talvex
+          {displayName}
         </span>
       </div>
 

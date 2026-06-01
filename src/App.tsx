@@ -19,7 +19,7 @@ import AppDashboardRouter from './app/AppDashboardRouter';
 const IS_PWA_STANDALONE = window.matchMedia('(display-mode: standalone)').matches
   || (navigator as unknown as Record<string, boolean>).standalone === true;
 
-const IS_INSIDE_IFRAME = window.self !== window.top;
+const IS_VIRTUAL_PHONE = new URLSearchParams(window.location.search).has('virtualPhone');
 
 export interface ImpersonatedAdmin {
   id: string;
@@ -113,7 +113,7 @@ function App() {
   const handleDomainLogin = useCallback(() => { setSessionKey(k => k + 1); detectRole(); }, [detectRole]);
 
   const handleLogout = async () => {
-    if (IS_INSIDE_IFRAME) {
+    if (IS_VIRTUAL_PHONE) {
       window.parent.postMessage({ type: 'talvex-phone-logout' }, '*');
       return;
     }

@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
 import { supabase } from '../../lib/supabase';
+import { notifyAppIconChanged } from '../../hooks/useAppIcon';
 import type { Preset, NumProposals, ColorPaletteId } from './logoAiConstants';
 import LogoAiV4Controls from './LogoAiV4Controls';
 import LogoAiOptionsBar from './LogoAiOptionsBar';
@@ -16,11 +17,12 @@ import useLogoAiGallery from './useLogoAiGallery';
 
 interface Props {
   companyId: string | null;
+  isSA?: boolean;
   appIconSelectionMode?: boolean;
   onAppIconSelected?: () => void;
 }
 
-export default function LogoAiTab({ companyId, appIconSelectionMode, onAppIconSelected }: Props) {
+export default function LogoAiTab({ companyId, isSA, appIconSelectionMode, onAppIconSelected }: Props) {
   const t = useThemeTokens();
   const detailRef = useRef<HTMLDivElement>(null);
 
@@ -47,16 +49,35 @@ export default function LogoAiTab({ companyId, appIconSelectionMode, onAppIconSe
   }, [appIconSelectionMode]);
 
   const handleSelectAppIcon = useCallback(async (logoId: string, logoUrl: string) => {
-    if (!companyId) return;
     setSavingAppIcon(true);
     try {
-      await supabase.from('company_home_pages')
-        .update({ app_icon_id: logoId, app_icon_url: logoUrl, updated_at: new Date().toISOString() })
-        .eq('company_id', companyId);
+      const ownerType = isSA ? 'super_admin' : 'company';
+      const cid = isSA ? null : companyId;
+      if (!isSA && !companyId) return;
+
+      const now = new Date().toISOString();
+      const query = supabase.from('app_config').select('id').eq('owner_type', ownerType);
+      if (cid) query.eq('company_id', cid); else query.is('company_id', null);
+      const { data: existing } = await query.maybeSingle();
+
+      if (existing) {
+        await supabase.from('app_config')
+          .update({ app_icon_url: logoUrl, app_icon_id: logoId, updated_at: now })
+          .eq('id', existing.id);
+      } else {
+        await supabase.from('app_config')
+          .insert({ owner_type: ownerType, company_id: cid, app_icon_url: logoUrl, app_icon_id: logoId, app_name: '', enabled_modules: {} });
+      }
+
+      notifyAppIconChanged({
+        owner_type: ownerType,
+        company_id: cid,
+        app_icon_url: logoUrl,
+      });
       onAppIconSelected?.();
     } catch { /* silent */ }
     finally { setSavingAppIcon(false); }
-  }, [companyId, onAppIconSelected]);
+  }, [companyId, isSA, onAppIconSelected]);
 
   const gen = useLogoAiGenerate({
     companyId, selectedPresets, numProposals, brandName,

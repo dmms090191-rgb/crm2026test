@@ -17,9 +17,10 @@ const TABS: { id: InternalView; label: string; icon: React.ReactNode }[] = [
 interface TemplateProps {
   domainCompanyId?: string | null;
   onDomainLogin?: () => void;
+  appIconUrl?: string | null;
 }
 
-export default function TalvexOfficialTemplate({ domainCompanyId, onDomainLogin }: TemplateProps = {}) {
+export default function TalvexOfficialTemplate({ domainCompanyId, onDomainLogin, appIconUrl }: TemplateProps = {}) {
   const [activeView, setActiveView] = useState<InternalView>('interactive');
   const [loginOpen, setLoginOpen] = useState(false);
   const [registerOpen, setRegisterOpen] = useState(false);
@@ -77,7 +78,7 @@ export default function TalvexOfficialTemplate({ domainCompanyId, onDomainLogin 
       </div>
 
       {/* Auth modals */}
-      <TalvexLoginModal isOpen={loginOpen} onClose={() => setLoginOpen(false)} onLogin={handleLogin} onRegister={() => { setLoginOpen(false); setRegisterOpen(true); }} domainCompanyId={domainCompanyId} />
+      <TalvexLoginModal isOpen={loginOpen} onClose={() => setLoginOpen(false)} onLogin={handleLogin} onRegister={() => { setLoginOpen(false); setRegisterOpen(true); }} domainCompanyId={domainCompanyId} appIconUrl={appIconUrl} />
       <TalvexRegisterModal isOpen={registerOpen} onClose={() => setRegisterOpen(false)} onBackToLogin={() => { setRegisterOpen(false); setLoginOpen(true); }} />
     </div>
   );

@@ -13,11 +13,12 @@ interface LoginModalProps {
   onClose: () => void;
   onLogin: () => void;
   domainCompanyId?: string | null;
+  appIconUrl?: string | null;
 }
 
 const LAST_EMAIL_KEY = 'crm_last_login_email';
 
-export default function LoginModal({ isOpen, onClose, onLogin, domainCompanyId }: LoginModalProps) {
+export default function LoginModal({ isOpen, onClose, onLogin, domainCompanyId, appIconUrl }: LoginModalProps) {
   const { theme } = useTheme();
   const tokens = useThemeTokens();
   const isDark = theme === 'dark';
@@ -152,9 +153,17 @@ export default function LoginModal({ isOpen, onClose, onLogin, domainCompanyId }
         </button>
 
         <div className="flex flex-col items-center mb-5 sm:mb-8">
-          <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-orange-500 to-pink-500 rounded-xl sm:rounded-2xl flex items-center justify-center mb-3 sm:mb-4 shadow-lg">
-            <Mail className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
-          </div>
+          {appIconUrl ? (
+            <img
+              src={appIconUrl}
+              alt=""
+              className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl object-cover mb-3 sm:mb-4 shadow-lg"
+            />
+          ) : (
+            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-orange-500 to-pink-500 rounded-xl sm:rounded-2xl flex items-center justify-center mb-3 sm:mb-4 shadow-lg">
+              <Mail className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
+            </div>
+          )}
           <h2 className="text-2xl sm:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-pink-400">
             Connexion
           </h2>

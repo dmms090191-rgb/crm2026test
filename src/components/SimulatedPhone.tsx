@@ -44,11 +44,12 @@ export type { PhoneModelId };
 interface Props {
   showReloadButton?: boolean;
   appIconUrl?: string | null;
+  appName?: string;
   hideModelSelector?: boolean;
   externalModelId?: PhoneModelId;
 }
 
-export default function SimulatedPhone({ showReloadButton = true, appIconUrl = null, hideModelSelector, externalModelId }: Props) {
+export default function SimulatedPhone({ showReloadButton = true, appIconUrl = null, appName, hideModelSelector, externalModelId }: Props) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [loaded, setLoaded] = useState(false);
   const [iframeKey, setIframeKey] = useState(0);
@@ -199,10 +200,10 @@ export default function SimulatedPhone({ showReloadButton = true, appIconUrl = n
           {/* Content area */}
           <div className="flex-1 relative overflow-hidden">
             {phoneState === 'homeIcon' && (
-              <SimulatedPhoneHomeScreen appIconUrl={appIconUrl} onOpenApp={handleOpenApp} />
+              <SimulatedPhoneHomeScreen appIconUrl={appIconUrl} appName={appName} onOpenApp={handleOpenApp} />
             )}
             {phoneState === 'login' && (
-              <SimulatedPhoneLoginScreen appIconUrl={appIconUrl} onLogin={handlePhoneLogin} onBack={handleBackToHome} />
+              <SimulatedPhoneLoginScreen appIconUrl={appIconUrl} appName={appName} onLogin={handlePhoneLogin} onBack={handleBackToHome} />
             )}
             {phoneState === 'connected' && (
               <>
@@ -217,7 +218,7 @@ export default function SimulatedPhone({ showReloadButton = true, appIconUrl = n
                 <iframe
                   key={iframeKey}
                   ref={iframeRef}
-                  src={window.location.origin}
+                  src={`${window.location.origin}?virtualPhone=1`}
                   title={`Apercu mobile Talvex - ${model.label}`}
                   onLoad={() => setLoaded(true)}
                   className="border-0"

@@ -6,6 +6,7 @@ import { saveConnectReturnContext, consumeConnectReturnContext } from '../../lib
 import { supabase } from '../../lib/supabase';
 import { SimulationProvider } from '../../contexts/SimulationContext';
 import { useUnreadSuperAdminMessages } from '../../hooks/useUnreadSuperAdminMessages';
+import { useAppIcon } from '../../hooks/useAppIcon';
 import type { AdminUser } from './views/SAAdmins';
 import GlassBackgroundLayer from '../../components/theme/GlassBackgroundLayer';
 
@@ -27,6 +28,7 @@ const SACerveauIA = lazy(() => import('./views/cerveau-ia/SACerveauIA'));
 const SALogoPage = lazy(() => import('./views/SALogoPage'));
 const SAAmeliorations = lazy(() => import('./views/SAAmeliorations'));
 const SAApplicationPage = lazy(() => import('./views/SAApplicationPage'));
+const SAThemes = lazy(() => import('./views/themes/SAThemes'));
 
 interface SuperAdminDashboardProps {
   onLogout: () => void;
@@ -45,6 +47,7 @@ export default function SuperAdminDashboard({ onLogout, onConnectAsAdmin }: Supe
   const [saLastName, setSaLastName] = useState('');
   const pendingScrollRef = useRef<{ adminId?: string; scrollY: number } | null>(null);
   const { unreadCount: unreadAdminMsgCount, unreadEntries: unreadAdminMsgEntries, markAsRead: markAdminMsgRead } = useUnreadSuperAdminMessages();
+  const { appIconUrl: saAppIconUrl, appName: saAppName } = useAppIcon(null, 'super_admin');
 
   const [appIconSelectionMode, setAppIconSelectionMode] = useState(false);
 
@@ -164,6 +167,7 @@ export default function SuperAdminDashboard({ onLogout, onConnectAsAdmin }: Supe
       case 'logo': return <SALogoPage appIconSelectionMode={appIconSelectionMode} onAppIconSelected={handleAppIconSelected} />;
       case 'ameliorations': return <SAAmeliorations />;
       case 'application': return <SAApplicationPage onChangeAppIcon={handleChangeAppIcon} />;
+      case 'themes': return <SAThemes />;
       case 'tuto': return <div className="p-6"><p className="text-sm" style={{ color: 'inherit' }}>Tuto - Contenu a venir</p></div>;
       default: return <SADashboard onNavigate={handleNavigate} adminCount={cachedAdmins.length} adminsLoading={adminsRefreshing && cachedAdmins.length === 0} />;
     }
@@ -215,6 +219,8 @@ export default function SuperAdminDashboard({ onLogout, onConnectAsAdmin }: Supe
           onAdminMsgEntryClick={(entry) => { markAdminMsgRead(entry.adminId); setChatAdmin(cachedAdmins.find(a => a.id === entry.adminId) ?? { id: entry.adminId, email: entry.email, first_name: entry.firstName, last_name: entry.lastName, phone: '', role: 'admin', created_at: '', last_sign_in_at: null, access_enabled: true }); setActiveView('chat-admin'); }}
           saFirstName={saFirstName}
           saLastName={saLastName}
+          appIconUrl={saAppIconUrl}
+          appName={saAppName || 'Talvex'}
         />
 
         <main

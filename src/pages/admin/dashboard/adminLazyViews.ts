@@ -20,3 +20,4 @@ export const DocumentationCrm = lazy(importDocumentationCrm);
 export const SauvegardeRestauration = lazy(() => import('../views/SauvegardeRestauration'));
 export const SystemPage = lazy(() => import('../views/SystemPage'));
 export const AdminCerveauIA = lazy(() => import('../views/cerveau-ia/AdminCerveauIA'));
+export const AdminApplicationPage = lazy(() => import('../views/AdminApplicationPage'));

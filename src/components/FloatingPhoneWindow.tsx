@@ -19,11 +19,14 @@ interface Props {
   onScaleChange: (s: number) => void;
   onModelChange: (id: string) => void;
   onDragStart: (e: React.MouseEvent) => void;
+  appIconUrl?: string | null;
+  appName?: string;
 }
 
 export default function FloatingPhoneWindow({
   pos, scale, modelId, onClose, onMinimize,
   onScaleChange, onModelChange, onDragStart,
+  appIconUrl, appName,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -169,7 +172,8 @@ export default function FloatingPhoneWindow({
       >
         <SimulatedPhone
           showReloadButton={false}
-          appIconUrl={null}
+          appIconUrl={appIconUrl ?? null}
+          appName={appName}
           hideModelSelector
           externalModelId={modelId as PhoneModelId}
         />

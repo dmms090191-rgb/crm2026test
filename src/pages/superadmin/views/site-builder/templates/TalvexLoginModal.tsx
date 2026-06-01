@@ -15,9 +15,10 @@ interface Props {
   onRegister?: () => void;
   theme?: SiteModalTheme;
   domainCompanyId?: string | null;
+  appIconUrl?: string | null;
 }
 
-export default function TalvexLoginModal({ isOpen, onClose, onLogin, onRegister, theme: themeProp, domainCompanyId }: Props) {
+export default function TalvexLoginModal({ isOpen, onClose, onLogin, onRegister, theme: themeProp, domainCompanyId, appIconUrl }: Props) {
   const t = themeProp ?? getSiteModalTheme();
   const [email, setEmail] = useState('');
   const [showPin, setShowPin] = useState(false);
@@ -141,6 +142,7 @@ export default function TalvexLoginModal({ isOpen, onClose, onLogin, onRegister,
               submitHover={submitHover} setSubmitHover={setSubmitHover}
               onValidate={handleValidate} progress={progress} theme={t}
               onRegister={() => { if (onRegister) { onClose(); onRegister(); } else setShowRegister(true); }}
+              appIconUrl={appIconUrl}
             />
           </div>
         </div>

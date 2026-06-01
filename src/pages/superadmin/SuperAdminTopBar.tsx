@@ -40,9 +40,11 @@ interface SuperAdminTopBarProps {
   onAdminMsgEntryClick?: (entry: AdminNotifEntry) => void;
   saFirstName?: string;
   saLastName?: string;
+  appIconUrl?: string | null;
+  appName?: string;
 }
 
-export default function SuperAdminTopBar({ activeView, onMobileMenuToggle, unreadAdminMsgCount = 0, unreadAdminMsgEntries = [], onAdminMsgEntryClick, saFirstName = '', saLastName = '' }: SuperAdminTopBarProps) {
+export default function SuperAdminTopBar({ activeView, onMobileMenuToggle, unreadAdminMsgCount = 0, unreadAdminMsgEntries = [], onAdminMsgEntryClick, saFirstName = '', saLastName = '', appIconUrl, appName }: SuperAdminTopBarProps) {
   const { timezone, tzLabel, tzCode, setTimezone } = useTimezone();
   const t = useThemeTokens();
   const [tzModalOpen, setTzModalOpen] = useState(false);
@@ -172,6 +174,8 @@ export default function SuperAdminTopBar({ activeView, onMobileMenuToggle, unrea
           onScaleChange={phone.handleScaleChange}
           onModelChange={phone.handleModelChange}
           onDragStart={phone.startDrag}
+          appIconUrl={appIconUrl}
+          appName={appName}
         />
       )}
     </>

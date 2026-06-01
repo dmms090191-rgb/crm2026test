@@ -1,7 +1,8 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { Mail, Lock, Eye, EyeOff, Delete, X, LogIn, UserPlus } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, Delete, X, LogIn, UserPlus, ChevronDown, Star, Settings, Trash2, Plus } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { usePinInput } from './hooks/usePinInput';
+import { useAppIcon } from '../hooks/useAppIcon';
 import RegisterModal from './RegisterModal';
 
 interface Props {
@@ -10,8 +11,20 @@ interface Props {
 }
 
 const LAST_EMAIL_KEY = 'crm_last_login_email';
+const QUICK_EMAILS_KEY = 'crm_quick_login_emails';
+
+function getQuickEmails(): string[] {
+  try { return JSON.parse(localStorage.getItem(QUICK_EMAILS_KEY) || '[]'); } catch { return []; }
+}
+function saveQuickEmails(emails: string[]) {
+  localStorage.setItem(QUICK_EMAILS_KEY, JSON.stringify(emails));
+}
 
 export default function PwaLoginPage({ onLogin, domainCompanyId }: Props) {
+  const ownerType = domainCompanyId ? 'company' as const : 'super_admin' as const;
+  const { appIconUrl, appName: configAppName } = useAppIcon(domainCompanyId ?? null, ownerType);
+  const displayName = configAppName || 'Talvex';
+
   const [email, setEmailRaw] = useState(() => {
     try { return localStorage.getItem(LAST_EMAIL_KEY) || ''; } catch { return ''; }
   });
@@ -30,20 +43,27 @@ export default function PwaLoginPage({ onLogin, domainCompanyId }: Props) {
   const emailInputRef = useRef<HTMLInputElement>(null);
   const validateRef = useRef<() => void>(() => {});
 
+  const [quickEmails, setQuickEmailsState] = useState<string[]>(getQuickEmails);
+  const [showQuickPicker, setShowQuickPicker] = useState(false);
+  const [showManage, setShowManage] = useState(false);
+  const [manageInput, setManageInput] = useState('');
+  const [toast, setToast] = useState('');
+
+  const showToastMsg = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 2500); };
+  const refreshQuick = () => { const l = getQuickEmails(); setQuickEmailsState(l); return l; };
+
   const playClick = useCallback(() => {
     try {
       const ctx = new AudioContext();
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
+      osc.connect(gain); gain.connect(ctx.destination);
       osc.type = 'sine';
       osc.frequency.setValueAtTime(880, ctx.currentTime);
       osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.05);
       gain.gain.setValueAtTime(0.15, ctx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
-      osc.start(ctx.currentTime);
-      osc.stop(ctx.currentTime + 0.08);
+      osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.08);
     } catch { /* audio not supported */ }
   }, []);
 
@@ -58,11 +78,7 @@ export default function PwaLoginPage({ onLogin, domainCompanyId }: Props) {
     setLoading(true);
     setError('');
 
-    const { error: authError } = await supabase.auth.signInWithPassword({
-      email,
-      password: pin,
-    });
-
+    const { error: authError } = await supabase.auth.signInWithPassword({ email, password: pin });
     if (authError) {
       setLoading(false);
       setError('Email ou mot de passe incorrect.');
@@ -75,15 +91,12 @@ export default function PwaLoginPage({ onLogin, domainCompanyId }: Props) {
       const { data: { user } } = await supabase.auth.getUser();
       const meta = user?.app_metadata;
       const appRole = meta?.role;
-
       if (appRole !== 'super_admin') {
         let userCompanyId: string | null = (meta?.company_id as string) ?? null;
         if (!userCompanyId && appRole === 'client') {
           const { data: reg } = await supabase
-            .from('registrations')
-            .select('company_id')
-            .eq('email', email.toLowerCase().trim())
-            .maybeSingle();
+            .from('registrations').select('company_id')
+            .eq('email', email.toLowerCase().trim()).maybeSingle();
           userCompanyId = reg?.company_id ?? null;
         }
         if (userCompanyId !== domainCompanyId) {
@@ -111,182 +124,294 @@ export default function PwaLoginPage({ onLogin, domainCompanyId }: Props) {
   }, [setDigits]);
 
   const pin = digits.join('');
+  const canSubmit = !!email && pin.length === 6 && !loading;
+
+  const handleSaveQuick = () => {
+    const trimmed = email.trim().toLowerCase();
+    if (!trimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) { showToastMsg('Email invalide'); return; }
+    const list = refreshQuick();
+    if (list.includes(trimmed)) { showToastMsg('Deja enregistre'); return; }
+    const updated = [...list, trimmed];
+    saveQuickEmails(updated); setQuickEmailsState(updated);
+    showToastMsg('Email enregistre');
+  };
+
+  const handleRemoveQuick = (target: string) => {
+    const updated = quickEmails.filter(e => e !== target);
+    saveQuickEmails(updated); setQuickEmailsState(updated);
+  };
+
+  const handleManageAdd = () => {
+    const trimmed = manageInput.trim().toLowerCase();
+    if (!trimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) { showToastMsg('Email invalide'); return; }
+    if (quickEmails.includes(trimmed)) { showToastMsg('Deja enregistre'); return; }
+    const updated = [...quickEmails, trimmed];
+    saveQuickEmails(updated); setQuickEmailsState(updated); setManageInput('');
+  };
 
   return (
     <>
-      <RegisterModal
-        isOpen={showRegister}
-        onClose={() => setShowRegister(false)}
-        onBackToLogin={() => setShowRegister(false)}
-      />
+      <RegisterModal isOpen={showRegister} onClose={() => setShowRegister(false)} onBackToLogin={() => setShowRegister(false)} />
 
-      <div className="min-h-screen flex flex-col" style={{ background: 'linear-gradient(180deg, #050810 0%, #0a1628 50%, #050810 100%)' }}>
-        {/* Top section with logo */}
-        <div className="flex-shrink-0 flex flex-col items-center pt-12 sm:pt-16 pb-6 sm:pb-8 px-4">
-          <div
-            className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl sm:rounded-3xl flex items-center justify-center mb-4 sm:mb-5"
-            style={{
-              background: 'linear-gradient(135deg, #0ea5e9, #10b981)',
-              boxShadow: '0 8px 32px rgba(14,165,233,0.35), 0 2px 8px rgba(0,0,0,0.3), inset 0 1px 2px rgba(255,255,255,0.15)',
-            }}
-          >
-            <span className="text-white text-3xl sm:text-4xl font-bold select-none">T</span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-white mb-1">Connexion</h1>
-          <p className="text-sm text-slate-400">Accedez a votre espace Talvex</p>
+      <div className="min-h-screen flex flex-col" style={{ background: 'linear-gradient(170deg, #020a1a 0%, #0a1628 40%, #071020 100%)' }}>
+        {/* Ambient glow */}
+        <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] pointer-events-none" style={{ background: 'radial-gradient(ellipse, rgba(14,165,233,0.06) 0%, transparent 70%)', filter: 'blur(60px)' }} />
+
+        {/* Icon + heading */}
+        <div className="flex-shrink-0 flex flex-col items-center pt-10 sm:pt-14 pb-4 sm:pb-6 px-4 relative z-10">
+          {appIconUrl ? (
+            <img
+              src={appIconUrl}
+              alt={displayName}
+              className="w-16 h-16 sm:w-[72px] sm:h-[72px] rounded-[1.2rem] object-cover mb-3"
+              style={{ boxShadow: '0 8px 40px rgba(14,165,233,0.30), 0 2px 8px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.06)' }}
+            />
+          ) : (
+            <div
+              className="w-16 h-16 sm:w-[72px] sm:h-[72px] rounded-[1.2rem] flex items-center justify-center mb-3"
+              style={{
+                background: 'linear-gradient(135deg, #0ea5e9, #10b981)',
+                boxShadow: '0 8px 40px rgba(14,165,233,0.30), 0 2px 8px rgba(0,0,0,0.4), inset 0 1px 2px rgba(255,255,255,0.15)',
+              }}
+            >
+              <span className="text-white text-3xl font-bold select-none">{displayName.charAt(0).toUpperCase()}</span>
+            </div>
+          )}
+          <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">Connexion</h1>
+          <p className="text-[13px] text-slate-400 mt-0.5">Accedez a votre espace {displayName}</p>
         </div>
 
-        {/* Login form card */}
-        <div className="flex-1 flex flex-col px-4 sm:px-6 pb-6">
-          <div
-            className="w-full max-w-md mx-auto rounded-2xl sm:rounded-3xl p-5 sm:p-8 flex-shrink-0"
-            style={{
-              background: 'rgba(15,23,42,0.8)',
-              border: '1px solid rgba(255,255,255,0.08)',
-              backdropFilter: 'blur(20px)',
-              boxShadow: '0 16px 64px rgba(0,0,0,0.4)',
-            }}
-          >
-            <div className="space-y-5 sm:space-y-6">
-              {/* Email field */}
-              <div>
-                <label className="block text-sm font-medium mb-2 text-slate-300">
-                  Adresse email
-                </label>
-                <div className="flex items-center gap-1.5">
-                  <div className="relative flex-1 min-w-0">
-                    <Mail className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 z-10 pointer-events-none text-slate-500" />
-                    <input
-                      ref={emailInputRef}
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="votre@email.com"
-                      autoComplete="off"
-                      className="w-full rounded-xl pl-10 sm:pl-12 pr-9 sm:pr-10 py-3.5 text-sm sm:text-base text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500/50 transition-all truncate"
-                      style={{
-                        background: 'rgba(255,255,255,0.05)',
-                        border: '1px solid rgba(255,255,255,0.1)',
-                      }}
-                    />
-                    {email && (
-                      <button
-                        type="button"
-                        onClick={() => { setEmail(''); emailInputRef.current?.focus(); }}
-                        className="absolute right-2.5 sm:right-3 top-1/2 -translate-y-1/2 w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center transition-colors"
-                        style={{ backgroundColor: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.4)' }}
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                  </div>
+        {/* Form */}
+        <div className="flex-1 flex flex-col px-4 sm:px-6 pb-4 relative z-10">
+          <div className="w-full max-w-md mx-auto flex flex-col gap-4 sm:gap-5">
+
+            {/* Email field */}
+            <div>
+              <label className="block text-[11px] sm:text-xs font-semibold mb-1.5 text-slate-300 tracking-wide">
+                Adresse email
+              </label>
+              <div className="flex items-center gap-1.5">
+                <div className="relative flex-1 min-w-0">
+                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none z-10" />
+                  <input
+                    ref={emailInputRef}
+                    type="email"
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
+                    placeholder="votre@email.com"
+                    autoComplete="off"
+                    className="w-full rounded-xl pl-10 pr-9 py-3 text-sm text-white placeholder-slate-500 focus:outline-none transition-all truncate"
+                    style={{
+                      background: 'rgba(255,255,255,0.04)',
+                      border: '1px solid rgba(255,255,255,0.08)',
+                      boxShadow: 'inset 0 1px 4px rgba(0,0,0,0.15)',
+                    }}
+                    onFocus={e => { e.currentTarget.style.borderColor = 'rgba(14,165,233,0.45)'; e.currentTarget.style.boxShadow = 'inset 0 1px 4px rgba(0,0,0,0.15), 0 0 0 2px rgba(14,165,233,0.08)'; }}
+                    onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; e.currentTarget.style.boxShadow = 'inset 0 1px 4px rgba(0,0,0,0.15)'; }}
+                  />
                   {email && (
                     <button
                       type="button"
-                      onClick={() => { setEmail(v => v.slice(0, -1)); emailInputRef.current?.focus(); }}
-                      className="shrink-0 w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center transition-colors"
-                      style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.4)' }}
+                      onClick={() => { setEmail(''); emailInputRef.current?.focus(); }}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full flex items-center justify-center transition-colors"
+                      style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.4)' }}
                     >
-                      <Delete className="w-5 h-5" />
+                      <X className="w-3 h-3" />
                     </button>
                   )}
                 </div>
-              </div>
-
-              {/* PIN field */}
-              <div>
-                <div className="flex items-center justify-between mb-2 sm:mb-3">
-                  <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
-                    <Lock className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0 text-slate-500" />
-                    <label className="text-xs sm:text-sm font-medium text-slate-300 truncate">Mot de passe (6 chiffres)</label>
-                  </div>
+                {email && (
                   <button
                     type="button"
-                    onClick={() => setShowPin(v => !v)}
-                    className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 rounded-lg text-xs font-medium transition-all flex-shrink-0 ml-2"
-                    style={{
-                      background: 'rgba(255,255,255,0.06)',
-                      color: 'rgba(255,255,255,0.5)',
-                      border: '1px solid rgba(255,255,255,0.08)',
-                    }}
+                    onClick={() => { setEmail(v => v.slice(0, -1)); emailInputRef.current?.focus(); }}
+                    className="shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-colors"
+                    style={{ background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.4)', border: '1px solid rgba(255,255,255,0.06)' }}
                   >
-                    {showPin ? <EyeOff className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> : <Eye className="w-3 h-3 sm:w-3.5 sm:h-3.5" />}
-                    {showPin ? 'Masquer' : 'Afficher'}
+                    <Delete className="w-4 h-4" />
                   </button>
-                </div>
-
-                <div className="flex gap-1.5 sm:gap-2 justify-center w-full max-w-[320px] mx-auto">
-                  {digits.map((digit, i) => (
-                    <input
-                      key={i}
-                      ref={el => { pinRefs.current[i] = el; }}
-                      type={showPin ? 'text' : 'password'}
-                      inputMode="numeric"
-                      maxLength={1}
-                      value={digit}
-                      onChange={e => handlePinInput(i, e.target.value)}
-                      onKeyDown={e => handlePinKeyDown(i, e)}
-                      onFocus={() => handlePinFocus(i)}
-                      className="flex-1 min-w-0 max-w-[48px] sm:max-w-[56px] aspect-[4/5] rounded-lg sm:rounded-xl text-center text-lg sm:text-xl font-bold transition-all caret-transparent text-white"
-                      style={{
-                        background: digit
-                          ? 'rgba(14,165,233,0.15)'
-                          : 'rgba(255,255,255,0.04)',
-                        border: digit
-                          ? '1px solid rgba(14,165,233,0.5)'
-                          : '1px solid rgba(255,255,255,0.09)',
-                        outline: 'none',
-                      }}
-                      onFocusCapture={e => (e.currentTarget.style.borderColor = 'rgba(14,165,233,0.7)')}
-                      onBlurCapture={e => (e.currentTarget.style.borderColor = digit
-                        ? 'rgba(14,165,233,0.5)'
-                        : 'rgba(255,255,255,0.09)'
-                      )}
-                    />
-                  ))}
-                </div>
+                )}
               </div>
 
-              {/* Error message */}
-              {error && (
-                <p className="text-sm text-center text-red-400">{error}</p>
-              )}
-
-              {/* Login button */}
-              <button
-                onClick={handleValidate}
-                disabled={!email || pin.length !== 6 || loading}
-                className="w-full py-3.5 sm:py-4 text-white text-sm sm:text-base font-bold rounded-xl transition-all shadow-lg disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                style={{
-                  background: (!email || pin.length !== 6 || loading)
-                    ? 'rgba(255,255,255,0.08)'
-                    : 'linear-gradient(135deg, #0ea5e9, #10b981)',
-                  boxShadow: (!email || pin.length !== 6 || loading)
-                    ? 'none'
-                    : '0 8px 32px rgba(14,165,233,0.3), inset 0 1px 0 rgba(255,255,255,0.15)',
-                }}
-              >
-                <LogIn className="w-4.5 h-4.5" />
-                {loading ? 'Connexion...' : 'Se connecter'}
-              </button>
-
-              {/* Register link */}
-              <button
-                onClick={() => setShowRegister(true)}
-                className="w-full text-sm font-medium transition-colors flex items-center justify-center gap-2 text-slate-400 hover:text-slate-300"
-              >
-                <UserPlus className="w-4 h-4" />
-                <span>S'inscrire</span>
-              </button>
+              {/* Quick actions */}
+              <div className="flex items-center gap-1.5 mt-2">
+                <QuickBtn icon={<ChevronDown className="w-3 h-3" />} label="Rapides" onClick={() => { refreshQuick(); setShowQuickPicker(true); }} />
+                <QuickBtn icon={<Star className="w-3 h-3" />} label="Enregistrer" onClick={handleSaveQuick} disabled={!email.trim()} />
+                <QuickBtn icon={<Settings className="w-3 h-3" />} label="Gerer" onClick={() => { refreshQuick(); setShowManage(true); }} />
+                {toast && <span className="text-[10px] font-medium text-cyan-400 animate-pulse ml-1">{toast}</span>}
+              </div>
             </div>
+
+            {/* PIN */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-1.5">
+                  <Lock className="w-3.5 h-3.5 text-slate-500" />
+                  <label className="text-[11px] sm:text-xs font-semibold text-slate-300 tracking-wide">Mot de passe (6 chiffres)</label>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowPin(v => !v)}
+                  className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] sm:text-[11px] font-semibold transition-all"
+                  style={{ background: 'rgba(255,255,255,0.04)', color: 'rgba(255,255,255,0.45)', border: '1px solid rgba(255,255,255,0.06)' }}
+                >
+                  {showPin ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                  {showPin ? 'Masquer' : 'Afficher'}
+                </button>
+              </div>
+
+              <div className="flex gap-2 sm:gap-2.5 justify-center w-full max-w-[340px] mx-auto">
+                {digits.map((digit, i) => (
+                  <input
+                    key={i}
+                    ref={el => { pinRefs.current[i] = el; }}
+                    type={showPin ? 'text' : 'password'}
+                    inputMode="numeric"
+                    maxLength={1}
+                    value={digit}
+                    onChange={e => handlePinInput(i, e.target.value)}
+                    onKeyDown={e => handlePinKeyDown(i, e)}
+                    onFocus={() => handlePinFocus(i)}
+                    className="flex-1 min-w-0 max-w-[52px] aspect-square rounded-xl text-center text-xl font-bold transition-all caret-transparent text-white"
+                    style={{
+                      background: digit ? 'rgba(14,165,233,0.12)' : 'rgba(255,255,255,0.03)',
+                      border: digit ? '1.5px solid rgba(14,165,233,0.45)' : '1.5px solid rgba(255,255,255,0.07)',
+                      boxShadow: digit ? '0 0 12px rgba(14,165,233,0.08), inset 0 1px 4px rgba(0,0,0,0.1)' : 'inset 0 1px 4px rgba(0,0,0,0.1)',
+                      outline: 'none',
+                    }}
+                    onFocusCapture={e => { e.currentTarget.style.borderColor = 'rgba(14,165,233,0.6)'; e.currentTarget.style.boxShadow = '0 0 16px rgba(14,165,233,0.12), inset 0 1px 4px rgba(0,0,0,0.1)'; }}
+                    onBlurCapture={e => {
+                      e.currentTarget.style.borderColor = digit ? 'rgba(14,165,233,0.45)' : 'rgba(255,255,255,0.07)';
+                      e.currentTarget.style.boxShadow = digit ? '0 0 12px rgba(14,165,233,0.08), inset 0 1px 4px rgba(0,0,0,0.1)' : 'inset 0 1px 4px rgba(0,0,0,0.1)';
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Error */}
+            {error && <p className="text-[13px] text-center text-red-400 -mt-1">{error}</p>}
+
+            {/* Login button */}
+            <button
+              onClick={handleValidate}
+              disabled={!canSubmit}
+              className="w-full py-3.5 text-white text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-2 disabled:cursor-not-allowed"
+              style={{
+                background: canSubmit
+                  ? 'linear-gradient(135deg, #0ea5e9 0%, #10b981 100%)'
+                  : 'rgba(255,255,255,0.06)',
+                boxShadow: canSubmit
+                  ? '0 8px 32px rgba(14,165,233,0.25), 0 2px 6px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.12)'
+                  : 'none',
+                opacity: canSubmit ? 1 : 0.5,
+              }}
+            >
+              <LogIn className="w-4 h-4" />
+              {loading ? 'Connexion...' : 'Se connecter'}
+            </button>
+
+            {/* Register */}
+            <button
+              onClick={() => setShowRegister(true)}
+              className="w-full text-[13px] font-medium transition-colors flex items-center justify-center gap-2 text-slate-400 hover:text-slate-300"
+            >
+              <UserPlus className="w-3.5 h-3.5" />
+              S'inscrire
+            </button>
           </div>
 
           {/* Footer */}
-          <div className="mt-auto pt-6 text-center">
-            <p className="text-xs text-slate-600">&copy; 2026 Talvex</p>
+          <div className="mt-auto pt-4 text-center">
+            <p className="text-[11px] text-slate-600">&copy; 2026 {displayName}</p>
           </div>
         </div>
       </div>
+
+      {/* Quick picker overlay */}
+      {showQuickPicker && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)' }} onClick={e => { if (e.target === e.currentTarget) setShowQuickPicker(false); }}>
+          <div className="w-[90%] max-w-xs rounded-2xl overflow-hidden shadow-2xl" style={{ background: '#121825', border: '1px solid rgba(255,255,255,0.08)' }}>
+            <div className="flex items-center justify-between px-5 py-3.5" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+              <p className="text-sm font-semibold text-white/90">Emails rapides</p>
+              <button onClick={() => setShowQuickPicker(false)} className="w-7 h-7 rounded-lg flex items-center justify-center text-white/30 hover:text-white/60 hover:bg-white/[0.06] transition-all">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+            <div className="max-h-64 overflow-y-auto">
+              {quickEmails.length === 0 ? (
+                <div className="px-5 py-6 text-center">
+                  <p className="text-xs text-white/35">Aucun email rapide enregistre.</p>
+                  <p className="text-[11px] text-white/20 mt-1">Cliquez sur Enregistrer pour ajouter l'email actuel.</p>
+                </div>
+              ) : quickEmails.map(qe => (
+                <button key={qe} onClick={() => { setEmail(qe); setShowQuickPicker(false); }} className="w-full text-left px-5 py-3 text-sm text-white/70 transition-colors hover:bg-white/[0.04] border-b border-white/[0.04] last:border-0">
+                  {qe}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Manage overlay */}
+      {showManage && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)' }} onClick={e => { if (e.target === e.currentTarget) setShowManage(false); }}>
+          <div className="w-[90%] max-w-sm rounded-2xl overflow-hidden shadow-2xl" style={{ background: '#121825', border: '1px solid rgba(255,255,255,0.08)' }}>
+            <div className="flex items-center justify-between px-5 py-3.5" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+              <p className="text-sm font-semibold text-white/90">Gerer les emails rapides</p>
+              <button onClick={() => setShowManage(false)} className="w-7 h-7 rounded-lg flex items-center justify-center text-white/30 hover:text-white/60 hover:bg-white/[0.06] transition-all">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+            <div className="px-5 pt-4 flex gap-2">
+              <input
+                type="email"
+                value={manageInput}
+                onChange={e => setManageInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleManageAdd(); } }}
+                placeholder="Ajouter un email..."
+                className="flex-1 min-w-0 px-3 py-2 rounded-lg text-sm text-white/90 placeholder-white/25 outline-none transition-all"
+                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
+              />
+              <button onClick={handleManageAdd} className="shrink-0 w-9 h-9 rounded-lg flex items-center justify-center text-white" style={{ background: 'linear-gradient(135deg, #0ea5e9, #10b981)' }}>
+                <Plus className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="px-5 py-3 max-h-56 overflow-y-auto space-y-1">
+              {quickEmails.length === 0 ? (
+                <p className="text-xs py-3 text-center text-white/25">Aucun email rapide enregistre.</p>
+              ) : quickEmails.map(qe => (
+                <div key={qe} className="flex items-center gap-2 px-3 py-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.03)' }}>
+                  <span className="text-sm text-white/60 truncate flex-1">{qe}</span>
+                  <button onClick={() => handleRemoveQuick(qe)} className="shrink-0 w-7 h-7 rounded-md flex items-center justify-center text-red-400/60 hover:text-red-400 transition-colors">
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div className="px-5 pb-4 pt-2" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+              <button onClick={() => { saveQuickEmails([]); setQuickEmailsState([]); showToastMsg('Emails vides'); }} disabled={quickEmails.length === 0} className="w-full py-2 rounded-lg text-xs font-semibold transition-colors disabled:opacity-30" style={{ background: 'rgba(239,68,68,0.10)', color: '#f87171', border: '1px solid rgba(239,68,68,0.15)' }}>
+                Vider tous les emails rapides
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
+  );
+}
+
+function QuickBtn({ icon, label, onClick, disabled }: { icon: React.ReactNode; label: string; onClick: () => void; disabled?: boolean }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] sm:text-[11px] font-semibold transition-all disabled:opacity-30"
+      style={{ background: 'rgba(255,255,255,0.04)', color: 'rgba(255,255,255,0.40)', border: '1px solid rgba(255,255,255,0.06)' }}
+    >
+      {icon}
+      {label}
+    </button>
   );
 }

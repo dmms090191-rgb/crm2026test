@@ -92,6 +92,7 @@ export default function CompanySitePage({ slug, domainCompanyId, onLogin: onLogi
         onDomainLogin={handleLogin}
         sectionOverrides={sectionOverrides}
         sectionOrder={sectionOrder}
+        appIconUrl={page.app_icon_url || page.logo_url || null}
       />
     );
   }
@@ -180,7 +181,7 @@ export default function CompanySitePage({ slug, domainCompanyId, onLogin: onLogi
         &copy; {new Date().getFullYear()} {page.title || 'Bienvenue'}. Tous droits r&eacute;serv&eacute;s.
       </footer>
 
-      <LoginModal isOpen={loginOpen} onClose={() => setLoginOpen(false)} onLogin={handleLogin} domainCompanyId={effectiveCompanyId} />
+      <LoginModal isOpen={loginOpen} onClose={() => setLoginOpen(false)} onLogin={handleLogin} domainCompanyId={effectiveCompanyId} appIconUrl={page.app_icon_url || page.logo_url || null} />
     </div>
   );
 }

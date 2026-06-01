@@ -9,6 +9,9 @@ import { importDocumentationCrm } from './dashboard/adminLazyViews';
 import { supabase } from '../../lib/supabase';
 import { consumeConnectReturnContext } from '../../lib/connectReturnContext';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
+import { useCompanyId } from '../../hooks/useCompanyId';
+import { useActiveLogo } from '../../hooks/useActiveLogo';
+import { useAppIcon } from '../../hooks/useAppIcon';
 import { useUnreadClientMessages } from '../../hooks/useUnreadClientMessages';
 import { useUnreadVendorMessages } from '../../hooks/useUnreadVendorMessages';
 import { useUnreadFromSuperAdmin } from '../../hooks/useUnreadFromSuperAdmin';
@@ -63,10 +66,15 @@ export type ActiveView =
   | 'system'
   | 'sauvegarde'
   | 'cerveau-ia'
+  | 'application'
   | 'tuto';
 
 export default function AdminDashboard({ onLogout, onConnectAsVendor, onConnectAsClient, impersonatedAdmin, onBackToSuperAdmin, isSAViewing }: AdminDashboardProps) {
   const t = useThemeTokens();
+  const companyId = useCompanyId();
+  const { url: activeLogoUrl } = useActiveLogo(companyId);
+  const { appIconUrl: configIconUrl, appName: configAppName } = useAppIcon(companyId, 'company');
+  const [companyName, setCompanyName] = useState('');
   const demoCtx = useDemoSessionSafe();
   const demoStatus: 'idle' | 'pending' | 'active' = demoCtx?.session?.status === 'active' ? 'active' : demoCtx?.session?.status === 'pending' ? 'pending' : 'idle';
   const { unreadCount: unreadClientCount, unreadEntries, markAsRead: markClientRead } = useUnreadClientMessages();
@@ -143,6 +151,12 @@ export default function AdminDashboard({ onLogout, onConnectAsVendor, onConnectA
       }
     });
   }, []);
+
+  useEffect(() => {
+    if (!companyId) return;
+    supabase.from('companies').select('name').eq('id', companyId).maybeSingle()
+      .then(({ data }) => { if (data?.name) setCompanyName(data.name); });
+  }, [companyId]);
 
   useEffect(() => {
     const id = requestIdleCallback(() => { importDocumentationCrm(); });
@@ -223,6 +237,8 @@ export default function AdminDashboard({ onLogout, onConnectAsVendor, onConnectA
               tokens={t}
             />
           ) : undefined}
+          appIconUrl={configIconUrl ?? activeLogoUrl}
+          appName={configAppName || companyName || undefined}
         />
         <SimulationBanner />
         {!isSAViewing && <DemoReceiverLayer userId={adminAuthId} onViewChange={(v) => setActiveView(v as ActiveView)} />}

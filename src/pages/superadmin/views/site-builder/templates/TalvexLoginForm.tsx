@@ -24,13 +24,14 @@ interface Props {
   onRegister: () => void;
   progress: number;
   theme: SiteModalTheme;
+  appIconUrl?: string | null;
 }
 
 export default function TalvexLoginForm({
   email, setEmail, emailInputRef, digits, showPin, setShowPin,
   focusedPin, pinRefs, handlePinInput, handlePinKeyDown, wrappedPinFocus,
   error, loading, canSubmit, submitHover, setSubmitHover,
-  onValidate, onRegister, progress, theme: t,
+  onValidate, onRegister, progress, theme: t, appIconUrl,
 }: Props) {
   const LoginIcon = t.loginIcon;
 
@@ -40,10 +41,21 @@ export default function TalvexLoginForm({
       <div className="relative px-6 sm:px-8 pt-6 sm:pt-8 pb-4">
         <div className="flex flex-col items-center">
           <div className="relative mb-4">
-            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center relative z-10" style={{ background: t.gradient, boxShadow: `0 0 40px rgba(${t.primaryRgb},0.25), 0 8px 24px rgba(${t.primaryRgb},0.2)`, animation: 'iconPulse 3s ease-in-out infinite' }}>
-              <LoginIcon className="w-7 h-7 sm:w-8 sm:h-8 text-white" strokeWidth={2.5} />
-            </div>
-            <div className="absolute inset-0 rounded-2xl animate-ping opacity-20" style={{ background: t.gradient }} />
+            {appIconUrl ? (
+              <img
+                src={appIconUrl}
+                alt=""
+                className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl object-cover relative z-10"
+                style={{ boxShadow: `0 0 40px rgba(${t.primaryRgb},0.25), 0 8px 24px rgba(${t.primaryRgb},0.2)` }}
+              />
+            ) : (
+              <>
+                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center relative z-10" style={{ background: t.gradient, boxShadow: `0 0 40px rgba(${t.primaryRgb},0.25), 0 8px 24px rgba(${t.primaryRgb},0.2)`, animation: 'iconPulse 3s ease-in-out infinite' }}>
+                  <LoginIcon className="w-7 h-7 sm:w-8 sm:h-8 text-white" strokeWidth={2.5} />
+                </div>
+                <div className="absolute inset-0 rounded-2xl animate-ping opacity-20" style={{ background: t.gradient }} />
+              </>
+            )}
           </div>
           <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
             <span className="bg-clip-text text-transparent" style={{ backgroundImage: t.textGradient }}>Connexion</span>

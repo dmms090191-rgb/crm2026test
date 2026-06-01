@@ -5,11 +5,14 @@ import type usePwaInstall from '../../../../hooks/usePwaInstall';
 
 interface Props {
   pwa: ReturnType<typeof usePwaInstall>;
+  appName?: string;
 }
 
-export default function PwaInstallButton({ pwa }: Props) {
+export default function PwaInstallButton({ pwa, appName }: Props) {
   const t = useThemeTokens();
   const [showHelp, setShowHelp] = useState(false);
+  const displayName = appName ?? 'Talvex';
+  const installLabel = `Installer ${displayName}`;
 
   if (pwa.state === 'installed') {
     return (
@@ -42,7 +45,7 @@ export default function PwaInstallButton({ pwa }: Props) {
         }}
       >
         <Download className="w-5 h-5" />
-        {pwa.installing ? 'Installation...' : 'Installer Talvex'}
+        {pwa.installing ? 'Installation...' : installLabel}
       </button>
     );
   }
@@ -60,7 +63,7 @@ export default function PwaInstallButton({ pwa }: Props) {
           }}
         >
           <Download className="w-5 h-5" />
-          Installer Talvex
+          {installLabel}
         </button>
         {showHelp && (
           <ManualInstallHelp t={t} variant={pwa.state === 'ios-manual' ? 'ios' : 'android'} />
@@ -81,7 +84,7 @@ export default function PwaInstallButton({ pwa }: Props) {
         }}
       >
         <Download className="w-5 h-5 opacity-40" />
-        Installer Talvex
+        {installLabel}
       </div>
       <p className="text-[11px] font-medium" style={{ color: t.text.quaternary }}>
         Ouvrez cette page sur un smartphone pour installer l'application

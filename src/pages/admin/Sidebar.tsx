@@ -2,11 +2,12 @@ import { useState, useEffect, useMemo } from 'react';
 import {
   LayoutDashboard, Info, UserPlus, Upload, Users, Database, UserCheck, List,
   MessageCircle, MessageSquare, Shield, Calendar, CalendarRange, CalendarCheck,
-  Settings, Hexagon, Globe, Brain, Image as ImageIcon, GraduationCap,
+  Settings, Hexagon, Globe, Brain, Image as ImageIcon, GraduationCap, Smartphone,
 } from 'lucide-react';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
 import { useSidebarOrder } from '../../hooks/useSidebarOrder';
 import { useActiveLogo } from '../../hooks/useActiveLogo';
+import { useCompanyId } from '../../hooks/useCompanyId';
 import SidebarReorderControls from '../../components/SidebarReorderControls';
 import SidebarFooterActions from '../../components/layout/SidebarFooterActions';
 import type { SidebarSection } from '../../lib/sidebarOrderTypes';
@@ -26,6 +27,7 @@ const DEFAULT_SECTIONS: SidebarSection[] = [
     { id: 'vue-ensemble', label: "Vue d'ensemble", icon: <LayoutDashboard className="w-4 h-4" /> },
     { id: 'site', label: 'Site', icon: <Globe className="w-4 h-4" /> },
     { id: 'logo', label: 'Logo', icon: <ImageIcon className="w-4 h-4" /> },
+    { id: 'application', label: 'Application', icon: <Smartphone className="w-4 h-4" /> },
     { id: 'info-admin', label: 'Info admin', icon: <Info className="w-4 h-4" /> },
   ] },
   { title: 'Gestion des leads', items: [
@@ -57,14 +59,12 @@ const DEFAULT_SECTIONS: SidebarSection[] = [
 
 export default function Sidebar({ activeView, onNavigate, collapsed, onCollapse, onLogout }: SidebarProps) {
   const t = useThemeTokens();
+  const companyId = useCompanyId();
   const [userId, setUserId] = useState<string | null>(null);
-  const [companyId, setCompanyId] = useState<string | null>(null);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) return;
-      setUserId(user.id);
-      setCompanyId(user.app_metadata?.company_id ?? null);
+      if (user) setUserId(user.id);
     });
   }, []);
 

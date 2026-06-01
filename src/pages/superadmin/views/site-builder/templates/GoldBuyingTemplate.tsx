@@ -30,7 +30,7 @@ function isVisible(overrides: TemplateProps['sectionOverrides'], section: string
 
 const DEFAULT_ORDER = ['nav', 'hero', 'services', 'process', 'offers', 'events', 'guarantees', 'contact', 'footer'];
 
-export default function GoldBuyingTemplate({ domainCompanyId, onDomainLogin, sectionOverrides, sectionOrder }: TemplateProps = {}) {
+export default function GoldBuyingTemplate({ domainCompanyId, onDomainLogin, sectionOverrides, sectionOrder, appIconUrl }: TemplateProps = {}) {
   const [loginOpen, setLoginOpen] = useState(false);
   const [registerOpen, setRegisterOpen] = useState(false);
 
@@ -104,7 +104,7 @@ export default function GoldBuyingTemplate({ domainCompanyId, onDomainLogin, sec
       <TalvexLoginModal
         isOpen={loginOpen} onClose={() => setLoginOpen(false)} onLogin={handleLogin}
         onRegister={() => { setLoginOpen(false); setRegisterOpen(true); }}
-        theme={GOLD_MODAL_THEME} domainCompanyId={domainCompanyId}
+        theme={GOLD_MODAL_THEME} domainCompanyId={domainCompanyId} appIconUrl={appIconUrl}
       />
       <TalvexRegisterModal
         isOpen={registerOpen} onClose={() => setRegisterOpen(false)}

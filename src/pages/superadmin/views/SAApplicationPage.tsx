@@ -1,8 +1,7 @@
-import { useState, useEffect } from 'react';
 import { Smartphone } from 'lucide-react';
 import { useThemeTokens } from '../../../hooks/useThemeTokens';
-import { supabase } from '../../../lib/supabase';
 import usePwaInstall from '../../../hooks/usePwaInstall';
+import { useAppIcon } from '../../../hooks/useAppIcon';
 import SimulatedPhone from '../../../components/SimulatedPhone';
 import AppFeaturesList from './application/AppFeaturesList';
 import PwaInstallButton from './application/PwaInstallButton';
@@ -13,22 +12,8 @@ interface Props {
 
 export default function SAApplicationPage({ onChangeAppIcon }: Props) {
   const t = useThemeTokens();
-  const [appIconUrl, setAppIconUrl] = useState<string | null>(null);
+  const { appIconUrl } = useAppIcon(null, 'super_admin');
   const pwa = usePwaInstall();
-
-  useEffect(() => {
-    (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const companyId = user.app_metadata?.company_id;
-      if (!companyId) return;
-      const { data } = await supabase.from('company_home_pages')
-        .select('app_icon_url')
-        .eq('company_id', companyId)
-        .maybeSingle();
-      if (data?.app_icon_url) setAppIconUrl(data.app_icon_url);
-    })();
-  }, []);
 
   return (
     <div className="p-4 sm:p-6 md:p-8 max-w-6xl mx-auto">
@@ -71,13 +56,13 @@ export default function SAApplicationPage({ onChangeAppIcon }: Props) {
               Apercu responsive reel
             </span>
           </div>
-          <SimulatedPhone appIconUrl={appIconUrl} />
+          <SimulatedPhone appIconUrl={appIconUrl} appName="Talvex" />
         </div>
       </div>
 
       {/* Install button */}
       <div className="flex justify-center mt-8 sm:mt-10">
-        <PwaInstallButton pwa={pwa} />
+        <PwaInstallButton pwa={pwa} appName="Talvex" />
       </div>
     </div>
   );

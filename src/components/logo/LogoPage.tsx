@@ -12,7 +12,7 @@ interface Props {
   onAppIconSelected?: () => void;
 }
 
-export default function LogoPage({ companyId, title = 'Logo', subtitle = 'Gerez les logos de la plateforme', appIconSelectionMode, onAppIconSelected }: Props) {
+export default function LogoPage({ companyId, title = 'Logo', subtitle = 'Gerez les logos de la plateforme', isSA, appIconSelectionMode, onAppIconSelected }: Props) {
   const t = useThemeTokens();
 
   return (
@@ -59,7 +59,7 @@ export default function LogoPage({ companyId, title = 'Logo', subtitle = 'Gerez 
 
       {/* Content */}
       <div className="flex-1 flex flex-col min-h-0">
-        <LogoAiTab companyId={companyId} appIconSelectionMode={appIconSelectionMode} onAppIconSelected={onAppIconSelected} />
+        <LogoAiTab companyId={companyId} isSA={isSA} appIconSelectionMode={appIconSelectionMode} onAppIconSelected={onAppIconSelected} />
       </div>
     </div>
   );

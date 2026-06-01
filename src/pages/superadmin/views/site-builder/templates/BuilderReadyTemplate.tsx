@@ -24,7 +24,7 @@ function isVisible(overrides: TemplateProps['sectionOverrides'], section: string
 
 const DEFAULT_ORDER = ['hero', 'services', 'contact'];
 
-export default function BuilderReadyTemplate({ domainCompanyId, onDomainLogin, sectionOverrides, sectionOrder }: TemplateProps = {}) {
+export default function BuilderReadyTemplate({ domainCompanyId, onDomainLogin, sectionOverrides, sectionOrder, appIconUrl }: TemplateProps = {}) {
   const [loginOpen, setLoginOpen] = useState(false);
   const [registerOpen, setRegisterOpen] = useState(false);
 
@@ -83,7 +83,7 @@ export default function BuilderReadyTemplate({ domainCompanyId, onDomainLogin, s
       <TalvexLoginModal
         isOpen={loginOpen} onClose={() => setLoginOpen(false)} onLogin={handleLogin}
         onRegister={() => { setLoginOpen(false); setRegisterOpen(true); }}
-        theme={MODAL_THEME} domainCompanyId={domainCompanyId}
+        theme={MODAL_THEME} domainCompanyId={domainCompanyId} appIconUrl={appIconUrl}
       />
       <TalvexRegisterModal
         isOpen={registerOpen} onClose={() => setRegisterOpen(false)}

@@ -1,17 +1,38 @@
 {
-  "generatedAt": "2026-06-01T00:18:30.014Z",
+  "generatedAt": "2026-06-01T04:16:55.403Z",
   "anyCount": 0,
   "anyOccurrences": [],
   "unusedImportCount": 0,
   "unusedImports": [],
-  "largeFileCount": 0,
-  "largeFiles": [],
+  "largeFileCount": 4,
+  "largeFiles": [
+    {
+      "file": "src/pages/admin/TopBar.tsx",
+      "lines": 337,
+      "overflow": 37
+    },
+    {
+      "file": "src/components/SimulatedPhoneLoginScreen.tsx",
+      "lines": 388,
+      "overflow": 88
+    },
+    {
+      "file": "src/components/PwaLoginPage.tsx",
+      "lines": 418,
+      "overflow": 118
+    },
+    {
+      "file": "src/pages/superadmin/views/themes/SAThemes.tsx",
+      "lines": 683,
+      "overflow": 383
+    }
+  ],
   "tscErrorCount": 0,
   "tscErrors": [],
   "eslintErrorCount": 0,
   "eslintWarningCount": 0,
   "eslintIssues": [],
-  "totalFilesAnalyzed": 690,
-  "totalLinesAnalyzed": 92930,
-  "totalOverflowLines": 0
+  "totalFilesAnalyzed": 702,
+  "totalLinesAnalyzed": 95487,
+  "totalOverflowLines": 626
 }

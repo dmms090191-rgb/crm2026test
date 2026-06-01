@@ -19,6 +19,7 @@ export interface TemplateProps {
   onDomainLogin?: () => void;
   sectionOverrides?: Record<string, SectionOverride>;
   sectionOrder?: string[];
+  appIconUrl?: string | null;
 }
 
 const TEMPLATE_REGISTRY: Record<string, ComponentType<TemplateProps>> = {

@@ -1,4 +1,4 @@
-import { Check, Sparkles, Star, Flame, Zap } from 'lucide-react';
+import { Check, Sparkles, Star, Flame, Zap, Award, Crown } from 'lucide-react';
 import type { ThemeEntry } from './themeData';
 
 const TAG_ICONS: Record<string, typeof Star> = { nouveau: Zap, populaire: Flame, luxury: Star, neon: Sparkles };
@@ -7,13 +7,18 @@ const TAG_COLORS: Record<string, string> = {
   neon: '#ec4899', pro: '#3b82f6', minimal: '#6b7280',
 };
 
-export function ThemeCard({ entry, active, onSelect }: {
+export function ThemeCard({ entry, active, onSelect, isRecommended, isFavorite, isPremium }: {
   entry: ThemeEntry; active: boolean; onSelect: () => void;
+  isRecommended?: boolean; isFavorite?: boolean; isPremium?: boolean;
 }) {
   const accent = entry.colors[2];
   const firstTag = entry.tags[0];
   const TagIcon = firstTag ? TAG_ICONS[firstTag] : null;
   const tagColor = firstTag ? TAG_COLORS[firstTag] || '#6b7280' : '';
+
+  const badgeLabel = isRecommended ? 'Recommande' : isPremium ? 'Premium' : null;
+  const badgeColor = isRecommended ? '#3b82f6' : isPremium ? '#a78bfa' : '';
+  const BadgeIcon = isRecommended ? Award : isPremium ? Crown : null;
 
   return (
     <button
@@ -30,10 +35,20 @@ export function ThemeCard({ entry, active, onSelect }: {
           <Check className="w-3.5 h-3.5 text-white" strokeWidth={3} />
         </div>
       )}
-      {firstTag && (
+      {badgeLabel && BadgeIcon ? (
+        <div className="absolute top-3 left-3 z-10 flex items-center gap-1 px-2 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wider" style={{ background: `${badgeColor}18`, border: `1px solid ${badgeColor}30`, color: badgeColor }}>
+          <BadgeIcon className="w-2.5 h-2.5" />
+          {badgeLabel}
+        </div>
+      ) : firstTag ? (
         <div className="absolute top-3 left-3 z-10 flex items-center gap-1 px-2 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wider" style={{ background: `${tagColor}18`, border: `1px solid ${tagColor}30`, color: tagColor }}>
           {TagIcon && <TagIcon className="w-2.5 h-2.5" />}
           {firstTag}
+        </div>
+      ) : null}
+      {isFavorite && !active && (
+        <div className="absolute top-3 right-3 z-10">
+          <Star className="w-4 h-4" fill="#f59e0b" style={{ color: '#f59e0b' }} />
         </div>
       )}
       <div className="p-3 pb-0 sm:p-4 sm:pb-0">
