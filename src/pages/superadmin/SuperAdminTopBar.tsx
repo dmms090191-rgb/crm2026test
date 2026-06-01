@@ -1,12 +1,12 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { createPortal } from 'react-dom';
-import { ChevronRight, Menu, Clock, MessageSquare, Smartphone, X } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { ChevronRight, Menu, Clock, MessageSquare, Smartphone } from 'lucide-react';
 import { useTimezone } from '../../hooks/useTimezone';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
 import { getCurrentTime } from '../../lib/timezone';
 import TimezoneModal from '../../components/TimezoneSearchDropdown';
 import SAProfileMenu from './topbar/SAProfileMenu';
-import SimulatedPhone from '../../components/SimulatedPhone';
+import FloatingPhoneWindow from '../../components/FloatingPhoneWindow';
+import { useFloatingPhoneState } from '../../components/useFloatingPhoneState';
 
 import type { AdminNotifEntry } from '../../hooks/useUnreadSuperAdminMessages';
 
@@ -47,9 +47,10 @@ export default function SuperAdminTopBar({ activeView, onMobileMenuToggle, unrea
   const t = useThemeTokens();
   const [tzModalOpen, setTzModalOpen] = useState(false);
   const [msgDropdownOpen, setMsgDropdownOpen] = useState(false);
-  const [phonePreviewOpen, setPhonePreviewOpen] = useState(false);
   const msgDropdownRef = useRef<HTMLDivElement>(null);
   const [, setTick] = useState(0);
+
+  const phone = useFloatingPhoneState();
 
   useEffect(() => {
     const id = setInterval(() => setTick(v => v + 1), 60_000);
@@ -96,6 +97,7 @@ export default function SuperAdminTopBar({ activeView, onMobileMenuToggle, unrea
         </div>
 
         <div className="flex items-center gap-1 sm:gap-2 min-w-0">
+          {/* Admin messages */}
           <div className="relative flex-shrink-0" ref={msgDropdownRef}>
             <button
               onClick={() => setMsgDropdownOpen(prev => !prev)}
@@ -114,59 +116,35 @@ export default function SuperAdminTopBar({ activeView, onMobileMenuToggle, unrea
               )}
             </button>
             {msgDropdownOpen && (
-              <div
-                className="fixed right-3 left-3 sm:left-auto sm:absolute sm:right-0 sm:w-72 top-14 sm:top-full sm:mt-2 rounded-xl overflow-hidden z-50"
-                style={{ background: t.dropdown.bg, border: `1px solid ${t.dropdown.border}`, boxShadow: t.dropdown.shadow, backdropFilter: 'blur(16px)' }}
-              >
-                <div className="px-3 py-2" style={{ borderBottom: `1px solid ${t.dropdown.border}` }}>
-                  <p className="text-xs font-semibold" style={{ color: t.dropdown.itemText }}>Messages Admin</p>
-                </div>
-                <div className="max-h-64 overflow-y-auto py-1">
-                  {unreadAdminMsgEntries.length === 0 ? (
-                    <p className="px-3 py-3 text-xs text-center" style={{ color: t.dropdown.itemText }}>Aucun message non lu</p>
-                  ) : (
-                    unreadAdminMsgEntries.map(entry => (
-                      <button
-                        key={entry.adminId}
-                        onClick={() => { onAdminMsgEntryClick?.(entry); setMsgDropdownOpen(false); }}
-                        className="w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors duration-150 hover:opacity-80"
-                        style={{ background: 'transparent' }}
-                        onMouseEnter={e => { e.currentTarget.style.background = t.dropdown.itemBgHover; }}
-                        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
-                      >
-                        <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0" style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}>
-                          {(entry.firstName || entry.email || '?').charAt(0).toUpperCase()}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-medium whitespace-normal break-words" style={{ color: t.dropdown.itemText }}>
-                            {(() => {
-                              const name = [entry.firstName, entry.lastName].filter(Boolean).join(' ');
-                              return name ? `L'admin ${name} vous a envoyé un message.` : 'Un admin vous a envoyé un message.';
-                            })()}
-                          </p>
-                          <p className="text-[10px] mt-0.5 truncate" style={{ color: t.dropdown.itemTextHover }}>{entry.count} message{entry.count > 1 ? 's' : ''} non lu{entry.count > 1 ? 's' : ''}</p>
-                        </div>
-                      </button>
-                    ))
-                  )}
-                </div>
-              </div>
+              <AdminMsgDropdown
+                entries={unreadAdminMsgEntries}
+                onEntryClick={(entry) => { onAdminMsgEntryClick?.(entry); setMsgDropdownOpen(false); }}
+                t={t}
+              />
             )}
           </div>
+
+          {/* Phone button */}
           <button
-            onClick={() => setPhonePreviewOpen(true)}
+            onClick={phone.open ? phone.toggleMinimize : phone.openPhone}
             className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-xl transition-all duration-200 flex-shrink-0"
             style={{
-              background: 'rgba(14,165,233,0.06)',
-              border: '1px solid rgba(14,165,233,0.15)',
+              background: phone.open ? 'rgba(14,165,233,0.15)' : 'rgba(14,165,233,0.06)',
+              border: `1px solid ${phone.open ? 'rgba(14,165,233,0.3)' : 'rgba(14,165,233,0.15)'}`,
             }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(14,165,233,0.12)'; e.currentTarget.style.borderColor = 'rgba(14,165,233,0.25)'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(14,165,233,0.06)'; e.currentTarget.style.borderColor = 'rgba(14,165,233,0.15)'; }}
-            title="Apercu mobile"
+            onMouseEnter={e => { e.currentTarget.style.background = phone.open ? 'rgba(14,165,233,0.2)' : 'rgba(14,165,233,0.12)'; e.currentTarget.style.borderColor = phone.open ? 'rgba(14,165,233,0.4)' : 'rgba(14,165,233,0.25)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = phone.open ? 'rgba(14,165,233,0.15)' : 'rgba(14,165,233,0.06)'; e.currentTarget.style.borderColor = phone.open ? 'rgba(14,165,233,0.3)' : 'rgba(14,165,233,0.15)'; }}
+            title={phone.open ? (phone.minimized ? 'Afficher le telephone' : 'Reduire le telephone') : 'Apercu mobile'}
           >
             <Smartphone className="w-4 h-4 flex-shrink-0" style={{ color: '#0ea5e9' }} />
-            <span className="text-[11px] font-medium hidden sm:inline" style={{ color: '#0ea5e9' }}>Mobile</span>
+            <span className="text-[11px] font-medium hidden sm:inline" style={{ color: '#0ea5e9' }}>
+              {phone.open && phone.minimized ? 'Tel. ouvert' : 'Mobile'}
+            </span>
+            {phone.open && phone.minimized && (
+              <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: '#0ea5e9', boxShadow: '0 0 6px rgba(14,165,233,0.6)' }} />
+            )}
           </button>
+
           <ClockButton
             tzLabel={tzLabel}
             tzCode={tzCode}
@@ -184,50 +162,61 @@ export default function SuperAdminTopBar({ activeView, onMobileMenuToggle, unrea
         onClose={() => setTzModalOpen(false)}
       />
 
-      {phonePreviewOpen && (
-        <MobilePreviewOverlay onClose={() => setPhonePreviewOpen(false)} />
+      {phone.open && !phone.minimized && (
+        <FloatingPhoneWindow
+          pos={phone.pos}
+          scale={phone.scale}
+          modelId={phone.modelId}
+          onClose={phone.closePhone}
+          onMinimize={phone.toggleMinimize}
+          onScaleChange={phone.handleScaleChange}
+          onModelChange={phone.handleModelChange}
+          onDragStart={phone.startDrag}
+        />
       )}
     </>
   );
 }
 
-function MobilePreviewOverlay({ onClose }: { onClose: () => void }) {
-  const handleEsc = useCallback((e: KeyboardEvent) => {
-    if (e.key === 'Escape') onClose();
-  }, [onClose]);
-
-  useEffect(() => {
-    document.addEventListener('keydown', handleEsc);
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.removeEventListener('keydown', handleEsc);
-      document.body.style.overflow = '';
-    };
-  }, [handleEsc]);
-
-  return createPortal(
-    <div className="fixed inset-0 z-[99999] flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }}>
-      <div className="absolute inset-0" onClick={onClose} />
-
-      <div className="relative flex flex-col items-center gap-4 z-10">
-        <div className="flex items-center gap-3">
-          <span className="text-[10px] font-medium px-2.5 py-1 rounded-lg" style={{ background: 'rgba(14,165,233,0.1)', border: '1px solid rgba(14,165,233,0.2)', color: '#0ea5e9' }}>
-            Apercu responsive reel
-          </span>
-          <button
-            onClick={onClose}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all hover:scale-105"
-            style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', color: '#fff' }}
-          >
-            <X className="w-3 h-3" />
-            Fermer
-          </button>
-        </div>
-
-        <SimulatedPhone />
+function AdminMsgDropdown({ entries, onEntryClick, t }: { entries: AdminNotifEntry[]; onEntryClick: (e: AdminNotifEntry) => void; t: ReturnType<typeof useThemeTokens> }) {
+  return (
+    <div
+      className="fixed right-3 left-3 sm:left-auto sm:absolute sm:right-0 sm:w-72 top-14 sm:top-full sm:mt-2 rounded-xl overflow-hidden z-50"
+      style={{ background: t.dropdown.bg, border: `1px solid ${t.dropdown.border}`, boxShadow: t.dropdown.shadow, backdropFilter: 'blur(16px)' }}
+    >
+      <div className="px-3 py-2" style={{ borderBottom: `1px solid ${t.dropdown.border}` }}>
+        <p className="text-xs font-semibold" style={{ color: t.dropdown.itemText }}>Messages Admin</p>
       </div>
-    </div>,
-    document.body,
+      <div className="max-h-64 overflow-y-auto py-1">
+        {entries.length === 0 ? (
+          <p className="px-3 py-3 text-xs text-center" style={{ color: t.dropdown.itemText }}>Aucun message non lu</p>
+        ) : (
+          entries.map(entry => (
+            <button
+              key={entry.adminId}
+              onClick={() => onEntryClick(entry)}
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors duration-150 hover:opacity-80"
+              style={{ background: 'transparent' }}
+              onMouseEnter={e => { e.currentTarget.style.background = t.dropdown.itemBgHover; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+            >
+              <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0" style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}>
+                {(entry.firstName || entry.email || '?').charAt(0).toUpperCase()}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium whitespace-normal break-words" style={{ color: t.dropdown.itemText }}>
+                  {(() => {
+                    const name = [entry.firstName, entry.lastName].filter(Boolean).join(' ');
+                    return name ? `L'admin ${name} vous a envoye un message.` : 'Un admin vous a envoye un message.';
+                  })()}
+                </p>
+                <p className="text-[10px] mt-0.5 truncate" style={{ color: t.dropdown.itemTextHover }}>{entry.count} message{entry.count > 1 ? 's' : ''} non lu{entry.count > 1 ? 's' : ''}</p>
+              </div>
+            </button>
+          ))
+        )}
+      </div>
+    </div>
   );
 }
 

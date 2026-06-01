@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { RotateCcw, Wifi, BatteryMedium, Signal } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import SimulatedPhoneHomeScreen from './SimulatedPhoneHomeScreen';
+import SimulatedPhoneLoginScreen from './SimulatedPhoneLoginScreen';
 
 type PhoneModelId = 'iphone-17-pro-max' | 'samsung-s26-ultra';
+type PhoneAppState = 'homeIcon' | 'login' | 'connected';
 
 interface PhoneModel {
   id: PhoneModelId;
@@ -37,100 +39,100 @@ const PHONE_MODELS: PhoneModel[] = [
 
 const SCALE = 0.42;
 
+export type { PhoneModelId };
+
 interface Props {
   showReloadButton?: boolean;
+  appIconUrl?: string | null;
+  hideModelSelector?: boolean;
+  externalModelId?: PhoneModelId;
 }
 
-export default function SimulatedPhone({ showReloadButton = true }: Props) {
+export default function SimulatedPhone({ showReloadButton = true, appIconUrl = null, hideModelSelector, externalModelId }: Props) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [loaded, setLoaded] = useState(false);
   const [iframeKey, setIframeKey] = useState(0);
-  const [modelId, setModelId] = useState<PhoneModelId>('iphone-17-pro-max');
-  const sessionRef = useRef<{ access_token: string; refresh_token: string } | null>(null);
-  const guardActiveRef = useRef(true);
+  const [internalModelId, setInternalModelId] = useState<PhoneModelId>('iphone-17-pro-max');
+  const modelId = externalModelId ?? internalModelId;
+  const [phoneState, setPhoneState] = useState<PhoneAppState>('homeIcon');
 
   const model = PHONE_MODELS.find(m => m.id === modelId)!;
-
   const frameW = model.viewportW * SCALE + 24;
   const frameH = model.viewportH * SCALE + 24;
 
+  const prevExtModelRef = useRef(externalModelId);
   useEffect(() => {
-    guardActiveRef.current = true;
+    if (externalModelId && externalModelId !== prevExtModelRef.current && phoneState === 'connected') {
+      setLoaded(false);
+      setIframeKey(k => k + 1);
+    }
+    prevExtModelRef.current = externalModelId;
+  }, [externalModelId, phoneState]);
 
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) {
-        sessionRef.current = {
-          access_token: data.session.access_token,
-          refresh_token: data.session.refresh_token,
-        };
+  useEffect(() => {
+    const handleMessage = (e: MessageEvent) => {
+      if (e.data?.type === 'talvex-phone-logout') {
+        setPhoneState('login');
+        setLoaded(false);
       }
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (!guardActiveRef.current) return;
-      if (event === 'SIGNED_OUT' && sessionRef.current) {
-        (async () => {
-          await supabase.auth.setSession({
-            access_token: sessionRef.current!.access_token,
-            refresh_token: sessionRef.current!.refresh_token,
-          });
-        })();
-      }
-      if (event === 'TOKEN_REFRESHED') {
-        supabase.auth.getSession().then(({ data }) => {
-          if (data.session) {
-            sessionRef.current = {
-              access_token: data.session.access_token,
-              refresh_token: data.session.refresh_token,
-            };
-          }
-        });
-      }
-    });
-
-    return () => {
-      guardActiveRef.current = false;
-      subscription.unsubscribe();
     };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
   }, []);
 
   const handleReload = useCallback(() => {
+    if (phoneState === 'connected') {
+      setLoaded(false);
+      setIframeKey(k => k + 1);
+    }
+  }, [phoneState]);
+
+  const handleModelChange = useCallback((id: PhoneModelId) => {
+    setInternalModelId(id);
+    if (phoneState === 'connected') {
+      setLoaded(false);
+      setIframeKey(k => k + 1);
+    }
+  }, [phoneState]);
+
+  const handleOpenApp = useCallback(() => setPhoneState('login'), []);
+  const handleBackToHome = useCallback(() => setPhoneState('homeIcon'), []);
+  const handlePhoneLogin = useCallback(() => {
+    setPhoneState('connected');
     setLoaded(false);
     setIframeKey(k => k + 1);
   }, []);
 
-  const handleModelChange = useCallback((id: PhoneModelId) => {
-    setModelId(id);
-    setLoaded(false);
-    setIframeKey(k => k + 1);
-  }, []);
+  const viewportH = model.viewportH - 48;
 
   return (
     <div className="flex flex-col items-center gap-3">
       {/* Model selector */}
-      <div className="flex items-center gap-1.5 p-1 rounded-xl" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
-        {PHONE_MODELS.map(m => {
-          const active = m.id === modelId;
-          return (
-            <button
-              key={m.id}
-              onClick={() => handleModelChange(m.id)}
-              className="px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all duration-200"
-              style={{
-                background: active ? 'rgba(14,165,233,0.15)' : 'transparent',
-                color: active ? '#0ea5e9' : 'rgba(255,255,255,0.4)',
-                border: active ? '1px solid rgba(14,165,233,0.25)' : '1px solid transparent',
-              }}
-            >
-              {m.shortLabel}
-            </button>
-          );
-        })}
-      </div>
+      {!hideModelSelector && (
+        <div className="flex items-center gap-1.5 p-1 rounded-xl" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+          {PHONE_MODELS.map(m => {
+            const active = m.id === modelId;
+            return (
+              <button
+                key={m.id}
+                onClick={() => handleModelChange(m.id)}
+                className="px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all duration-200"
+                style={{
+                  background: active ? 'rgba(14,165,233,0.15)' : 'transparent',
+                  color: active ? '#0ea5e9' : 'rgba(255,255,255,0.4)',
+                  border: active ? '1px solid rgba(14,165,233,0.25)' : '1px solid transparent',
+                }}
+              >
+                {m.shortLabel}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Info line */}
       <div className="flex items-center gap-3">
-        {showReloadButton && (
+        {showReloadButton && phoneState === 'connected' && (
           <button
             onClick={handleReload}
             className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-semibold transition-all hover:scale-105"
@@ -176,27 +178,17 @@ export default function SimulatedPhone({ showReloadButton = true }: Props) {
             style={{ background: '#0f172a' }}
           >
             <span className="text-[9px] font-semibold text-white/50">9:41</span>
-
-            {/* Notch / Dynamic Island / Punch hole */}
             {model.notchStyle === 'dynamic-island' ? (
               <div
                 className="absolute top-1 left-1/2 -translate-x-1/2 h-[14px] rounded-full"
-                style={{
-                  width: 56,
-                  background: '#000',
-                  border: '1px solid rgba(255,255,255,0.06)',
-                }}
+                style={{ width: 56, background: '#000', border: '1px solid rgba(255,255,255,0.06)' }}
               />
             ) : (
               <div
                 className="absolute top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 rounded-full"
-                style={{
-                  background: '#000',
-                  border: '1px solid rgba(255,255,255,0.06)',
-                }}
+                style={{ background: '#000', border: '1px solid rgba(255,255,255,0.06)' }}
               />
             )}
-
             <div className="flex items-center gap-1.5">
               <Signal className="w-2.5 h-2.5 text-white/40" />
               <Wifi className="w-2.5 h-2.5 text-white/40" />
@@ -204,31 +196,41 @@ export default function SimulatedPhone({ showReloadButton = true }: Props) {
             </div>
           </div>
 
-          {/* Real app iframe */}
+          {/* Content area */}
           <div className="flex-1 relative overflow-hidden">
-            {!loaded && (
-              <div className="absolute inset-0 flex items-center justify-center z-10" style={{ background: '#0f172a' }}>
-                <div className="flex flex-col items-center gap-3">
-                  <div className="w-8 h-8 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />
-                  <span className="text-[10px] text-white/40">Chargement...</span>
-                </div>
-              </div>
+            {phoneState === 'homeIcon' && (
+              <SimulatedPhoneHomeScreen appIconUrl={appIconUrl} onOpenApp={handleOpenApp} />
             )}
-            <iframe
-              key={iframeKey}
-              ref={iframeRef}
-              src={window.location.origin}
-              title={`Apercu mobile Talvex - ${model.label}`}
-              onLoad={() => setLoaded(true)}
-              className="border-0"
-              style={{
-                width: model.viewportW,
-                height: model.viewportH - 48,
-                transform: `scale(${SCALE})`,
-                transformOrigin: 'top left',
-              }}
-              sandbox="allow-same-origin allow-scripts allow-forms allow-popups"
-            />
+            {phoneState === 'login' && (
+              <SimulatedPhoneLoginScreen appIconUrl={appIconUrl} onLogin={handlePhoneLogin} onBack={handleBackToHome} />
+            )}
+            {phoneState === 'connected' && (
+              <>
+                {!loaded && (
+                  <div className="absolute inset-0 flex items-center justify-center z-10" style={{ background: '#0f172a' }}>
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="w-8 h-8 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />
+                      <span className="text-[10px] text-white/40">Chargement...</span>
+                    </div>
+                  </div>
+                )}
+                <iframe
+                  key={iframeKey}
+                  ref={iframeRef}
+                  src={window.location.origin}
+                  title={`Apercu mobile Talvex - ${model.label}`}
+                  onLoad={() => setLoaded(true)}
+                  className="border-0"
+                  style={{
+                    width: model.viewportW,
+                    height: viewportH,
+                    transform: `scale(${SCALE})`,
+                    transformOrigin: 'top left',
+                  }}
+                  sandbox="allow-same-origin allow-scripts allow-forms allow-popups"
+                />
+              </>
+            )}
           </div>
 
           {/* Home indicator */}

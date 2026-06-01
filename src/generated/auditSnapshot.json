@@ -1,28 +1,17 @@
 {
-  "generatedAt": "2026-05-31T19:04:29.100Z",
+  "generatedAt": "2026-06-01T00:18:30.014Z",
   "anyCount": 0,
   "anyOccurrences": [],
   "unusedImportCount": 0,
   "unusedImports": [],
-  "largeFileCount": 2,
-  "largeFiles": [
-    {
-      "file": "src/pages/superadmin/views/SAApplicationPage.tsx",
-      "lines": 332,
-      "overflow": 32
-    },
-    {
-      "file": "src/components/logo/LogoAiTab.tsx",
-      "lines": 337,
-      "overflow": 37
-    }
-  ],
+  "largeFileCount": 0,
+  "largeFiles": [],
   "tscErrorCount": 0,
   "tscErrors": [],
   "eslintErrorCount": 0,
   "eslintWarningCount": 0,
   "eslintIssues": [],
-  "totalFilesAnalyzed": 680,
-  "totalLinesAnalyzed": 92228,
-  "totalOverflowLines": 69
+  "totalFilesAnalyzed": 690,
+  "totalLinesAnalyzed": 92930,
+  "totalOverflowLines": 0
 }

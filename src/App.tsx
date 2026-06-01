@@ -19,6 +19,8 @@ import AppDashboardRouter from './app/AppDashboardRouter';
 const IS_PWA_STANDALONE = window.matchMedia('(display-mode: standalone)').matches
   || (navigator as unknown as Record<string, boolean>).standalone === true;
 
+const IS_INSIDE_IFRAME = window.self !== window.top;
+
 export interface ImpersonatedAdmin {
   id: string;
   email: string;
@@ -111,8 +113,12 @@ function App() {
   const handleDomainLogin = useCallback(() => { setSessionKey(k => k + 1); detectRole(); }, [detectRole]);
 
   const handleLogout = async () => {
+    if (IS_INSIDE_IFRAME) {
+      window.parent.postMessage({ type: 'talvex-phone-logout' }, '*');
+      return;
+    }
     await supabase.auth.signOut();
-    setRole(null); setUserCompanyId(null);
+    setRole(null); setUserCompanyId(null); setLoading(false);
     setImpersonatedVendor(null); setImpersonatedClient(null); setImpersonatedAdmin(null);
   };
 
@@ -123,7 +129,7 @@ function App() {
     <SessionExpiryWarning remainingSeconds={sessionTimeout.remainingSeconds} onStay={sessionTimeout.dismissWarning} onLogout={handleLogout} />
   ) : null;
 
-  if (loading || (!role && !landingTemplateLoaded) || customDomainChecking) return <AppLoadingScreen />;
+  if (loading || customDomainChecking) return <AppLoadingScreen />;
   if (domainBlocked) return <AppDomainBlocked onClear={() => setDomainBlocked(false)} />;
   if (accessBlocked) return <AppAccessBlocked onClear={() => setAccessBlocked(false)} />;
 
@@ -150,6 +156,8 @@ function App() {
   if (IS_PWA_STANDALONE) {
     return <PwaLoginPage onLogin={handleLogin} />;
   }
+
+  if (!landingTemplateLoaded) return <AppLoadingScreen />;
 
   const LandingTemplate = landingTemplateKey ? getTemplateComponent(landingTemplateKey) : null;
   if (LandingTemplate) {
