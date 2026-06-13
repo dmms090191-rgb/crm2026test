@@ -1,8 +1,10 @@
 import { lazy } from 'react';
 import type { ImpersonatedVendor } from '../pages/vendor/VendorDashboard';
 import type { ImpersonatedClientInfo } from '../pages/client/ClientDashboard';
-import type { ImpersonatedAdmin } from '../App';
+import type { ImpersonatedAdmin, ImpersonatedCompanySuperAdmin } from '../App';
 import type { AdminUser } from '../pages/superadmin/views/SAAdmins';
+import type { CompanySuperAdmin } from '../pages/superadmin/views/super-admins/superAdminTypes';
+import CompanySuperAdminDashboard from '../pages/company-super-admin/CompanySuperAdminDashboard';
 import AppShell from './AppShell';
 import { DemoSessionProvider } from '../components/demo/DemoSessionContext';
 
@@ -12,28 +14,52 @@ const VendorDashboard = lazy(() => import('../pages/vendor/VendorDashboard'));
 const ClientDashboard = lazy(() => import('../pages/client/ClientDashboard'));
 
 interface Props {
-  role: 'super_admin' | 'admin' | 'vendor' | 'client';
+  role: 'super_admin' | 'company_super_admin' | 'admin' | 'vendor' | 'client';
   onLogout: () => void;
   saUserId: string | null;
   saDisplayName: string;
   impersonatedAdmin: ImpersonatedAdmin | null;
   impersonatedVendor: ImpersonatedVendor | null;
   impersonatedClient: ImpersonatedClientInfo | null;
+  impersonatedCompanySuperAdmin: ImpersonatedCompanySuperAdmin | null;
+  directCSA: ImpersonatedCompanySuperAdmin | null;
   setImpersonatedAdmin: (v: ImpersonatedAdmin | null) => void;
   setImpersonatedVendor: (v: ImpersonatedVendor | null) => void;
   setImpersonatedClient: (v: ImpersonatedClientInfo | null) => void;
+  setImpersonatedCompanySuperAdmin: (v: ImpersonatedCompanySuperAdmin | null) => void;
 }
 
 export default function AppDashboardRouter({
   role, onLogout, saUserId, saDisplayName,
-  impersonatedAdmin, impersonatedVendor, impersonatedClient,
-  setImpersonatedAdmin, setImpersonatedVendor, setImpersonatedClient,
+  impersonatedAdmin, impersonatedVendor, impersonatedClient, impersonatedCompanySuperAdmin,
+  directCSA,
+  setImpersonatedAdmin, setImpersonatedVendor, setImpersonatedClient, setImpersonatedCompanySuperAdmin,
 }: Props) {
   const connectAsVendor = (vendor: { id: string; first_name: string; last_name: string; auth_user_id?: string | null }) =>
     setImpersonatedVendor({ id: vendor.id, first_name: vendor.first_name, last_name: vendor.last_name, auth_user_id: vendor.auth_user_id });
   const connectAsAdmin = (admin: AdminUser) =>
     setImpersonatedAdmin({ id: admin.id, email: admin.email, first_name: admin.first_name, last_name: admin.last_name, pin: admin.pin, company_id: admin.company_id });
+  const connectAsCompanySuperAdmin = (csa: CompanySuperAdmin) =>
+    setImpersonatedCompanySuperAdmin({ id: csa.id, email: csa.email, first_name: csa.first_name, last_name: csa.last_name, company: csa.company, company_id: csa.company_id });
 
+  if (role === 'company_super_admin' && directCSA) {
+    return (
+      <CompanySuperAdminDashboard
+        impersonated={directCSA}
+        onBack={onLogout}
+        isImpersonation={false}
+      />
+    );
+  }
+  if (role === 'super_admin' && impersonatedCompanySuperAdmin) {
+    return (
+      <CompanySuperAdminDashboard
+        impersonated={impersonatedCompanySuperAdmin}
+        onBack={() => setImpersonatedCompanySuperAdmin(null)}
+        isImpersonation={true}
+      />
+    );
+  }
   if (role === 'super_admin' && impersonatedAdmin && impersonatedVendor && impersonatedClient) {
     return (
       <DemoSessionProvider saUserId={saUserId ?? undefined} saDisplayName={saDisplayName}>
@@ -74,7 +100,7 @@ export default function AppDashboardRouter({
   if (role === 'super_admin') {
     return (
       <AppShell panelRole="super_admin">
-        <SuperAdminDashboard onLogout={onLogout} onConnectAsAdmin={connectAsAdmin} />
+        <SuperAdminDashboard onLogout={onLogout} onConnectAsAdmin={connectAsAdmin} onConnectAsCompanySuperAdmin={connectAsCompanySuperAdmin} />
       </AppShell>
     );
   }

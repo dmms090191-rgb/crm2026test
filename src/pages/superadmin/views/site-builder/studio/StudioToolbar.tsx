@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Monitor, Smartphone, Maximize2, ExternalLink, Rocket, Circle, Save, Loader2, Check, ChevronDown } from 'lucide-react';
+import { Monitor, Smartphone, Maximize2, Rocket, Circle, Save, Loader2, Check, ChevronDown, BookmarkPlus } from 'lucide-react';
 import type { ThemeTokens } from '../../../../../lib/themeTokensTypes';
 import StudioSiteStatus from './StudioSiteStatus';
 
@@ -17,6 +17,7 @@ interface Props {
   isPublishing?: boolean;
   onSaveDraft?: () => void;
   onPublish?: () => void;
+  onSaveAsTemplate?: () => void;
   lastSavedAt?: string | null;
   lastPublishedAt?: string | null;
   templateKey?: string | null;
@@ -25,6 +26,7 @@ interface Props {
 export default function StudioToolbar({
   previewMode, onPreviewModeChange, onFullscreen, publicUrl, t,
   hasUnsavedChanges, isSaving, isPublished, isPublishing, onSaveDraft, onPublish,
+  onSaveAsTemplate,
   lastSavedAt, lastPublishedAt, templateKey,
 }: Props) {
   const [savedFeedback, setSavedFeedback] = useState(false);
@@ -49,7 +51,7 @@ export default function StudioToolbar({
       className="flex items-center justify-between gap-2 px-3 py-2 rounded-xl"
       style={{ background: t.surface.primary, border: `1px solid ${t.surface.border}` }}
     >
-      {/* Left: Status badge - clickable */}
+      {/* Left: Status badge */}
       <div className="relative">
         <button
           onClick={() => setStatusOpen(v => !v)}
@@ -136,22 +138,9 @@ export default function StudioToolbar({
         </button>
       </div>
 
-      {/* Right: Actions */}
+      {/* Right: Actions - Enregistrer | Enregistrer dans Templates | Publier */}
       <div className="flex items-center gap-1.5">
-        {publicUrl && (
-          <a
-            href={publicUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-semibold transition-all hover:scale-105"
-            style={{ background: t.surface.secondary, border: `1px solid ${t.surface.border}`, color: t.text.tertiary }}
-          >
-            <ExternalLink className="w-3 h-3" />
-            <span className="hidden sm:inline">Ouvrir</span>
-          </a>
-        )}
-
-        {/* Save draft button */}
+        {/* Save draft */}
         {onSaveDraft && (
           <button
             onClick={handleSave}
@@ -178,7 +167,23 @@ export default function StudioToolbar({
           </button>
         )}
 
-        {/* Publish button */}
+        {/* Save as template */}
+        {onSaveAsTemplate && (
+          <button
+            onClick={onSaveAsTemplate}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all hover:scale-105"
+            style={{
+              background: 'rgba(245,158,11,0.1)',
+              border: '1px solid rgba(245,158,11,0.3)',
+              color: '#f59e0b',
+            }}
+          >
+            <BookmarkPlus className="w-3 h-3" />
+            <span className="hidden lg:inline">Templates</span>
+          </button>
+        )}
+
+        {/* Publish */}
         <button
           onClick={onPublish}
           disabled={!canPublish}

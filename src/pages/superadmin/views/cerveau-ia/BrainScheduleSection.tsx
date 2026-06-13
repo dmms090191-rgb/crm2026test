@@ -64,7 +64,7 @@ export default function BrainScheduleSection({ brain, onChange, tokens: t, embed
   if (embedded) return content;
 
   return (
-    <div className="rounded-2xl p-5" style={{ background: t.card.bg, border: `1px solid ${t.card.border}` }}>
+    <div className="rounded-2xl p-5" style={{ background: `linear-gradient(135deg, ${t.surface.secondary}, ${t.surface.secondary}80)`, border: `1px solid ${t.surface.border}`, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), 0 1px 2px rgba(0,0,0,0.04)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
       <div className="flex items-center gap-2.5 mb-4">
         <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: t.accent.bg, border: `1px solid ${t.accent.border}` }}>
           <Clock className="w-4 h-4" style={{ color: t.accent.text }} />

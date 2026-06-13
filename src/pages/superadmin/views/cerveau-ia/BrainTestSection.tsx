@@ -73,7 +73,7 @@ export default function BrainTestSection({ companyId, tokens: t }: Props) {
   }
 
   return (
-    <div className="rounded-2xl overflow-hidden flex flex-col" style={{ background: t.card.bg, border: `1px solid ${t.card.border}`, height: 480 }}>
+    <div className="rounded-2xl overflow-hidden flex flex-col" style={{ background: `linear-gradient(135deg, ${t.surface.secondary}, ${t.surface.secondary}80)`, border: `1px solid ${t.surface.border}`, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), 0 1px 2px rgba(0,0,0,0.04)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', height: 480 }}>
       <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: `1px solid ${t.card.border}` }}>
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: t.accent.bg, border: `1px solid ${t.accent.border}` }}>

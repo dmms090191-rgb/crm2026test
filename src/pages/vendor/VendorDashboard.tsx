@@ -243,6 +243,7 @@ export default function VendorDashboard({ onLogout, impersonatedVendor, onBackTo
           onCollapse={() => { if (mobileOpen) setMobileOpen(false); else setSidebarCollapsed(!sidebarCollapsed); }}
           onLogout={onLogout}
           vendorAuthId={impersonatedVendor?.auth_user_id ?? null}
+          onBackToRoisAdmin={onBackToAdmin}
         />
       </div>
       <div className="flex flex-col flex-1 min-h-0">
@@ -267,19 +268,18 @@ export default function VendorDashboard({ onLogout, impersonatedVendor, onBackTo
           confirmedCount={confirmedUnseen.length}
           confirmedEntries={confirmedUnseen}
           onConfirmedEntryClick={handleConfirmedEntryClick}
-          demoStatus={isSAViewing ? demoStatus : 'idle'}
-          demoSlot={isSAViewing && impersonatedVendor ? (
-            <DemoEmitterLayer
-              activeView={activeView}
-              viewLabel={getBreadcrumb()}
-              targetUserId={impersonatedVendor.auth_user_id ?? impersonatedVendor.id}
-              targetRole="vendor"
-              targetName={[impersonatedVendor.first_name, impersonatedVendor.last_name].filter(Boolean).join(' ')}
-              companyId={null}
-              tokens={tokens}
-            />
-          ) : undefined}
         />
+        {isSAViewing && impersonatedVendor && (
+          <DemoEmitterLayer
+            activeView={activeView}
+            viewLabel={getBreadcrumb()}
+            targetUserId={impersonatedVendor.auth_user_id ?? impersonatedVendor.id}
+            targetRole="vendor"
+            targetName={[impersonatedVendor.first_name, impersonatedVendor.last_name].filter(Boolean).join(' ')}
+            companyId={null}
+            tokens={tokens}
+          />
+        )}
         {!isSAViewing && !impersonatedVendor && <DemoReceiverLayer userId={vendorDbId} onViewChange={(v) => setActiveView(v as VendorActiveView)} />}
         <main
           className={`flex-1 flex flex-col md:p-6 mobile-main-scroll ${(activeView === 'chat-admin' || activeView === 'chat-client') ? 'p-2 sm:p-3 overflow-hidden' : 'p-3 sm:p-4 overflow-auto'}`}

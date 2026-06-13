@@ -134,7 +134,16 @@ export default function SAMonComptePasswordSection({ userEmail, initialEmail, in
   };
 
   return (
-    <div className="rounded-2xl p-3.5 md:p-5 space-y-3 md:space-y-4 min-w-0" style={{ background: t.card.bg, border: `1px solid ${t.card.border}`, boxShadow: t.card.shadow }}>
+    <div
+      className="rounded-2xl p-3.5 md:p-5 space-y-3 md:space-y-4 min-w-0"
+      style={{
+        background: `linear-gradient(135deg, ${t.surface.secondary}, ${t.surface.secondary}80)`,
+        border: `1px solid ${t.surface.border}`,
+        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), 0 1px 2px rgba(0,0,0,0.04)',
+        backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
+      }}
+    >
       <div className="flex items-center gap-2">
         <Mail className="w-4 h-4" style={{ color: t.label.muted }} />
         <h3 className="text-sm font-semibold" style={{ color: t.heading.primary }}>Email et mot de passe</h3>

@@ -1,5 +1,7 @@
 import { ShieldCheck, AlertTriangle, XCircle, Clock, ArrowRight } from 'lucide-react';
 import { useThemeTokens } from '../../../hooks/useThemeTokens';
+import { useEditorModeSafe } from '../../../contexts/EditorModeContext';
+import { resolveZoneBg } from '../../../contexts/editorModeHelpers';
 import {
   MOCK_OVERVIEW_SCORE,
   MOCK_LAST_ANALYSIS_DATE,
@@ -24,6 +26,12 @@ function formatDate(iso: string): string {
 
 export default function AuditSummaryCard({ onNavigateToAudit }: { onNavigateToAudit?: () => void }) {
   const t = useThemeTokens();
+  const editorCtx = useEditorModeSafe();
+  const btnOverrides = editorCtx?.getButtonOverridesWithPreview() ?? {};
+  const auditBtnOvr = btnOverrides['btn_voir_audit'];
+  const auditBtnBg = auditBtnOvr?.bg ? resolveZoneBg(auditBtnOvr.bg) : undefined;
+  const auditBtnText = auditBtnOvr?.textColor ?? undefined;
+  const auditBtnTransparent = auditBtnOvr?.opacityMode === 'transparent';
   const color = scoreColor(MOCK_OVERVIEW_SCORE);
 
   return (
@@ -196,15 +204,17 @@ export default function AuditSummaryCard({ onNavigateToAudit }: { onNavigateToAu
 
         {onNavigateToAudit && (
           <button
+            data-editor-btn-id="btn_voir_audit"
             onClick={onNavigateToAudit}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 flex-shrink-0 ml-3"
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 flex-shrink-0 ml-3${editorCtx?.highlightedButtonId === 'btn_voir_audit' ? ' editor-target-highlight' : ''}`}
             style={{
-              background: t.accent.bg,
-              border: `1px solid ${t.accent.border}`,
-              color: t.accent.text,
+              background: auditBtnBg || t.accent.bg,
+              border: `1px solid ${auditBtnBg ? 'transparent' : t.accent.border}`,
+              color: auditBtnText || (auditBtnBg ? '#fff' : t.accent.text),
+              ...(auditBtnTransparent && auditBtnBg ? { opacity: 0.55 } : {}),
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = t.accent.bgHover; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = t.accent.bg; }}
+            onMouseEnter={(e) => { if (!auditBtnBg) e.currentTarget.style.background = t.accent.bgHover; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = auditBtnBg || t.accent.bg; }}
           >
             Voir l'audit
             <ArrowRight className="w-3 h-3" />
@@ -240,12 +250,14 @@ export default function AuditSummaryCard({ onNavigateToAudit }: { onNavigateToAu
 
         {onNavigateToAudit && (
           <button
+            data-editor-btn-id="btn_voir_audit"
             onClick={onNavigateToAudit}
-            className="flex items-center justify-center gap-1.5 w-full px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200"
+            className={`flex items-center justify-center gap-1.5 w-full px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200${editorCtx?.highlightedButtonId === 'btn_voir_audit' ? ' editor-target-highlight' : ''}`}
             style={{
-              background: t.accent.bg,
-              border: `1px solid ${t.accent.border}`,
-              color: t.accent.text,
+              background: auditBtnBg || t.accent.bg,
+              border: `1px solid ${auditBtnBg ? 'transparent' : t.accent.border}`,
+              color: auditBtnText || (auditBtnBg ? '#fff' : t.accent.text),
+              ...(auditBtnTransparent && auditBtnBg ? { opacity: 0.55 } : {}),
             }}
           >
             Voir l'audit

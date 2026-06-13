@@ -42,8 +42,9 @@ export async function persistDraft(
   const hasGradientEdits = localEdits.canvasGradient !== null;
   const hasPageHeightEdits = localEdits.canvasPageHeight !== null;
   const hasBgModeEdits = localEdits.canvasBgMode !== null;
+  const hasOverlayEdits = localEdits.overlayElements !== null;
 
-  if (hasCanvasBgEdits || hasGradientEdits || hasPageHeightEdits || hasBgModeEdits) {
+  if (hasCanvasBgEdits || hasGradientEdits || hasPageHeightEdits || hasBgModeEdits || hasOverlayEdits) {
     const bgUpdate: Record<string, unknown> = { updated_at: new Date().toISOString() };
     if (localEdits.canvasBg?.desktop !== undefined) bgUpdate.draft_canvas_bg_desktop = localEdits.canvasBg.desktop;
     if (localEdits.canvasBg?.mobile !== undefined) bgUpdate.draft_canvas_bg_mobile = localEdits.canvasBg.mobile;
@@ -57,6 +58,7 @@ export async function persistDraft(
     }
     if (localEdits.canvasBgMode?.desktop !== undefined) bgUpdate.draft_canvas_bg_mode_desktop = localEdits.canvasBgMode.desktop;
     if (localEdits.canvasBgMode?.mobile !== undefined) bgUpdate.draft_canvas_bg_mode_mobile = localEdits.canvasBgMode.mobile;
+    if (localEdits.overlayElements !== null) bgUpdate.draft_overlay_elements = localEdits.overlayElements;
     const { error: bgErr } = await supabase
       .from('company_home_pages')
       .update(bgUpdate)
@@ -72,6 +74,7 @@ export async function persistPublish(
   dbCanvasGradient: CanvasGradient,
   dbPageHeight?: CanvasPageHeight,
   dbBgMode?: CanvasBgMode,
+  dbOverlayElements?: unknown[],
 ): Promise<void> {
   const now = new Date().toISOString();
   const updates = dbSections.map(row => ({
@@ -106,6 +109,9 @@ export async function persistPublish(
   if (dbBgMode) {
     publishUpdate.published_canvas_bg_mode_desktop = dbBgMode.desktop;
     publishUpdate.published_canvas_bg_mode_mobile = dbBgMode.mobile;
+  }
+  if (dbOverlayElements) {
+    publishUpdate.published_overlay_elements = dbOverlayElements;
   }
 
   const { error: pageErr } = await supabase

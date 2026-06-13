@@ -2,40 +2,52 @@ import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react'
 import SuperAdminSidebar, { type SAView } from './SuperAdminSidebar';
 import SuperAdminTopBar from './SuperAdminTopBar';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
+import { useTheme } from '../../contexts/ThemeContext';
 import { saveConnectReturnContext, consumeConnectReturnContext } from '../../lib/connectReturnContext';
 import { supabase } from '../../lib/supabase';
-import { SimulationProvider } from '../../contexts/SimulationContext';
 import { useUnreadSuperAdminMessages } from '../../hooks/useUnreadSuperAdminMessages';
 import { useAppIcon } from '../../hooks/useAppIcon';
 import type { AdminUser } from './views/SAAdmins';
+import type { CompanySuperAdmin } from './views/super-admins/superAdminTypes';
+import { useAdminsCache } from './useAdminsCache';
+import { useEditorLocateHandler } from './useEditorLocateHandler';
 import GlassBackgroundLayer from '../../components/theme/GlassBackgroundLayer';
+import { EditorModeProvider, useEditorMode, resolveZoneEffective } from '../../contexts/EditorModeContext';
+import EditorSaveThemeModal from '../../components/editor/EditorSaveThemeModal';
+import SuperAdminEditorPanels from './SuperAdminEditorPanels';
+import { useEditorSessionPersistence } from './useEditorSessionPersistence';
+import SAViewRouter from './SAViewRouter';
+import { VisualCustomizeProvider, useVisualCustomize } from '../../components/visualCustomize/VisualCustomizeContext';
+import VisualCustomizeOverlay from '../../components/visualCustomize/VisualCustomizeOverlay';
+import VisualCustomizeModal from '../../components/visualCustomize/VisualCustomizeModal';
+import VCPreviewToolbar from '../../components/visualCustomize/VCPreviewToolbar';
+import EditorChoiceButtons from './EditorChoiceButtons';
+import EditorSubModeToolbar from './EditorSubModeToolbar';
 
-const SADashboard = lazy(() => import('./views/SADashboard'));
-const SAAdmins = lazy(() => import('./views/SAAdmins'));
 const SAchatAdmin = lazy(() => import('./views/SAchatAdmin'));
-const SAMonCompte = lazy(() => import('./views/SAMonCompte'));
-const DocumentationCrm = lazy(() => import('../admin/views/DocumentationCrm'));
-const SystemPage = lazy(() => import('../admin/views/SystemPage'));
-const SauvegardeRestauration = lazy(() => import('../admin/views/SauvegardeRestauration'));
-const SATestsSysteme = lazy(() => import('./views/tests-systeme/SATestsSysteme'));
-const SACrmSociete = lazy(() => import('./views/crm-societe/SACrmSociete'));
-const SAStatuts = lazy(() => import('./views/SAStatuts'));
-const SAApiIa = lazy(() => import('./views/SAApiIa'));
-const SASites = lazy(() => import('./views/sites/SASites'));
-const SAFonctionsTalvex = lazy(() => import('./views/fonctions-talvex/SAFonctionsTalvex'));
-const SASiteTalvex = lazy(() => import('./views/site-builder/SASiteTalvex'));
-const SACerveauIA = lazy(() => import('./views/cerveau-ia/SACerveauIA'));
-const SALogoPage = lazy(() => import('./views/SALogoPage'));
-const SAAmeliorations = lazy(() => import('./views/SAAmeliorations'));
-const SAApplicationPage = lazy(() => import('./views/SAApplicationPage'));
-const SAThemes = lazy(() => import('./views/themes/SAThemes'));
 
 interface SuperAdminDashboardProps {
   onLogout: () => void;
   onConnectAsAdmin?: (admin: AdminUser) => void;
+  onConnectAsCompanySuperAdmin?: (sa: CompanySuperAdmin) => void;
 }
 
-export default function SuperAdminDashboard({ onLogout, onConnectAsAdmin }: SuperAdminDashboardProps) {
+export type EditorSubMode = null | 'onglet' | 'zone_droite';
+
+export default function SuperAdminDashboard(props: SuperAdminDashboardProps) {
+  return (
+    <EditorModeProvider scopeKey="sa">
+      <VisualCustomizeProvider scope="sa_dashboard">
+        <SuperAdminDashboardInner {...props} />
+        <VisualCustomizeOverlay />
+        <VisualCustomizeModal />
+        <VCPreviewToolbar />
+      </VisualCustomizeProvider>
+    </EditorModeProvider>
+  );
+}
+
+function SuperAdminDashboardInner({ onLogout, onConnectAsAdmin, onConnectAsCompanySuperAdmin }: SuperAdminDashboardProps) {
   const t = useThemeTokens();
   const [activeView, setActiveView] = useState<SAView>('dashboard');
   const [docInitialTab, setDocInitialTab] = useState<string | undefined>(undefined);
@@ -48,42 +60,74 @@ export default function SuperAdminDashboard({ onLogout, onConnectAsAdmin }: Supe
   const pendingScrollRef = useRef<{ adminId?: string; scrollY: number } | null>(null);
   const { unreadCount: unreadAdminMsgCount, unreadEntries: unreadAdminMsgEntries, markAsRead: markAdminMsgRead } = useUnreadSuperAdminMessages();
   const { appIconUrl: saAppIconUrl, appName: saAppName } = useAppIcon(null, 'super_admin');
-
+  const editorCtx = useEditorMode();
+  const vc = useVisualCustomize();
+  const [saveThemeOpen, setSaveThemeOpen] = useState(false);
+  const logoZoneRef = useRef<HTMLDivElement>(null);
+  const sidebarBodyRef = useRef<HTMLDivElement>(null);
+  const topbarZoneRef = useRef<HTMLElement>(null);
+  const contentZoneRef = useRef<HTMLElement>(null);
   const [appIconSelectionMode, setAppIconSelectionMode] = useState(false);
+  const [editorSubMode, setEditorSubMode] = useState<EditorSubMode>(null);
 
-  const [cachedAdmins, setCachedAdmins] = useState<AdminUser[]>([]);
-  const [adminsRefreshing, setAdminsRefreshing] = useState(false);
-  const [adminsError, setAdminsError] = useState('');
-  const adminsLoadedRef = useRef(false);
+  const {
+    getPositionFor, savedRefreshKey, setSavedRefreshKey,
+    tabsVisible, setTabsVisible, tabsCollapsed, setTabsCollapsed,
+    fondsVisible, setFondsVisible, couleurVisible, setCouleurVisible,
+    savedVisible, setSavedVisible, handleSaveSession, handleAlignPanels,
+    updatePositionFor, contenuPos,
+  } = useEditorSessionPersistence();
 
-  const fetchAdminsCache = useCallback(async () => {
-    setAdminsRefreshing(true);
-    setAdminsError('');
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { setAdminsError('Non authentifie'); setAdminsRefreshing(false); return; }
-      const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/list-admins`,
-        {
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`,
-            'Content-Type': 'application/json',
-            'Apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-          },
-        }
-      );
-      const json = await res.json();
-      if (!res.ok) { setAdminsError(json.error || 'Erreur inconnue'); setAdminsRefreshing(false); return; }
-      setCachedAdmins(json.admins || []);
-      adminsLoadedRef.current = true;
-    } catch (e) {
-      setAdminsError(String(e));
-    } finally {
-      setAdminsRefreshing(false);
+  useEffect(() => {
+    if (!editorCtx.editorOpen) {
+      setEditorSubMode(null);
+      if (vc.enabled) {
+        vc.setActiveSelection(null);
+        vc.setQuickApply({ active: false, presetConfig: null, presetModalKind: null, presetName: '' });
+        vc.clearAllDrafts();
+        vc.setEnabled(false);
+      }
     }
-  }, []);
+  }, [editorCtx.editorOpen]);
 
-  useEffect(() => { fetchAdminsCache(); }, [fetchAdminsCache]);
+  const handleSelectOnglet = useCallback(() => { setEditorSubMode('onglet'); }, []);
+  const handleSelectZoneDroite = useCallback(() => {
+    setEditorSubMode('zone_droite');
+    vc.setEnabled(true);
+  }, [vc]);
+  const handleBackToChoice = useCallback(() => {
+    if (vc.enabled) {
+      vc.setActiveSelection(null);
+      vc.setQuickApply({ active: false, presetConfig: null, presetModalKind: null, presetName: '' });
+      vc.setMarkersHidden(false);
+      vc.setPreviewBarVisible(false);
+      vc.clearAllDrafts();
+      vc.setEnabled(false);
+    }
+    setEditorSubMode(null);
+  }, [vc]);
+
+  const showOngletPanels = editorCtx.editorOpen && editorSubMode === 'onglet';
+  const showZoneDroite = editorCtx.editorOpen && editorSubMode === 'zone_droite';
+  const showChoice = editorCtx.editorOpen && editorSubMode === null;
+
+  const ongletPanelsVisible = tabsVisible || fondsVisible || couleurVisible || savedVisible;
+  const handleToggleOngletPanels = useCallback(() => {
+    if (ongletPanelsVisible) {
+      setTabsVisible(false);
+      setFondsVisible(false);
+      setCouleurVisible(false);
+      setSavedVisible(false);
+    } else {
+      setTabsVisible(true);
+      setTabsCollapsed(false);
+      setFondsVisible(true);
+      setCouleurVisible(true);
+      setSavedVisible(true);
+    }
+  }, [ongletPanelsVisible, setTabsVisible, setTabsCollapsed, setFondsVisible, setCouleurVisible, setSavedVisible]);
+
+  const { cachedAdmins, adminsRefreshing, adminsError, fetchAdminsCache } = useAdminsCache();
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -97,10 +141,7 @@ export default function SuperAdminDashboard({ onLogout, onConnectAsAdmin }: Supe
 
   useEffect(() => {
     const ctx = consumeConnectReturnContext('super_admin');
-    if (ctx) {
-      setActiveView(ctx.fromTab as SAView);
-      pendingScrollRef.current = { adminId: ctx.adminId, scrollY: ctx.scrollY };
-    }
+    if (ctx) { setActiveView(ctx.fromTab as SAView); pendingScrollRef.current = { adminId: ctx.adminId, scrollY: ctx.scrollY }; }
   }, []);
 
   useEffect(() => {
@@ -123,137 +164,122 @@ export default function SuperAdminDashboard({ onLogout, onConnectAsAdmin }: Supe
     return () => clearTimeout(tm);
   }, [activeView]);
 
-  const handleNavigate = (view: SAView) => {
-    setActiveView(view);
+  const handleNavigate = (view: SAView) => { setActiveView(view); };
+  const handleConnectAsAdmin = (admin: AdminUser) => { saveConnectReturnContext({ fromRole: 'super_admin', fromTab: 'admins', adminId: admin.id, scrollY: window.scrollY }); onConnectAsAdmin?.(admin); };
+  const handleConnectAsCompanySuperAdmin = (sa: CompanySuperAdmin) => { onConnectAsCompanySuperAdmin?.(sa); };
+  const handleOpenChatAdmin = useCallback((admin: AdminUser) => { setChatAdmin(admin); setActiveView('chat-admin'); }, []);
+  const handleChangeAppIcon = useCallback(() => { setAppIconSelectionMode(true); setActiveView('logo'); }, []);
+  const handleAppIconSelected = useCallback(() => { setAppIconSelectionMode(false); setActiveView('application'); }, []);
+
+  useEditorLocateHandler(activeView, setActiveView);
+
+  const { customThemeOverrides } = useTheme();
+  const ctZoneCss = customThemeOverrides?.zone_css;
+  const zone1Bg = resolveZoneEffective('zone1', editorCtx.zoneOverrides, editorCtx.preview) || ctZoneCss?.zone1 || undefined;
+  const zone2Bg = resolveZoneEffective('zone2', editorCtx.zoneOverrides, editorCtx.preview) || ctZoneCss?.zone2 || undefined;
+  const zone3Bg = resolveZoneEffective('zone3', editorCtx.zoneOverrides, editorCtx.preview) || ctZoneCss?.zone3 || undefined;
+  const zone4Bg = resolveZoneEffective('zone4', editorCtx.zoneOverrides, editorCtx.preview) || ctZoneCss?.zone4 || undefined;
+
+  const bgImageUrl = editorCtx.backgroundImage || customThemeOverrides?.background_image || null;
+  const bgZoom = editorCtx.backgroundImageZoom;
+  const bgPosX = editorCtx.backgroundImagePositionX;
+  const bgPosY = editorCtx.backgroundImagePositionY;
+  const bgFit = editorCtx.backgroundImageFit;
+  const outerStyle: React.CSSProperties = { background: zone4Bg || t.main.bg };
+
+  const getBgSize = (): string => {
+    if (bgZoom !== 100) return `${bgZoom}%`;
+    if (bgFit === 'contain') return 'contain';
+    if (bgFit === 'fill') return '100% 100%';
+    return 'cover';
   };
-
-  const handleConnectAsAdmin = (admin: AdminUser) => {
-    saveConnectReturnContext({ fromRole: 'super_admin', fromTab: 'admins', adminId: admin.id, scrollY: window.scrollY });
-    onConnectAsAdmin?.(admin);
-  };
-
-  const handleOpenChatAdmin = useCallback((admin: AdminUser) => {
-    setChatAdmin(admin);
-    setActiveView('chat-admin');
-  }, []);
-
-  const handleChangeAppIcon = useCallback(() => {
-    setAppIconSelectionMode(true);
-    setActiveView('logo');
-  }, []);
-
-  const handleAppIconSelected = useCallback(() => {
-    setAppIconSelectionMode(false);
-    setActiveView('application');
-  }, []);
-
-  function renderView() {
-    switch (activeView) {
-      case 'dashboard': return <SADashboard onNavigate={handleNavigate} onNavigateToAudit={() => { setDocInitialTab('audit-technique'); setDocKey(k => k + 1); setActiveView('documentation-crm'); }} adminCount={cachedAdmins.length} adminsLoading={adminsRefreshing && cachedAdmins.length === 0} />;
-      case 'admins': return <SAAdmins onConnectAsAdmin={handleConnectAsAdmin} onOpenChat={handleOpenChatAdmin} cachedAdmins={cachedAdmins} refreshing={adminsRefreshing} cachedError={adminsError} onRefresh={fetchAdminsCache} />;
-      case 'chat-admin': return null;
-      case 'documentation-crm': return <div className="p-4 md:p-6 flex flex-col h-full min-h-0"><DocumentationCrm key={docKey} initialTab={docInitialTab} onInitialTabConsumed={() => setDocInitialTab(undefined)} /></div>;
-      case 'system': return <SystemPage />;
-      case 'sauvegarde': return <SimulationProvider><SauvegardeRestauration /></SimulationProvider>;
-      case 'mon-compte': return <SAMonCompte onNameChange={(fn, ln) => { setSaFirstName(fn); setSaLastName(ln); }} />;
-      case 'tests-systeme': return <SATestsSysteme />;
-      case 'crm-societe': return <SACrmSociete />;
-      case 'statuts': return <SAStatuts />;
-      case 'api-ia': return <SAApiIa />;
-      case 'sites': return <SASites />;
-      case 'fonctions-talvex': return <SAFonctionsTalvex />;
-      case 'site-talvex': return <SASiteTalvex />;
-      case 'cerveau-ia': return <SACerveauIA />;
-      case 'logo': return <SALogoPage appIconSelectionMode={appIconSelectionMode} onAppIconSelected={handleAppIconSelected} />;
-      case 'ameliorations': return <SAAmeliorations />;
-      case 'application': return <SAApplicationPage onChangeAppIcon={handleChangeAppIcon} />;
-      case 'themes': return <SAThemes />;
-      case 'tuto': return <div className="p-6"><p className="text-sm" style={{ color: 'inherit' }}>Tuto - Contenu a venir</p></div>;
-      default: return <SADashboard onNavigate={handleNavigate} adminCount={cachedAdmins.length} adminsLoading={adminsRefreshing && cachedAdmins.length === 0} />;
-    }
-  }
 
   return (
-    <div className="flex h-screen overflow-hidden relative" style={{ background: t.main.bg }}>
-      <GlassBackgroundLayer />
-      {/* Mobile overlay */}
-      {mobileOpen && (
-        <div
-          className="fixed inset-0 z-40 md:hidden"
-          style={{ background: t.modal.overlayBg }}
-          onClick={() => setMobileOpen(false)}
-        />
+    <div className="flex h-screen overflow-hidden relative" style={outerStyle}>
+      {bgImageUrl && (
+        <div className="absolute inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 0 }}>
+          <div className="absolute inset-0" style={{
+            backgroundImage: `url(${bgImageUrl})`,
+            backgroundSize: getBgSize(),
+            backgroundPosition: (bgPosX === 0 && bgPosY === 0) ? 'center' : `calc(50% + ${bgPosX}px) calc(50% + ${bgPosY}px)`,
+            backgroundRepeat: 'no-repeat',
+          }} />
+        </div>
       )}
+      <GlassBackgroundLayer />
+      {mobileOpen && <div className="fixed inset-0 z-40 md:hidden" style={{ background: t.modal.overlayBg }} onClick={() => setMobileOpen(false)} />}
 
-      {/* Sidebar - mobile */}
-      <div
-        className={`fixed inset-y-0 left-0 z-50 md:hidden transition-transform duration-300 ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}
-      >
-        <SuperAdminSidebar
-          activeView={activeView}
-          onNavigate={(v) => { handleNavigate(v); setMobileOpen(false); }}
-          collapsed={false}
-          onCollapse={() => setMobileOpen(false)}
-          onLogout={onLogout}
-        />
+      <div className={`fixed inset-y-0 left-0 z-50 md:hidden transition-transform duration-300 ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <SuperAdminSidebar activeView={activeView} onNavigate={(v) => { handleNavigate(v); setMobileOpen(false); }} collapsed={false} onCollapse={() => setMobileOpen(false)} onLogout={onLogout} editorZone1Bg={zone1Bg} editorZone2Bg={zone2Bg} logoZoneRef={logoZoneRef} sidebarBodyRef={sidebarBodyRef} />
       </div>
 
-      {/* Sidebar - desktop */}
-      <div className="hidden md:block">
-        <SuperAdminSidebar
-          activeView={activeView}
-          onNavigate={handleNavigate}
-          collapsed={sidebarCollapsed}
-          onCollapse={() => setSidebarCollapsed(prev => !prev)}
-          onLogout={onLogout}
-        />
+      <div className="hidden md:block relative z-[1]">
+        <SuperAdminSidebar activeView={activeView} onNavigate={handleNavigate} collapsed={sidebarCollapsed} onCollapse={() => setSidebarCollapsed(prev => !prev)} onLogout={onLogout} editorZone1Bg={zone1Bg} editorZone2Bg={zone2Bg} logoZoneRef={logoZoneRef} sidebarBodyRef={sidebarBodyRef} />
       </div>
 
-      {/* Main content */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <SuperAdminTopBar
-          activeView={activeView}
-          onMobileMenuToggle={() => setMobileOpen(prev => !prev)}
-          unreadAdminMsgCount={unreadAdminMsgCount}
-          unreadAdminMsgEntries={unreadAdminMsgEntries}
-          onAdminMsgEntryClick={(entry) => { markAdminMsgRead(entry.adminId); setChatAdmin(cachedAdmins.find(a => a.id === entry.adminId) ?? { id: entry.adminId, email: entry.email, first_name: entry.firstName, last_name: entry.lastName, phone: '', role: 'admin', created_at: '', last_sign_in_at: null, access_enabled: true }); setActiveView('chat-admin'); }}
-          saFirstName={saFirstName}
-          saLastName={saLastName}
-          appIconUrl={saAppIconUrl}
-          appName={saAppName || 'Talvex'}
-        />
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative z-[1]">
+        <SuperAdminTopBar activeView={activeView} onMobileMenuToggle={() => setMobileOpen(prev => !prev)} unreadAdminMsgCount={unreadAdminMsgCount} unreadAdminMsgEntries={unreadAdminMsgEntries} onAdminMsgEntryClick={(entry) => { markAdminMsgRead(entry.adminId); setChatAdmin(cachedAdmins.find(a => a.id === entry.adminId) ?? { id: entry.adminId, email: entry.email, first_name: entry.firstName, last_name: entry.lastName, phone: '', role: 'admin', created_at: '', last_sign_in_at: null, access_enabled: true }); setActiveView('chat-admin'); }} saFirstName={saFirstName} saLastName={saLastName} appIconUrl={saAppIconUrl} appName={saAppName || 'Talvex'} topbarRef={topbarZoneRef} editorZone3Bg={zone3Bg} />
 
-        <main
-          className={`flex-1 ${activeView === 'chat-admin' ? 'p-2 sm:p-3 md:p-4' : ''}`}
-          style={{ minHeight: 0, overflow: activeView === 'chat-admin' ? 'hidden' : 'auto' }}
-        >
+        {showChoice && (
+          <EditorChoiceButtons onSelectOnglet={handleSelectOnglet} onSelectZoneDroite={handleSelectZoneDroite} onClose={editorCtx.closeEditor} />
+        )}
+
+        {showOngletPanels && (
+          <EditorSubModeToolbar
+            title="Personnaliser onglet"
+            onBack={handleBackToChoice}
+            onSaveSession={handleSaveSession}
+            onSaveTheme={() => setSaveThemeOpen(true)}
+            onAlignPanels={handleAlignPanels}
+            panelsVisible={ongletPanelsVisible}
+            onTogglePanels={handleToggleOngletPanels}
+          />
+        )}
+
+        {showZoneDroite && (
+          <EditorSubModeToolbar
+            title="Personnaliser zone droite"
+            onBack={handleBackToChoice}
+            onSaveSession={handleSaveSession}
+            onSaveTheme={() => setSaveThemeOpen(true)}
+            brushesActive={!vc.markersHidden}
+            onToggleBrushes={() => vc.setMarkersHidden(!vc.markersHidden)}
+            previewBarActive={vc.previewBarVisible}
+            onTogglePreviewBar={() => vc.setPreviewBarVisible(!vc.previewBarVisible)}
+            vcHasPending={vc.hasPendingDrafts}
+            onVcSaveAll={vc.commitAllDrafts}
+          />
+        )}
+
+        <main ref={contentZoneRef} className={`flex-1 ${activeView === 'chat-admin' ? 'p-1.5 sm:p-2 md:p-3 lg:p-4' : ''}`} style={{ minHeight: 0, overflow: activeView === 'chat-admin' ? 'hidden' : 'auto' }}>
           {activeView === 'chat-admin' && (
-            <Suspense
-              fallback={<div className="flex items-center justify-center h-64"><div className="w-8 h-8 border-3 border-amber-500 border-t-transparent rounded-full animate-spin" /></div>}
-            >
+            <Suspense fallback={<div className="flex items-center justify-center h-64"><div className="w-8 h-8 border-3 border-amber-500 border-t-transparent rounded-full animate-spin" /></div>}>
               <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, height: '100%' }}>
-                <SAchatAdmin
-                  key={chatAdmin?.id ?? 'no-admin'}
-                  initialAdmin={chatAdmin}
-                  onAdminViewed={markAdminMsgRead}
-                  cachedAdmins={cachedAdmins}
-                />
+                <SAchatAdmin key={chatAdmin?.id ?? 'no-admin'} initialAdmin={chatAdmin} onAdminViewed={markAdminMsgRead} cachedAdmins={cachedAdmins} />
               </div>
             </Suspense>
           )}
           {activeView !== 'chat-admin' && (
-            <Suspense
-              fallback={
-                <div className="flex items-center justify-center h-64">
-                  <div className="w-8 h-8 border-3 border-amber-500 border-t-transparent rounded-full animate-spin" />
-                </div>
-              }
-            >
-              {renderView()}
+            <Suspense fallback={<div className="flex items-center justify-center h-64"><div className="w-8 h-8 border-3 border-amber-500 border-t-transparent rounded-full animate-spin" /></div>}>
+              <SAViewRouter activeView={activeView} handleNavigate={handleNavigate} handleConnectAsAdmin={handleConnectAsAdmin} handleConnectAsCompanySuperAdmin={handleConnectAsCompanySuperAdmin} handleOpenChatAdmin={handleOpenChatAdmin} cachedAdmins={cachedAdmins} adminsRefreshing={adminsRefreshing} adminsError={adminsError} fetchAdminsCache={fetchAdminsCache} docInitialTab={docInitialTab} setDocInitialTab={setDocInitialTab} docKey={docKey} setDocKey={setDocKey} setActiveView={setActiveView} saFirstName={saFirstName} saLastName={saLastName} setSaFirstName={setSaFirstName} setSaLastName={setSaLastName} appIconSelectionMode={appIconSelectionMode} handleAppIconSelected={handleAppIconSelected} handleChangeAppIcon={handleChangeAppIcon} />
             </Suspense>
           )}
         </main>
       </div>
+
+      {showOngletPanels && (
+        <SuperAdminEditorPanels
+          tabsCollapsed={tabsCollapsed} setTabsCollapsed={setTabsCollapsed}
+          tabsVisible={tabsVisible} setTabsVisible={setTabsVisible}
+          fondsVisible={fondsVisible} setFondsVisible={setFondsVisible}
+          couleurVisible={couleurVisible} setCouleurVisible={setCouleurVisible}
+          savedVisible={savedVisible} setSavedVisible={setSavedVisible}
+          savedRefreshKey={savedRefreshKey} setSavedRefreshKey={setSavedRefreshKey}
+          getPositionFor={getPositionFor} updatePositionFor={updatePositionFor} contenuPos={contenuPos}
+          logoZoneRef={logoZoneRef} sidebarBodyRef={sidebarBodyRef} topbarRef={topbarZoneRef} contentRef={contentZoneRef}
+        />
+      )}
+      <EditorSaveThemeModal open={saveThemeOpen} onClose={() => setSaveThemeOpen(false)} />
     </div>
   );
 }

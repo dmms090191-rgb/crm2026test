@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { LogOut, ChevronLeft, ArrowUpDown } from 'lucide-react';
+import { LogOut, ChevronLeft, ArrowUpDown, ArrowLeft } from 'lucide-react';
 import type { getThemeTokens } from '../../lib/themeTokens';
 
 interface SidebarFooterActionsProps {
@@ -9,10 +9,13 @@ interface SidebarFooterActionsProps {
   onReorganize?: () => void;
   reordering?: boolean;
   tokens: ReturnType<typeof getThemeTokens>;
+  rdrFontFamily?: string;
+  onBackToRoisAdmin?: () => void;
+  backLabel?: string;
 }
 
 export default function SidebarFooterActions({
-  collapsed, onLogout, onCollapse, onReorganize, reordering, tokens: t,
+  collapsed, onLogout, onCollapse, onReorganize, reordering, tokens: t, rdrFontFamily, onBackToRoisAdmin, backLabel,
 }: SidebarFooterActionsProps) {
   return (
     <div
@@ -30,19 +33,23 @@ export default function SidebarFooterActions({
             hoverColor={t.sidebar.activeItemText}
             hoverShadow={`0 0 12px ${t.sidebar.activeItemDot}22`}
             onClick={onReorganize}
+            fontFamily={rdrFontFamily}
           />
         )}
 
-        <FooterButton
-          icon={<LogOut className="w-4 h-4" />}
-          label="Deconnexion"
-          collapsed={collapsed}
-          restColor={t.sidebar.logoutText}
-          hoverBg="rgba(239,68,68,0.08)"
-          hoverColor={t.sidebar.logoutHover}
-          hoverBorder="rgba(239,68,68,0.15)"
-          onClick={onLogout}
-        />
+        {!onBackToRoisAdmin && (
+          <FooterButton
+            icon={<LogOut className="w-4 h-4" />}
+            label="Deconnexion"
+            collapsed={collapsed}
+            restColor={t.sidebar.logoutText}
+            hoverBg="rgba(239,68,68,0.08)"
+            hoverColor={t.sidebar.logoutHover}
+            hoverBorder="rgba(239,68,68,0.15)"
+            onClick={onLogout}
+            fontFamily={rdrFontFamily}
+          />
+        )}
 
         <FooterButton
           icon={
@@ -56,13 +63,29 @@ export default function SidebarFooterActions({
           hoverBg={`${t.sidebar.collapseHover}14`}
           hoverColor={t.sidebar.collapseHover}
           onClick={onCollapse}
+          fontFamily={rdrFontFamily}
         />
+
+        {onBackToRoisAdmin && (
+          <FooterButton
+            icon={<ArrowLeft className="w-4 h-4" />}
+            label={backLabel || "Retour Rois Admin"}
+            collapsed={collapsed}
+            restColor="#f59e0b"
+            hoverBg="rgba(245,158,11,0.10)"
+            hoverColor="#f59e0b"
+            hoverBorder="rgba(245,158,11,0.25)"
+            hoverShadow="0 0 12px rgba(245,158,11,0.15)"
+            onClick={onBackToRoisAdmin}
+            fontFamily={rdrFontFamily}
+          />
+        )}
       </div>
     </div>
   );
 }
 
-function FooterButton({ icon, label, collapsed, restColor, hoverBg, hoverColor, hoverBorder, hoverShadow, onClick }: {
+function FooterButton({ icon, label, collapsed, restColor, hoverBg, hoverColor, hoverBorder, hoverShadow, onClick, fontFamily }: {
   icon: React.ReactNode;
   label: string;
   collapsed: boolean;
@@ -72,6 +95,7 @@ function FooterButton({ icon, label, collapsed, restColor, hoverBg, hoverColor, 
   hoverBorder?: string;
   hoverShadow?: string;
   onClick: () => void;
+  fontFamily?: string;
 }) {
   const [hovered, setHovered] = useState(false);
 
@@ -93,7 +117,7 @@ function FooterButton({ icon, label, collapsed, restColor, hoverBg, hoverColor, 
     >
       <span className="flex-shrink-0 transition-colors duration-200">{icon}</span>
       {!collapsed && (
-        <span className="text-[13px] font-medium transition-colors duration-200">{label}</span>
+        <span className="text-[13px] font-medium transition-colors duration-200" style={{ fontFamily: fontFamily ? `"${fontFamily}", sans-serif` : undefined }}>{label}</span>
       )}
     </button>
   );

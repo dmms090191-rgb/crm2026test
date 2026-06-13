@@ -10,7 +10,7 @@
 
     <!-- Favicon & PWA -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="manifest" href="https://sxfmsozqfulfrkpspjky.supabase.co/functions/v1/pwa-manifest" />
+    <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="theme-color" content="#0ea5e9" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -19,10 +19,10 @@
 
     <!-- Open Graph -->
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://talvex-zeta.vercel.app/" />
+    <meta property="og:url" content="%VITE_APP_URL%/" />
     <meta property="og:title" content="Talvex CRM" />
     <meta property="og:description" content="Votre plateforme CRM centralisée." />
-    <meta property="og:image" content="https://talvex-zeta.vercel.app/og-talvex.png" />
+    <meta property="og:image" content="%VITE_APP_URL%/og-talvex.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta property="og:image:type" content="image/png" />
@@ -32,13 +32,13 @@
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Talvex CRM" />
     <meta name="twitter:description" content="Votre plateforme CRM centralisée." />
-    <meta name="twitter:image" content="https://talvex-zeta.vercel.app/og-talvex.png" />
+    <meta name="twitter:image" content="%VITE_APP_URL%/og-talvex.png" />
   </head>
   <body>
     <div id="root"></div>
     <script>
       (function(){
-        var bg={dark:'#050810',light:'#080C16',graphite:'#1e2024',beige:'#14100A',rose:'#120A16',emerald:'#06130D',luxury:'#12100B',pink:'#120810',red:'#100808',orange:'#100A06',yellow:'#0E0C06',highlevel_light:'#f4f7fb',highlevel_dark:'#f3f6fb',highlevel_emerald:'#f8fafc'};
+        var bg={dark:'#050810',light:'#080C16',graphite:'#1e2024',beige:'#14100A',rose:'#120A16',emerald:'#06130D',luxury:'#12100B',pink:'#120810',red:'#100808',orange:'#100A06',yellow:'#0E0C06',highlevel_light:'#f4f7fb',highlevel_dark:'#f3f6fb',highlevel_emerald:'#f8fafc',glass:'#0a0a14'};
         try{var t=localStorage.getItem('crm_theme_last');
         if(t&&bg[t]){document.documentElement.setAttribute('data-theme',t);document.body.style.background=bg[t];}
         else{document.body.style.background='#020617';}}catch(e){document.body.style.background='#020617';}

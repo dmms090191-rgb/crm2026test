@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { getHomePageByDomain } from '../lib/companyHomePages';
+import { getHomePageByDomain, type CompanyHomePage } from '../lib/companyHomePages';
 
 const KNOWN_PATTERNS = [
   'localhost', '127.0.0.1', '.supabase.co', '.vercel.app',
@@ -21,8 +21,7 @@ function stripWww(hostname: string): string {
 }
 
 export function useCustomDomain() {
-  const [customDomainSlug, setCustomDomainSlug] = useState<string | null>(null);
-  const [customDomainCompanyId, setCustomDomainCompanyId] = useState<string | null>(null);
+  const [customDomainPage, setCustomDomainPage] = useState<CompanyHomePage | null>(null);
   const [customDomainNotFound, setCustomDomainNotFound] = useState(false);
   const [checking, setChecking] = useState(false);
   const checkedRef = useRef(false);
@@ -37,9 +36,8 @@ export function useCustomDomain() {
     setChecking(true);
     getHomePageByDomain(hostname)
       .then(page => {
-        if (page?.slug) {
-          setCustomDomainSlug(page.slug);
-          setCustomDomainCompanyId(page.company_id);
+        if (page) {
+          setCustomDomainPage(page);
         } else {
           setCustomDomainNotFound(true);
         }
@@ -49,8 +47,10 @@ export function useCustomDomain() {
   }, []);
 
   return {
-    customDomainSlug,
-    customDomainCompanyId,
+    customDomainPage,
+    customDomainSlug: customDomainPage?.slug ?? null,
+    customDomainPageId: customDomainPage?.id ?? null,
+    customDomainCompanyId: customDomainPage?.company_id ?? null,
     customDomainNotFound,
     checking: checking && isCustomDomainHost,
   };

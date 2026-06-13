@@ -33,6 +33,10 @@ export default function SAApplicationPage({ onChangeAppIcon }: Props) {
           Gerez votre activite ou que vous soyez avec l'application mobile Talvex.
           L'apercu ci-dessous affiche la vraie interface responsive du projet.
         </p>
+
+        <div className="flex justify-center mt-6">
+          <PwaInstallButton pwa={pwa} appName="Talvex" />
+        </div>
       </div>
 
       {/* Two-column: Features + Phone */}
@@ -60,10 +64,6 @@ export default function SAApplicationPage({ onChangeAppIcon }: Props) {
         </div>
       </div>
 
-      {/* Install button */}
-      <div className="flex justify-center mt-8 sm:mt-10">
-        <PwaInstallButton pwa={pwa} appName="Talvex" />
-      </div>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Wand2, Star, X } from 'lucide-react';
+import { Wand2, X } from 'lucide-react';
 import type { useThemeTokens } from '../../hooks/useThemeTokens';
 import { notifyLogoChanged } from '../../hooks/useActiveLogo';
 import { supabase } from '../../lib/supabase';
@@ -97,15 +97,27 @@ export default function LogoAiSelectedDetail({
 
   if (!logo) {
     return (
-      <div className="h-full flex flex-col items-center justify-center gap-3 rounded-xl"
-        style={{ background: t.surface.secondary, border: `1.5px dashed ${t.surface.border}`, minHeight: 120, boxShadow: '0 2px 12px rgba(0,0,0,0.03)' }}>
-        <div className="w-12 h-12 rounded-xl flex items-center justify-center"
-          style={{ background: 'linear-gradient(135deg, rgba(245,158,11,0.04), rgba(217,119,6,0.06))', border: '1px solid rgba(245,158,11,0.06)' }}>
-          <Wand2 className="w-5 h-5" style={{ color: '#d97706', opacity: 0.3 }} />
+      <div className="h-full flex flex-col">
+        <div className="flex items-center gap-1.5 px-3 py-1.5 flex-shrink-0"
+          style={{ borderBottom: `1px dashed ${t.surface.border}` }}>
+          <span className="w-4 h-4 rounded flex items-center justify-center text-[8px] font-extrabold flex-shrink-0"
+            style={{ background: 'linear-gradient(135deg, rgba(245,158,11,0.10), rgba(217,119,6,0.14))', color: '#b45309', border: '1px solid rgba(245,158,11,0.10)' }}>
+            9
+          </span>
+          <Wand2 className="w-2.5 h-2.5 flex-shrink-0" style={{ color: '#d97706' }} />
+          <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color: t.text.tertiary }}>
+            Apercu du pack
+          </span>
         </div>
-        <div className="text-center">
-          <p className="text-[10px] font-semibold mb-0.5" style={{ color: t.text.tertiary }}>Apercu du logo selectionne</p>
-          <p className="text-[9px]" style={{ color: t.text.quaternary }}>Cliquez sur un logo ci-dessus</p>
+        <div className="flex-1 flex flex-col items-center justify-center gap-3 py-6">
+          <div className="w-12 h-12 rounded-xl flex items-center justify-center"
+            style={{ background: 'linear-gradient(135deg, rgba(245,158,11,0.04), rgba(217,119,6,0.06))', border: '1px solid rgba(245,158,11,0.06)' }}>
+            <Wand2 className="w-5 h-5" style={{ color: '#d97706', opacity: 0.3 }} />
+          </div>
+          <div className="text-center">
+            <p className="text-[10px] font-semibold mb-0.5" style={{ color: t.text.tertiary }}>Apercu du logo selectionne</p>
+            <p className="text-[9px]" style={{ color: t.text.quaternary }}>Cliquez sur un logo ci-dessus</p>
+          </div>
         </div>
       </div>
     );
@@ -116,20 +128,20 @@ export default function LogoAiSelectedDetail({
   const displayedLogos = previewTabs ? previewTabs[previewPage]?.logos ?? [logo] : [logo];
 
   return (
-    <div className="h-full rounded-xl overflow-hidden flex flex-col"
-      style={{ background: t.surface.secondary, border: `1.5px solid ${t.surface.border}`, boxShadow: '0 2px 16px rgba(0,0,0,0.04)' }}>
-      <div className="flex items-center justify-between px-4 py-2.5 flex-shrink-0"
-        style={{ borderBottom: `1px solid ${t.surface.border}`, background: `linear-gradient(180deg, rgba(245,158,11,0.015), transparent)` }}>
-        <div className="flex items-center gap-2.5">
-          <div className="w-5 h-5 rounded-md flex items-center justify-center"
-            style={{ background: 'linear-gradient(135deg, rgba(245,158,11,0.10), rgba(217,119,6,0.15))', border: '1px solid rgba(245,158,11,0.10)' }}>
-            <Star className="w-2.5 h-2.5" style={{ color: '#d97706' }} />
-          </div>
-          <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: t.text.tertiary }}>
+    <div className="h-full flex flex-col">
+      <div className="flex items-center justify-between gap-2 px-3 py-1.5 flex-shrink-0"
+        style={{ borderBottom: `1px dashed ${t.surface.border}` }}>
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className="w-4 h-4 rounded flex items-center justify-center text-[8px] font-extrabold flex-shrink-0"
+            style={{ background: 'linear-gradient(135deg, rgba(245,158,11,0.10), rgba(217,119,6,0.14))', color: '#b45309', border: '1px solid rgba(245,158,11,0.10)' }}>
+            9
+          </span>
+          <Wand2 className="w-2.5 h-2.5 flex-shrink-0" style={{ color: '#d97706' }} />
+          <span className="text-[9px] font-bold uppercase tracking-wider truncate" style={{ color: t.text.tertiary }}>
             {isFamily ? 'Apercu du pack' : 'Apercu'}
           </span>
           {isFamily && (
-            <span className="px-1.5 py-0.5 rounded text-[7px] font-bold uppercase"
+            <span className="px-1.5 py-0.5 rounded text-[7px] font-bold uppercase flex-shrink-0"
               style={{ background: 'rgba(245,158,11,0.08)', color: '#d97706', border: '1px solid rgba(245,158,11,0.12)' }}>
               Famille
             </span>

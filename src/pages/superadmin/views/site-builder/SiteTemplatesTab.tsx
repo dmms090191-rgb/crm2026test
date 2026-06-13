@@ -74,9 +74,13 @@ function TemplateCard({ template, isActive, isApplying, onPreview, onApply, t }:
     <div
       className="rounded-xl overflow-hidden transition-all hover:scale-[1.01]"
       style={{
-        background: t.card.bg,
-        border: `1px solid ${isActive ? 'rgba(22,163,106,0.35)' : t.card.border}`,
-        boxShadow: isActive ? '0 0 20px rgba(22,163,106,0.1)' : t.card.shadow,
+        background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.55), rgba(15, 23, 42, 0.65))',
+        border: `1px solid ${isActive ? 'rgba(22,163,106,0.45)' : 'rgba(148, 163, 184, 0.15)'}`,
+        boxShadow: isActive
+          ? 'inset 0 1px 0 rgba(255,255,255,0.06), 0 0 24px rgba(22,163,106,0.18), 0 8px 32px rgba(0,0,0,0.30)'
+          : 'inset 0 1px 0 rgba(255,255,255,0.06), 0 8px 32px rgba(0,0,0,0.30)',
+        backdropFilter: 'blur(24px) saturate(140%)',
+        WebkitBackdropFilter: 'blur(24px) saturate(140%)',
       }}
     >
       {/* Color banner */}

@@ -59,15 +59,18 @@ export default function LogoAiGalleryPackCard({
             const imgSize = isDesktop ? 'max-h-[56px] max-w-[72px]' : 'max-h-[64px] max-w-[80px]';
             const padding = isDesktop ? 'p-2' : 'p-3';
             return (
-              <div key={logo.id} className={`flex-1 aspect-square flex items-center justify-center ${padding}`}
+              <div key={logo.id} className={`flex-1 aspect-square flex items-center justify-center relative ${padding}`}
                 style={{
                   background: isPng ? CHECKER_BG : `linear-gradient(160deg, ${t.surface.primary}, ${t.surface.secondary})`,
                   backgroundSize: isPng ? '14px 14px' : undefined,
                   backgroundPosition: isPng ? '0 0,0 7px,7px -7px,-7px 0px' : undefined,
                   borderRight: li < logos.length - 1 ? `1px solid rgba(245,158,11,0.1)` : undefined,
                 }}>
+                <div className="absolute inset-0 pointer-events-none"
+                  style={{ background: 'linear-gradient(180deg, rgba(15,23,42,0.10) 0%, rgba(15,23,42,0.28) 100%)' }} />
                 <img src={logo.url} alt={logo.file_name}
-                  className={`${imgSize} object-contain transition-transform ${reordering ? '' : isDesktop ? 'group-hover/family:scale-105' : ''}`}
+                  className={`relative ${imgSize} object-contain transition-transform ${reordering ? '' : isDesktop ? 'group-hover/family:scale-105' : ''}`}
+                  style={{ filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.35))' }}
                   onError={e => { (e.target as HTMLImageElement).style.opacity = '0.3'; }} />
               </div>
             );
@@ -75,13 +78,16 @@ export default function LogoAiGalleryPackCard({
         </div>
       </button>
       <div className={`${isDesktop ? 'px-2 py-1.5' : 'px-2.5 py-2'} flex items-center gap-${isDesktop ? '1' : '1.5'}`}
-        style={{ background: t.surface.secondary, borderTop: `1px solid rgba(245,158,11,0.1)` }}>
+        style={{
+          background: `linear-gradient(180deg, ${t.surface.primary}, ${t.surface.secondary})`,
+          borderTop: `1px solid rgba(245,158,11,0.18)`,
+        }}>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1 mb-0.5">
             <Layers className={`${isDesktop ? 'w-2.5 h-2.5' : 'w-3 h-3'} flex-shrink-0`} style={{ color: '#d97706' }} />
-            <span className={`text-[${isDesktop ? '8' : '9'}px] font-bold uppercase tracking-wider`} style={{ color: '#d97706' }}>Pack</span>
+            <span className={`text-[${isDesktop ? '8' : '9'}px] font-extrabold uppercase tracking-wider`} style={{ color: '#d97706' }}>Pack</span>
           </div>
-          <p className={`text-[${isDesktop ? '7' : '8'}px]`} style={{ color: t.text.quaternary }}>{groupDate}</p>
+          <p className={`text-[${isDesktop ? '8' : '9'}px] font-semibold tabular-nums`} style={{ color: t.text.secondary }}>{groupDate}</p>
         </div>
         {!isSelectionMode && !reordering && (
           <button

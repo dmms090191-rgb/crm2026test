@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Eye, EyeOff, Star, ChevronUp, ChevronDown, MoreVertical, Wrench, Crown, Award, Pencil, FolderInput, Check } from 'lucide-react';
+import { Eye, EyeOff, Star, ChevronUp, ChevronDown, MoreVertical, Wrench, Crown, Award, Pencil, FolderInput, Check, Share2 } from 'lucide-react';
 import { ThemePreview } from '../../../../components/theme/ThemeCard';
 import { ALL_THEMES } from '../../../../components/theme/themeData';
+import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 import type { ThemeConfigRow, ThemeStatus } from '../../../../hooks/useThemeConfig';
 import { STATUS_META } from './saThemesConstants';
 
@@ -11,6 +12,7 @@ interface Props {
   onStatusChange: (status: ThemeStatus) => void;
   onToggleRecommended: () => void;
   onToggleFavorite: () => void;
+  onToggleShared: () => void;
   onMoveUp: () => void;
   onMoveDown: () => void;
   onRename: () => void;
@@ -22,20 +24,26 @@ interface Props {
   onToggleSelect?: () => void;
 }
 
-export default function SAThemeCard({ config, categoryName, onStatusChange, onToggleRecommended, onToggleFavorite, onMoveUp, onMoveDown, onRename, onMove, isFirst, isLast, selectionMode, isSelected, onToggleSelect }: Props) {
+export default function SAThemeCard({ config, categoryName, onStatusChange, onToggleRecommended, onToggleFavorite, onToggleShared, onMoveUp, onMoveDown, onRename, onMove, isFirst, isLast, selectionMode, isSelected, onToggleSelect }: Props) {
   const [menuOpen, setMenuOpen] = useState(false);
-  const themeEntry = ALL_THEMES.find(t => t.value === config.theme_key);
+  const t = useThemeTokens();
+  const themeEntry = ALL_THEMES.find(th => th.value === config.theme_key);
   const colors: [string, string, string] = themeEntry?.colors ?? ['#1a1a2e', '#16213e', '#0f3460'];
-  const accent = colors[2];
   const meta = STATUS_META[config.status];
 
   return (
     <div
       className="group relative flex flex-col rounded-2xl overflow-hidden transition-all duration-200 hover:-translate-y-0.5"
       style={{
-        background: isSelected ? 'rgba(59,130,246,0.06)' : 'rgba(255,255,255,0.025)',
-        border: isSelected ? '1.5px solid rgba(59,130,246,0.40)' : '1px solid rgba(255,255,255,0.06)',
-        boxShadow: isSelected ? '0 0 0 1px rgba(59,130,246,0.10), 0 4px 20px rgba(59,130,246,0.08)' : 'none',
+        background: isSelected
+          ? 'linear-gradient(135deg, rgba(59,130,246,0.10), rgba(59,130,246,0.04))'
+          : `linear-gradient(135deg, ${t.surface.secondary}, ${t.surface.secondary}80)`,
+        border: isSelected ? `1.5px solid rgba(59,130,246,0.40)` : `1px solid ${t.surface.border}`,
+        boxShadow: isSelected
+          ? '0 0 0 1px rgba(59,130,246,0.10), 0 4px 20px rgba(59,130,246,0.08), inset 0 1px 0 rgba(255,255,255,0.04)'
+          : 'inset 0 1px 0 rgba(255,255,255,0.04), 0 1px 2px rgba(0,0,0,0.04)',
+        backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
       }}
     >
       {/* Selection checkbox */}
@@ -54,11 +62,21 @@ export default function SAThemeCard({ config, categoryName, onStatusChange, onTo
         </button>
       )}
 
-      {/* Recommended badge */}
-      {config.is_recommended && !selectionMode && (
-        <div className="absolute top-3 left-3 z-10 flex items-center gap-1 px-2 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wider" style={{ background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.30)', color: '#60a5fa' }}>
-          <Award className="w-2.5 h-2.5" />
-          Recommande
+      {/* Recommended / Shared badge */}
+      {!selectionMode && (config.is_recommended || config.is_shared) && (
+        <div className="absolute top-3 left-3 z-10 flex items-center gap-1">
+          {config.is_recommended && (
+            <div className="flex items-center gap-1 px-2 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wider" style={{ background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.30)', color: '#60a5fa' }}>
+              <Award className="w-2.5 h-2.5" />
+              Recommande
+            </div>
+          )}
+          {config.is_shared && (
+            <div className="flex items-center gap-1 px-2 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wider" style={{ background: 'rgba(34,211,238,0.12)', border: '1px solid rgba(34,211,238,0.25)', color: '#22d3ee' }}>
+              <Share2 className="w-2.5 h-2.5" />
+              Partage
+            </div>
+          )}
         </div>
       )}
 
@@ -81,6 +99,7 @@ export default function SAThemeCard({ config, categoryName, onStatusChange, onTo
                 <MenuBtn icon={<Crown className="w-3.5 h-3.5" />} label="Premium" active={config.status === 'premium'} onClick={() => { setMenuOpen(false); onStatusChange('premium'); }} />
                 <div className="mx-2 my-1 h-px bg-white/[0.06]" />
                 <MenuBtn icon={<Award className="w-3.5 h-3.5" />} label={config.is_recommended ? 'Retirer recommande' : 'Recommander'} onClick={() => { setMenuOpen(false); onToggleRecommended(); }} />
+                <MenuBtn icon={<Share2 className="w-3.5 h-3.5" />} label={config.is_shared ? 'Retirer le partage' : 'Partager a tous'} active={config.is_shared} onClick={() => { setMenuOpen(false); onToggleShared(); }} />
               </div>
             </>
           )}
@@ -123,7 +142,7 @@ export default function SAThemeCard({ config, categoryName, onStatusChange, onTo
         </div>
       </div>
 
-      <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" style={{ boxShadow: `inset 0 0 0 1px ${accent}20, 0 0 20px ${accent}06` }} />
+      <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" style={{ boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.08), 0 0 20px rgba(255,255,255,0.03)' }} />
     </div>
   );
 }

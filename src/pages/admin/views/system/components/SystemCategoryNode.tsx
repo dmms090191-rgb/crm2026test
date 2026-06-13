@@ -244,7 +244,10 @@ function getDepthStyles(depth: number, tokens: ReturnType<typeof useThemeTokens>
       containerStyle: {
         border: `1px solid ${color ? `${color}40` : tokens.surface.border}`,
         borderLeft: color ? `4px solid ${color}` : undefined,
-        background: tokens.surface.primary,
+        background: `linear-gradient(135deg, ${tokens.surface.secondary}, ${tokens.surface.secondary}80)`,
+        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), 0 1px 2px rgba(0,0,0,0.04)',
+        backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
       },
       header: 'px-3 sm:px-4 py-2.5 sm:py-3',
       headerStyle: { background: color ? `${color}06` : tokens.surface.secondary },

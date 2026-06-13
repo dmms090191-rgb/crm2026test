@@ -1,30 +1,21 @@
 {
-  "generatedAt": "2026-06-01T04:34:49.929Z",
-  "anyCount": 0,
-  "anyOccurrences": [],
+  "generatedAt": "2026-06-13T20:05:22.666Z",
+  "anyCount": 1,
+  "anyOccurrences": [
+    {
+      "file": "src/pages/admin/views/calquer-logo/CalquerLogoBgPicker.tsx",
+      "line": 94,
+      "text": "const dropper = new (window as any).EyeDropper();"
+    }
+  ],
   "unusedImportCount": 0,
   "unusedImports": [],
-  "largeFileCount": 4,
+  "largeFileCount": 1,
   "largeFiles": [
     {
-      "file": "src/pages/admin/TopBar.tsx",
-      "lines": 337,
-      "overflow": 37
-    },
-    {
-      "file": "src/components/SimulatedPhoneLoginScreen.tsx",
-      "lines": 388,
-      "overflow": 88
-    },
-    {
-      "file": "src/components/PwaLoginPage.tsx",
-      "lines": 418,
-      "overflow": 118
-    },
-    {
-      "file": "src/pages/superadmin/views/themes/SAThemes.tsx",
-      "lines": 683,
-      "overflow": 383
+      "file": "src/pages/company-super-admin/CompanySuperAdminDashboard.tsx",
+      "lines": 306,
+      "overflow": 6
     }
   ],
   "tscErrorCount": 0,
@@ -32,7 +23,7 @@
   "eslintErrorCount": 0,
   "eslintWarningCount": 0,
   "eslintIssues": [],
-  "totalFilesAnalyzed": 702,
-  "totalLinesAnalyzed": 95526,
-  "totalOverflowLines": 626
+  "totalFilesAnalyzed": 869,
+  "totalLinesAnalyzed": 116551,
+  "totalOverflowLines": 6
 }

@@ -34,12 +34,14 @@ export default function SAMonCompte({ onNameChange }: SAMonCompteProps) {
   const [email, setEmail] = useState('');
   const [digits, setDigits] = useState<string[]>(['', '', '', '', '', '']);
   const [pinSynced, setPinSynced] = useState(false);
+  const [accountLoading, setAccountLoading] = useState(true);
   const [identityMsg, setIdentityMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [savingIdentity, setSavingIdentity] = useState(false);
   const [userEmail, setUserEmail] = useState('');
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    setAccountLoading(true);
+    supabase.auth.refreshSession().then(() => supabase.auth.getUser()).then(({ data: { user } }) => {
       if (user) {
         setEmail(user.email ?? '');
         setUserEmail(user.email ?? '');
@@ -54,7 +56,7 @@ export default function SAMonCompte({ onNameChange }: SAMonCompteProps) {
           setPinSynced(false);
         }
       }
-    });
+    }).finally(() => setAccountLoading(false));
   }, []);
 
   const saveIdentity = async () => {
@@ -75,9 +77,11 @@ export default function SAMonCompte({ onNameChange }: SAMonCompteProps) {
   };
 
   const cardStyle = {
-    background: t.card.bg,
-    border: `1px solid ${t.card.border}`,
-    boxShadow: t.card.shadow,
+    background: `linear-gradient(135deg, ${t.surface.secondary}, ${t.surface.secondary}80)`,
+    border: `1px solid ${t.surface.border}`,
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), 0 1px 2px rgba(0,0,0,0.04)',
+    backdropFilter: 'blur(8px)',
+    WebkitBackdropFilter: 'blur(8px)',
   };
 
   const inputStyle = {
@@ -86,6 +90,62 @@ export default function SAMonCompte({ onNameChange }: SAMonCompteProps) {
     outline: 'none',
     color: t.input.text,
   };
+
+  if (accountLoading) {
+    return (
+      <div className="p-3 sm:p-4 md:p-6 lg:p-8">
+        <div className="w-full max-w-2xl mx-auto space-y-3 md:space-y-5 min-w-0 overflow-x-hidden">
+          <div className="flex items-center gap-3 md:gap-4 rounded-2xl p-3 md:p-5" style={cardStyle}>
+            <div
+              className="w-9 h-9 md:w-12 md:h-12 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)', boxShadow: '0 0 20px rgba(245,158,11,0.35)' }}
+            >
+              <User className="w-4 h-4 md:w-6 md:h-6" style={{ color: '#ffffff' }} />
+            </div>
+            <div>
+              <h2 className="text-sm md:text-base font-bold" style={{ color: t.heading.primary }}>Mon compte</h2>
+              <p className="text-[11px] md:text-xs" style={{ color: t.label.muted }}>Informations sur le Rois Admin</p>
+            </div>
+          </div>
+
+          <div className="rounded-2xl p-3.5 md:p-5 space-y-3 md:space-y-4 min-w-0" style={cardStyle}>
+            <div className="flex items-center gap-2">
+              <User className="w-4 h-4" style={{ color: t.label.muted }} />
+              <h3 className="text-sm font-semibold" style={{ color: t.heading.primary }}>Identite</h3>
+            </div>
+            <div className="grid grid-cols-2 gap-2 md:gap-3 min-w-0">
+              <div className="min-w-0">
+                <div className="h-3 w-12 rounded mb-1.5 animate-pulse" style={{ background: t.surface.hover }} />
+                <div className="h-10 rounded-xl animate-pulse" style={{ background: t.surface.hover, border: `1px solid ${t.surface.border}` }} />
+              </div>
+              <div className="min-w-0">
+                <div className="h-3 w-8 rounded mb-1.5 animate-pulse" style={{ background: t.surface.hover }} />
+                <div className="h-10 rounded-xl animate-pulse" style={{ background: t.surface.hover, border: `1px solid ${t.surface.border}` }} />
+              </div>
+            </div>
+            <div className="h-10 rounded-xl animate-pulse" style={{ background: t.surface.hover, border: `1px solid ${t.surface.border}` }} />
+          </div>
+
+          <div className="rounded-2xl p-3.5 md:p-5 space-y-3 md:space-y-4 min-w-0" style={cardStyle}>
+            <div className="h-4 w-40 rounded animate-pulse" style={{ background: t.surface.hover }} />
+            <div>
+              <div className="h-3 w-10 rounded mb-1.5 animate-pulse" style={{ background: t.surface.hover }} />
+              <div className="h-10 rounded-xl animate-pulse" style={{ background: t.surface.hover, border: `1px solid ${t.surface.border}` }} />
+            </div>
+            <div>
+              <div className="h-4 w-44 rounded mb-3 animate-pulse" style={{ background: t.surface.hover }} />
+              <div className="flex gap-1 xs:gap-1.5 md:gap-2 justify-center max-w-full">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="flex-1 max-w-10 h-11 md:max-w-12 md:h-14 rounded-xl animate-pulse" style={{ background: t.surface.hover, border: `1px solid ${t.surface.border}` }} />
+                ))}
+              </div>
+            </div>
+            <div className="h-10 rounded-xl animate-pulse" style={{ background: t.surface.hover, border: `1px solid ${t.surface.border}` }} />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-3 sm:p-4 md:p-6 lg:p-8">
@@ -99,7 +159,7 @@ export default function SAMonCompte({ onNameChange }: SAMonCompteProps) {
           </div>
           <div>
             <h2 className="text-sm md:text-base font-bold" style={{ color: t.heading.primary }}>Mon compte</h2>
-            <p className="text-[11px] md:text-xs" style={{ color: t.label.muted }}>Informations sur le Super Admin</p>
+            <p className="text-[11px] md:text-xs" style={{ color: t.label.muted }}>Informations sur le Rois Admin</p>
           </div>
         </div>
 

@@ -68,8 +68,11 @@ export default function ContactSidebar({
     <div
       className={`flex flex-col overflow-hidden ${className}`}
       style={{
-        background: tokens.chat.listBg,
+        background: `linear-gradient(135deg, ${tokens.chat.listBg}, ${tokens.chat.listBg}cc)`,
         borderRight: `1px solid ${tokens.chat.border}`,
+        backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
+        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
       }}
     >
       <div className="px-3 pt-3 pb-2 flex-shrink-0 space-y-2">

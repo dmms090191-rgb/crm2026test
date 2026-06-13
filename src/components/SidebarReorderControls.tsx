@@ -27,6 +27,8 @@ interface Props {
   dropTargetIdx?: number | null;
   dropEdge?: 'before' | 'after';
   resetToDefault?: () => void;
+  sectionColorMap?: Record<string, string>;
+  sectionFontFamily?: string;
 }
 
 export default function SidebarReorderControls({
@@ -37,6 +39,8 @@ export default function SidebarReorderControls({
   renderItem,
   dragSourceIdx, dropTargetIdx, dropEdge,
   resetToDefault,
+  sectionColorMap,
+  sectionFontFamily,
 }: Props) {
   const t = useThemeTokens();
   const [addingSectionName, setAddingSectionName] = useState('');
@@ -69,7 +73,8 @@ export default function SidebarReorderControls({
           }
           if (entry.kind === 'section') {
             if (collapsed) return null;
-            return <p key={`s-${entry.title}`} className="px-2 pb-1.5 pt-3 first:pt-1 text-[9px] font-bold tracking-[0.18em] uppercase" style={{ color: t.sidebar.sectionTitle }}>{entry.title}</p>;
+            const sectionColor = sectionColorMap?.[entry.title] || t.sidebar.sectionTitle;
+            return <p key={`s-${entry.title}`} className="px-2 pb-1.5 pt-3 first:pt-1 text-[9px] font-bold tracking-[0.18em] uppercase" style={{ color: sectionColor, fontFamily: sectionFontFamily ? `"${sectionFontFamily}", sans-serif` : undefined }}>{entry.title}</p>;
           }
           if (entry.kind === 'divider') {
             return <div key={`d-${entry.afterSection}-${idx}`} className="mx-3 my-2" style={{ height: '1px', background: t.sidebar.divider }} />;

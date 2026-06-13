@@ -6,7 +6,13 @@
   .no-scrollbar::-webkit-scrollbar { display: none; }
   .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
   .hover-token:hover { background: var(--hover-bg); }
+  .safe-area-top { padding-top: env(safe-area-inset-top, 0px); }
+  .safe-area-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
 }
+
+/* Hide #root until React has applied the correct theme, then reveal instantly */
+#root { opacity: 0; }
+#root.app-ready { opacity: 1; }
 
 @media (max-width: 767px) {
   .mobile-main-scroll {
@@ -426,6 +432,40 @@ html[data-theme="graphite"] .dual-scroll-top::-webkit-scrollbar-thumb:active {
 @keyframes shimmer {
   0% { transform: translateX(-100%); }
   100% { transform: translateX(200%); }
+}
+
+@keyframes editorTargetPulse {
+  0% { box-shadow: 0 0 0 3px rgba(245,158,11,0.7), 0 0 16px rgba(245,158,11,0.3); }
+  50% { box-shadow: 0 0 0 5px rgba(245,158,11,0.4), 0 0 24px rgba(245,158,11,0.15); }
+  100% { box-shadow: 0 0 0 3px rgba(245,158,11,0.7), 0 0 16px rgba(245,158,11,0.3); }
+}
+
+.editor-target-highlight {
+  outline: 2px solid #f59e0b;
+  outline-offset: 4px;
+  border-radius: 12px;
+  animation: editorTargetPulse 1s ease-in-out infinite;
+  position: relative;
+  z-index: 50;
+}
+
+.editor-target-highlight::after {
+  content: 'Bouton cible';
+  position: absolute;
+  top: -22px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #f59e0b;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 2px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 51;
 }
 
 .preview-unframe > * {

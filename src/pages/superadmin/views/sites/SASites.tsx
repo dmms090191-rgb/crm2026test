@@ -1,20 +1,80 @@
-import { useState, useCallback, useEffect } from 'react';
-import { Globe, ExternalLink, Copy, Settings2, Check, ToggleLeft, ToggleRight, Link2 } from 'lucide-react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
+import { Globe, Crown, Shield, Users } from 'lucide-react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 import { getAllHomePages, toggleHomePageActive, type CompanyHomePageWithCompany } from '../../../../lib/companyHomePages';
 import SASiteEditModal from './SASiteEditModal';
 import SADomainsModal from './SADomainsModal';
+import SASitesSection from './SASitesSection';
 
-const DOMAIN_STATUS_CFG: Record<string, { label: string; color: string; bg: string; border: string }> = {
-  not_configured: { label: 'Non configure', color: '#94a3b8', bg: 'rgba(148,163,184,0.08)', border: 'rgba(148,163,184,0.2)' },
-  pending: { label: 'En attente', color: '#f59e0b', bg: 'rgba(245,158,11,0.08)', border: 'rgba(245,158,11,0.2)' },
-  verified: { label: 'Verifie', color: '#10b981', bg: 'rgba(16,185,129,0.08)', border: 'rgba(16,185,129,0.2)' },
-  error: { label: 'Erreur', color: '#ef4444', bg: 'rgba(239,68,68,0.08)', border: 'rgba(239,68,68,0.2)' },
-};
+interface SuperAdminGroup {
+  companyId: string;
+  companyName: string;
+  pages: CompanyHomePageWithCompany[];
+}
 
-function formatDate(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+function groupPages(pages: CompanyHomePageWithCompany[]) {
+  const platform: CompanyHomePageWithCompany[] = [];
+  const roisAdminDirect: CompanyHomePageWithCompany[] = [];
+  const superAdminMap = new Map<string, SuperAdminGroup>();
+
+  const saCompanyIds = new Set<string>();
+  for (const p of pages) {
+    if (p.companies?.company_tier === 'super_admin' && p.company_id) {
+      saCompanyIds.add(p.company_id);
+    }
+  }
+
+  for (const p of pages) {
+    if (p.site_scope === 'platform') {
+      platform.push(p);
+      continue;
+    }
+
+    const tier = p.companies?.company_tier;
+    const parentId = p.companies?.parent_company_id;
+
+    if (tier === 'rois_admin') {
+      platform.push(p);
+      continue;
+    }
+
+    if (tier === 'super_admin' && p.company_id) {
+      if (!superAdminMap.has(p.company_id)) {
+        superAdminMap.set(p.company_id, {
+          companyId: p.company_id,
+          companyName: p.companies?.name ?? 'Super Admin',
+          pages: [],
+        });
+      }
+      superAdminMap.get(p.company_id)!.pages.unshift(p);
+      continue;
+    }
+
+    if (tier === 'admin' && parentId && saCompanyIds.has(parentId)) {
+      if (!superAdminMap.has(parentId)) {
+        superAdminMap.set(parentId, {
+          companyId: parentId,
+          companyName: 'Super Admin',
+          pages: [],
+        });
+      }
+      superAdminMap.get(parentId)!.pages.push(p);
+      continue;
+    }
+
+    if (tier === 'admin' && !parentId) {
+      roisAdminDirect.push(p);
+      continue;
+    }
+
+    roisAdminDirect.push(p);
+  }
+
+  const superAdminGroups = Array.from(superAdminMap.values()).sort((a, b) =>
+    a.companyName.localeCompare(b.companyName)
+  );
+
+  return { platform, roisAdminDirect, superAdminGroups };
 }
 
 export default function SASites() {
@@ -33,6 +93,10 @@ export default function SASites() {
 
   useEffect(() => { load(); }, [load]);
 
+  const { platform, roisAdminDirect, superAdminGroups } = useMemo(() => groupPages(pages), [pages]);
+
+  const totalCount = pages.length;
+
   const handleToggleActive = async (page: CompanyHomePageWithCompany) => {
     await toggleHomePageActive(page.id, page.is_active);
     setPages(prev => prev.map(p => p.id === page.id ? { ...p, is_active: !p.is_active, updated_at: new Date().toISOString() } : p));
@@ -49,6 +113,8 @@ export default function SASites() {
     window.open(`/site/${slug}`, '_blank');
   };
 
+  const shared = { t, copiedId, onToggle: handleToggleActive, onCopy: handleCopy, onView: handleView, onEdit: setEditPage, onDomains: setDomainsPage };
+
   if (loading) {
     return (
       <div className="p-4 md:p-6 flex items-center justify-center py-20">
@@ -58,54 +124,55 @@ export default function SASites() {
   }
 
   return (
-    <div className="p-4 md:p-6 space-y-5">
+    <div className="p-4 md:p-6 space-y-6">
       <div className="flex items-center gap-3">
         <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'rgba(14,165,233,0.1)', border: '1px solid rgba(14,165,233,0.2)' }}>
           <Globe className="w-4.5 h-4.5" style={{ color: '#0ea5e9' }} />
         </div>
         <div>
           <h1 className="text-lg font-bold" style={{ color: t.text.primary }}>Sites & Domaines</h1>
-          <p className="text-xs" style={{ color: t.text.tertiary }}>{pages.length} site{pages.length !== 1 ? 's' : ''} configure{pages.length !== 1 ? 's' : ''}</p>
+          <p className="text-xs" style={{ color: t.text.tertiary }}>{totalCount} site{totalCount !== 1 ? 's' : ''} configure{totalCount !== 1 ? 's' : ''}</p>
         </div>
       </div>
 
-      {pages.length === 0 ? (
+      {totalCount === 0 ? (
         <div className="text-center py-16">
           <Globe className="w-10 h-10 mx-auto mb-3" style={{ color: t.text.tertiary }} />
           <p className="text-sm font-medium" style={{ color: t.text.secondary }}>Aucun site configure.</p>
           <p className="text-xs mt-1" style={{ color: t.text.tertiary }}>Les sites sont crees automatiquement depuis la liste admins.</p>
         </div>
       ) : (
-        <>
-          <div className="hidden md:block rounded-xl overflow-hidden" style={{ border: `1px solid ${t.surface.border}`, background: t.card.bg }}>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left" style={{ minWidth: 900 }}>
-                <thead>
-                  <tr style={{ borderBottom: `1px solid ${t.surface.border}` }}>
-                    {['Societe', 'Slug', 'URL publique', 'Active', 'Domaine', 'Statut domaine', 'Modifie le', 'Actions'].map(h => (
-                      <th key={h} className="px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider" style={{ color: t.text.tertiary }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {pages.map(p => (
-                    <DesktopRow key={p.id} page={p} t={t} copiedId={copiedId}
-                      onToggle={handleToggleActive} onCopy={handleCopy} onView={handleView}
-                      onEdit={setEditPage} onDomains={setDomainsPage} />
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+        <div className="space-y-6">
+          <SASitesSection
+            title="Rois Admin / Plateforme"
+            icon={<Crown className="w-3.5 h-3.5" style={{ color: '#f59e0b' }} />}
+            iconBg="rgba(245,158,11,0.1)"
+            iconBorder="rgba(245,158,11,0.25)"
+            pages={platform}
+            {...shared}
+          />
 
-          <div className="md:hidden space-y-3">
-            {pages.map(p => (
-              <MobileCard key={p.id} page={p} t={t} copiedId={copiedId}
-                onToggle={handleToggleActive} onCopy={handleCopy} onView={handleView}
-                onEdit={setEditPage} onDomains={setDomainsPage} />
-            ))}
-          </div>
-        </>
+          <SASitesSection
+            title="Admins crees par Rois Admin"
+            icon={<Users className="w-3.5 h-3.5" style={{ color: '#0ea5e9' }} />}
+            iconBg="rgba(14,165,233,0.1)"
+            iconBorder="rgba(14,165,233,0.25)"
+            pages={roisAdminDirect}
+            {...shared}
+          />
+
+          {superAdminGroups.map(group => (
+            <SASitesSection
+              key={group.companyId}
+              title={`Super Admin : ${group.companyName}`}
+              icon={<Shield className="w-3.5 h-3.5" style={{ color: '#8b5cf6' }} />}
+              iconBg="rgba(139,92,246,0.1)"
+              iconBorder="rgba(139,92,246,0.25)"
+              pages={group.pages}
+              {...shared}
+            />
+          ))}
+        </div>
       )}
 
       {editPage && (
@@ -124,175 +191,5 @@ export default function SASites() {
         />
       )}
     </div>
-  );
-}
-
-interface RowProps {
-  page: CompanyHomePageWithCompany;
-  t: ReturnType<typeof useThemeTokens>;
-  copiedId: string | null;
-  onToggle: (p: CompanyHomePageWithCompany) => void;
-  onCopy: (slug: string, id: string) => void;
-  onView: (slug: string) => void;
-  onEdit: (p: CompanyHomePageWithCompany) => void;
-  onDomains: (p: CompanyHomePageWithCompany) => void;
-}
-
-function DesktopRow({ page, t, copiedId, onToggle, onCopy, onView, onEdit, onDomains }: RowProps) {
-  const statusCfg = DOMAIN_STATUS_CFG[page.domain_status] ?? DOMAIN_STATUS_CFG.not_configured;
-  const [hovered, setHovered] = useState(false);
-
-  return (
-    <tr
-      className="transition-colors"
-      style={{ borderBottom: `1px solid ${t.surface.borderLight}`, background: hovered ? t.surface.hover : 'transparent' }}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-    >
-      <td className="px-3 py-2.5">
-        <span className="text-xs font-semibold" style={{ color: t.text.primary }}>{page.site_scope === 'platform' ? 'Talvex (Plateforme)' : (page.companies?.name ?? '--')}</span>
-      </td>
-      <td className="px-3 py-2.5">
-        <code className="text-[11px] px-1.5 py-0.5 rounded" style={{ background: t.surface.primary, color: '#0ea5e9', border: `1px solid ${t.surface.border}` }}>
-          {page.slug ?? '--'}
-        </code>
-      </td>
-      <td className="px-3 py-2.5">
-        {page.slug ? (
-          <span className="text-xs" style={{ color: t.text.secondary }}>/site/{page.slug}</span>
-        ) : (
-          <span className="text-xs" style={{ color: t.text.tertiary }}>--</span>
-        )}
-      </td>
-      <td className="px-3 py-2.5">
-        <button onClick={() => onToggle(page)} className="flex items-center gap-1.5 transition-colors" title={page.is_active ? 'Desactiver' : 'Activer'}>
-          {page.is_active
-            ? <ToggleRight className="w-5 h-5" style={{ color: '#10b981' }} />
-            : <ToggleLeft className="w-5 h-5" style={{ color: t.text.tertiary }} />
-          }
-          <span className="text-[11px] font-medium" style={{ color: page.is_active ? '#10b981' : t.text.tertiary }}>
-            {page.is_active ? 'Active' : 'Inactive'}
-          </span>
-        </button>
-      </td>
-      <td className="px-3 py-2.5">
-        <span className="text-xs" style={{ color: page.custom_domain ? t.text.secondary : t.text.tertiary }}>
-          {page.custom_domain || 'Non configure'}
-        </span>
-      </td>
-      <td className="px-3 py-2.5">
-        <span
-          className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-semibold"
-          style={{ background: statusCfg.bg, border: `1px solid ${statusCfg.border}`, color: statusCfg.color }}
-        >
-          <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: statusCfg.color }} />
-          {statusCfg.label}
-        </span>
-        {page.last_domain_check_at && (
-          <p className="text-[9px] mt-0.5" style={{ color: t.text.tertiary }}>Verif. {new Date(page.last_domain_check_at).toLocaleDateString('fr-FR')}</p>
-        )}
-      </td>
-      <td className="px-3 py-2.5">
-        <span className="text-[11px]" style={{ color: t.text.tertiary }}>{formatDate(page.updated_at)}</span>
-      </td>
-      <td className="px-3 py-2.5">
-        <div className="flex items-center gap-1">
-          <IconBtn onClick={() => onEdit(page)} color="#0ea5e9" title="Site"><Settings2 className="w-3.5 h-3.5" /></IconBtn>
-          <IconBtn onClick={() => onDomains(page)} color="#f59e0b" title="Domaines"><Link2 className="w-3.5 h-3.5" /></IconBtn>
-          {page.slug && (
-            <>
-              <IconBtn onClick={() => onView(page.slug!)} color={t.text.tertiary} title="Voir"><ExternalLink className="w-3.5 h-3.5" /></IconBtn>
-              <IconBtn onClick={() => onCopy(page.slug!, page.id)} color={copiedId === page.id ? '#10b981' : t.text.tertiary} title="Copier">
-                {copiedId === page.id ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-              </IconBtn>
-            </>
-          )}
-        </div>
-      </td>
-    </tr>
-  );
-}
-
-function MobileCard({ page, t, copiedId, onToggle, onCopy, onView, onEdit, onDomains }: RowProps) {
-  const statusCfg = DOMAIN_STATUS_CFG[page.domain_status] ?? DOMAIN_STATUS_CFG.not_configured;
-
-  return (
-    <div className="rounded-xl p-4 space-y-3" style={{ background: t.card.bg, border: `1px solid ${t.surface.border}` }}>
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-semibold" style={{ color: t.text.primary }}>{page.site_scope === 'platform' ? 'Talvex (Plateforme)' : (page.companies?.name ?? '--')}</span>
-        <button onClick={() => onToggle(page)} className="flex items-center gap-1.5">
-          {page.is_active
-            ? <ToggleRight className="w-5 h-5" style={{ color: '#10b981' }} />
-            : <ToggleLeft className="w-5 h-5" style={{ color: t.text.tertiary }} />
-          }
-          <span className="text-[11px] font-medium" style={{ color: page.is_active ? '#10b981' : t.text.tertiary }}>
-            {page.is_active ? 'Active' : 'Inactive'}
-          </span>
-        </button>
-      </div>
-
-      <div className="flex items-center gap-2 flex-wrap">
-        {page.slug && (
-          <code className="text-[11px] px-1.5 py-0.5 rounded" style={{ background: t.surface.primary, color: '#0ea5e9', border: `1px solid ${t.surface.border}` }}>
-            /site/{page.slug}
-          </code>
-        )}
-        <span
-          className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold"
-          style={{ background: statusCfg.bg, border: `1px solid ${statusCfg.border}`, color: statusCfg.color }}
-        >
-          <span className="w-1.5 h-1.5 rounded-full" style={{ background: statusCfg.color }} />
-          {statusCfg.label}
-        </span>
-      </div>
-
-      {page.custom_domain && (
-        <p className="text-xs" style={{ color: t.text.secondary }}>{page.custom_domain}</p>
-      )}
-
-      <div className="flex items-center gap-2 pt-1 flex-wrap" style={{ borderTop: `1px solid ${t.surface.borderLight}` }}>
-        <button
-          onClick={() => onEdit(page)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-colors"
-          style={{ background: 'rgba(14,165,233,0.1)', color: '#0ea5e9', border: '1px solid rgba(14,165,233,0.2)' }}
-        >
-          <Settings2 className="w-3 h-3" /> Site
-        </button>
-        <button
-          onClick={() => onDomains(page)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-colors"
-          style={{ background: 'rgba(245,158,11,0.1)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.2)' }}
-        >
-          <Link2 className="w-3 h-3" /> Domaines
-        </button>
-        {page.slug && (
-          <>
-            <button
-              onClick={() => onView(page.slug!)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium transition-colors"
-              style={{ background: t.surface.primary, color: t.text.secondary, border: `1px solid ${t.surface.border}` }}
-            >
-              <ExternalLink className="w-3 h-3" /> Voir
-            </button>
-            <button
-              onClick={() => onCopy(page.slug!, page.id)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium transition-colors"
-              style={{ background: t.surface.primary, color: copiedId === page.id ? '#10b981' : t.text.secondary, border: `1px solid ${t.surface.border}` }}
-            >
-              {copiedId === page.id ? <><Check className="w-3 h-3" /> Copie</> : <><Copy className="w-3 h-3" /> Copier</>}
-            </button>
-          </>
-        )}
-        <span className="ml-auto text-[10px]" style={{ color: t.text.tertiary }}>{formatDate(page.updated_at)}</span>
-      </div>
-    </div>
-  );
-}
-
-function IconBtn({ onClick, color, title, children }: { onClick: () => void; color: string; title: string; children: React.ReactNode }) {
-  return (
-    <button onClick={onClick} className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors" style={{ color }} title={title}>
-      {children}
-    </button>
   );
 }

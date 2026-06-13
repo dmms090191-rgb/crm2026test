@@ -4,6 +4,7 @@ import { PRESETS, MAX_SELECTED_PRESETS, type Preset, type ColorPaletteId } from 
 import { hexToRgb } from './logoAiHelpers';
 import LogoTypePickerModal from './LogoTypePickerModal';
 import LogoTypeSelectedBadges from './LogoTypeSelectedBadges';
+import { useVCElement } from '../visualCustomize/useVCElement';
 
 interface Props {
   selectedPresets: Preset[]; setSelectedPresets: (p: Preset[]) => void;
@@ -38,11 +39,25 @@ export default function LogoAiV4Controls({
   const selectedLabels = selectedPresets.map(id => PRESETS.find(p => p.id === id)?.label).filter(Boolean).join(', ');
   const hasSelection = selectedPresets.length > 0;
 
+  const vcStyle = useVCElement<HTMLDivElement>('logo-card-style', 'card', 'Carte Style');
+  const vcMarque = useVCElement<HTMLDivElement>('logo-card-marque', 'card', 'Carte Marque');
+  const vcCouleurs = useVCElement<HTMLDivElement>('logo-card-couleurs', 'card', 'Carte Couleurs');
+  const vcColorPickers = useVCElement<HTMLDivElement>('logo-card-color-pickers', 'card', 'Carte Prim. / Sec.');
+  const vcDescription = useVCElement<HTMLDivElement>('logo-card-description', 'card', 'Carte Description');
+
+  const cardStyle: React.CSSProperties = {
+    background: `linear-gradient(135deg, ${surfaceSecondary}, ${surfacePrimary}80)`,
+    border: `1px solid ${surfaceBorder}`,
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), 0 1px 2px rgba(0,0,0,0.04)',
+    backdropFilter: 'blur(8px)',
+    WebkitBackdropFilter: 'blur(8px)',
+  };
+
   return (
-    <>
+    <div className="space-y-2 flex-shrink-0">
       {/* Style du logo */}
-      <div className="pb-2.5">
-        <RowLabel step={1} icon={<Sparkles className="w-2.5 h-2.5" />} text="Style" color={textTertiary} />
+      <div ref={vcStyle.ref} className="rounded-xl p-3" style={{ ...cardStyle, ...vcStyle.style }}>
+        <RowLabel step={1} icon={<Sparkles className="w-2.5 h-2.5" />} text="Style" color={textTertiary} description="Choisissez le ou les types de logos a generer" descriptionColor={textQuaternary} />
         <button type="button" onClick={() => setShowPicker(true)}
           className="group w-full flex items-center gap-2.5 px-3 py-2 rounded-lg transition-all text-left"
           style={{
@@ -80,13 +95,10 @@ export default function LogoAiV4Controls({
         />
       )}
 
-      <Divider color={surfaceBorder} />
-
       {/* Nom de marque */}
       {needsBrand && (
-        <>
-          <div className="py-2.5">
-            <RowLabel step={2} icon={<Type className="w-2.5 h-2.5" />} text="Marque" color={textTertiary} />
+        <div ref={vcMarque.ref} className="rounded-xl p-3" style={{ ...cardStyle, ...vcMarque.style }}>
+          <RowLabel step={2} icon={<Type className="w-2.5 h-2.5" />} text="Marque" color={textTertiary} description="Nom affiche sur les logos generes" descriptionColor={textQuaternary} />
             <div className="relative">
               <input type="text" value={brandName} onChange={e => setBrandName(e.target.value)}
                 placeholder="Nom de marque..." maxLength={60}
@@ -101,14 +113,12 @@ export default function LogoAiV4Controls({
               />
               <PenLine className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3 h-3" style={{ color: textQuaternary, opacity: 0.4 }} />
             </div>
-          </div>
-          <Divider color={surfaceBorder} />
-        </>
+        </div>
       )}
 
       {/* Couleurs */}
-      <div className="py-2.5">
-        <RowLabel step={needsBrand ? 3 : 2} icon={<Palette className="w-2.5 h-2.5" />} text="Couleurs" color={textTertiary} />
+      <div ref={vcCouleurs.ref} className="rounded-xl p-3" style={{ ...cardStyle, ...vcCouleurs.style }}>
+        <RowLabel step={needsBrand ? 3 : 2} icon={<Palette className="w-2.5 h-2.5" />} text="Couleurs" color={textTertiary} description="Palette utilisee par l'IA pour generer les logos" descriptionColor={textQuaternary} />
         <div className="grid grid-cols-3 gap-1.5">
           {palettes.map(pal => {
             const active = colorPalette === pal.id;
@@ -144,7 +154,7 @@ export default function LogoAiV4Controls({
 
         {/* Single color picker */}
         {colorPalette === 'single' && (
-          <div className="flex items-center gap-2 mt-2 p-2 rounded-lg" style={{ background: surfaceSecondary, border: `1px solid ${surfaceBorder}` }}>
+          <div ref={vcColorPickers.ref} className="flex items-center gap-2 mt-2 p-2 rounded-lg" style={{ background: surfaceSecondary, border: `1px solid ${surfaceBorder}`, ...vcColorPickers.style }}>
             <div className="flex-1 min-w-0">
               <ColorPicker label="Couleur" value={customPrimary} onChange={v => setCustomPrimary(v.toUpperCase())}
                 pickerRef={singleRef} surfacePrimary={surfacePrimary} surfaceBorder={surfaceBorder}
@@ -158,7 +168,7 @@ export default function LogoAiV4Controls({
 
         {/* Dual color picker */}
         {colorPalette === 'custom' && (
-          <div className="flex items-center gap-2 mt-2 p-2 rounded-lg" style={{ background: surfaceSecondary, border: `1px solid ${surfaceBorder}` }}>
+          <div ref={vcColorPickers.ref} className="flex items-center gap-2 mt-2 p-2 rounded-lg" style={{ background: surfaceSecondary, border: `1px solid ${surfaceBorder}`, ...vcColorPickers.style }}>
             <div className="flex-1 min-w-0">
               <ColorPicker label="Prim." value={customPrimary} onChange={v => setCustomPrimary(v.toUpperCase())}
                 pickerRef={primaryRef} surfacePrimary={surfacePrimary} surfaceBorder={surfaceBorder}
@@ -182,11 +192,9 @@ export default function LogoAiV4Controls({
         )}
       </div>
 
-      <Divider color={surfaceBorder} />
-
       {/* Description */}
-      <div className="py-2.5">
-        <RowLabel step={needsBrand ? 4 : 3} icon={<Pipette className="w-2.5 h-2.5" />} text="Description" color={textTertiary} optional />
+      <div ref={vcDescription.ref} className="rounded-xl p-3" style={{ ...cardStyle, ...vcDescription.style }}>
+        <RowLabel step={needsBrand ? 4 : 3} icon={<Pipette className="w-2.5 h-2.5" />} text="Description" color={textTertiary} optional description="Indications supplementaires (style, symboles, ambiance)" descriptionColor={textQuaternary} />
         <textarea value={prompt} onChange={e => setPrompt(e.target.value)}
           placeholder="Style, symboles, ambiance..."
           rows={1}
@@ -201,26 +209,29 @@ export default function LogoAiV4Controls({
           onBlur={e => { e.currentTarget.style.borderColor = surfaceBorder; e.currentTarget.style.boxShadow = 'none'; }}
         />
       </div>
-    </>
-  );
-}
-
-function RowLabel({ step, icon, text, color, optional }: { step: number; icon: React.ReactNode; text: string; color: string; optional?: boolean }) {
-  return (
-    <div className="flex items-center gap-1.5 mb-1.5">
-      <span className="w-4 h-4 rounded flex items-center justify-center text-[8px] font-extrabold flex-shrink-0"
-        style={{ background: 'linear-gradient(135deg, rgba(245,158,11,0.10), rgba(217,119,6,0.14))', color: '#b45309', border: '1px solid rgba(245,158,11,0.10)' }}>
-        {step}
-      </span>
-      <span style={{ color: '#d97706' }}>{icon}</span>
-      <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color }}>{text}</span>
-      {optional && <span className="text-[7px] font-medium ml-0.5" style={{ color, opacity: 0.5 }}>optionnel</span>}
     </div>
   );
 }
 
-function Divider({ color }: { color: string }) {
-  return <div className="h-px my-0.5" style={{ background: `linear-gradient(90deg, ${color}60, ${color}20, transparent)` }} />;
+function RowLabel({ step, icon, text, color, optional, description, descriptionColor }: { step: number; icon: React.ReactNode; text: string; color: string; optional?: boolean; description?: string; descriptionColor?: string }) {
+  return (
+    <div className="mb-2">
+      <div className="flex items-center gap-1.5">
+        <span className="w-4 h-4 rounded flex items-center justify-center text-[8px] font-extrabold flex-shrink-0"
+          style={{ background: 'linear-gradient(135deg, rgba(245,158,11,0.10), rgba(217,119,6,0.14))', color: '#b45309', border: '1px solid rgba(245,158,11,0.10)' }}>
+          {step}
+        </span>
+        <span style={{ color: '#d97706' }}>{icon}</span>
+        <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color }}>{text}</span>
+        {optional && <span className="text-[7px] font-medium ml-0.5" style={{ color, opacity: 0.5 }}>optionnel</span>}
+      </div>
+      {description && (
+        <p className="text-[9px] font-medium mt-1 leading-snug" style={{ color: descriptionColor ?? color, opacity: 0.7 }}>
+          {description}
+        </p>
+      )}
+    </div>
+  );
 }
 
 function ColorPicker({ label, value, onChange, pickerRef, surfacePrimary, surfaceBorder, textPrimary, textQuaternary }: {

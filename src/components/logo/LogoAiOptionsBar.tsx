@@ -1,5 +1,7 @@
+import type { ReactNode } from 'react';
 import { EyeOff, Check, Layers } from 'lucide-react';
 import { TRANSPARENT_COST_PER_IMAGE, UNIT_COST_PER_IMAGE, type NumProposals } from './logoAiConstants';
+import { useVCElement } from '../visualCustomize/useVCElement';
 
 interface Props {
   transparentBg: boolean;
@@ -7,38 +9,59 @@ interface Props {
   numProposals: NumProposals;
   setNumProposals: (v: NumProposals) => void;
   numTypes: number;
+  surfacePrimary: string;
   surfaceSecondary: string;
   surfaceBorder: string;
   textSecondary: string;
   textTertiary: string;
   textQuaternary: string;
+  propositionsFooter?: ReactNode;
 }
 
 export default function LogoAiOptionsBar({
   transparentBg, setTransparentBg, numProposals, setNumProposals,
-  numTypes, surfaceSecondary, surfaceBorder,
+  numTypes, surfacePrimary, surfaceSecondary, surfaceBorder,
   textSecondary, textTertiary, textQuaternary,
+  propositionsFooter,
 }: Props) {
   const effectiveTypes = Math.max(numTypes, 1);
   const totalTranspCost = numProposals * effectiveTypes * TRANSPARENT_COST_PER_IMAGE;
 
+  const vcFond = useVCElement<HTMLDivElement>('logo-card-fond-transparent', 'card', 'Carte Fond transparent');
+  const vcActif = useVCElement<HTMLButtonElement>('logo-card-actif-credits', 'card', 'Carte Actif +credits');
+  const vcPropositions = useVCElement<HTMLDivElement>('logo-card-propositions', 'card', 'Carte Propositions');
+
+  const cardStyle: React.CSSProperties = {
+    background: `linear-gradient(135deg, ${surfaceSecondary}, ${surfacePrimary}80)`,
+    border: `1px solid ${surfaceBorder}`,
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), 0 1px 2px rgba(0,0,0,0.04)',
+    backdropFilter: 'blur(8px)',
+    WebkitBackdropFilter: 'blur(8px)',
+  };
+
   return (
-    <>
+    <div className="flex flex-col gap-2 flex-1 min-h-0">
       {/* Fond transparent - compact */}
-      <div className="py-2.5">
-        <div className="flex items-center gap-1.5 mb-1.5">
-          <span className="w-4 h-4 rounded flex items-center justify-center text-[8px] font-extrabold flex-shrink-0"
-            style={{ background: 'linear-gradient(135deg, rgba(14,165,233,0.10), rgba(3,105,161,0.14))', color: '#0369a1', border: '1px solid rgba(14,165,233,0.10)' }}>
-            5
-          </span>
-          <EyeOff className="w-2.5 h-2.5" style={{ color: '#0ea5e9' }} />
-          <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color: textTertiary }}>Fond transparent</span>
+      <div ref={vcFond.ref} className="rounded-xl p-3 flex-shrink-0" style={{ ...cardStyle, ...vcFond.style }}>
+        <div className="mb-2">
+          <div className="flex items-center gap-1.5">
+            <span className="w-4 h-4 rounded flex items-center justify-center text-[8px] font-extrabold flex-shrink-0"
+              style={{ background: 'linear-gradient(135deg, rgba(245,158,11,0.10), rgba(217,119,6,0.14))', color: '#b45309', border: '1px solid rgba(245,158,11,0.10)' }}>
+              5
+            </span>
+            <EyeOff className="w-2.5 h-2.5" style={{ color: '#d97706' }} />
+            <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color: textTertiary }}>Fond transparent</span>
+          </div>
+          <p className="text-[9px] font-medium mt-1 leading-snug" style={{ color: textQuaternary, opacity: 0.7 }}>
+            Genere les logos sans fond d'arriere-plan
+          </p>
         </div>
-        <button type="button" onClick={() => setTransparentBg((v: boolean) => !v)}
+        <button ref={vcActif.ref} type="button" onClick={() => setTransparentBg((v: boolean) => !v)}
           className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg transition-all text-left active:scale-[0.98]"
           style={{
             background: transparentBg ? 'linear-gradient(135deg, rgba(14,165,233,0.03), rgba(3,105,161,0.05))' : surfaceSecondary,
             border: `1px solid ${transparentBg ? 'rgba(14,165,233,0.15)' : surfaceBorder}`,
+            ...vcActif.style,
           }}>
           <div className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0"
             style={{
@@ -70,19 +93,19 @@ export default function LogoAiOptionsBar({
         </button>
       </div>
 
-      <div className="h-px my-0.5" style={{ background: `linear-gradient(90deg, ${surfaceBorder}60, ${surfaceBorder}20, transparent)` }} />
-
       {/* Propositions - compact */}
-      <div className="py-2.5">
-        <div className="flex items-center gap-1.5 mb-1.5">
-          <span className="w-4 h-4 rounded flex items-center justify-center text-[8px] font-extrabold flex-shrink-0"
-            style={{ background: 'linear-gradient(135deg, rgba(245,158,11,0.10), rgba(217,119,6,0.14))', color: '#b45309', border: '1px solid rgba(245,158,11,0.10)' }}>
-            6
-          </span>
-          <Layers className="w-2.5 h-2.5" style={{ color: '#d97706' }} />
-          <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color: textTertiary }}>
-            Propositions{effectiveTypes > 1 ? ' /type' : ''}
-          </span>
+      <div ref={vcPropositions.ref} className="rounded-xl p-3 flex flex-col flex-1 min-h-0" style={{ ...cardStyle, ...vcPropositions.style }}>
+        <div className="mb-2">
+          <div className="flex items-center gap-1.5">
+            <span className="w-4 h-4 rounded flex items-center justify-center text-[8px] font-extrabold flex-shrink-0"
+              style={{ background: 'linear-gradient(135deg, rgba(245,158,11,0.10), rgba(217,119,6,0.14))', color: '#b45309', border: '1px solid rgba(245,158,11,0.10)' }}>
+              6
+            </span>
+            <Layers className="w-2.5 h-2.5" style={{ color: '#d97706' }} />
+            <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color: textTertiary }}>
+              Propositions{effectiveTypes > 1 ? ' /type' : ''}
+            </span>
+          </div>
         </div>
         <div className="grid grid-cols-3 gap-1.5">
           {([1, 2, 4] as NumProposals[]).map(n => {
@@ -91,7 +114,7 @@ export default function LogoAiOptionsBar({
             const active = numProposals === n;
             return (
               <button key={n} type="button" onClick={() => setNumProposals(n)}
-                className="relative flex flex-col items-center gap-0.5 py-2 px-2 rounded-lg transition-all active:scale-95"
+                className="relative flex flex-col items-center gap-0.5 py-1 px-2 rounded-lg transition-all active:scale-95"
                 style={{
                   background: active ? 'linear-gradient(135deg, rgba(245,158,11,0.04), rgba(217,119,6,0.07))' : 'transparent',
                   border: `1.5px solid ${active ? 'rgba(245,158,11,0.22)' : surfaceBorder}`,
@@ -103,7 +126,7 @@ export default function LogoAiOptionsBar({
                     <Check className="w-1.5 h-1.5 text-white" strokeWidth={3} />
                   </div>
                 )}
-                <span className="text-[15px] font-black tabular-nums leading-none" style={{ color: active ? '#d97706' : textSecondary }}>
+                <span className="text-[13px] font-black tabular-nums leading-none" style={{ color: active ? '#d97706' : textSecondary }}>
                   {totalImages}
                 </span>
                 <span className="text-[8px] font-semibold" style={{ color: active ? '#b45309' : textTertiary }}>
@@ -120,7 +143,8 @@ export default function LogoAiOptionsBar({
             );
           })}
         </div>
+        {propositionsFooter && <div className="mt-auto pt-1.5">{propositionsFooter}</div>}
       </div>
-    </>
+    </div>
   );
 }

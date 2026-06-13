@@ -1,8 +1,9 @@
-import { useState, useRef } from 'react';
-import { LayoutGrid, Paintbrush, Loader2 } from 'lucide-react';
+import { useState, useRef, useCallback } from 'react';
+import { Loader2, ArrowLeft } from 'lucide-react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
+import { supabase } from '../../../../lib/supabase';
 import type { SiteTab } from './SiteTabs';
-import type { CompanyHomePage, SiteTemplate } from '../../../../lib/companyHomePages';
+import type { CompanyHomePage, SiteTemplate, SiteTemplateConfig } from '../../../../lib/companyHomePages';
 import type { GradientConfig, BgMode } from './studio/studioSectionTypes';
 import { DEFAULT_GRADIENT } from './studio/studioSectionTypes';
 import StudioToolbar, { type PreviewMode } from './studio/StudioToolbar';
@@ -10,16 +11,32 @@ import StudioPreview from './studio/StudioPreview';
 import StudioMobileFlow from './studio/StudioMobileFlow';
 import StudioFullscreenOverlay from './studio/StudioFullscreenOverlay';
 import PublishConfirmModal from './studio/PublishConfirmModal';
+import SaveAsTemplateModal from './studio/SaveAsTemplateModal';
 import useStudioSections from './studio/useStudioSections';
 import SiteStudioLeftPanels, { type LeftPanel } from './SiteStudioLeftPanels';
+import StudioEntryPage from './studio/StudioEntryPage';
+import StudioRightPanel from './studio/StudioRightPanel';
 
 interface Props {
   page: CompanyHomePage | null;
   activeTemplate: SiteTemplate | null;
   onTabChange: (tab: SiteTab) => void;
+  onTemplateCreated?: () => void;
+  editorOpen: boolean;
+  onEditorOpenChange: (open: boolean) => void;
 }
 
-export default function SiteStudioTab({ page, activeTemplate, onTabChange }: Props) {
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60) || 'template';
+}
+
+export default function SiteStudioTab({ page, activeTemplate, onTabChange, onTemplateCreated, editorOpen, onEditorOpenChange }: Props) {
   const t = useThemeTokens();
   const templateKey = activeTemplate?.template_key ?? null;
   const homePageId = page?.id ?? null;
@@ -29,8 +46,12 @@ export default function SiteStudioTab({ page, activeTemplate, onTabChange }: Pro
   const [previewMode, setPreviewMode] = useState<PreviewMode>('desktop');
   const [fullscreen, setFullscreen] = useState(false);
   const [publishModalOpen, setPublishModalOpen] = useState(false);
+  const [templateModalOpen, setTemplateModalOpen] = useState(false);
+  const [templateSaving, setTemplateSaving] = useState(false);
   const [leftPanel, setLeftPanel] = useState<LeftPanel>('bg-mode');
   const [bgAccordionOpen, setBgAccordionOpen] = useState(false);
+  const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
+  const [freeDragId, setFreeDragId] = useState<string | null>(null);
 
   const lastGradientDesktop = useRef<GradientConfig>(DEFAULT_GRADIENT);
   const lastGradientMobile = useRef<GradientConfig>(DEFAULT_GRADIENT);
@@ -38,34 +59,52 @@ export default function SiteStudioTab({ page, activeTemplate, onTabChange }: Pro
   const siteSlug = page?.slug;
   const publicUrl = siteSlug ? `${window.location.origin}/site/${siteSlug}` : null;
 
-  if (!templateKey) {
+  const handleSaveAsTemplate = useCallback(async (name: string) => {
+    setTemplateSaving(true);
+    try {
+      const config: SiteTemplateConfig = {
+        canvasBgDesktop: studio.canvasBgDesktop,
+        canvasBgMobile: studio.canvasBgMobile,
+        gradientDesktop: studio.gradientDesktop as unknown as Record<string, unknown> | null,
+        gradientMobile: studio.gradientMobile as unknown as Record<string, unknown> | null,
+        bgModeDesktop: studio.bgModeDesktop,
+        bgModeMobile: studio.bgModeMobile,
+        pageHeightDesktop: studio.pageHeightDesktop,
+        pageHeightMobile: studio.pageHeightMobile,
+        overlayElements: studio.overlayElements,
+      };
+
+      const slug = slugify(name);
+      const key = `custom_${slug}_${Date.now()}`;
+
+      const { error } = await supabase.from('site_templates').insert({
+        name,
+        slug,
+        template_key: key,
+        description: `Template personnalise : ${name}`,
+        category: 'Personnalise',
+        is_default: false,
+        is_visible: true,
+        config,
+      });
+      if (error) throw error;
+
+      setTemplateModalOpen(false);
+      onTemplateCreated?.();
+    } finally {
+      setTemplateSaving(false);
+    }
+  }, [studio, onTemplateCreated]);
+
+  if (!templateKey || !editorOpen) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 sm:py-24 px-4">
-        <div
-          className="w-16 h-16 rounded-2xl flex items-center justify-center mb-5"
-          style={{
-            background: 'linear-gradient(135deg, rgba(14,165,233,0.12), rgba(6,182,212,0.08))',
-            border: '1px solid rgba(14,165,233,0.2)',
-            boxShadow: '0 0 24px rgba(14,165,233,0.1)',
-          }}
-        >
-          <Paintbrush className="w-7 h-7" style={{ color: '#0ea5e9' }} />
-        </div>
-        <p className="text-sm font-medium text-center max-w-xs" style={{ color: t.text.secondary }}>
-          Aucun template actif
-        </p>
-        <p className="text-xs mt-2 text-center max-w-xs" style={{ color: t.text.tertiary }}>
-          Choisissez un template dans l'onglet Templates avant de personnaliser votre site dans le Studio.
-        </p>
-        <button
-          onClick={() => onTabChange('templates')}
-          className="mt-6 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-semibold transition-all hover:scale-105"
-          style={{ background: 'linear-gradient(135deg, #0ea5e9, #0284c7)', color: '#fff', boxShadow: '0 2px 12px rgba(14,165,233,0.3)' }}
-        >
-          <LayoutGrid className="w-3.5 h-3.5" />
-          Choisir un template
-        </button>
-      </div>
+      <StudioEntryPage
+        t={t}
+        onOpenEditor={() => onEditorOpenChange(true)}
+        onGoToTemplates={() => onTabChange('templates')}
+        hasTemplate={!!templateKey}
+        isPublished={studio.isPublished}
+      />
     );
   }
 
@@ -100,6 +139,10 @@ export default function SiteStudioTab({ page, activeTemplate, onTabChange }: Pro
   };
 
   const handleBackToBgMode = () => { setLeftPanel('bg-mode'); setBgAccordionOpen(true); };
+  const handleSelectElement = (id: string | null) => {
+    setSelectedElementId(id);
+    setLeftPanel(id ? 'element-settings' : 'bg-mode');
+  };
   const handleActivateSolid = () => { setBgMode('solid'); };
   const handleActivateGradient = () => {
     if (!currentGradient) setGradient(isMobileMode ? lastGradientMobile.current : lastGradientDesktop.current);
@@ -116,16 +159,39 @@ export default function SiteStudioTab({ page, activeTemplate, onTabChange }: Pro
     <div className="flex flex-col h-full min-h-0">
       {/* Desktop layout */}
       <div className="hidden md:flex flex-col flex-1 min-h-0 gap-1.5 p-1.5">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => onEditorOpenChange(false)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-bold transition-all hover:scale-[1.02] active:scale-[0.98]"
+            style={{
+              background: t.surface.secondary,
+              border: `1px solid ${t.surface.border}`,
+              color: t.text.secondary,
+            }}
+          >
+            <ArrowLeft className="w-3 h-3" />
+            Retour
+          </button>
+          <div className="flex-1">
         <StudioToolbar
           previewMode={previewMode} onPreviewModeChange={setPreviewMode}
           onFullscreen={() => setFullscreen(true)} publicUrl={publicUrl} t={t}
           hasUnsavedChanges={studio.hasUnsavedChanges} isSaving={studio.isSaving}
           isPublished={studio.isPublished} isPublishing={studio.isPublishing}
           onSaveDraft={handleSaveDraft} onPublish={() => setPublishModalOpen(true)}
+          onSaveAsTemplate={() => setTemplateModalOpen(true)}
           lastSavedAt={studio.lastSavedAt} lastPublishedAt={studio.lastPublishedAt} templateKey={templateKey}
         />
+          </div>
+        </div>
         <div className="flex gap-2 flex-1 min-h-0 rounded-xl overflow-hidden">
-          <div className="w-72 flex-shrink-0 rounded-xl overflow-hidden" style={{ background: t.surface.primary, border: `1px solid ${t.surface.border}` }}>
+          <div className="w-72 flex-shrink-0 rounded-xl overflow-hidden" style={{
+            background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.55), rgba(15, 23, 42, 0.65))',
+            border: '1px solid rgba(148, 163, 184, 0.15)',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06), 0 8px 32px rgba(0,0,0,0.30)',
+            backdropFilter: 'blur(24px) saturate(140%)',
+            WebkitBackdropFilter: 'blur(24px) saturate(140%)',
+          }}>
             <SiteStudioLeftPanels
               leftPanel={leftPanel} isMobileMode={isMobileMode} t={t}
               currentPageHeight={currentPageHeight} setPageHeight={setPageHeight}
@@ -138,6 +204,14 @@ export default function SiteStudioTab({ page, activeTemplate, onTabChange }: Pro
               onGradientChange={setGradient}
               onGradientReset={() => studio.resetGradient(isMobileMode ? 'mobile' : 'desktop')}
               onActivateGradient={handleActivateGradient}
+              overlayElements={studio.overlayElements}
+              onAddOverlayElement={studio.addOverlayElement}
+              onUpdateOverlayElement={studio.updateOverlayElement}
+              onRemoveOverlayElement={studio.removeOverlayElement}
+              selectedElementId={selectedElementId}
+              onSelectElement={handleSelectElement}
+              freeDragId={freeDragId}
+              onToggleFreeDrag={setFreeDragId}
             />
           </div>
           <div className="flex-1 rounded-xl overflow-hidden min-w-0" style={{ background: '#0a0e17', border: `1px solid ${t.surface.border}` }}>
@@ -145,14 +219,26 @@ export default function SiteStudioTab({ page, activeTemplate, onTabChange }: Pro
               templateKey={templateKey} previewMode={previewMode} t={t}
               canvasBg={effectiveBgForPreview} gradient={effectiveGradientForPreview}
               onGradientChange={setGradient} pageHeight={currentPageHeight}
+              overlayElements={studio.overlayElements}
+              selectedElementId={selectedElementId}
+              onSelectElement={handleSelectElement}
+              freeDragId={freeDragId}
+              onUpdateOverlayElement={studio.updateOverlayElement}
             />
           </div>
+          <StudioRightPanel t={t} />
         </div>
       </div>
 
       {/* Mobile */}
       <div className="md:hidden flex-1 min-h-0">
-        <div className="rounded-xl overflow-hidden h-full" style={{ background: t.surface.primary, border: `1px solid ${t.surface.border}` }}>
+        <div className="rounded-xl overflow-hidden h-full" style={{
+          background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.55), rgba(15, 23, 42, 0.65))',
+          border: '1px solid rgba(148, 163, 184, 0.15)',
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06), 0 8px 32px rgba(0,0,0,0.30)',
+          backdropFilter: 'blur(24px) saturate(140%)',
+          WebkitBackdropFilter: 'blur(24px) saturate(140%)',
+        }}>
           <StudioMobileFlow
             t={t} lastSavedAt={studio.lastSavedAt}
             hasUnsavedChanges={studio.hasUnsavedChanges} isSaving={studio.isSaving}
@@ -189,6 +275,14 @@ export default function SiteStudioTab({ page, activeTemplate, onTabChange }: Pro
       {publishModalOpen && (
         <PublishConfirmModal isPublishing={studio.isPublishing} onConfirm={handlePublish} onClose={() => setPublishModalOpen(false)} t={t} />
       )}
+
+      <SaveAsTemplateModal
+        isOpen={templateModalOpen}
+        isSaving={templateSaving}
+        onSave={handleSaveAsTemplate}
+        onClose={() => setTemplateModalOpen(false)}
+        t={t}
+      />
     </div>
   );
 }

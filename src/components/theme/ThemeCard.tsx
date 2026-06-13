@@ -7,9 +7,10 @@ const TAG_COLORS: Record<string, string> = {
   neon: '#ec4899', pro: '#3b82f6', minimal: '#6b7280',
 };
 
-export function ThemeCard({ entry, active, onSelect, isRecommended, isFavorite, isPremium }: {
+export function ThemeCard({ entry, active, onSelect, isRecommended, isFavorite, isPremium, onToggleFavorite }: {
   entry: ThemeEntry; active: boolean; onSelect: () => void;
   isRecommended?: boolean; isFavorite?: boolean; isPremium?: boolean;
+  onToggleFavorite?: () => void;
 }) {
   const accent = entry.colors[2];
   const firstTag = entry.tags[0];
@@ -46,24 +47,46 @@ export function ThemeCard({ entry, active, onSelect, isRecommended, isFavorite, 
           {firstTag}
         </div>
       ) : null}
-      {isFavorite && !active && (
-        <div className="absolute top-3 right-3 z-10">
-          <Star className="w-4 h-4" fill="#f59e0b" style={{ color: '#f59e0b' }} />
-        </div>
-      )}
       <div className="p-3 pb-0 sm:p-4 sm:pb-0">
         <ThemePreview colors={entry.colors} />
       </div>
-      <div className="p-3 pt-3 sm:p-4 sm:pt-3.5 flex flex-col gap-1">
-        <span className="text-[11px] sm:text-xs font-bold truncate" style={{ color: active ? accent : 'rgba(255,255,255,0.88)' }}>
-          {entry.label}
-        </span>
-        <p className="text-[10px] font-medium leading-relaxed truncate" style={{ color: 'rgba(255,255,255,0.30)' }}>
-          {entry.description}
-        </p>
+      <div className="p-3 pt-3 sm:p-4 sm:pt-3.5 flex items-end gap-1">
+        <div className="flex-1 min-w-0 flex flex-col gap-1">
+          <span className="text-[11px] sm:text-xs font-bold truncate" style={{ color: active ? accent : 'rgba(255,255,255,0.88)' }}>
+            {entry.label}
+          </span>
+          <p className="text-[10px] font-medium leading-relaxed truncate" style={{ color: 'rgba(255,255,255,0.30)' }}>
+            {entry.description}
+          </p>
+        </div>
+        {onToggleFavorite && (
+          <FavoriteButton isFavorite={!!isFavorite} onClick={onToggleFavorite} />
+        )}
       </div>
       <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" style={{ boxShadow: `inset 0 0 0 1px ${accent}20, 0 0 20px ${accent}06` }} />
     </button>
+  );
+}
+
+export function FavoriteButton({ isFavorite, onClick }: { isFavorite: boolean; onClick: () => void }) {
+  return (
+    <span
+      role="button"
+      tabIndex={0}
+      onClick={(e) => { e.stopPropagation(); onClick(); }}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); e.preventDefault(); onClick(); } }}
+      className="flex-shrink-0 p-1 rounded-lg transition-all duration-200 hover:scale-125 active:scale-95 cursor-pointer"
+      style={{
+        color: isFavorite ? '#f59e0b' : 'rgba(255,255,255,0.18)',
+      }}
+      title={isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+    >
+      <Star
+        className="w-3.5 h-3.5 transition-all duration-200"
+        fill={isFavorite ? '#f59e0b' : 'transparent'}
+        strokeWidth={2}
+      />
+    </span>
   );
 }
 

@@ -21,7 +21,7 @@ export default function SAFonctionsTalvexHeader({ search, onSearchChange, filter
   const t = useThemeTokens();
 
   return (
-    <div className="flex-shrink-0 px-4 md:px-6 pt-4 md:pt-6 pb-3 space-y-3">
+    <div className="flex-shrink-0 px-3 sm:px-4 md:px-6 pt-3 sm:pt-4 md:pt-6 pb-2 sm:pb-3 space-y-2 sm:space-y-3">
       {/* Title row */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
@@ -69,10 +69,10 @@ export default function SAFonctionsTalvexHeader({ search, onSearchChange, filter
             style={{ background: t.input.bg, color: t.input.text, border: `1px solid ${t.input.border}` }}
           />
         </div>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-0.5">
           <button
             onClick={() => onFilterChange(null)}
-            className="text-[10px] font-semibold rounded-full px-3 py-1 transition-all"
+            className="text-[10px] font-semibold rounded-full px-3 py-1 transition-all whitespace-nowrap flex-shrink-0"
             style={{
               background: filterEtat === null ? 'rgba(245,158,11,0.12)' : t.input.bg,
               color: filterEtat === null ? '#f59e0b' : t.text.tertiary,
@@ -85,7 +85,7 @@ export default function SAFonctionsTalvexHeader({ search, onSearchChange, filter
             <button
               key={e}
               onClick={() => onFilterChange(filterEtat === e ? null : e)}
-              className="text-[10px] font-semibold rounded-full px-3 py-1 transition-all"
+              className="text-[10px] font-semibold rounded-full px-3 py-1 transition-all whitespace-nowrap flex-shrink-0"
               style={{
                 background: filterEtat === e ? ETAT_CONFIG[e].bg : t.input.bg,
                 color: filterEtat === e ? ETAT_CONFIG[e].color : t.text.tertiary,

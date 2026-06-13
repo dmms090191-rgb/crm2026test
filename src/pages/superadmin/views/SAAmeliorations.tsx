@@ -37,9 +37,11 @@ export default function SAAmeliorations() {
         <div
           className="rounded-2xl p-5 sm:p-6 mb-5 flex-shrink-0"
           style={{
-            background: t.card.bg,
-            border: `1px solid ${t.card.border}`,
-            boxShadow: `0 1px 3px rgba(0,0,0,0.04), ${t.card.shadow}`,
+            background: `linear-gradient(135deg, ${t.surface.secondary}, ${t.surface.secondary}80)`,
+            border: `1px solid ${t.surface.border}`,
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), 0 1px 2px rgba(0,0,0,0.04)',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
           }}
         >
           <div className="flex items-center gap-4">
@@ -66,9 +68,11 @@ export default function SAAmeliorations() {
         <div
           className="rounded-2xl flex flex-col flex-1 min-h-0 p-4 sm:p-5"
           style={{
-            background: t.card.bg,
-            border: `1px solid ${t.card.border}`,
-            boxShadow: `0 1px 3px rgba(0,0,0,0.04), ${t.card.shadow}`,
+            background: `linear-gradient(135deg, ${t.surface.secondary}, ${t.surface.secondary}80)`,
+            border: `1px solid ${t.surface.border}`,
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), 0 1px 2px rgba(0,0,0,0.04)',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
           }}
         >
           <AmeliorationsView

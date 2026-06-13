@@ -25,7 +25,7 @@ export function ApiCard({ api, tokens, pwdVisible, keyVisible, copied, liveCredi
   const checkedAt = liveCredit?.checkedAt ?? api.last_checked_at;
   const liveStatus = liveCredit?.status ?? api.status;
   const isError = credit === 'Erreur verification' || credit === 'Cle manquante';
-  const isLive = api.name === 'DeepSeek' || api.name === 'Recraft';
+  const isLive = api.name === 'DeepSeek' || api.name === 'Recraft' || api.name === 'Stability AI';
 
   return (
     <div className="px-4 py-4 space-y-2.5">

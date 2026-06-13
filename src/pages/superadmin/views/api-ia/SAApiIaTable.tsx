@@ -5,7 +5,7 @@ import type { AiApi } from '../SAApiIaModal';
 import type { CreditInfo } from './apiIaTypes';
 import { maskValue } from './apiIaTypes';
 
-const LIVE_PROVIDERS = new Set(['DeepSeek', 'Recraft']);
+const LIVE_PROVIDERS = new Set(['DeepSeek', 'Recraft', 'Stability AI']);
 function isLiveProvider(name: string) { return LIVE_PROVIDERS.has(name); }
 
 export function StatusBadge({ status }: { status: string | null }) {

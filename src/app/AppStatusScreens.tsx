@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Box, ShieldAlert } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
@@ -7,6 +8,7 @@ function isHighLevelTheme(): boolean {
 }
 
 export function AppLoadingScreen() {
+  useEffect(() => { document.getElementById('root')?.classList.add('app-ready'); }, []);
   const hl = isHighLevelTheme();
   return (
     <div

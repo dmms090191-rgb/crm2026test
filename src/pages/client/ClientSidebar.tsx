@@ -16,6 +16,7 @@ interface ClientSidebarProps {
   collapsed: boolean;
   onCollapse: () => void;
   onLogout: () => void;
+  onBackToRoisAdmin?: () => void;
 }
 
 interface NavItem {
@@ -57,7 +58,7 @@ const sections: NavSection[] = [
   },
 ];
 
-export default function ClientSidebar({ activeView, onNavigate, collapsed, onCollapse, onLogout }: ClientSidebarProps) {
+export default function ClientSidebar({ activeView, onNavigate, collapsed, onCollapse, onLogout, onBackToRoisAdmin }: ClientSidebarProps) {
   const tokens = useThemeTokens();
 
   return (
@@ -151,6 +152,7 @@ export default function ClientSidebar({ activeView, onNavigate, collapsed, onCol
         onLogout={onLogout}
         onCollapse={onCollapse}
         tokens={tokens}
+        onBackToRoisAdmin={onBackToRoisAdmin}
       />
     </aside>
   );

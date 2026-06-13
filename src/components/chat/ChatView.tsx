@@ -121,7 +121,17 @@ export default function MessagingPanel({
   const showSidebar = contacts.length >= 1;
 
   return (
-    <div className="flex gap-0 overflow-hidden rounded-2xl h-full" style={{ border: `1px solid ${tokens.chat.border}`, minHeight: 0 }}>
+    <div
+      className="flex gap-0 overflow-hidden rounded-2xl h-full"
+      style={{
+        background: `linear-gradient(135deg, ${tokens.surface.secondary}, ${tokens.surface.secondary}80)`,
+        border: `1px solid ${tokens.chat.border}`,
+        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), 0 1px 2px rgba(0,0,0,0.04)',
+        backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
+        minHeight: 0,
+      }}
+    >
       {showSidebar && (
         <ContactSidebar
           contacts={contacts} selectedContactId={selectedContactId} onSelectContact={handleSelectContact}

@@ -16,6 +16,7 @@ import { useRestoreCrm } from './sauvegarde/useRestoreCrm';
 import { useSimulation } from '../../../contexts/SimulationContext';
 import type { SimulationData } from '../../../contexts/SimulationContext';
 import type { ImportedBackup } from './sauvegarde/types';
+import { parseBackupJson } from './sauvegarde/parseBackupFile';
 
 export default function SauvegardeRestauration() {
   const t = useThemeTokens();
@@ -55,40 +56,12 @@ export default function SauvegardeRestauration() {
     reader.onload = (ev) => {
       try {
         const raw = JSON.parse(ev.target?.result as string);
-        if (!raw || typeof raw !== 'object') {
-          setImportError('Fichier JSON invalide : contenu non reconnu.');
+        const result = parseBackupJson(file, raw);
+        if (!result.ok) {
+          setImportError(result.error);
           return;
         }
-        if (!raw.metadata) {
-          setImportError('Ce fichier ne contient pas de champ "metadata". Ce n\'est pas une sauvegarde CRM valide.');
-          return;
-        }
-        if (!raw.data || typeof raw.data !== 'object') {
-          setImportError('Ce fichier ne contient pas de champ "data". Ce n\'est pas une sauvegarde CRM valide.');
-          return;
-        }
-        if (!raw.metadata.exported_tables || !Array.isArray(raw.metadata.exported_tables)) {
-          setImportError('Le champ "metadata.exported_tables" est manquant ou invalide.');
-          return;
-        }
-        if (!raw.metadata.counts || typeof raw.metadata.counts !== 'object') {
-          setImportError('Le champ "metadata.counts" est manquant ou invalide.');
-          return;
-        }
-
-        setImportedBackup({
-          filename: file.name,
-          metadata: {
-            date_export: raw.metadata.date_export ?? '',
-            version_crm: raw.metadata.version_crm ?? '',
-            version_schema: raw.metadata.version_schema ?? '',
-            exported_tables: raw.metadata.exported_tables,
-            failed_tables: raw.metadata.failed_tables ?? [],
-            counts: raw.metadata.counts,
-            security_notes: raw.metadata.security_notes,
-          },
-          data: raw.data,
-        });
+        setImportedBackup(result.backup);
         setImportError(null);
       } catch {
         setImportError('Impossible de lire le fichier : JSON invalide ou corrompu.');
@@ -149,7 +122,13 @@ export default function SauvegardeRestauration() {
 
       <div
         className="flex items-start gap-3 rounded-xl px-4 sm:px-5 py-3 sm:py-4 min-w-0"
-        style={{ background: t.surface.secondary, border: `1px solid ${t.surface.border}` }}
+        style={{
+          background: `linear-gradient(135deg, ${t.surface.secondary}, ${t.surface.secondary}80)`,
+          border: `1px solid ${t.surface.border}`,
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), 0 1px 2px rgba(0,0,0,0.04)',
+          backdropFilter: 'blur(8px)',
+          WebkitBackdropFilter: 'blur(8px)',
+        }}
       >
         <ShieldCheck className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: t.accent.solid }} />
         <div className="space-y-1 min-w-0">

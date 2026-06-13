@@ -6,6 +6,13 @@ import CopyButton from '../../../../components/CopyButton';
 
 type Tokens = ReturnType<typeof useThemeTokens>;
 
+export const DOMAIN_STATUS_MAP: Record<string, { label: string; color: string; bg: string; border: string }> = {
+  not_configured: { label: 'Non configure', color: '#6b7280', bg: 'rgba(107,114,128,0.08)', border: 'rgba(107,114,128,0.15)' },
+  pending:        { label: 'En attente de verification DNS', color: '#f59e0b', bg: 'rgba(245,158,11,0.08)', border: 'rgba(245,158,11,0.15)' },
+  verified:       { label: 'Verifie et actif', color: '#16a34a', bg: 'rgba(22,163,106,0.08)', border: 'rgba(22,163,106,0.15)' },
+  error:          { label: 'Erreur de verification', color: '#ef4444', bg: 'rgba(239,68,68,0.08)', border: 'rgba(239,68,68,0.15)' },
+};
+
 export function NoSiteState({ t }: { t: Tokens }) {
   return (
     <div className="flex flex-col items-center gap-2 py-8 px-2 text-center">
@@ -31,7 +38,13 @@ export function ChecklistSection({ hasDomain, vercelAssigned, isVerified, isPend
   ];
 
   return (
-    <div className="rounded-xl p-4 space-y-2" style={{ background: t.surface.primary, border: `1px solid ${t.surface.border}` }}>
+    <div className="rounded-xl p-4 space-y-2" style={{
+      background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.55), rgba(15, 23, 42, 0.65))',
+      border: '1px solid rgba(148, 163, 184, 0.15)',
+      boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06), 0 8px 32px rgba(0,0,0,0.30)',
+      backdropFilter: 'blur(24px) saturate(140%)',
+      WebkitBackdropFilter: 'blur(24px) saturate(140%)',
+    }}>
       <p className="text-[10px] font-bold uppercase tracking-wider mb-2" style={{ color: t.text.quaternary }}>
         Checklist de configuration
       </p>
@@ -187,13 +200,6 @@ export function DomainActionButtons({ inputChanged, hasDomain, isVerified, domai
     </div>
   );
 }
-
-export const DOMAIN_STATUS_MAP: Record<string, { label: string; color: string; bg: string; border: string }> = {
-  not_configured: { label: 'Non configure', color: '#6b7280', bg: 'rgba(107,114,128,0.08)', border: 'rgba(107,114,128,0.15)' },
-  pending:        { label: 'En attente de verification DNS', color: '#f59e0b', bg: 'rgba(245,158,11,0.08)', border: 'rgba(245,158,11,0.15)' },
-  verified:       { label: 'Verifie et actif', color: '#16a34a', bg: 'rgba(22,163,106,0.08)', border: 'rgba(22,163,106,0.15)' },
-  error:          { label: 'Erreur de verification', color: '#ef4444', bg: 'rgba(239,68,68,0.08)', border: 'rgba(239,68,68,0.15)' },
-};
 
 export function FeedbackMessage({ type, text }: { type: 'success' | 'error'; text: string }) {
   return (

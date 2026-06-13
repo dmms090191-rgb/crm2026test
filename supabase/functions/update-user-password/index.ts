@@ -39,9 +39,9 @@ Deno.serve(async (req: Request) => {
     }
 
     const callerRole = caller.app_metadata?.role;
-    if (callerRole !== "admin" && callerRole !== "vendor" && callerRole !== "super_admin") {
+    if (callerRole !== "admin" && callerRole !== "vendor" && callerRole !== "super_admin" && callerRole !== "company_super_admin") {
       return new Response(
-        JSON.stringify({ error: "Forbidden: admin, vendor, or super_admin role required" }),
+        JSON.stringify({ error: "Forbidden: insufficient role" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -49,6 +49,22 @@ Deno.serve(async (req: Request) => {
     const { auth_user_id, email, password, role, lead_id } = await req.json();
 
     console.log("[update-user-password] Request:", { callerRole, callerId: caller.id, email, lead_id, hasPassword: !!password });
+
+    if (callerRole === "company_super_admin" && auth_user_id) {
+      const supabaseAdminCheck = createClient(supabaseUrl, serviceRoleKey);
+      const { data: tu } = await supabaseAdminCheck.auth.admin.getUserById(auth_user_id);
+      const targetCid = tu?.user?.app_metadata?.company_id;
+      if (targetCid) {
+        const callerCid = caller.app_metadata?.company_id;
+        const { data: tc } = await supabaseAdminCheck.from("companies").select("parent_company_id").eq("id", targetCid).maybeSingle();
+        if (!tc || tc.parent_company_id !== callerCid) {
+          return new Response(
+            JSON.stringify({ error: "Forbidden: admin not in your scope" }),
+            { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+      }
+    }
 
     if ((!auth_user_id && !email) || !password) {
       return new Response(

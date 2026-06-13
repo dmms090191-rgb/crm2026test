@@ -75,6 +75,10 @@ export default function AdminApplicationPage() {
           Gerez l'application mobile de votre societe.
           L'apercu ci-dessous affiche la vraie interface responsive de votre espace.
         </p>
+
+        <div className="flex justify-center mt-6">
+          <PwaInstallButton pwa={pwa} appName={appName} />
+        </div>
       </div>
 
       {/* Two-column: Features + Phone */}
@@ -107,11 +111,6 @@ export default function AdminApplicationPage() {
           </div>
           <SimulatedPhone appIconUrl={appIconUrl} appName={appName} />
         </div>
-      </div>
-
-      {/* Install button */}
-      <div className="flex justify-center mt-8 sm:mt-10">
-        <PwaInstallButton pwa={pwa} appName={appName} />
       </div>
 
       {/* Icon picker modal */}

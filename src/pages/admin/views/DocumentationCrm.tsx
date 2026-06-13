@@ -144,7 +144,7 @@ export default function DocumentationCrm({ initialTab, onInitialTabConsumed }: D
           </div>
         )}
       </div>
-      <div className="flex flex-1 min-h-0 rounded-2xl overflow-hidden relative" style={{ background: tokens.tab.bg, border: `1px solid ${tokens.tab.border}` }}>
+      <div className="flex flex-1 min-h-0 rounded-2xl overflow-hidden relative" style={{ background: `linear-gradient(135deg, ${tokens.surface.secondary}, ${tokens.surface.secondary}80)`, border: `1px solid ${tokens.surface.border}`, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), 0 1px 2px rgba(0,0,0,0.04)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
         {/* Mobile: hamburger button */}
         <button
           onClick={() => setMobileDocOpen(true)}

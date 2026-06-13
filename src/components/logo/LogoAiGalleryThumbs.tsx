@@ -59,8 +59,11 @@ export function GalleryThumb({
             backgroundSize: isPng ? '14px 14px' : undefined,
             backgroundPosition: isPng ? '0 0,0 7px,7px -7px,-7px 0px' : undefined,
           }}>
+          <div className="absolute inset-0 pointer-events-none"
+            style={{ background: 'linear-gradient(180deg, rgba(15,23,42,0.10) 0%, rgba(15,23,42,0.28) 100%)' }} />
           <img src={logo.url} alt={displayName}
-            className={`max-h-[72px] max-w-[90px] object-contain transition-transform ${reordering ? '' : 'group-hover/thumb:scale-110'}`}
+            className={`relative max-h-[72px] max-w-[90px] object-contain transition-transform ${reordering ? '' : 'group-hover/thumb:scale-110'}`}
+            style={{ filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.35))' }}
             onError={e => { (e.target as HTMLImageElement).style.opacity = '0.3'; }} />
           {reordering && (
             <span className="absolute top-1.5 left-1.5 w-5 h-5 rounded-md flex items-center justify-center"
@@ -92,10 +95,14 @@ export function GalleryThumb({
           )}
         </div>
       </button>
-      <div className="px-2 py-1.5 flex items-center gap-1" style={{ background: t.surface.secondary, borderTop: `1px solid ${t.surface.border}` }}>
+      <div className="px-2 py-1.5 flex items-center gap-1"
+        style={{
+          background: `linear-gradient(180deg, ${t.surface.primary}, ${t.surface.secondary})`,
+          borderTop: `1px solid ${t.surface.border}`,
+        }}>
         <button onClick={handleClick} className="flex-1 min-w-0 text-left focus:outline-none" disabled={reordering}>
-          <p className="text-[9px] font-semibold truncate" style={{ color: selectionMode && checked ? '#0284c7' : isSelected && !reordering ? '#f59e0b' : t.text.primary }}>{displayName}</p>
-          <p className="text-[7px] mt-0.5" style={{ color: t.text.quaternary }}>{dateStr}</p>
+          <p className="text-[10px] font-extrabold truncate leading-tight" style={{ color: selectionMode && checked ? '#0284c7' : isSelected && !reordering ? '#d97706' : t.text.primary }}>{displayName}</p>
+          <p className="text-[8px] font-bold mt-0.5 tabular-nums" style={{ color: t.text.secondary }}>{dateStr}</p>
         </button>
         {!selectionMode && !reordering && (
           <button
@@ -166,8 +173,11 @@ export function MobileGalleryThumb({ logo, t, isSelected, onToggleFavorite, onCl
             backgroundSize: isPng ? '14px 14px' : undefined,
             backgroundPosition: isPng ? '0 0,0 7px,7px -7px,-7px 0px' : undefined,
           }}>
+          <div className="absolute inset-0 pointer-events-none"
+            style={{ background: 'linear-gradient(180deg, rgba(15,23,42,0.05) 0%, rgba(15,23,42,0.18) 100%)' }} />
           <img src={logo.url} alt={displayName}
-            className="max-h-full max-w-full object-contain"
+            className="relative max-h-full max-w-full object-contain"
+            style={{ filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.18))' }}
             onError={e => { (e.target as HTMLImageElement).style.opacity = '0.3'; }} />
           {logo.is_active && !selectionMode && (
             <span className="absolute top-2 right-2 px-1.5 py-0.5 rounded text-[8px] font-bold"
@@ -193,9 +203,9 @@ export function MobileGalleryThumb({ logo, t, isSelected, onToggleFavorite, onCl
           )}
         </div>
       </button>
-      <div className="px-2.5 py-2 flex items-center gap-1.5" style={{ background: t.surface.secondary, borderTop: `1px solid ${t.surface.border}` }}>
+      <div className="px-2.5 py-2 flex items-center gap-1.5" style={{ background: t.surface.primary, borderTop: `1px solid ${t.surface.border}` }}>
         <button onClick={handleClick} className="flex-1 min-w-0 text-left focus:outline-none">
-          <p className="text-[10px] font-semibold truncate" style={{ color: selectionMode && checked ? '#0284c7' : isSelected ? '#f59e0b' : t.text.primary }}>{displayName}</p>
+          <p className="text-[11px] font-extrabold truncate leading-tight" style={{ color: selectionMode && checked ? '#0284c7' : isSelected ? '#d97706' : t.text.primary }}>{displayName}</p>
         </button>
         {!selectionMode && (
           <button

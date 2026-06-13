@@ -128,6 +128,50 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    if (provider === "stability") {
+      const apiKey = Deno.env.get("STABILITY_API_KEY");
+      if (!apiKey) {
+        return json({
+          provider: "stability",
+          status: "key_missing",
+          key_configured: false,
+          error: "Cle manquante",
+          checked_at: new Date().toISOString(),
+        });
+      }
+
+      const balanceRes = await fetch(
+        "https://api.stability.ai/v1/user/balance",
+        { headers: { Authorization: `Bearer ${apiKey}` } },
+      );
+
+      if (!balanceRes.ok) {
+        const errText = await balanceRes.text();
+        console.error(
+          `[ai-provider-status] Stability /user/balance ${balanceRes.status}: ${errText}`,
+        );
+        return json({
+          provider: "stability",
+          status: "error",
+          key_configured: true,
+          error: `Stability API ${balanceRes.status}`,
+          checked_at: new Date().toISOString(),
+        });
+      }
+
+      const body = await balanceRes.json();
+      const credits = body?.credits;
+
+      return json({
+        provider: "stability",
+        status: "available",
+        key_configured: true,
+        total_balance: credits != null ? String(Math.round(credits * 100) / 100) : null,
+        currency: "credits",
+        checked_at: new Date().toISOString(),
+      });
+    }
+
     return json({ error: `Provider inconnu: ${provider}` }, 400);
   } catch (err) {
     return new Response(

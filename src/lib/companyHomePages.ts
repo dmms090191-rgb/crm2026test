@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-export type { SiteTemplate, SiteScope, CompanyHomePage, CompanyHomePageUpsert, CompanyHomePageWithCompany } from './companyHomePagesTypes';
+export type { SiteTemplate, SiteTemplateConfig, SiteScope, CompanyHomePage, CompanyHomePageUpsert, CompanyHomePageWithCompany } from './companyHomePagesTypes';
 import type { SiteScope, CompanyHomePage, CompanyHomePageUpsert, CompanyHomePageWithCompany, SiteTemplate } from './companyHomePagesTypes';
 
 /* ── Slug helpers ── */
@@ -52,7 +52,7 @@ export async function getTemplateByKey(templateKey: string): Promise<SiteTemplat
 export async function getAllHomePages(): Promise<CompanyHomePageWithCompany[]> {
   const { data, error } = await supabase
     .from('company_home_pages')
-    .select('*, companies(name)')
+    .select('*, companies(name, company_tier, parent_company_id)')
     .order('updated_at', { ascending: false });
   if (error) throw error;
   return (data ?? []) as CompanyHomePageWithCompany[];
@@ -74,6 +74,17 @@ export async function getPlatformHomePage(): Promise<CompanyHomePage | null> {
     .from('company_home_pages')
     .select('*')
     .eq('site_scope', 'platform')
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+export async function getHomePageById(id: string): Promise<CompanyHomePage | null> {
+  const { data, error } = await supabase
+    .from('company_home_pages')
+    .select('*')
+    .eq('id', id)
+    .eq('is_active', true)
     .maybeSingle();
   if (error) throw error;
   return data;
@@ -103,12 +114,22 @@ export async function getHomePageByDomain(domain: string): Promise<CompanyHomePa
 }
 
 export async function upsertHomePage(page: CompanyHomePageUpsert): Promise<CompanyHomePage> {
+  if (page.company_id) {
+    const existing = await getHomePageByCompanyId(page.company_id);
+    if (existing) {
+      const { data, error } = await supabase
+        .from('company_home_pages')
+        .update({ ...page, updated_at: new Date().toISOString() })
+        .eq('id', existing.id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    }
+  }
   const { data, error } = await supabase
     .from('company_home_pages')
-    .upsert(
-      { ...page, updated_at: new Date().toISOString() },
-      { onConflict: 'company_id' }
-    )
+    .insert({ ...page, updated_at: new Date().toISOString() })
     .select()
     .single();
   if (error) throw error;

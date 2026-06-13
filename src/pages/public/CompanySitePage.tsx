@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
 import { LogIn, Loader2, AlertCircle } from 'lucide-react';
 import LoginModal from '../../components/LoginModal';
-import { getHomePageBySlug, getTemplateById, type CompanyHomePage } from '../../lib/companyHomePages';
+import { getHomePageBySlug, getHomePageById, getTemplateById, type CompanyHomePage } from '../../lib/companyHomePages';
 import { getTemplateComponent, type SectionOverride } from '../superadmin/views/site-builder/templates/templateRegistry';
 import { supabase } from '../../lib/supabase';
 
 interface Props {
-  slug: string;
+  preloadedPage?: CompanyHomePage | null;
+  slug?: string | null;
+  pageId?: string | null;
   domainCompanyId?: string | null;
   onLogin?: () => void;
 }
@@ -19,14 +21,18 @@ interface PublishedSectionRow {
   published_styles: Record<string, string> | null;
 }
 
-export default function CompanySitePage({ slug, domainCompanyId, onLogin: onLoginProp }: Props) {
-  const [page, setPage] = useState<CompanyHomePage | null>(null);
+export default function CompanySitePage({ preloadedPage, slug, pageId, domainCompanyId, onLogin: onLoginProp }: Props) {
+  const [page, setPage] = useState<CompanyHomePage | null>(preloadedPage ?? null);
   const [templateKey, setTemplateKey] = useState<string | null>(null);
   const [sectionOverrides, setSectionOverrides] = useState<Record<string, SectionOverride> | undefined>();
   const [sectionOrder, setSectionOrder] = useState<string[] | undefined>();
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!preloadedPage);
   const [notFound, setNotFound] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
+
+  useEffect(() => {
+    document.getElementById('root')?.classList.add('app-ready');
+  }, []);
 
   useEffect(() => {
     if (slug === '__domain_not_found__') {
@@ -36,7 +42,12 @@ export default function CompanySitePage({ slug, domainCompanyId, onLogin: onLogi
     }
     (async () => {
       try {
-        const data = await getHomePageBySlug(slug);
+        const data = preloadedPage
+          ?? (slug
+            ? await getHomePageBySlug(slug)
+            : pageId
+              ? await getHomePageById(pageId)
+              : null);
         if (!data) { setNotFound(true); return; }
         setPage(data);
         if (data.active_template_id) {
@@ -72,7 +83,7 @@ export default function CompanySitePage({ slug, domainCompanyId, onLogin: onLogi
         setLoading(false);
       }
     })();
-  }, [slug]);
+  }, [slug, pageId]);
 
   const effectiveCompanyId = domainCompanyId ?? page?.company_id ?? null;
 

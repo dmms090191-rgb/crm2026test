@@ -29,16 +29,12 @@ export default function StudioBackgroundModePanel({
   const gradientPreview = gradient ? gradientToCss(gradient) : gradientToCss(DEFAULT_GRADIENT);
   const isSolid = bgMode === 'solid';
   const isGradient = bgMode === 'gradient';
-  const isDefault = bgMode === 'default';
-
-  const activeLabel = isGradient ? 'Degrade' : isSolid ? 'Couleur unie' : 'Blanc par defaut';
-  const activeColor = isGradient ? '#f59e0b' : isSolid ? '#0ea5e9' : '#94a3b8';
 
   return (
     <div>
       <button
         onClick={() => setOpen(!open)}
-        className="w-full group rounded-xl p-3.5 text-left transition-all hover:scale-[1.01] active:scale-[0.99]"
+        className="w-full group rounded-xl px-3 py-2 text-left transition-all hover:scale-[1.01] active:scale-[0.99]"
         style={{
           background: open
             ? 'linear-gradient(135deg, rgba(14,165,233,0.04), rgba(6,182,212,0.02))'
@@ -46,40 +42,23 @@ export default function StudioBackgroundModePanel({
           border: `1.5px solid ${open ? 'rgba(14,165,233,0.2)' : t.surface.border}`,
         }}
       >
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           <div
-            className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+            className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
             style={{
               background: 'linear-gradient(135deg, rgba(14,165,233,0.1), rgba(6,182,212,0.06))',
               border: '1px solid rgba(14,165,233,0.15)',
             }}
           >
-            <Palette className="w-4 h-4" style={{ color: '#0ea5e9' }} />
+            <Palette className="w-3.5 h-3.5" style={{ color: '#0ea5e9' }} />
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-[11px] font-bold" style={{ color: t.text.primary }}>
-              Arriere-plan
-            </p>
-            <p className="text-[9px] mt-0.5" style={{ color: t.text.quaternary }}>
-              Choisissez le style du fond
-            </p>
-          </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <span
-              className="text-[8px] font-bold px-1.5 py-0.5 rounded-md"
-              style={{
-                background: isDefault ? 'rgba(148,163,184,0.08)' : isGradient ? 'rgba(245,158,11,0.08)' : 'rgba(14,165,233,0.08)',
-                color: activeColor,
-                border: `1px solid ${isDefault ? 'rgba(148,163,184,0.2)' : isGradient ? 'rgba(245,158,11,0.2)' : 'rgba(14,165,233,0.2)'}`,
-              }}
-            >
-              {activeLabel}
-            </span>
-            {open
-              ? <ChevronDown className="w-3.5 h-3.5 transition-transform" style={{ color: t.text.quaternary }} />
-              : <ChevronRight className="w-3.5 h-3.5 transition-transform" style={{ color: t.text.quaternary }} />
-            }
-          </div>
+          <p className="flex-1 min-w-0 text-[11px] font-bold" style={{ color: t.text.primary }}>
+            Arriere-plan
+          </p>
+          {open
+            ? <ChevronDown className="w-3.5 h-3.5 flex-shrink-0 transition-transform" style={{ color: t.text.quaternary }} />
+            : <ChevronRight className="w-3.5 h-3.5 flex-shrink-0 transition-transform" style={{ color: t.text.quaternary }} />
+          }
         </div>
       </button>
 

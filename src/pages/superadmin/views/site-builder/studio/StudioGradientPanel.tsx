@@ -25,7 +25,7 @@ export default function StudioGradientPanel({ gradient, onChange, onReset, isAct
     handleColor1Change, handleColor2Change,
     handleBalanceChange, handleStrengthChange,
     handleDirectionChange,
-    handleApplyTrait, handleToggleBalanceLine,
+    handleApplyTrait,
     handleCenter, handleSwapColors, handleApplyPreset,
   } = useGradientHandlers({ gradient, onChange });
 
@@ -96,9 +96,7 @@ export default function StudioGradientPanel({ gradient, onChange, onReset, isAct
         <GradientToggleButtons
           isActive={isActive}
           showGuideLine={config.showGuideLine}
-          showBalanceLine={config.showBalanceLine}
           onToggleTrait={handleApplyTrait}
-          onToggleBalance={handleToggleBalanceLine}
           onCenter={handleCenter}
           t={t}
         />

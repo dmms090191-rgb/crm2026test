@@ -52,6 +52,7 @@ export default function SiteManagerShell({ ownerType, title, subtitle, companyId
   const [domainModalOpen, setDomainModalOpen] = useState(false);
   const [reorderOpen, setReorderOpen] = useState(false);
   const [tabConfig, setTabConfig] = useState<SiteTabConfig>(DEFAULT_TAB_CONFIG);
+  const [studioEditorOpen, setStudioEditorOpen] = useState(false);
 
   const siteScope: SiteScope = ownerType === 'super_admin' ? 'platform' : 'company';
 
@@ -181,15 +182,18 @@ export default function SiteManagerShell({ ownerType, title, subtitle, companyId
     : null;
 
   const isStudio = activeTab === 'studio';
+  const isImmersiveEditor = isStudio && studioEditorOpen;
 
   return (
     <div className="flex flex-col h-full min-h-0">
-      <SiteManagerShellHeader
-        t={t} title={title} activeTab={activeTab} onTabChange={setActiveTab}
-        tabConfig={tabConfig} hideDomainTab={hideDomainTab}
-        onReorderOpen={() => setReorderOpen(true)}
-        onClose={onClose} onBack={onBack}
-      />
+      {!isImmersiveEditor && (
+        <SiteManagerShellHeader
+          t={t} title={title} activeTab={activeTab} onTabChange={setActiveTab}
+          tabConfig={tabConfig} hideDomainTab={hideDomainTab}
+          onReorderOpen={() => setReorderOpen(true)}
+          onClose={onClose} onBack={onBack}
+        />
+      )}
 
       <div className={`flex-1 min-h-0 ${isStudio ? '' : 'overflow-y-auto'}`}>
         <div className={isStudio ? 'h-full' : 'p-3'}>
@@ -224,6 +228,9 @@ export default function SiteManagerShell({ ownerType, title, subtitle, companyId
                   page={page}
                   activeTemplate={activeTemplate}
                   onTabChange={setActiveTab}
+                  onTemplateCreated={() => loadData(true)}
+                  editorOpen={studioEditorOpen}
+                  onEditorOpenChange={setStudioEditorOpen}
                 />
               )}
               {activeTab === 'domaine' && (

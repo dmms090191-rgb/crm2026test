@@ -92,7 +92,7 @@ export default function Crm({ onConnectAsClient, onOpenChat, onOpenRdv }: CrmPro
         vendors={d.vendors} statutDefs={d.statutDefs} tokens={tokens}
       />
 
-      <div className="rounded-2xl overflow-hidden" style={{ background: tokens.card.bg, border: `1px solid ${tokens.card.border}`, boxShadow: tokens.card.shadow }}>
+      <div className="rounded-2xl overflow-hidden" style={{ background: `linear-gradient(135deg, ${tokens.surface.secondary}, ${tokens.surface.secondary}80)`, border: `1px solid ${tokens.surface.border}`, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), 0 1px 2px rgba(0,0,0,0.04)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
         {d.loading ? (
           <div className="flex items-center justify-center py-16">
             <div className="w-6 h-6 border-2 border-t-cyan-400 rounded-full animate-spin" style={{ borderColor: tokens.text.quaternary, borderTopColor: '#22d3ee' }} />

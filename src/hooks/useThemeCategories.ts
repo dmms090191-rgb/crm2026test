@@ -11,6 +11,12 @@ export interface ThemeCategoryRow {
   updated_at: string;
 }
 
+const PROTECTED_SLUGS = new Set(['all', 'recommended', 'rework', 'hidden', 'editor']);
+
+export function isProtectedCategory(cat: ThemeCategoryRow): boolean {
+  return cat.is_system || PROTECTED_SLUGS.has(cat.slug);
+}
+
 export function useThemeCategories() {
   const [categories, setCategories] = useState<ThemeCategoryRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,6 +58,15 @@ export function useThemeCategories() {
   }, [categories]);
 
   const deleteCategory = useCallback(async (id: string) => {
+    const cat = categories.find(c => c.id === id);
+    if (!cat || isProtectedCategory(cat)) return { error: 'protected' as unknown };
+
+    const now = new Date().toISOString();
+    await supabase
+      .from('theme_config')
+      .update({ category_id: null, category: 'uncategorized', updated_at: now })
+      .eq('category_id', id);
+
     const { error } = await supabase
       .from('theme_categories')
       .delete()
@@ -60,7 +75,31 @@ export function useThemeCategories() {
       setCategories(prev => prev.filter(c => c.id !== id));
     }
     return { error };
-  }, []);
+  }, [categories]);
+
+  const bulkDeleteCategories = useCallback(async (ids: string[]) => {
+    const deletable = ids.filter(id => {
+      const cat = categories.find(c => c.id === id);
+      return cat && !isProtectedCategory(cat);
+    });
+    if (deletable.length === 0) return { error: null, deleted: 0 };
+
+    const now = new Date().toISOString();
+    await supabase
+      .from('theme_config')
+      .update({ category_id: null, category: 'uncategorized', updated_at: now })
+      .in('category_id', deletable);
+
+    const { error } = await supabase
+      .from('theme_categories')
+      .delete()
+      .in('id', deletable);
+
+    if (!error) {
+      setCategories(prev => prev.filter(c => !deletable.includes(c.id)));
+    }
+    return { error, deleted: error ? 0 : deletable.length };
+  }, [categories]);
 
   const reorderCategories = useCallback(async (orderedIds: string[]) => {
     const updates = orderedIds.map((id, idx) => ({ id, sort_order: idx, updated_at: new Date().toISOString() }));
@@ -92,5 +131,5 @@ export function useThemeCategories() {
     );
   }, [categories]);
 
-  return { categories, loading, fetchCategories, renameCategory, createCategory, deleteCategory, reorderCategories, swapCategoryOrder };
+  return { categories, loading, fetchCategories, renameCategory, createCategory, deleteCategory, bulkDeleteCategories, reorderCategories, swapCategoryOrder };
 }

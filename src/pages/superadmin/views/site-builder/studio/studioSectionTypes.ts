@@ -1,4 +1,5 @@
 import type { SectionConfig } from './templateSectionsConfig';
+import type { OverlayElement } from './overlayElementTypes';
 
 export interface SiteSectionRow {
   id: string;
@@ -22,7 +23,7 @@ export interface StudioSection extends SectionConfig {
   dbId: string | null;
 }
 
-export type GradientDirection = 'horizontal' | 'vertical' | 'diagonal-left' | 'diagonal-right';
+export type GradientDirection = 'top' | 'bottom' | 'left' | 'right' | 'diagonal-left' | 'diagonal-right';
 
 export interface GradientConfig {
   color1: string;
@@ -39,21 +40,23 @@ export interface GradientConfig {
 }
 
 export const DIRECTION_POSITIONS: Record<GradientDirection, { startX: number; startY: number; endX: number; endY: number }> = {
-  horizontal: { startX: 10, startY: 50, endX: 90, endY: 50 },
-  vertical: { startX: 50, startY: 10, endX: 50, endY: 90 },
-  'diagonal-left': { startX: 15, startY: 15, endX: 85, endY: 85 },
-  'diagonal-right': { startX: 85, startY: 15, endX: 15, endY: 85 },
+  top: { startX: 50, startY: 90, endX: 50, endY: 10 },
+  bottom: { startX: 50, startY: 10, endX: 50, endY: 90 },
+  left: { startX: 90, startY: 50, endX: 10, endY: 50 },
+  right: { startX: 10, startY: 50, endX: 90, endY: 50 },
+  'diagonal-left': { startX: 85, startY: 15, endX: 15, endY: 85 },
+  'diagonal-right': { startX: 15, startY: 15, endX: 85, endY: 85 },
 };
 
 export const DEFAULT_GRADIENT: GradientConfig = {
   color1: '#0ea5e9',
   color2: '#020617',
-  direction: 'vertical',
+  direction: 'bottom',
   strength: 50,
   balance: 50,
   showGuideLine: false,
   showBalanceLine: false,
-  ...DIRECTION_POSITIONS.vertical,
+  ...DIRECTION_POSITIONS.bottom,
 };
 
 export interface CanvasBg {
@@ -87,9 +90,10 @@ export interface LocalEdits {
   canvasGradient: Partial<CanvasGradient> | null;
   canvasPageHeight: Partial<CanvasPageHeight> | null;
   canvasBgMode: Partial<CanvasBgMode> | null;
+  overlayElements: OverlayElement[] | null;
 }
 
-export const EMPTY_EDITS: LocalEdits = { content: {}, styles: {}, order: null, visibility: {}, canvasBg: null, canvasGradient: null, canvasPageHeight: null, canvasBgMode: null };
+export const EMPTY_EDITS: LocalEdits = { content: {}, styles: {}, order: null, visibility: {}, canvasBg: null, canvasGradient: null, canvasPageHeight: null, canvasBgMode: null, overlayElements: null };
 
 export const DEFAULT_CANVAS_BG = '#ffffff';
 
@@ -135,6 +139,11 @@ export interface UseStudioSectionsReturn {
   toggleVisibility: (sectionKey: string) => void;
   resetField: (sectionKey: string, fieldKey: string) => void;
   resetSection: (sectionKey: string) => void;
+  overlayElements: OverlayElement[];
+  setOverlayElements: (elements: OverlayElement[]) => void;
+  updateOverlayElement: (id: string, partial: Partial<OverlayElement>) => void;
+  removeOverlayElement: (id: string) => void;
+  addOverlayElement: (element: OverlayElement) => void;
   saveDraft: () => Promise<boolean>;
   publish: () => Promise<boolean>;
   getEffectiveContent: (sectionKey: string) => Record<string, string>;

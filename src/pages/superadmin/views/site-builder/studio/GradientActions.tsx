@@ -1,15 +1,24 @@
 import {
-  ArrowRight, ArrowDown, ArrowDownRight, ArrowDownLeft,
-  Eye, EyeOff, SlidersHorizontal, Crosshair,
+  ArrowUp, ArrowDown, ArrowLeft, ArrowRight,
+  ArrowDownRight, ArrowDownLeft,
+  Eye, EyeOff, Crosshair,
 } from 'lucide-react';
 import type { ThemeTokens } from '../../../../../lib/themeTokensTypes';
 import type { GradientDirection } from './studioSectionTypes';
 
-const DIRECTIONS: { id: GradientDirection; label: string; icon: typeof ArrowRight }[] = [
-  { id: 'horizontal', label: 'Horizontal', icon: ArrowRight },
-  { id: 'vertical', label: 'Vertical', icon: ArrowDown },
-  { id: 'diagonal-left', label: 'Diag. gauche', icon: ArrowDownRight },
-  { id: 'diagonal-right', label: 'Diag. droite', icon: ArrowDownLeft },
+const DIRECTION_ROWS: { id: GradientDirection; label: string; icon: typeof ArrowUp }[][] = [
+  [
+    { id: 'top', label: 'Haut', icon: ArrowUp },
+    { id: 'bottom', label: 'Bas', icon: ArrowDown },
+  ],
+  [
+    { id: 'left', label: 'Gauche', icon: ArrowLeft },
+    { id: 'right', label: 'Droite', icon: ArrowRight },
+  ],
+  [
+    { id: 'diagonal-left', label: 'Diagonale gauche', icon: ArrowDownLeft },
+    { id: 'diagonal-right', label: 'Diagonale droite', icon: ArrowDownRight },
+  ],
 ];
 
 interface DirectionButtonsProps {
@@ -21,30 +30,34 @@ interface DirectionButtonsProps {
 export function GradientDirectionButtons({ current, onChange, t }: DirectionButtonsProps) {
   return (
     <div>
-      <label className="text-[10px] font-semibold mb-2 block" style={{ color: t.text.tertiary }}>
+      <label className="text-[10px] font-semibold mb-1.5 block" style={{ color: t.text.tertiary }}>
         Orientation
       </label>
-      <div className="grid grid-cols-2 gap-2">
-        {DIRECTIONS.map(d => {
-          const active = current === d.id;
-          const Icon = d.icon;
-          return (
-            <button
-              key={d.id}
-              onClick={() => onChange(d.id)}
-              className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-[10px] font-semibold transition-all hover:scale-[1.03] active:scale-[0.97]"
-              style={{
-                background: active ? 'rgba(14,165,233,0.08)' : t.surface.secondary,
-                border: `1.5px solid ${active ? 'rgba(14,165,233,0.3)' : t.surface.border}`,
-                color: active ? '#0ea5e9' : t.text.secondary,
-                boxShadow: active ? '0 2px 8px rgba(14,165,233,0.08)' : 'none',
-              }}
-            >
-              <Icon className="w-3.5 h-3.5" />
-              {d.label}
-            </button>
-          );
-        })}
+      <div className="space-y-1.5">
+        {DIRECTION_ROWS.map((row, ri) => (
+          <div key={ri} className="grid grid-cols-2 gap-1.5">
+            {row.map(d => {
+              const active = current === d.id;
+              const Icon = d.icon;
+              return (
+                <button
+                  key={d.id}
+                  onClick={() => onChange(d.id)}
+                  className="flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg text-[9px] font-semibold transition-all hover:scale-[1.03] active:scale-[0.97]"
+                  style={{
+                    background: active ? 'rgba(14,165,233,0.08)' : t.surface.secondary,
+                    border: `1.5px solid ${active ? 'rgba(14,165,233,0.3)' : t.surface.border}`,
+                    color: active ? '#0ea5e9' : t.text.secondary,
+                    boxShadow: active ? '0 1px 6px rgba(14,165,233,0.08)' : 'none',
+                  }}
+                >
+                  <Icon className="w-3 h-3" />
+                  {d.label}
+                </button>
+              );
+            })}
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -53,16 +66,14 @@ export function GradientDirectionButtons({ current, onChange, t }: DirectionButt
 interface ToggleButtonProps {
   isActive: boolean;
   showGuideLine: boolean;
-  showBalanceLine: boolean;
   onToggleTrait: () => void;
-  onToggleBalance: () => void;
   onCenter: () => void;
   t: ThemeTokens;
 }
 
 export function GradientToggleButtons({
-  isActive, showGuideLine, showBalanceLine,
-  onToggleTrait, onToggleBalance, onCenter, t,
+  isActive, showGuideLine,
+  onToggleTrait, onCenter, t,
 }: ToggleButtonProps) {
   return (
     <>
@@ -82,27 +93,6 @@ export function GradientToggleButtons({
       >
         {isActive && showGuideLine ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
         {isActive && showGuideLine ? 'Masquer le trait' : 'Appliquer un trait'}
-      </button>
-
-      <button
-        onClick={onToggleBalance}
-        className="w-full flex items-center justify-center gap-2 px-3 py-3 rounded-xl text-[11px] font-bold transition-all hover:scale-[1.02] active:scale-[0.98]"
-        style={{
-          background: isActive && showBalanceLine
-            ? 'linear-gradient(135deg, rgba(16,185,129,0.1), rgba(5,150,105,0.06))'
-            : 'linear-gradient(135deg, rgba(16,185,129,0.05), rgba(5,150,105,0.02))',
-          border: `1.5px solid ${isActive && showBalanceLine ? 'rgba(16,185,129,0.3)' : 'rgba(16,185,129,0.15)'}`,
-          color: isActive && showBalanceLine ? '#10b981' : '#34d399',
-          boxShadow: isActive && showBalanceLine
-            ? '0 2px 12px rgba(16,185,129,0.1)'
-            : '0 2px 12px rgba(16,185,129,0.04)',
-        }}
-      >
-        {isActive && showBalanceLine
-          ? <EyeOff className="w-4 h-4" />
-          : <SlidersHorizontal className="w-4 h-4" />
-        }
-        {isActive && showBalanceLine ? 'Masquer la repartition' : 'Repartition visuelle'}
       </button>
 
       <button

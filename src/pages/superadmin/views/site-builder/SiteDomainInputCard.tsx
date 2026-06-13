@@ -24,7 +24,13 @@ export default function SiteDomainInputCard({
   const domainUrl = isVerified ? `https://${page.custom_domain}` : null;
 
   return (
-    <div className="rounded-xl p-5 space-y-4" style={{ background: t.surface.primary, border: `1px solid ${t.surface.border}` }}>
+    <div className="rounded-xl p-5 space-y-4 transition-all" style={{
+      background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.55), rgba(15, 23, 42, 0.65))',
+      border: '1px solid rgba(148, 163, 184, 0.15)',
+      boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06), 0 8px 32px rgba(0,0,0,0.30)',
+      backdropFilter: 'blur(24px) saturate(140%)',
+      WebkitBackdropFilter: 'blur(24px) saturate(140%)',
+    }}>
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
           style={{ background: 'linear-gradient(135deg, #0ea5e9, #0284c7)', boxShadow: '0 0 16px rgba(14,165,233,0.3)' }}>
@@ -36,7 +42,7 @@ export default function SiteDomainInputCard({
         </div>
       </div>
 
-      <div className="pt-2 space-y-3" style={{ borderTop: `1px solid ${t.surface.border}` }}>
+      <div className="pt-2 space-y-3" style={{ borderTop: '1px solid rgba(148, 163, 184, 0.15)' }}>
         <div>
           <label className="block text-[10px] font-bold tracking-[0.15em] uppercase mb-1.5" style={{ color: t.text.quaternary }}>
             Domaine personnalise

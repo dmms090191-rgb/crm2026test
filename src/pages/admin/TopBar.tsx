@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { ChevronRight, Menu, ArrowLeft, Smartphone } from 'lucide-react';
+import { ChevronRight, Menu } from 'lucide-react';
 import { useTimezone } from '../../hooks/useTimezone';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
 import { getCurrentTime } from '../../lib/timezone';
@@ -7,8 +7,10 @@ import TimezoneModal from '../../components/TimezoneSearchDropdown';
 import { ClockButton, ProfileMenu } from './components/topbar';
 import AdminMobileBellMenu from './components/topbar/AdminMobileBellMenu';
 import AdminDesktopNotifPill from './components/topbar/AdminDesktopNotifPill';
+import { PhoneButton, EditorButton } from './components/topbar/TopBarActionButtons';
 import FloatingPhoneWindow from '../../components/FloatingPhoneWindow';
 import { useFloatingPhoneState } from '../../components/useFloatingPhoneState';
+import { useEditorModeSafe } from '../../contexts/EditorModeContext';
 import type { AgendaNotifEntry } from '../../hooks/useAgendaNotifications';
 import type { AgendaEquipeNotifEntry } from '../../hooks/useAgendaEquipeNotifications';
 import type { ImpersonatedAdminInfo } from './AdminDashboard';
@@ -77,9 +79,11 @@ interface TopBarProps {
   demoStatus?: 'idle' | 'pending' | 'active';
   appIconUrl?: string | null;
   appName?: string;
+  topbarRef?: React.RefObject<HTMLElement | null>;
+  editorZone3Bg?: string;
 }
 
-export default function TopBar({ breadcrumb, onMobileMenuToggle, adminName = 'Administrateur', unreadClientCount = 0, unreadClientEntries = [], onClientEntryClick, unreadVendorCount = 0, unreadVendorEntries = [], onVendorEntryClick, unreadSuperAdminCount = 0, onSuperAdminClick, agendaPersoCount = 0, agendaPersoEntries = [], onAgendaPersoEntryClick, agendaEquipeCount = 0, agendaEquipeEntries = [], onAgendaEquipeEntryClick, proposalsCount = 0, proposalsEntries = [], onProposalEntryClick, confirmedCount = 0, confirmedEntries = [], onConfirmedEntryClick, rescheduleCount = 0, rescheduleEntries = [], onRescheduleEntryClick, rescheduleRequestCount = 0, rescheduleRequestEntries = [], onRescheduleRequestEntryClick, impersonatedAdmin, onBackToSuperAdmin, demoSlot, demoStatus = 'idle', appIconUrl, appName }: TopBarProps) {
+export default function TopBar({ breadcrumb, onMobileMenuToggle, adminName = 'Administrateur', unreadClientCount = 0, unreadClientEntries = [], onClientEntryClick, unreadVendorCount = 0, unreadVendorEntries = [], onVendorEntryClick, unreadSuperAdminCount = 0, onSuperAdminClick, agendaPersoCount = 0, agendaPersoEntries = [], onAgendaPersoEntryClick, agendaEquipeCount = 0, agendaEquipeEntries = [], onAgendaEquipeEntryClick, proposalsCount = 0, proposalsEntries = [], onProposalEntryClick, confirmedCount = 0, confirmedEntries = [], onConfirmedEntryClick, rescheduleCount = 0, rescheduleEntries = [], onRescheduleEntryClick, rescheduleRequestCount = 0, rescheduleRequestEntries = [], onRescheduleRequestEntryClick, impersonatedAdmin, onBackToSuperAdmin, demoSlot, demoStatus = 'idle', appIconUrl, appName, topbarRef, editorZone3Bg }: TopBarProps) {
   const { timezone, tzLabel, tzCode, setTimezone } = useTimezone();
   const t = useThemeTokens();
   const [clientDropdownOpen, setClientDropdownOpen] = useState(false);
@@ -95,6 +99,7 @@ export default function TopBar({ breadcrumb, onMobileMenuToggle, adminName = 'Ad
   const [mobileNotifCategory, setMobileNotifCategory] = useState<string | null>(null);
   const [tzModalOpen, setTzModalOpen] = useState(false);
   const phone = useFloatingPhoneState();
+  const editor = useEditorModeSafe();
   const clientDropdownRef = useRef<HTMLDivElement>(null);
   const vendorDropdownRef = useRef<HTMLDivElement>(null);
   const superAdminDropdownRef = useRef<HTMLDivElement>(null);
@@ -135,51 +140,14 @@ export default function TopBar({ breadcrumb, onMobileMenuToggle, adminName = 'Ad
 
   return (
     <>
-    {impersonatingAdmin && (
-      <div
-        className="flex items-center justify-between gap-2 px-3 sm:px-4 md:px-6 py-2 flex-shrink-0"
-        style={{ background: demoStatus === 'active' ? 'linear-gradient(135deg, rgba(245,158,11,0.12) 0%, rgba(239,68,68,0.06) 100%)' : 'rgba(245,158,11,0.08)', borderBottom: `1px solid rgba(245,158,11,${demoStatus === 'active' ? '0.3' : '0.18'})` }}
-      >
-        <span className="text-xs font-medium truncate min-w-0" style={{ color: '#f59e0b' }}>
-          {demoStatus === 'active' ? (
-            <>Demo en direct avec <span className="font-bold">{impersonatedAdminName}</span></>
-          ) : demoStatus === 'pending' ? (
-            <>Invitation envoyee a <span className="font-bold">{impersonatedAdminName}</span></>
-          ) : (
-            <><span className="hidden sm:inline">Mode Super Admin — vous visualisez le panel de </span><span className="sm:hidden">Visualisation </span><span className="font-bold">{impersonatedAdminName}</span></>
-          )}
-        </span>
-        <div className="flex items-center gap-2 flex-shrink-0">
-          {demoSlot}
-          {demoStatus !== 'active' && (
-            <button
-              onClick={onBackToSuperAdmin}
-              className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 rounded-lg text-[11px] sm:text-xs font-semibold transition-all hover:scale-105 whitespace-nowrap"
-              style={{ background: 'rgba(245,158,11,0.12)', color: '#f59e0b' }}
-            >
-              <ArrowLeft className="w-3 h-3 flex-shrink-0" />
-              <span className="hidden sm:inline">Retour Super Admin</span>
-              <span className="sm:hidden">Retour</span>
-            </button>
-          )}
-        </div>
-      </div>
-    )}
     <header
+      ref={topbarRef as React.RefObject<HTMLElement> | undefined}
       className="relative z-30 flex items-center justify-between px-3 sm:px-4 md:px-6 h-14 md:h-16 flex-shrink-0"
-      style={{
-        background: t.topbar.bg,
-        borderBottom: `1px solid ${t.topbar.border}`,
-        backdropFilter: 'blur(12px)',
-      }}
+      style={{ background: editorZone3Bg || t.topbar.bg, borderBottom: `1px solid ${t.topbar.border}`, backdropFilter: 'blur(12px)' }}
     >
       <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
         {onMobileMenuToggle && (
-          <button
-            onClick={onMobileMenuToggle}
-            className="md:hidden p-1.5 rounded-lg transition-colors"
-            style={{ color: t.topbar.breadcrumbText }}
-          >
+          <button onClick={onMobileMenuToggle} className="md:hidden p-1.5 rounded-lg transition-colors" style={{ color: t.topbar.breadcrumbText }}>
             <Menu className="w-5 h-5" />
           </button>
         )}
@@ -189,147 +157,25 @@ export default function TopBar({ breadcrumb, onMobileMenuToggle, adminName = 'Ad
       </div>
 
       <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
-        <AdminMobileBellMenu
-          open={mobileNotifOpen}
-          setOpen={setMobileNotifOpen}
-          category={mobileNotifCategory}
-          setCategory={setMobileNotifCategory}
-          totalNotifCount={totalNotifCount}
-          unreadClientCount={unreadClientCount}
-          unreadClientEntries={unreadClientEntries}
-          onClientEntryClick={onClientEntryClick}
-          unreadVendorCount={unreadVendorCount}
-          unreadVendorEntries={unreadVendorEntries}
-          onVendorEntryClick={onVendorEntryClick}
-          unreadSuperAdminCount={unreadSuperAdminCount}
-          onSuperAdminClick={onSuperAdminClick}
-          agendaPersoCount={agendaPersoCount}
-          agendaPersoEntries={agendaPersoEntries}
-          onAgendaPersoEntryClick={onAgendaPersoEntryClick}
-          agendaEquipeCount={agendaEquipeCount}
-          agendaEquipeEntries={agendaEquipeEntries}
-          onAgendaEquipeEntryClick={onAgendaEquipeEntryClick}
-          proposalsCount={proposalsCount}
-          proposalsEntries={proposalsEntries}
-          onProposalEntryClick={onProposalEntryClick}
-          confirmedCount={confirmedCount}
-          confirmedEntries={confirmedEntries}
-          onConfirmedEntryClick={onConfirmedEntryClick}
-          rescheduleCount={rescheduleCount}
-          rescheduleEntries={rescheduleEntries}
-          onRescheduleEntryClick={onRescheduleEntryClick}
-          rescheduleRequestCount={rescheduleRequestCount}
-          rescheduleRequestEntries={rescheduleRequestEntries}
-          onRescheduleRequestEntryClick={onRescheduleRequestEntryClick}
-          timezone={timezone}
-          tokens={t}
-          containerRef={mobileNotifRef}
-          panelRef={mobileNotifPanelRef}
-        />
+        <AdminMobileBellMenu open={mobileNotifOpen} setOpen={setMobileNotifOpen} category={mobileNotifCategory} setCategory={setMobileNotifCategory} totalNotifCount={totalNotifCount} unreadClientCount={unreadClientCount} unreadClientEntries={unreadClientEntries} onClientEntryClick={onClientEntryClick} unreadVendorCount={unreadVendorCount} unreadVendorEntries={unreadVendorEntries} onVendorEntryClick={onVendorEntryClick} unreadSuperAdminCount={unreadSuperAdminCount} onSuperAdminClick={onSuperAdminClick} agendaPersoCount={agendaPersoCount} agendaPersoEntries={agendaPersoEntries} onAgendaPersoEntryClick={onAgendaPersoEntryClick} agendaEquipeCount={agendaEquipeCount} agendaEquipeEntries={agendaEquipeEntries} onAgendaEquipeEntryClick={onAgendaEquipeEntryClick} proposalsCount={proposalsCount} proposalsEntries={proposalsEntries} onProposalEntryClick={onProposalEntryClick} confirmedCount={confirmedCount} confirmedEntries={confirmedEntries} onConfirmedEntryClick={onConfirmedEntryClick} rescheduleCount={rescheduleCount} rescheduleEntries={rescheduleEntries} onRescheduleEntryClick={onRescheduleEntryClick} rescheduleRequestCount={rescheduleRequestCount} rescheduleRequestEntries={rescheduleRequestEntries} onRescheduleRequestEntryClick={onRescheduleRequestEntryClick} timezone={timezone} tokens={t} containerRef={mobileNotifRef} panelRef={mobileNotifPanelRef} />
 
-        <AdminDesktopNotifPill
-          clientDropdownOpen={clientDropdownOpen}
-          setClientDropdownOpen={setClientDropdownOpen}
-          vendorDropdownOpen={vendorDropdownOpen}
-          setVendorDropdownOpen={setVendorDropdownOpen}
-          agendaDropdownOpen={agendaDropdownOpen}
-          setAgendaDropdownOpen={setAgendaDropdownOpen}
-          equipeDropdownOpen={equipeDropdownOpen}
-          setEquipeDropdownOpen={setEquipeDropdownOpen}
-          proposDropdownOpen={proposDropdownOpen}
-          setProposDropdownOpen={setProposDropdownOpen}
-          confirmedDropdownOpen={confirmedDropdownOpen}
-          setConfirmedDropdownOpen={setConfirmedDropdownOpen}
-          rescheduleDropdownOpen={rescheduleDropdownOpen}
-          setRescheduleDropdownOpen={setRescheduleDropdownOpen}
-          clientDropdownRef={clientDropdownRef}
-          vendorDropdownRef={vendorDropdownRef}
-          agendaDropdownRef={agendaDropdownRef}
-          equipeDropdownRef={equipeDropdownRef}
-          proposDropdownRef={proposDropdownRef}
-          confirmedDropdownRef={confirmedDropdownRef}
-          rescheduleDropdownRef={rescheduleDropdownRef}
-          rescheduleReqDropdownOpen={rescheduleReqDropdownOpen}
-          setRescheduleReqDropdownOpen={setRescheduleReqDropdownOpen}
-          rescheduleReqDropdownRef={rescheduleReqDropdownRef}
-          unreadClientCount={unreadClientCount}
-          unreadClientEntries={unreadClientEntries}
-          onClientEntryClick={onClientEntryClick}
-          unreadVendorCount={unreadVendorCount}
-          unreadVendorEntries={unreadVendorEntries}
-          onVendorEntryClick={onVendorEntryClick}
-          agendaPersoCount={agendaPersoCount}
-          agendaPersoEntries={agendaPersoEntries}
-          onAgendaPersoEntryClick={onAgendaPersoEntryClick}
-          agendaEquipeCount={agendaEquipeCount}
-          agendaEquipeEntries={agendaEquipeEntries}
-          onAgendaEquipeEntryClick={onAgendaEquipeEntryClick}
-          proposalsCount={proposalsCount}
-          proposalsEntries={proposalsEntries}
-          onProposalEntryClick={onProposalEntryClick}
-          confirmedCount={confirmedCount}
-          confirmedEntries={confirmedEntries}
-          onConfirmedEntryClick={onConfirmedEntryClick}
-          rescheduleCount={rescheduleCount}
-          rescheduleEntries={rescheduleEntries}
-          onRescheduleEntryClick={onRescheduleEntryClick}
-          rescheduleRequestCount={rescheduleRequestCount}
-          rescheduleRequestEntries={rescheduleRequestEntries}
-          onRescheduleRequestEntryClick={onRescheduleRequestEntryClick}
-          unreadSuperAdminCount={unreadSuperAdminCount}
-          superAdminDropdownOpen={superAdminDropdownOpen}
-          setSuperAdminDropdownOpen={setSuperAdminDropdownOpen}
-          superAdminDropdownRef={superAdminDropdownRef}
-          onSuperAdminClick={onSuperAdminClick}
-          tokens={t}
-        />
+        <AdminDesktopNotifPill clientDropdownOpen={clientDropdownOpen} setClientDropdownOpen={setClientDropdownOpen} vendorDropdownOpen={vendorDropdownOpen} setVendorDropdownOpen={setVendorDropdownOpen} agendaDropdownOpen={agendaDropdownOpen} setAgendaDropdownOpen={setAgendaDropdownOpen} equipeDropdownOpen={equipeDropdownOpen} setEquipeDropdownOpen={setEquipeDropdownOpen} proposDropdownOpen={proposDropdownOpen} setProposDropdownOpen={setProposDropdownOpen} confirmedDropdownOpen={confirmedDropdownOpen} setConfirmedDropdownOpen={setConfirmedDropdownOpen} rescheduleDropdownOpen={rescheduleDropdownOpen} setRescheduleDropdownOpen={setRescheduleDropdownOpen} clientDropdownRef={clientDropdownRef} vendorDropdownRef={vendorDropdownRef} agendaDropdownRef={agendaDropdownRef} equipeDropdownRef={equipeDropdownRef} proposDropdownRef={proposDropdownRef} confirmedDropdownRef={confirmedDropdownRef} rescheduleDropdownRef={rescheduleDropdownRef} rescheduleReqDropdownOpen={rescheduleReqDropdownOpen} setRescheduleReqDropdownOpen={setRescheduleReqDropdownOpen} rescheduleReqDropdownRef={rescheduleReqDropdownRef} unreadClientCount={unreadClientCount} unreadClientEntries={unreadClientEntries} onClientEntryClick={onClientEntryClick} unreadVendorCount={unreadVendorCount} unreadVendorEntries={unreadVendorEntries} onVendorEntryClick={onVendorEntryClick} agendaPersoCount={agendaPersoCount} agendaPersoEntries={agendaPersoEntries} onAgendaPersoEntryClick={onAgendaPersoEntryClick} agendaEquipeCount={agendaEquipeCount} agendaEquipeEntries={agendaEquipeEntries} onAgendaEquipeEntryClick={onAgendaEquipeEntryClick} proposalsCount={proposalsCount} proposalsEntries={proposalsEntries} onProposalEntryClick={onProposalEntryClick} confirmedCount={confirmedCount} confirmedEntries={confirmedEntries} onConfirmedEntryClick={onConfirmedEntryClick} rescheduleCount={rescheduleCount} rescheduleEntries={rescheduleEntries} onRescheduleEntryClick={onRescheduleEntryClick} rescheduleRequestCount={rescheduleRequestCount} rescheduleRequestEntries={rescheduleRequestEntries} onRescheduleRequestEntryClick={onRescheduleRequestEntryClick} unreadSuperAdminCount={unreadSuperAdminCount} superAdminDropdownOpen={superAdminDropdownOpen} setSuperAdminDropdownOpen={setSuperAdminDropdownOpen} superAdminDropdownRef={superAdminDropdownRef} onSuperAdminClick={onSuperAdminClick} tokens={t} />
 
-        {/* Phone button */}
-        <button
-          onClick={phone.open ? phone.toggleMinimize : phone.openPhone}
-          className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-xl transition-all duration-200 flex-shrink-0"
-          style={{
-            background: phone.open ? 'rgba(14,165,233,0.15)' : 'rgba(14,165,233,0.06)',
-            border: `1px solid ${phone.open ? 'rgba(14,165,233,0.3)' : 'rgba(14,165,233,0.15)'}`,
-          }}
-          onMouseEnter={e => { e.currentTarget.style.background = phone.open ? 'rgba(14,165,233,0.2)' : 'rgba(14,165,233,0.12)'; e.currentTarget.style.borderColor = phone.open ? 'rgba(14,165,233,0.4)' : 'rgba(14,165,233,0.25)'; }}
-          onMouseLeave={e => { e.currentTarget.style.background = phone.open ? 'rgba(14,165,233,0.15)' : 'rgba(14,165,233,0.06)'; e.currentTarget.style.borderColor = phone.open ? 'rgba(14,165,233,0.3)' : 'rgba(14,165,233,0.15)'; }}
-          title={phone.open ? (phone.minimized ? 'Afficher le telephone' : 'Reduire le telephone') : 'Apercu mobile'}
-        >
-          <Smartphone className="w-4 h-4 flex-shrink-0" style={{ color: '#0ea5e9' }} />
-          <span className="text-[11px] font-medium hidden sm:inline" style={{ color: '#0ea5e9' }}>
-            {phone.open && phone.minimized ? 'Tel. ouvert' : 'Mobile'}
-          </span>
-          {phone.open && phone.minimized && (
-            <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: '#0ea5e9', boxShadow: '0 0 6px rgba(14,165,233,0.6)' }} />
-          )}
-        </button>
+        <PhoneButton open={phone.open} minimized={phone.minimized} onToggleMinimize={phone.toggleMinimize} onOpen={phone.openPhone} />
+
+        {editor && (
+          <EditorButton editorOpen={editor.editorOpen} onToggle={editor.editorOpen ? editor.closeEditor : editor.openEditor} />
+        )}
 
         <ClockButton tzLabel={tzLabel} tzCode={tzCode} clock={clock} onClick={() => setTzModalOpen(true)} />
         <ProfileMenu adminName={adminName} tokens={t} />
       </div>
     </header>
 
-    <TimezoneModal
-      open={tzModalOpen}
-      currentTimezone={timezone}
-      onSelect={(tz) => { setTimezone(tz); setTzModalOpen(false); }}
-      onClose={() => setTzModalOpen(false)}
-    />
+    <TimezoneModal open={tzModalOpen} currentTimezone={timezone} onSelect={(tz) => { setTimezone(tz); setTzModalOpen(false); }} onClose={() => setTzModalOpen(false)} />
 
     {phone.open && !phone.minimized && (
-      <FloatingPhoneWindow
-        pos={phone.pos}
-        scale={phone.scale}
-        modelId={phone.modelId}
-        onClose={phone.closePhone}
-        onMinimize={phone.toggleMinimize}
-        onScaleChange={phone.handleScaleChange}
-        onModelChange={phone.handleModelChange}
-        onDragStart={phone.startDrag}
-        appIconUrl={appIconUrl}
-        appName={appName}
-      />
+      <FloatingPhoneWindow pos={phone.pos} scale={phone.scale} modelId={phone.modelId} onClose={phone.closePhone} onMinimize={phone.toggleMinimize} onScaleChange={phone.handleScaleChange} onModelChange={phone.handleModelChange} onDragStart={phone.startDrag} appIconUrl={appIconUrl} appName={appName} />
     )}
     </>
   );

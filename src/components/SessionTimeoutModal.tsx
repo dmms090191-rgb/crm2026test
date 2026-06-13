@@ -8,7 +8,7 @@ interface Props {
   open: boolean;
   onClose: () => void;
   tokens: ThemeTokens;
-  role: 'super_admin' | 'admin';
+  role: 'super_admin' | 'admin' | 'company_super_admin';
   companyId: string | null;
   onSaved?: (minutes: number) => void;
 }

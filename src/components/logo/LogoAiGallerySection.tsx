@@ -48,6 +48,8 @@ export interface LogoAiGallerySectionProps {
   appIconSelectionMode?: boolean;
   savingAppIcon?: boolean;
   onSelectAppIcon?: (id: string, url: string) => void;
+  hideBg?: boolean;
+  setHideBg?: (v: boolean) => void;
 }
 
 export default function LogoAiGallerySection(props: LogoAiGallerySectionProps) {
@@ -62,6 +64,7 @@ export default function LogoAiGallerySection(props: LogoAiGallerySectionProps) {
     dragIdx, dropIdx, handleDragStart, handleDragOver, handleDrop, handleDragEnd,
     detailRef, headerVariant, compact, logoTypeFilter, setLogoTypeFilter,
     appIconSelectionMode, savingAppIcon, onSelectAppIcon,
+    hideBg, setHideBg,
   } = props;
 
   const scrollToDetail = () => {
@@ -89,6 +92,7 @@ export default function LogoAiGallerySection(props: LogoAiGallerySectionProps) {
         isSelectionMode={isSelectionMode} reordering={reordering}
         enterReorderMode={enterReorderMode} variant={headerVariant}
         logoTypeFilter={logoTypeFilter} setLogoTypeFilter={setLogoTypeFilter}
+        hideBg={hideBg} setHideBg={setHideBg}
       />
 
       {isSelectionMode && filteredSaved.length > 0 && (

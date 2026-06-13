@@ -161,6 +161,10 @@ export default function ClientMessagerie({ clientName, clientAuthId, isAdmin }: 
     return null;
   }, [messages]);
 
+  const conseillerName = conseiller
+    ? [conseiller.firstName, conseiller.lastName].filter(Boolean).join(' ')
+    : null;
+
   const adminFallbackName = conseiller?.role === 'admin' && conseillerName ? conseillerName : null;
 
   const contacts: ChatContact[] = vendor
@@ -182,10 +186,6 @@ export default function ClientMessagerie({ clientName, clientAuthId, isAdmin }: 
         lastMessageAt: lastMsg?.created_at || undefined,
         lastMessageSender: lastMsg?.sender || undefined,
       }];
-
-  const conseillerName = conseiller
-    ? [conseiller.firstName, conseiller.lastName].filter(Boolean).join(' ')
-    : null;
 
   return (
     <div className="flex flex-col flex-1 space-y-2 md:space-y-4" style={{ minHeight: 0 }}>

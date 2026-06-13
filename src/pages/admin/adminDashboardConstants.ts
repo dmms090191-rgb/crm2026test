@@ -24,4 +24,6 @@ export const BREADCRUMB_LABELS: Record<ActiveView, string> = {
   'cerveau-ia': 'Cerveau IA',
   'application': 'Application',
   'tuto': 'Tuto',
+  'editeur-ia': "Editeur d'image IA",
+  'calquer-logo': 'Calquer logo',
 };

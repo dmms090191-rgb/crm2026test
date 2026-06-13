@@ -10,10 +10,10 @@ import { useThemeTokens } from '../../hooks/useThemeTokens';
 import GlassBackgroundLayer from '../../components/theme/GlassBackgroundLayer';
 import { useUnreadAdminMessages } from '../../hooks/useUnreadAdminMessages';
 import { useAgendaNotifications } from '../../hooks/useAgendaNotifications';
+import DemoEmitterLayer from '../../components/demo/DemoEmitterLayer';
 import DemoReceiverLayer from '../../components/demo/DemoReceiverLayer';
 import { useDemoSessionSafe } from '../../components/demo/DemoSessionContext';
 import { useClientUnseenProposals } from './hooks/useClientUnseenProposals';
-import ClientImpersonationBanner from './components/ClientImpersonationBanner';
 
 export interface ImpersonatedClientInfo {
   id: string;
@@ -147,22 +147,10 @@ export default function ClientDashboard({ onLogout, impersonatedClient, onBackTo
           collapsed={mobileOpen ? false : sidebarCollapsed}
           onCollapse={() => { if (mobileOpen) setMobileOpen(false); else setSidebarCollapsed(!sidebarCollapsed); }}
           onLogout={onLogout}
+          onBackToRoisAdmin={onBackToAdmin}
         />
       </div>
       <div className="flex flex-col flex-1 min-h-0">
-        {impersonatedClient && onBackToAdmin && (
-          <ClientImpersonationBanner
-            impersonatedClient={impersonatedClient}
-            onBackToAdmin={onBackToAdmin}
-            backLabel={backLabel}
-            isSAViewing={isSAViewing}
-            demoStatus={demoStatus}
-            clientName={clientName}
-            activeView={activeView}
-            breadcrumb={getBreadcrumb()}
-            tokens={tokens}
-          />
-        )}
         <ClientTopBar
           breadcrumb={getBreadcrumb()}
           onMobileMenuToggle={() => setMobileOpen(!mobileOpen)}
@@ -177,6 +165,17 @@ export default function ClientDashboard({ onLogout, impersonatedClient, onBackTo
           propositionsEntries={unseenProposals}
           onPropositionEntryClick={handleProposalClick}
         />
+        {isSAViewing && impersonatedClient && (
+          <DemoEmitterLayer
+            activeView={activeView}
+            viewLabel={getBreadcrumb()}
+            targetUserId={impersonatedClient.id}
+            targetRole="client"
+            targetName={[impersonatedClient.prenom, impersonatedClient.nom].filter(Boolean).join(' ') || impersonatedClient.email}
+            companyId={null}
+            tokens={tokens}
+          />
+        )}
         {!isSAViewing && !impersonatedClient && <DemoReceiverLayer userId={clientAuthId || null} onViewChange={(v) => setActiveView(v as ClientActiveView)} />}
         <main
           className={`flex-1 flex flex-col md:p-6 mobile-main-scroll ${activeView === 'messagerie' ? 'p-2 sm:p-3 overflow-hidden' : 'p-3 sm:p-4 overflow-auto'}`}

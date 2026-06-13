@@ -124,14 +124,14 @@ export default function SACrmSociete() {
   ];
 
   return (
-    <div className="p-4 md:p-6 h-full overflow-auto">
-      <div className="mb-5">
-        <h1 className="text-xl font-bold" style={{ color: t.text.primary }}>CRM Societe</h1>
-        <p className="text-xs mt-1" style={{ color: t.text.tertiary }}>Prospection manuelle de societes</p>
+    <div className="p-3 sm:p-4 md:p-6 h-full overflow-auto">
+      <div className="mb-4 md:mb-5">
+        <h1 className="text-lg sm:text-xl font-bold" style={{ color: t.text.primary }}>CRM Societe</h1>
+        <p className="text-[11px] sm:text-xs mt-0.5 sm:mt-1" style={{ color: t.text.tertiary }}>Prospection manuelle de societes</p>
       </div>
 
       {/* Sub-tabs */}
-      <div className="flex items-center gap-1.5 mb-5 overflow-x-auto pb-0.5">
+      <div className="flex items-center gap-1.5 mb-4 md:mb-5 overflow-x-auto pb-0.5 scrollbar-none">
         {tabs.map(tab => {
           const active = activeTab === tab.key;
           const Icon = tab.icon;

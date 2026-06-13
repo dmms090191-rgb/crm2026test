@@ -28,7 +28,7 @@ export default function SAApiIa() {
   const apisRef = useRef(apis);
   apisRef.current = apis;
 
-  const PROVIDER_MAP: Record<string, string> = { DeepSeek: 'deepseek', Recraft: 'recraft' };
+  const PROVIDER_MAP: Record<string, string> = { DeepSeek: 'deepseek', Recraft: 'recraft', 'Stability AI': 'stability' };
 
   const load = useCallback(async () => {
     const { data } = await supabase.from('sa_ai_apis').select('*').order('created_at', { ascending: true });
@@ -147,7 +147,13 @@ export default function SAApiIa() {
   const togglePwd = (id: string) => setVisiblePwd(s => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const toggleKey = (id: string) => setVisibleKey(s => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
 
-  const cardStyle = { background: tokens.card.bg, border: tokens.card.border };
+  const cardStyle = {
+    background: `linear-gradient(135deg, ${tokens.surface.secondary}, ${tokens.surface.secondary}80)`,
+    border: `1px solid ${tokens.surface.border}`,
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), 0 1px 2px rgba(0,0,0,0.04)',
+    backdropFilter: 'blur(8px)',
+    WebkitBackdropFilter: 'blur(8px)',
+  };
 
   return (
     <div className="p-4 md:p-6 space-y-5">

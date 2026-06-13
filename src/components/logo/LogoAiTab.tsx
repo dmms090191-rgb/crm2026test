@@ -14,6 +14,7 @@ import { FullscreenOverlay } from './LogoAiFullscreen';
 import LogoAiGallerySection from './LogoAiGallerySection';
 import useLogoAiGenerate from './useLogoAiGenerate';
 import useLogoAiGallery from './useLogoAiGallery';
+import { useVCElement } from '../visualCustomize/useVCElement';
 
 interface Props {
   companyId: string | null;
@@ -25,6 +26,7 @@ interface Props {
 export default function LogoAiTab({ companyId, isSA, appIconSelectionMode, onAppIconSelected }: Props) {
   const t = useThemeTokens();
   const detailRef = useRef<HTMLDivElement>(null);
+  const vcSauvegardes = useVCElement<HTMLDivElement>('logo-card-sauvegardes', 'card', 'Carte Logos sauvegardes');
 
   const [selectedPresets, setSelectedPresets] = useState<Preset[]>(['typographic', 'app_icon']);
   const [colorPalette, setColorPalette] = useState<ColorPaletteId>('custom');
@@ -36,6 +38,16 @@ export default function LogoAiTab({ companyId, isSA, appIconSelectionMode, onApp
   const [transparentBg, setTransparentBg] = useState(true);
   const [fullscreenUrl, setFullscreenUrl] = useState<string | null>(null);
   const [mobilePage, setMobilePage] = useState<0 | 1>(0);
+  const [hideBg, setHideBg] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(() => typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mq = window.matchMedia('(min-width: 1024px)');
+    const handler = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
 
   const gallery = useLogoAiGallery(companyId);
   const [savingAppIcon, setSavingAppIcon] = useState(false);
@@ -85,8 +97,16 @@ export default function LogoAiTab({ companyId, isSA, appIconSelectionMode, onApp
     transparentBg, onLogosChanged: gallery.fetchSavedLogos,
   });
 
+  const costAndGenerate = (
+    <LogoAiCostPanel
+      estimatedCost={gen.estimatedCost} totalImages={gen.totalImages}
+      canGenerate={gen.canGenerate} loading={gen.loading} postProcessing={gen.postProcessing}
+      onGenerate={gen.handleGenerate} textTertiary={t.text.tertiary} textQuaternary={t.text.quaternary}
+    />
+  );
+
   const configPanel = (
-    <>
+    <div className="flex flex-col gap-2 h-full min-h-0">
       <LogoAiV4Controls
         selectedPresets={selectedPresets} setSelectedPresets={setSelectedPresets}
         needsBrand={gen.needsBrand} brandName={brandName} setBrandName={setBrandName}
@@ -98,22 +118,14 @@ export default function LogoAiTab({ companyId, isSA, appIconSelectionMode, onApp
         surfacePrimary={t.surface.primary} textPrimary={t.text.primary}
         textSecondary={t.text.secondary} textTertiary={t.text.tertiary} textQuaternary={t.text.quaternary}
       />
-      <div className="h-px my-1" style={{ background: `linear-gradient(90deg, ${t.surface.border}60, ${t.surface.border}20, transparent)` }} />
       <LogoAiOptionsBar
         transparentBg={transparentBg} setTransparentBg={setTransparentBg}
         numProposals={numProposals} setNumProposals={setNumProposals} numTypes={gen.numTypes}
-        surfaceSecondary={t.surface.secondary} surfaceBorder={t.surface.border}
+        surfacePrimary={t.surface.primary} surfaceSecondary={t.surface.secondary} surfaceBorder={t.surface.border}
         textSecondary={t.text.secondary} textTertiary={t.text.tertiary} textQuaternary={t.text.quaternary}
+        propositionsFooter={costAndGenerate}
       />
-    </>
-  );
-
-  const costAndGenerate = (
-    <LogoAiCostPanel
-      estimatedCost={gen.estimatedCost} totalImages={gen.totalImages}
-      canGenerate={gen.canGenerate} loading={gen.loading} postProcessing={gen.postProcessing}
-      onGenerate={gen.handleGenerate} textTertiary={t.text.tertiary} textQuaternary={t.text.quaternary}
-    />
+    </div>
   );
 
   const resultsPreview = (
@@ -149,6 +161,7 @@ export default function LogoAiTab({ companyId, isSA, appIconSelectionMode, onApp
     appIconSelectionMode: !!appIconSelectionMode,
     savingAppIcon,
     onSelectAppIcon: handleSelectAppIcon,
+    hideBg, setHideBg,
   };
 
   const detailPanel = (
@@ -169,24 +182,42 @@ export default function LogoAiTab({ companyId, isSA, appIconSelectionMode, onApp
     : null;
 
   return (
-    <>
+    <div className="relative flex flex-col flex-1 min-h-0">
+      {hideBg && (
+        <div className="absolute inset-0 pointer-events-none z-0"
+          style={{ background: t.surface.primary }} />
+      )}
+      <div className="relative z-10 flex flex-col flex-1 min-h-0">
       {/* Desktop layout (lg+) */}
       <div className="hidden lg:flex flex-col lg:flex-row flex-1 min-h-0 lg:items-stretch">
         <div className="w-full lg:w-[42%] lg:flex-shrink-0 flex flex-col"
           style={{ borderRight: `1px solid ${t.surface.borderLight}` }}>
-          <div className="px-4 sm:px-5 py-3 flex flex-col flex-1 min-h-0">
-            <div className="flex-1 min-h-0">{configPanel}</div>
-            {costAndGenerate}
+          <div className="px-4 sm:px-5 pt-3 pb-3 flex flex-col flex-1 min-h-0">
+            <div className="flex-1 min-h-0">{isDesktop ? configPanel : null}</div>
           </div>
         </div>
         <div className="w-full lg:w-[58%] flex flex-col min-h-0 lg:overflow-hidden">
           {!appIconSelectionMode && resultsPreview}
           {appIconBanner}
-          <div className="flex-shrink-0 px-4 pt-3 pb-2" style={{ borderBottom: `1px solid ${t.surface.borderLight}` }}>
-            <LogoAiGallerySection {...galleryProps} headerVariant="desktop" />
-          </div>
-          <div ref={detailRef} className="flex-1 min-h-0 p-3 sm:p-4 overflow-y-auto">
-            {detailPanel}
+          <div className="flex-1 min-h-0 px-4 pt-3 pb-3 flex flex-col">
+            <div ref={vcSauvegardes.ref} className="flex flex-col flex-1 min-h-0 rounded-xl overflow-hidden"
+              style={{
+                ...(vcSauvegardes.style?.background ? {} : {
+                  background: `linear-gradient(135deg, ${t.surface.secondary}, ${t.surface.primary}80)`,
+                  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), 0 1px 2px rgba(0,0,0,0.04)',
+                  backdropFilter: 'blur(8px)',
+                  WebkitBackdropFilter: 'blur(8px)',
+                }),
+                border: `1px solid ${t.surface.border}`,
+                ...vcSauvegardes.style,
+              }}>
+              <div className="flex-shrink-0 px-3 pt-3 pb-2" style={{ borderBottom: `1px solid ${t.surface.border}` }}>
+                <LogoAiGallerySection {...galleryProps} headerVariant="desktop" />
+              </div>
+              <div ref={detailRef} className="flex-1 min-h-0 p-3 overflow-y-auto">
+                {detailPanel}
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -194,7 +225,7 @@ export default function LogoAiTab({ companyId, isSA, appIconSelectionMode, onApp
       {/* Mobile layout (below lg) */}
       <LogoAiMobileLayout
         mobilePage={mobilePage} setMobilePage={setMobilePage}
-        configPanel={configPanel} costAndGenerate={costAndGenerate}
+        configPanel={isDesktop ? null : configPanel} costAndGenerate={null}
         resultsPreview={resultsPreview} detailPanel={detailPanel}
         appIconBanner={appIconBanner}
         gallerySection={<LogoAiGallerySection {...galleryProps} headerVariant="mobile-page1" compact />}
@@ -211,6 +242,7 @@ export default function LogoAiTab({ companyId, isSA, appIconSelectionMode, onApp
       {fullscreenUrl && (
         <FullscreenOverlay url={fullscreenUrl} onClose={() => setFullscreenUrl(null)} />
       )}
-    </>
+      </div>
+    </div>
   );
 }

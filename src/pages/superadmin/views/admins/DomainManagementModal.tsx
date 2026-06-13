@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Globe, Loader2, X, ArrowLeft } from 'lucide-react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
-import { getHomePageByCompanyId, type CompanyHomePage } from '../../../../lib/companyHomePages';
+import { getHomePageByCompanyId, upsertHomePage } from '../../../../lib/companyHomePages';
+import type { CompanyHomePage } from '../../../../lib/companyHomePages';
 import { callManageDomain } from '../sites/domainTypes';
-import { NoSiteState, ChecklistSection, DnsInstructions, DomainLinkBlock, DomainActionButtons, DomainStatusBadge, FeedbackMessage, DOMAIN_DOMAIN_STATUS_MAP } from './DomainModalParts';
+import DomainModalHeader from './DomainModalHeader';
+import DomainModalBody from './DomainModalBody';
+
 const RECHECK_THRESHOLD_MS = 60 * 60 * 1000;
 
 interface Props {
@@ -33,7 +35,17 @@ export default function DomainManagementModal({ companyId, companyName, onClose,
   const loadPage = useCallback(async () => {
     setLoading(true);
     try {
-      const p = await getHomePageByCompanyId(companyId);
+      let p = await getHomePageByCompanyId(companyId);
+      if (!p) {
+        p = await upsertHomePage({
+          company_id: companyId,
+          site_scope: 'company',
+          title: companyName || '',
+          subtitle: '',
+          welcome_message: '',
+          is_active: false,
+        });
+      }
       setPage(p);
       setDomainInput(p?.custom_domain || '');
       if (p?.domain_notes) {
@@ -41,7 +53,6 @@ export default function DomainManagementModal({ companyId, companyName, onClose,
           const notes = JSON.parse(p.domain_notes);
           if (notes.dns_config?.aRecord || notes.dns_config?.cnameRecord) {
             setDnsConfig(notes.dns_config);
-            console.log('[DomainModal] dns_config from domain_notes:', notes.dns_config);
           }
         } catch { /* legacy plain text */ }
       } else {
@@ -52,7 +63,7 @@ export default function DomainManagementModal({ companyId, companyName, onClose,
     } finally {
       setLoading(false);
     }
-  }, [companyId]);
+  }, [companyId, companyName]);
 
   useEffect(() => { loadPage(); }, [loadPage]);
   useEffect(() => {
@@ -97,7 +108,6 @@ export default function DomainManagementModal({ companyId, companyName, onClose,
         domain_provider: 'hostinger',
         domain_type: 'external_connected',
       });
-      console.log('[DomainModal] add response dns_config:', res.dns_config);
       if (res.dns_config) setDnsConfig(res.dns_config);
       if (res.error) {
         setMessage({ type: 'error', text: res.error });
@@ -122,7 +132,6 @@ export default function DomainManagementModal({ companyId, companyName, onClose,
     setMessage(null);
     try {
       const res = await callManageDomain('verify', page.custom_domain, page.id);
-      console.log('[DomainModal] verify response dns_config:', res.dns_config);
       if (res.dns_config) setDnsConfig(res.dns_config);
       if (res.vercel_assigned === false) {
         setMessage({ type: 'error', text: 'Le domaine n\'a pas pu etre assigne au projet Vercel. Verifiez la configuration Vercel ou reessayez.' });
@@ -183,20 +192,7 @@ export default function DomainManagementModal({ companyId, companyName, onClose,
     }
   }
 
-  const status = DOMAIN_STATUS_MAP[page?.domain_status ?? 'not_configured'] ?? DOMAIN_STATUS_MAP.not_configured;
-  const hasDomain = !!page?.custom_domain;
-  const isVerified = page?.domain_verified && page?.domain_status === 'verified';
-  const isPending = hasDomain && !isVerified;
-  const domainUrl = isVerified ? `https://${page?.custom_domain}` : null;
   const inputChanged = cleanDomain(domainInput) !== (page?.custom_domain || '');
-
-  let vercelAssigned = false;
-  if (page?.domain_notes) {
-    try {
-      const notes = JSON.parse(page.domain_notes);
-      vercelAssigned = notes.vercel_assigned === true;
-    } catch { /* legacy plain text notes */ }
-  }
 
   return createPortal(
     <div
@@ -212,84 +208,13 @@ export default function DomainManagementModal({ companyId, companyName, onClose,
         className="w-full max-w-lg rounded-2xl overflow-hidden"
         style={{ background: t.modal.bg, border: `1px solid ${t.modal.border}`, boxShadow: t.modal.shadow }}
       >
-        {/* Header */}
-        <div className="flex items-center gap-3 px-6 py-4" style={{ borderBottom: `1px solid ${t.surface.border}` }}>
-          {onBack && (
-            <button
-              onClick={onBack}
-              className="w-8 h-8 rounded-lg flex items-center justify-center transition-all flex-shrink-0 hover:scale-105"
-              style={{ background: t.surface.secondary, border: `1px solid ${t.surface.border}`, color: t.text.secondary }}
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </button>
-          )}
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-            style={{ background: 'linear-gradient(135deg, #0ea5e9, #0284c7)', boxShadow: '0 0 16px rgba(14,165,233,0.3)' }}>
-            <Globe className="w-4 h-4 text-white" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-semibold text-sm" style={{ color: t.modal.title }}>Domaine de la societe</p>
-            <p className="text-xs truncate" style={{ color: t.modal.subtitle }}>{companyName}</p>
-          </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors flex-shrink-0"
-            style={{ background: t.modal.closeBtnBg, color: t.modal.closeBtnText }}>
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Body */}
-        <div className="px-6 py-5 max-h-[70vh] overflow-y-auto space-y-5">
-          {loading ? (
-            <div className="flex items-center justify-center py-10">
-              <Loader2 className="w-5 h-5 animate-spin" style={{ color: '#0ea5e9' }} />
-            </div>
-          ) : !page ? (
-            <NoSiteState t={t} />
-          ) : (
-            <>
-              {/* Domain input */}
-              <div>
-                <label className="block text-[10px] font-bold tracking-[0.15em] uppercase mb-1.5" style={{ color: t.modal.fieldLabel }}>
-                  Domaine personnalise
-                </label>
-                <input
-                  type="text" value={domainInput}
-                  onChange={e => setDomainInput(e.target.value)}
-                  placeholder="monsiteclient.fr"
-                  className="w-full px-3 py-2.5 rounded-lg text-sm outline-none focus:ring-1 transition-all"
-                  style={{ background: t.modal.fieldBg, border: `1px solid ${t.modal.fieldBorder}`, color: t.modal.fieldValue }}
-                  onKeyDown={e => { if (e.key === 'Enter') handleSave(); }}
-                />
-              </div>
-
-              {hasDomain && (
-                <DomainStatusBadge
-                  isVerified={!!isVerified} domainStatus={page.domain_status ?? 'not_configured'}
-                  lastCheckAt={page.last_domain_check_at} autoRechecking={autoRechecking}
-                  statusLabel={status.label} statusColor={status.color} statusBg={status.bg} statusBorder={status.border}
-                  t={t}
-                />
-              )}
-
-              <DomainLinkBlock domainUrl={domainUrl} customDomain={page.custom_domain ?? undefined} hasDomain={hasDomain} t={t} />
-
-              {/* Checklist */}
-              <ChecklistSection hasDomain={hasDomain} vercelAssigned={vercelAssigned} isVerified={!!isVerified} isPending={isPending} domainStatus={page?.domain_status ?? 'not_configured'} t={t} />
-
-              {/* DNS instructions when pending */}
-              {isPending && <DnsInstructions t={t} dnsConfig={dnsConfig} />}
-
-              {message && <FeedbackMessage type={message.type} text={message.text} />}
-              {testResult && <FeedbackMessage type={testResult.ok ? 'success' : 'error'} text={testResult.text} />}
-
-              <DomainActionButtons
-                inputChanged={inputChanged} hasDomain={hasDomain} isVerified={!!isVerified} domainInput={domainInput}
-                saving={saving} verifying={verifying} removing={removing} testing={testing} autoRechecking={autoRechecking}
-                onSave={handleSave} onVerify={handleVerify} onTest={handleTestAccess} onRemove={handleRemove} t={t}
-              />
-            </>
-          )}
-        </div>
+        <DomainModalHeader companyName={companyName} onClose={onClose} onBack={onBack} />
+        <DomainModalBody
+          loading={loading} page={page} domainInput={domainInput} setDomainInput={setDomainInput}
+          saving={saving} verifying={verifying} removing={removing} testing={testing} autoRechecking={autoRechecking}
+          message={message} testResult={testResult} dnsConfig={dnsConfig} inputChanged={inputChanged}
+          onSave={handleSave} onVerify={handleVerify} onTest={handleTestAccess} onRemove={handleRemove}
+        />
       </div>
     </div>,
     document.body

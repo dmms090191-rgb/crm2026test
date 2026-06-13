@@ -16,7 +16,7 @@ interface Props {
 
 export default function AppShell({ panelRole, companyId, useCompanyProvider = false, effectiveUserId, children }: Props) {
   const content = (
-    <ThemeProvider panelRole={panelRole} effectiveUserId={effectiveUserId}>
+    <ThemeProvider panelRole={panelRole} effectiveUserId={effectiveUserId} companyId={companyId}>
       <TimezoneProvider panelRole={panelRole}>
         <Suspense fallback={<AppLoadingScreen />}>
           {children}

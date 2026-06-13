@@ -6,6 +6,8 @@ import {
 } from 'lucide-react';
 import type { useThemeTokens } from '../../hooks/useThemeTokens';
 import type { SavedLogo } from './logoAiTypes';
+import { useEditorModeSafe } from '../../contexts/EditorModeContext';
+import { resolveZoneBg } from '../../contexts/editorModeHelpers';
 import { PREVIEW_BG_PRESETS } from './logoAiTypes';
 import { isCustomUnsaved, downloadLogo, formatLogoDate } from './logoDetailHelpers';
 
@@ -42,6 +44,21 @@ export default function LogoDetailSidebar({
   const displayName = logo.file_name || dateStr;
   const hasBgOverride = previewBg !== null;
   const showSaveBtn = isCustomUnsaved(previewBg, customColors);
+
+  const editorCtx = useEditorModeSafe();
+  const btnAll = editorCtx?.getButtonOverridesWithPreview() ?? {};
+  const dlOvr = btnAll['btn_download_logo'];
+  const dlBg = dlOvr?.bg ? resolveZoneBg(dlOvr.bg) : undefined;
+  const dlText = dlOvr?.textColor ?? undefined;
+  const dlTransparent = dlOvr?.opacityMode === 'transparent';
+  const szOvr = btnAll['btn_resize_logo'];
+  const szBg = szOvr?.bg ? resolveZoneBg(szOvr.bg) : undefined;
+  const szText = szOvr?.textColor ?? undefined;
+  const szTransparent = szOvr?.opacityMode === 'transparent';
+  const actOvr = btnAll['btn_select_logo_active'];
+  const actBg = actOvr?.bg ? resolveZoneBg(actOvr.bg) : undefined;
+  const actText = actOvr?.textColor ?? undefined;
+  const actTransparent = actOvr?.opacityMode === 'transparent';
 
   return (
     <div className="lg:w-[240px] flex-shrink-0 flex flex-col p-3.5 gap-3">
@@ -131,12 +148,12 @@ export default function LogoDetailSidebar({
             style={{ background: t.surface.secondary, border: `1px solid ${t.surface.border}`, color: t.text.secondary, boxShadow: '0 1px 4px rgba(0,0,0,0.03)' }}>
             <Maximize2 className="w-3.5 h-3.5 lg:w-3 lg:h-3" /> Plein ecran
           </button>
-          <button onClick={() => setShowScaleSlider(!showScaleSlider)}
-            className="flex items-center justify-center gap-1.5 py-2.5 lg:py-2 rounded-xl text-[11px] lg:text-[10px] font-bold transition-all active:scale-95 hover:brightness-105"
+          <button data-editor-btn-id="btn_resize_logo" onClick={() => setShowScaleSlider(!showScaleSlider)}
+            className={`flex items-center justify-center gap-1.5 py-2.5 lg:py-2 rounded-xl text-[11px] lg:text-[10px] font-bold transition-all active:scale-95 hover:brightness-105${editorCtx?.highlightedButtonId === 'btn_resize_logo' ? ' editor-target-highlight' : ''}`}
             style={showScaleSlider ? {
-              background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.20)', color: '#d97706', boxShadow: '0 2px 8px rgba(245,158,11,0.06)',
+              background: szBg || 'rgba(245,158,11,0.08)', border: `1px solid ${szBg ? 'transparent' : 'rgba(245,158,11,0.20)'}`, color: szText || '#d97706', boxShadow: '0 2px 8px rgba(245,158,11,0.06)', ...(szTransparent && szBg ? { opacity: 0.55 } : {}),
             } : {
-              background: 'rgba(245,158,11,0.04)', border: '1px solid rgba(245,158,11,0.12)', color: '#d97706', boxShadow: '0 1px 4px rgba(0,0,0,0.03)',
+              background: szBg || 'rgba(245,158,11,0.04)', border: `1px solid ${szBg ? 'transparent' : 'rgba(245,158,11,0.12)'}`, color: szText || '#d97706', boxShadow: '0 1px 4px rgba(0,0,0,0.03)', ...(szTransparent && szBg ? { opacity: 0.55 } : {}),
             }}>
             <SlidersHorizontal className="w-3.5 h-3.5 lg:w-3 lg:h-3" /> Taille
           </button>
@@ -184,26 +201,27 @@ export default function LogoDetailSidebar({
             </div>
           </div>
         )}
-        <button onClick={() => displayedLogos.forEach(l => downloadLogo(l))}
-          className="group relative w-full overflow-hidden flex items-center justify-center gap-2 py-3 lg:py-2.5 rounded-xl text-[13px] lg:text-[11px] font-bold transition-all active:scale-[0.98]"
-          style={{ background: 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 60%, #0369a1 100%)', color: '#fff', boxShadow: '0 4px 16px rgba(14,165,233,0.22), inset 0 1px 0 rgba(255,255,255,0.12)' }}>
-          <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity"
-            style={{ background: 'linear-gradient(135deg, #38bdf8, #0ea5e9, #0284c7)' }} />
+        <button data-editor-btn-id="btn_download_logo" onClick={() => displayedLogos.forEach(l => downloadLogo(l))}
+          className={`group relative w-full overflow-hidden flex items-center justify-center gap-2 py-3 lg:py-2.5 rounded-xl text-[13px] lg:text-[11px] font-bold transition-all active:scale-[0.98]${editorCtx?.highlightedButtonId === 'btn_download_logo' ? ' editor-target-highlight' : ''}`}
+          style={{ background: dlBg || 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 60%, #0369a1 100%)', color: dlText || '#fff', boxShadow: '0 4px 16px rgba(14,165,233,0.22), inset 0 1px 0 rgba(255,255,255,0.12)', ...(dlTransparent && dlBg ? { opacity: 0.55 } : {}) }}>
+          {!dlBg && <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity"
+            style={{ background: 'linear-gradient(135deg, #38bdf8, #0ea5e9, #0284c7)' }} />}
           <span className="relative flex items-center gap-2">
             <Download className="w-4 h-4 lg:w-3.5 lg:h-3.5" /> Telecharger{displayedLogos.length > 1 ? ` (${displayedLogos.length})` : ''}
           </span>
         </button>
         {!logo.is_active && (
-          <button onClick={() => onSelectAsActive(logo.id)}
+          <button data-editor-btn-id="btn_select_logo_active" onClick={() => onSelectAsActive(logo.id)}
             disabled={selectingActive}
-            className="group relative w-full overflow-hidden flex items-center justify-center gap-2 py-3 lg:py-2.5 rounded-xl text-[13px] lg:text-[11px] font-bold transition-all disabled:opacity-50 active:scale-[0.98]"
+            className={`group relative w-full overflow-hidden flex items-center justify-center gap-2 py-3 lg:py-2.5 rounded-xl text-[13px] lg:text-[11px] font-bold transition-all disabled:opacity-50 active:scale-[0.98]${editorCtx?.highlightedButtonId === 'btn_select_logo_active' ? ' editor-target-highlight' : ''}`}
             style={{
-              background: 'linear-gradient(135deg, #16a34a 0%, #15803d 60%, #166534 100%)',
-              color: '#fff',
+              background: actBg || 'linear-gradient(135deg, #16a34a 0%, #15803d 60%, #166534 100%)',
+              color: actText || '#fff',
               boxShadow: '0 4px 16px rgba(22,163,106,0.22), inset 0 1px 0 rgba(255,255,255,0.12)',
+              ...(actTransparent && actBg ? { opacity: 0.55 } : {}),
             }}>
-            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity"
-              style={{ background: 'linear-gradient(135deg, #22c55e, #16a34a, #15803d)' }} />
+            {!actBg && <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity"
+              style={{ background: 'linear-gradient(135deg, #22c55e, #16a34a, #15803d)' }} />}
             <span className="relative flex items-center gap-2">
               {selectingActive ? <Loader2 className="w-4 h-4 lg:w-3.5 lg:h-3.5 animate-spin" /> : <Shield className="w-4 h-4 lg:w-3.5 lg:h-3.5" />}
               {selectingActive ? 'Selection...' : 'Selectionner comme actif'}

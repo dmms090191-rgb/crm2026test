@@ -20,7 +20,7 @@ export default function SAProfileMenu({ tokens, firstName, lastName }: { tokens:
     ? `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
     : firstName ? firstName.charAt(0).toUpperCase()
     : 'SA';
-  const displayName = [firstName, lastName].filter(Boolean).join(' ') || 'Super Admin';
+  const displayName = [firstName, lastName].filter(Boolean).join(' ') || 'ROIS ADMIN';
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -72,7 +72,7 @@ export default function SAProfileMenu({ tokens, firstName, lastName }: { tokens:
         </div>
         <div className="hidden lg:block text-left">
           <p className="text-xs font-semibold leading-tight" style={{ color: tTopbar.profileName }}>{displayName}</p>
-          <p className="text-[9px] tracking-wider uppercase" style={{ color: tTopbar.profileRole }}>Super Admin</p>
+          <p className="text-[9px] tracking-wider uppercase" style={{ color: tTopbar.profileRole }}>ROIS ADMIN</p>
         </div>
         <ChevronDown
           className={`w-3.5 h-3.5 transition-transform duration-200 hidden lg:block ${dropdownOpen ? 'rotate-180' : ''}`}

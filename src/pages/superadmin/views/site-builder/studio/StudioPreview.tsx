@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
-import { Monitor, Smartphone, Plus } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { Monitor, Smartphone } from 'lucide-react';
 import type { ThemeTokens } from '../../../../../lib/themeTokensTypes';
 import type { PreviewMode } from './StudioToolbar';
 import type { GradientConfig } from './studioSectionTypes';
@@ -7,6 +7,8 @@ import { DESKTOP_WIDTH, MOBILE_WIDTH, DEFAULT_PAGE_HEIGHT, DEFAULT_MOBILE_HEIGHT
 import { getCanvasBackground } from './gradientHelpers';
 import GradientGuideLine from './GradientGuideLine';
 import GradientBalanceLine from './GradientBalanceLine';
+import type { OverlayElement, OverlayTextConfig } from './overlayElementTypes';
+import { OverlayButtonElement, OverlayTextElement } from './OverlayElements';
 
 function isLight(hex: string): boolean {
   const c = hex.replace('#', '');
@@ -25,13 +27,22 @@ interface Props {
   gradient?: GradientConfig | null;
   onGradientChange?: (gradient: GradientConfig) => void;
   pageHeight?: number;
+  overlayElements?: OverlayElement[];
+  selectedElementId?: string | null;
+  onSelectElement?: (id: string | null) => void;
+  freeDragId?: string | null;
+  onUpdateOverlayElement?: (id: string, partial: Partial<OverlayElement>) => void;
 }
 
 export default function StudioPreview({
   previewMode, canvasBg, gradient, onGradientChange, pageHeight,
+  overlayElements = [], selectedElementId, onSelectElement,
+  freeDragId, onUpdateOverlayElement,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0.5);
+  const dragRef = useRef<{ id: string; startX: number; startY: number; startLeft: number; startTop: number } | null>(null);
 
   const isMobile = previewMode === 'mobile';
   const refW = isMobile ? MOBILE_WIDTH : DESKTOP_WIDTH;
@@ -52,6 +63,45 @@ export default function StudioPreview({
     ro.observe(el);
     return () => ro.disconnect();
   }, [refW, isMobile]);
+
+  const handleDragStart = useCallback((id: string, e: React.MouseEvent) => {
+    const el = overlayElements.find(x => x.id === id);
+    if (!el) return;
+    dragRef.current = {
+      id,
+      startX: e.clientX,
+      startY: e.clientY,
+      startLeft: el.leftPercent,
+      startTop: el.topPercent,
+    };
+  }, [overlayElements]);
+
+  useEffect(() => {
+    if (!freeDragId) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const drag = dragRef.current;
+      if (!drag || !canvasRef.current) return;
+      const dx = e.clientX - drag.startX;
+      const dy = e.clientY - drag.startY;
+      const dxPercent = (dx / scale / refW) * 100;
+      const dyPercent = (dy / scale / refH) * 100;
+      const newLeft = Math.max(0, Math.min(100, drag.startLeft + dxPercent));
+      const newTop = Math.max(0, Math.min(100, drag.startTop + dyPercent));
+      onUpdateOverlayElement?.(drag.id, { leftPercent: newLeft, topPercent: newTop } as Partial<OverlayElement>);
+    };
+
+    const handleMouseUp = () => {
+      dragRef.current = null;
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [freeDragId, scale, refW, refH, onUpdateOverlayElement]);
 
   const displayGradient = gradient ?? null;
   const effectiveBg = getCanvasBackground(canvasBg || '#ffffff', displayGradient);
@@ -125,8 +175,10 @@ export default function StudioPreview({
           }}
         >
           <div
-            className="relative w-full h-full flex flex-col items-center justify-start pt-16 transition-colors duration-300"
+            ref={canvasRef}
+            className="relative w-full h-full transition-colors duration-300"
             style={{ background: effectiveBg }}
+            onClick={() => onSelectElement?.(null)}
           >
             {displayGradient?.showBalanceLine && onGradientChange && (
               <GradientBalanceLine gradient={displayGradient} onChange={onGradientChange} />
@@ -135,37 +187,54 @@ export default function StudioPreview({
               <GradientGuideLine gradient={displayGradient} onChange={onGradientChange} />
             )}
 
-            <div className="flex flex-col items-center justify-center gap-4 px-6 text-center relative z-10">
-              <div
-                className="w-16 h-16 rounded-2xl flex items-center justify-center"
-                style={{
-                  background: isLightBg ? 'rgba(0,0,0,0.04)' : 'rgba(255,255,255,0.04)',
-                  border: `1px solid ${isLightBg ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.06)'}`,
-                }}
-              >
-                <Icon className="w-7 h-7" style={{ color: overlayText }} />
+            {overlayElements.length > 0 ? (
+              overlayElements.map(el => {
+                const isDraggable = freeDragId === el.id;
+                if (el.type === 'button') {
+                  return (
+                    <OverlayButtonElement
+                      key={el.id} el={el}
+                      selected={selectedElementId === el.id}
+                      onSelect={() => onSelectElement?.(el.id)}
+                      draggable={isDraggable}
+                      onDragStart={e => handleDragStart(el.id, e)}
+                    />
+                  );
+                }
+                if (el.type === 'text') {
+                  return (
+                    <OverlayTextElement
+                      key={el.id} el={el as OverlayTextConfig}
+                      selected={selectedElementId === el.id}
+                      onSelect={() => onSelectElement?.(el.id)}
+                      draggable={isDraggable}
+                      onDragStart={e => handleDragStart(el.id, e)}
+                    />
+                  );
+                }
+                return null;
+              })
+            ) : (
+              <div className="flex flex-col items-center justify-center gap-4 px-6 text-center pt-16 relative z-10">
+                <div
+                  className="w-16 h-16 rounded-2xl flex items-center justify-center"
+                  style={{
+                    background: isLightBg ? 'rgba(0,0,0,0.04)' : 'rgba(255,255,255,0.04)',
+                    border: `1px solid ${isLightBg ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.06)'}`,
+                  }}
+                >
+                  <Icon className="w-7 h-7" style={{ color: overlayText }} />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold mb-1" style={{ color: overlayText }}>
+                    Zone d'edition {isMobile ? 'mobile' : 'desktop'}
+                  </p>
+                  <p className="text-[11px] leading-relaxed max-w-[260px]" style={{ color: overlaySubtext }}>
+                    Ajoutez des elements depuis le panneau de gauche.
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm font-semibold mb-1" style={{ color: overlayText }}>
-                  Zone d'edition {isMobile ? 'mobile' : 'desktop'}
-                </p>
-                <p className="text-[11px] leading-relaxed max-w-[260px]" style={{ color: overlaySubtext }}>
-                  Modifiez l'arriere-plan depuis le panneau de gauche.
-                </p>
-              </div>
-              <button
-                disabled
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-[11px] font-semibold opacity-40 cursor-not-allowed"
-                style={{
-                  background: isLightBg ? 'rgba(0,0,0,0.04)' : 'rgba(255,255,255,0.04)',
-                  border: `1px solid ${isLightBg ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.06)'}`,
-                  color: overlayText,
-                }}
-              >
-                <Plus className="w-3.5 h-3.5" />
-                Ajouter un element
-              </button>
-            </div>
+            )}
           </div>
         </div>
       </div>

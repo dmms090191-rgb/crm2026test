@@ -43,7 +43,8 @@ export function checkHasUnsavedChanges(localEdits: LocalEdits): boolean {
     || localEdits.canvasBg !== null
     || localEdits.canvasGradient !== null
     || localEdits.canvasPageHeight !== null
-    || localEdits.canvasBgMode !== null;
+    || localEdits.canvasBgMode !== null
+    || localEdits.overlayElements !== null;
 }
 
 export function deriveLastSavedAt(dbSections: SiteSectionRow[]): string | null {

@@ -6,8 +6,10 @@ export function normalizeGradient(g: unknown): GradientConfig | null {
   if (!g || typeof g !== 'object') return null;
   const raw = g as Record<string, unknown>;
   if (!raw.color1 || !raw.color2) return null;
-  const direction = (raw.direction as GradientConfig['direction']) ?? 'vertical';
-  const positions = DIRECTION_POSITIONS[direction];
+  const rawDir = raw.direction as string | undefined;
+  const migratedDir = rawDir === 'horizontal' ? 'right' : rawDir === 'vertical' ? 'bottom' : rawDir;
+  const direction = (migratedDir as GradientConfig['direction']) ?? 'bottom';
+  const positions = DIRECTION_POSITIONS[direction] ?? DIRECTION_POSITIONS.bottom;
   const result: GradientConfig = {
     color1: raw.color1 as string,
     color2: raw.color2 as string,

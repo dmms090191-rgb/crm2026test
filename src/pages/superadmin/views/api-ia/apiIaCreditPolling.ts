@@ -40,6 +40,17 @@ export function parseCreditResult(result: ProviderBalanceResult, provider: strin
     };
   }
 
+  if (provider === 'stability') {
+    const credit = result.total_balance != null
+      ? `${result.total_balance} credits`
+      : 'Non disponible via API';
+    return {
+      credit,
+      checkedAt: result.checked_at,
+      status: result.status === 'available' ? 'active' : 'inactive',
+    };
+  }
+
   const symbol = result.currency === 'CNY' ? '\u00a5' : '$';
   return {
     credit: `${result.total_balance} ${symbol}`,

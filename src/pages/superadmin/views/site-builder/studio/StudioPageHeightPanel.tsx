@@ -22,7 +22,7 @@ export default function StudioPageHeightPanel({ height, onChange, isMobile, t }:
     <div>
       <button
         onClick={() => setOpen(prev => !prev)}
-        className="w-full group rounded-xl p-3.5 text-left transition-all hover:scale-[1.01] active:scale-[0.99]"
+        className="w-full group rounded-xl px-3 py-2 text-left transition-all hover:scale-[1.01] active:scale-[0.99]"
         style={{
           background: open
             ? 'linear-gradient(135deg, rgba(16,185,129,0.04), rgba(5,150,105,0.02))'
@@ -30,40 +30,23 @@ export default function StudioPageHeightPanel({ height, onChange, isMobile, t }:
           border: `1.5px solid ${open ? 'rgba(16,185,129,0.2)' : t.surface.border}`,
         }}
       >
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           <div
-            className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+            className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
             style={{
               background: 'linear-gradient(135deg, rgba(16,185,129,0.1), rgba(5,150,105,0.06))',
               border: '1px solid rgba(16,185,129,0.15)',
             }}
           >
-            <Ruler className="w-4 h-4" style={{ color: '#10b981' }} />
+            <Ruler className="w-3.5 h-3.5" style={{ color: '#10b981' }} />
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-[11px] font-bold" style={{ color: t.text.primary }}>
-              Rallonger la page
-            </p>
-            <p className="text-[9px] mt-0.5" style={{ color: t.text.quaternary }}>
-              Ajoute de l'espace en bas de la page
-            </p>
-          </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <span
-              className="text-[8px] font-bold px-1.5 py-0.5 rounded-md"
-              style={{
-                background: 'rgba(16,185,129,0.08)',
-                color: '#10b981',
-                border: '1px solid rgba(16,185,129,0.2)',
-              }}
-            >
-              {fixedWidth} x {height}
-            </span>
-            {open
-              ? <ChevronDown className="w-3.5 h-3.5 transition-transform" style={{ color: t.text.quaternary }} />
-              : <ChevronRight className="w-3.5 h-3.5 transition-transform" style={{ color: t.text.quaternary }} />
-            }
-          </div>
+          <p className="flex-1 min-w-0 text-[11px] font-bold" style={{ color: t.text.primary }}>
+            Taille page
+          </p>
+          {open
+            ? <ChevronDown className="w-3.5 h-3.5 flex-shrink-0 transition-transform" style={{ color: t.text.quaternary }} />
+            : <ChevronRight className="w-3.5 h-3.5 flex-shrink-0 transition-transform" style={{ color: t.text.quaternary }} />
+          }
         </div>
       </button>
 

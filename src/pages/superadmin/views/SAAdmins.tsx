@@ -177,12 +177,12 @@ export default function SAAdmins({ onConnectAsAdmin, onOpenChat, cachedAdmins, r
   const actionsAdmin = actionsOpenId ? admins.find(a => a.id === actionsOpenId) : null;
 
   return (
-    <div className="p-4 md:p-8 space-y-6 w-full">
+    <div className="p-3 sm:p-4 md:p-6 lg:p-8 space-y-4 md:space-y-6 w-full">
       {/* Header */}
-      <div className="flex items-center justify-between gap-3 flex-wrap">
+      <div className="flex items-center justify-between gap-2 sm:gap-3 flex-wrap">
         <div>
-          <h2 className="text-xl font-bold" style={{ color: tokens.text.primary }}>Liste admins</h2>
-          <p className="text-xs mt-0.5" style={{ color: tokens.input.placeholder }}>{admins.length} admin{admins.length !== 1 ? 's' : ''}</p>
+          <h2 className="text-lg sm:text-xl font-bold" style={{ color: tokens.text.primary }}>Liste admins</h2>
+          <p className="text-[11px] sm:text-xs mt-0.5" style={{ color: tokens.input.placeholder }}>{admins.length} admin{admins.length !== 1 ? 's' : ''}</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {selectionMode ? (
@@ -208,7 +208,17 @@ export default function SAAdmins({ onConnectAsAdmin, onOpenChat, cachedAdmins, r
 
       {error && <div className="px-4 py-3 rounded-lg text-xs font-medium" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', color: '#f87171' }}>{error}</div>}
 
-      <div className="rounded-2xl overflow-hidden" data-testid="admins-list" style={{ background: tokens.card.bg, border: `1px solid ${tokens.card.border}`, boxShadow: tokens.card.shadow }}>
+      <div
+        className="rounded-2xl overflow-hidden"
+        data-testid="admins-list"
+        style={{
+          background: `linear-gradient(135deg, ${tokens.surface.secondary}, ${tokens.surface.secondary}80)`,
+          border: `1px solid ${tokens.surface.border}`,
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), 0 1px 2px rgba(0,0,0,0.04)',
+          backdropFilter: 'blur(8px)',
+          WebkitBackdropFilter: 'blur(8px)',
+        }}
+      >
         {admins.length === 0 && loading ? (
           <div className="hidden md:block overflow-x-hidden">
             <table className="w-full table-auto" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>

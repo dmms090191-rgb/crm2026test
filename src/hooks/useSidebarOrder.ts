@@ -24,7 +24,7 @@ function persistSave(key: string, data: SidebarSaveData) {
 }
 
 interface UseSidebarOrderOptions {
-  role: 'super_admin' | 'admin' | 'vendor';
+  role: 'super_admin' | 'admin' | 'vendor' | 'company_super_admin';
   sections: SidebarSection[];
   userId?: string | null;
   companyId?: string | null;

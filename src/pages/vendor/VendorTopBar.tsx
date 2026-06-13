@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ChevronRight, ArrowLeft, Menu } from 'lucide-react';
+import { ChevronRight, Menu } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
 import { useTimezone } from '../../hooks/useTimezone';
@@ -120,46 +120,6 @@ export default function VendorTopBar({ breadcrumb, onMobileMenuToggle, vendorNam
 
   return (
     <div className="flex-shrink-0">
-      {isImpersonating && (
-        <div
-          className="flex items-center justify-between gap-2 px-3 sm:px-4 md:px-6 py-2"
-          style={{
-            background: demoStatus === 'active'
-              ? 'linear-gradient(135deg, rgba(52,211,153,0.1) 0%, rgba(245,158,11,0.06) 100%)'
-              : 'rgba(52,211,153,0.08)',
-            borderBottom: demoStatus === 'active'
-              ? '1px solid rgba(245,158,11,0.25)'
-              : '1px solid rgba(52,211,153,0.15)',
-          }}
-        >
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse flex-shrink-0" />
-            <span className="text-xs font-medium truncate" style={{ color: demoStatus === 'active' ? '#f59e0b' : '#34d399' }}>
-              {demoStatus === 'active' ? (
-                <>Demo en direct avec <span className="font-bold">{vendorName}</span></>
-              ) : demoStatus === 'pending' ? (
-                <>Invitation envoyee a <span className="font-bold">{vendorName}</span></>
-              ) : (
-                <><span className="hidden sm:inline">Mode admin — vous visualisez le panel de </span><span className="sm:hidden">Visualisation </span><span className="font-bold">{vendorName}</span></>
-              )}
-            </span>
-          </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            {demoSlot}
-            {demoStatus !== 'active' && (
-              <button
-                onClick={onBackToAdmin}
-                className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 rounded-lg text-[11px] sm:text-xs font-semibold text-emerald-400 transition-all hover:scale-105 whitespace-nowrap"
-                style={{ background: 'rgba(52,211,153,0.1)', border: '1px solid rgba(52,211,153,0.2)' }}
-              >
-                <ArrowLeft className="w-3 h-3 flex-shrink-0" />
-                <span className="hidden sm:inline">Retour admin</span>
-                <span className="sm:hidden">Retour</span>
-              </button>
-            )}
-          </div>
-        </div>
-      )}
     <header
       className="relative z-30 flex items-center justify-between px-3 sm:px-4 md:px-6 h-14 md:h-16"
       style={{

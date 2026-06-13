@@ -21,3 +21,5 @@ export const SauvegardeRestauration = lazy(() => import('../views/SauvegardeRest
 export const SystemPage = lazy(() => import('../views/SystemPage'));
 export const AdminCerveauIA = lazy(() => import('../views/cerveau-ia/AdminCerveauIA'));
 export const AdminApplicationPage = lazy(() => import('../views/AdminApplicationPage'));
+export const EditeurIA = lazy(() => import('../views/editeur-ia/EditeurIA'));
+export const AdminCalquerLogo = lazy(() => import('../views/AdminCalquerLogo'));

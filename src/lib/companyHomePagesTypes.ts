@@ -1,5 +1,17 @@
 /* ── Site template types ── */
 
+export interface SiteTemplateConfig {
+  canvasBgDesktop?: string | null;
+  canvasBgMobile?: string | null;
+  gradientDesktop?: Record<string, unknown> | null;
+  gradientMobile?: Record<string, unknown> | null;
+  bgModeDesktop?: string;
+  bgModeMobile?: string;
+  pageHeightDesktop?: number | null;
+  pageHeightMobile?: number | null;
+  overlayElements?: unknown[];
+}
+
 export interface SiteTemplate {
   id: string;
   name: string;
@@ -10,6 +22,7 @@ export interface SiteTemplate {
   thumbnail_url: string | null;
   is_default: boolean;
   is_visible: boolean;
+  config: SiteTemplateConfig | null;
   created_at: string;
   updated_at: string;
 }
@@ -58,6 +71,12 @@ export interface CompanyHomePage {
 
 export type CompanyHomePageUpsert = Omit<CompanyHomePage, 'id' | 'created_at' | 'updated_at'>;
 
+export interface CompanyHomePageCompany {
+  name: string;
+  company_tier: string;
+  parent_company_id: string | null;
+}
+
 export interface CompanyHomePageWithCompany extends CompanyHomePage {
-  companies: { name: string } | null;
+  companies: CompanyHomePageCompany | null;
 }
