@@ -178,10 +178,10 @@ function App() {
   if (unauthorized) return <AppUnauthorizedPage onClear={() => setUnauthorized(false)} />;
 
   const siteSlugMatch = window.location.pathname.match(/^\/site\/([^/]+)/);
-  if (siteSlugMatch) return <CompanySitePage slug={siteSlugMatch[1]} />;
+  if (siteSlugMatch) return <ThemeProvider panelRole="admin"><CompanySitePage slug={siteSlugMatch[1]} /></ThemeProvider>;
 
-  if ((customDomainSlug || customDomainPageId) && !role) return <CompanySitePage preloadedPage={customDomainPage} slug={customDomainSlug} pageId={customDomainPageId} domainCompanyId={customDomainCompanyId} onLogin={handleDomainLogin} />;
-  if (customDomainNotFound && !role) return <CompanySitePage slug="__domain_not_found__" />;
+  if ((customDomainSlug || customDomainPageId) && !role) return <ThemeProvider panelRole="admin"><CompanySitePage preloadedPage={customDomainPage} slug={customDomainSlug} pageId={customDomainPageId} domainCompanyId={customDomainCompanyId} onLogin={handleDomainLogin} /></ThemeProvider>;
+  if (customDomainNotFound && !role) return <ThemeProvider panelRole="admin"><CompanySitePage slug="__domain_not_found__" /></ThemeProvider>;
 
   if (role === 'company_super_admin' && !directCSA) {
     return <CompanySuperAdminWaitingPage onLogout={handleLogout} />;
