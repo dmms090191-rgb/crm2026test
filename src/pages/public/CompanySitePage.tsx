@@ -32,6 +32,7 @@ export default function CompanySitePage({ preloadedPage, slug, pageId, domainCom
 
   useEffect(() => {
     document.getElementById('root')?.classList.add('app-ready');
+    document.body.style.background = '#f8fafb';
   }, []);
 
   useEffect(() => {
@@ -199,8 +200,8 @@ export default function CompanySitePage({ preloadedPage, slug, pageId, domainCom
 
 function LoadingScreen() {
   return (
-    <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-      <Loader2 className="w-8 h-8 text-sky-400 animate-spin" />
+    <div className="min-h-screen flex items-center justify-center" style={{ background: '#f8fafb' }}>
+      <Loader2 className="w-6 h-6 animate-spin" style={{ color: '#c0cdd4' }} />
     </div>
   );
 }
@@ -208,21 +209,21 @@ function LoadingScreen() {
 function NotFoundScreen() {
   const isDomainAccess = !window.location.pathname.startsWith('/site/');
   return (
-    <div className="min-h-screen bg-slate-900 flex items-center justify-center px-4">
+    <div className="min-h-screen flex items-center justify-center px-4" style={{ background: '#f8fafb' }}>
       <div className="text-center space-y-4">
-        <div className="w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto">
-          <AlertCircle className="w-8 h-8 text-red-400" />
+        <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto" style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.12)' }}>
+          <AlertCircle className="w-8 h-8" style={{ color: '#b91c1c' }} />
         </div>
-        <h1 className="text-2xl font-bold text-white">
+        <h1 className="text-2xl font-bold" style={{ color: '#1e293b' }}>
           {isDomainAccess ? 'Site introuvable' : 'Page introuvable'}
         </h1>
-        <p className="text-slate-400 text-sm max-w-sm">
+        <p className="text-sm max-w-sm" style={{ color: '#64748b' }}>
           {isDomainAccess
             ? 'Ce domaine n\'est pas configure ou le site n\'est pas encore actif.'
             : 'Ce site n\'existe pas ou n\'est pas encore actif.'}
         </p>
         {!isDomainAccess && (
-          <a href="/" className="inline-block mt-4 px-5 py-2.5 rounded-lg bg-slate-800 border border-slate-700 text-sm font-medium text-white hover:bg-slate-700 transition-colors">
+          <a href="/" className="inline-block mt-4 px-5 py-2.5 rounded-lg text-sm font-medium transition-colors" style={{ background: '#e2e8f0', color: '#334155', border: '1px solid #cbd5e1' }}>
             Retour &agrave; l'accueil
           </a>
         )}

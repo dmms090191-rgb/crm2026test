@@ -164,7 +164,7 @@ export default function BarbieWellnessTemplate() {
           <div className="bw-animate-in mb-8 sm:mb-10 relative" style={{ animation: 'bw-float 6s ease-in-out infinite' }}>
             <div className="w-28 h-28 sm:w-36 sm:h-36 md:w-44 md:h-44 rounded-full overflow-hidden p-1"
               style={{ background: 'linear-gradient(135deg, rgba(56,168,181,0.5), rgba(111,83,98,0.35), rgba(56,168,181,0.3))', boxShadow: '0 0 60px rgba(56,168,181,0.15), 0 0 120px rgba(111,83,98,0.06)' }}>
-              <div className="w-full h-full rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.7)', backdropFilter: 'blur(12px)' }}>
+              <div className="w-full h-full rounded-full overflow-hidden" style={{ background: 'linear-gradient(135deg, #2a9aa8 0%, #38A8B5 15%, #4abbc8 30%, #7a8a90 45%, #8e6878 60%, #6F5362 75%, #7a5d6b 90%, #38A8B5 100%)', backgroundSize: '400% 400%', animation: 'bw-iridescent 6s ease infinite' }}>
                 <img
                   src="/logo_BW_transparent_4K.png"
                   alt="Barbie Wellness"
