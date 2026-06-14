@@ -9,7 +9,7 @@ import {
   VueEnsemble, AdminSite, AdminLogoPage, Inscription, AjouterLeads, AjouterVendeur, ListeVendeurs,
   ChatClient, ChatVendeur, ChatSuperAdmin, Agenda, PropositionsRdv, Statuts, Crm,
   ImportLeads, DocumentationCrm, SauvegardeRestauration,
-  SystemPage, AdminCerveauIA, AdminApplicationPage, EditeurIA, AdminCalquerLogo,
+  SystemPage, AdminCerveauIA, AdminApplicationPage, EditeurIA, AdminCalquerLogo, AdminMesLogosRA,
 } from './adminLazyViews';
 import { saveConnectReturnContext, saveChatReturnContext } from '../../../lib/connectReturnContext';
 import type { ImpersonatedClient } from '../views/Crm';
@@ -104,6 +104,7 @@ export default function AdminViewRenderer({
           case 'application': return <Suspense fallback={lazyFallback}><AdminApplicationPage /></Suspense>;
           case 'editeur-ia': return <Suspense fallback={lazyFallback}><EditeurIA /></Suspense>;
           case 'calquer-logo': return <Suspense fallback={lazyFallback}><AdminCalquerLogo /></Suspense>;
+          case 'mes-logos-ra': return <Suspense fallback={lazyFallback}><AdminMesLogosRA /></Suspense>;
           case 'tuto': return <div className="p-6"><p className="text-sm" style={{ color: 'inherit' }}>Tuto - Contenu a venir</p></div>;
           default: return <Suspense fallback={lazyFallback}><VueEnsemble unreadClientConversations={unreadClientConversations} unreadVendorConversations={unreadVendorConversations} /></Suspense>;
         }

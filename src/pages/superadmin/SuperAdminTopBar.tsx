@@ -20,6 +20,7 @@ const viewLabels: Record<string, string> = {
   'fonctions-talvex': 'Fonctions Talvex RA', 'site-talvex': 'Site RA', application: 'Application RA',
   logo: 'Logo RA', ameliorations: 'Ameliorations RA', tuto: 'Tuto RA', themes: 'Gestion themes RA', 'editeur-ia': 'Editeur IA RA',
   'calquer-logo': 'Calquer logo RA',
+  'mes-logos-ra': 'Mes logos RA',
 };
 
 interface SuperAdminTopBarProps {

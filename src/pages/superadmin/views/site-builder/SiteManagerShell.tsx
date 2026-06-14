@@ -53,6 +53,7 @@ export default function SiteManagerShell({ ownerType, title, subtitle, companyId
   const [reorderOpen, setReorderOpen] = useState(false);
   const [tabConfig, setTabConfig] = useState<SiteTabConfig>(DEFAULT_TAB_CONFIG);
   const [studioEditorOpen, setStudioEditorOpen] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   const siteScope: SiteScope = ownerType === 'super_admin' ? 'platform' : 'company';
 
@@ -61,6 +62,7 @@ export default function SiteManagerShell({ ownerType, title, subtitle, companyId
       const { data: user } = await supabase.auth.getUser();
       if (!user?.user) return;
       const uid = user.user.id;
+      setCurrentUserId(uid);
 
       if (ownerType !== 'super_admin' && !companyIdProp) {
         const cid = user.user.app_metadata?.company_id;
@@ -221,6 +223,8 @@ export default function SiteManagerShell({ ownerType, title, subtitle, companyId
                   onPreview={handlePreview}
                   onApply={handleApply}
                   onTabChange={setActiveTab}
+                  currentUserId={currentUserId}
+                  currentCompanyId={resolvedCompanyId}
                 />
               )}
               {activeTab === 'studio' && (

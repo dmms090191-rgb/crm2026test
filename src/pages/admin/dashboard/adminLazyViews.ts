@@ -23,3 +23,4 @@ export const AdminCerveauIA = lazy(() => import('../views/cerveau-ia/AdminCervea
 export const AdminApplicationPage = lazy(() => import('../views/AdminApplicationPage'));
 export const EditeurIA = lazy(() => import('../views/editeur-ia/EditeurIA'));
 export const AdminCalquerLogo = lazy(() => import('../views/AdminCalquerLogo'));
+export const AdminMesLogosRA = lazy(() => import('../views/AdminMesLogosRA'));

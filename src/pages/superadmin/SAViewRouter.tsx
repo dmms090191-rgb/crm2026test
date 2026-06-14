@@ -25,6 +25,7 @@ const SAThemes = lazy(() => import('./views/themes/SAThemes'));
 const EditeurIA = lazy(() => import('../admin/views/editeur-ia/EditeurIA'));
 const SACalquerLogo = lazy(() => import('./views/SACalquerLogo'));
 const SASuperAdmins = lazy(() => import('./views/super-admins/SASuperAdmins'));
+const SAMesLogosRA = lazy(() => import('../admin/views/AdminMesLogosRA'));
 
 interface Props {
   activeView: SAView;
@@ -94,6 +95,7 @@ export default function SAViewRouter({
     case 'themes': return <SAThemes />;
     case 'editeur-ia': return <EditeurIA />;
     case 'calquer-logo': return <SACalquerLogo />;
+    case 'mes-logos-ra': return <SAMesLogosRA />;
     case 'tuto': return <div className="p-4 sm:p-6"><p className="text-sm" style={{ color: 'inherit' }}>Tuto - Contenu a venir</p></div>;
     default: return <SADashboard onNavigate={handleNavigate} adminCount={cachedAdmins.length} adminsLoading={adminsRefreshing && cachedAdmins.length === 0} />;
   }

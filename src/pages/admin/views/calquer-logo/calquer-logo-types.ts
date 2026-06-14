@@ -1,7 +1,15 @@
-export type CleanMethod = 'none' | 'rapide' | 'manuel';
+export type CleanMethod = 'none' | 'rapide' | 'manuel' | 'couleur-isolation';
 
-export type MaskTool = 'rectangle' | 'ellipse' | 'line';
+export interface ColorIsolationState {
+  pickedColor: [number, number, number] | null;
+  tolerance: number;
+  selectionMask: number[] | null;
+  inverted: boolean;
+}
+
+export type MaskTool = 'rectangle' | 'ellipse' | 'line' | 'lasso' | 'arc' | 'bezier' | 'polygon' | 'eraser';
 export type MaskMode = 'garder' | 'supprimer';
+export type FillMode = 'stroke' | 'fill';
 
 export interface MaskShape {
   id: string;
@@ -16,6 +24,13 @@ export interface MaskShape {
   color?: string;
   name?: string;
   folderId?: string;
+  fillMode: FillMode;
+  rotation: number;
+  locked: boolean;
+  points?: { x: number; y: number }[];
+  arcStart?: number;
+  arcEnd?: number;
+  cornerRadius?: number;
 }
 
 export interface MaskFolder {
@@ -68,4 +83,45 @@ export function bgConfigToCss(cfg: BgConfig): string {
   if (cfg.mode === 'checker') return 'checker';
   if (cfg.mode === 'solid') return cfg.solidColor;
   return `linear-gradient(${DIRECTION_CSS[cfg.gradientDirection]}, ${cfg.gradientColor1}, ${cfg.gradientColor2})`;
+}
+
+export type LogoColorMode = 'none' | 'solid' | 'gradient';
+
+export interface LogoColorConfig {
+  mode: LogoColorMode;
+  solidColor: string;
+  gradientColor1: string;
+  gradientColor2: string;
+  gradientDirection: GradientDirection;
+}
+
+export const DEFAULT_LOGO_COLOR: LogoColorConfig = {
+  mode: 'none',
+  solidColor: '#000000',
+  gradientColor1: '#000000',
+  gradientColor2: '#3b82f6',
+  gradientDirection: 'bottom',
+};
+
+export const TOOL_LABELS: Record<MaskTool, string> = {
+  rectangle: 'Rectangle',
+  ellipse: 'Ellipse',
+  line: 'Ligne',
+  lasso: 'Lasso',
+  arc: 'Arc',
+  bezier: 'Courbe',
+  polygon: 'Polygone',
+  eraser: 'Gomme',
+};
+
+export function createDefaultShape(tool: MaskTool, mode: MaskMode, opts: Partial<MaskShape> = {}): MaskShape {
+  return {
+    id: '', tool, mode,
+    x: 0, y: 0, w: 0, h: 0,
+    opacity: 60, size: 20,
+    fillMode: 'stroke',
+    rotation: 0,
+    locked: false,
+    ...opts,
+  };
 }

@@ -1,0 +1,1 @@
+ALTER TABLE logo_trace_sessions ADD COLUMN IF NOT EXISTS transformed_image_data text;

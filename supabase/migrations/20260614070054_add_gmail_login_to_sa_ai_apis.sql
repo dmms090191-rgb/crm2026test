@@ -1,0 +1,1 @@
+ALTER TABLE sa_ai_apis ADD COLUMN IF NOT EXISTS gmail_login boolean NOT NULL DEFAULT false;

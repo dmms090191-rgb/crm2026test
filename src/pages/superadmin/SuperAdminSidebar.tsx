@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { LayoutDashboard, Shield, UserCog, BookOpen, Monitor, HardDriveDownload, MessageSquare, CircleUser as UserCircle, FlaskConical, Building2, Settings, Bot, Globe, Blocks, LayoutTemplate, Brain, Image as ImageIcon, TrendingUp, GraduationCap, Smartphone, Palette, Sparkles, CopySlash } from 'lucide-react';
+import { LayoutDashboard, Shield, UserCog, BookOpen, Monitor, HardDriveDownload, MessageSquare, CircleUser as UserCircle, FlaskConical, Building2, Settings, Bot, Globe, Blocks, LayoutTemplate, Brain, Image as ImageIcon, TrendingUp, GraduationCap, Smartphone, Palette, Sparkles, CopySlash, FolderOpen } from 'lucide-react';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
 import { useSidebarOrder } from '../../hooks/useSidebarOrder';
 import { useActiveLogo } from '../../hooks/useActiveLogo';
@@ -10,8 +10,10 @@ import { supabase } from '../../lib/supabase';
 import { useEditorModeSafe, resolveTextColor, resolveTypography } from '../../contexts/EditorModeContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { ensureGoogleFont } from '../../components/editor/EditorTypographyPanel';
+import { useSAHiddenTabs } from './useSAHiddenTabs';
+import SAHideTabsModal from './SAHideTabsModal';
 
-export type SAView = 'dashboard' | 'super-admins' | 'admins' | 'chat-admin' | 'documentation-crm' | 'system' | 'sauvegarde' | 'mon-compte' | 'tests-systeme' | 'crm-societe' | 'statuts' | 'api-ia' | 'cerveau-ia' | 'sites' | 'fonctions-talvex' | 'site-talvex' | 'logo' | 'ameliorations' | 'tuto' | 'application' | 'themes' | 'editeur-ia' | 'calquer-logo';
+export type SAView = 'dashboard' | 'super-admins' | 'admins' | 'chat-admin' | 'documentation-crm' | 'system' | 'sauvegarde' | 'mon-compte' | 'tests-systeme' | 'crm-societe' | 'statuts' | 'api-ia' | 'cerveau-ia' | 'sites' | 'fonctions-talvex' | 'site-talvex' | 'logo' | 'ameliorations' | 'tuto' | 'application' | 'themes' | 'editeur-ia' | 'calquer-logo' | 'mes-logos-ra';
 
 interface SuperAdminSidebarProps {
   activeView: SAView;
@@ -32,6 +34,7 @@ const DEFAULT_SECTIONS: SidebarSection[] = [
       { id: 'dashboard', label: 'Dashboard RA', icon: <LayoutDashboard className="w-4 h-4" /> },
       { id: 'logo', label: 'Logo RA', icon: <ImageIcon className="w-4 h-4" /> },
       { id: 'calquer-logo', label: 'Calquer logo RA', icon: <CopySlash className="w-4 h-4" /> },
+      { id: 'mes-logos-ra', label: 'Mes logos RA', icon: <FolderOpen className="w-4 h-4" /> },
       { id: 'site-talvex', label: 'Site RA', icon: <LayoutTemplate className="w-4 h-4" /> },
       { id: 'application', label: 'Application RA', icon: <Smartphone className="w-4 h-4" /> },
       { id: 'themes', label: 'Gestion themes RA', icon: <Palette className="w-4 h-4" /> },
@@ -95,6 +98,8 @@ export default function SuperAdminSidebar({ activeView, onNavigate, collapsed, o
   }, []);
 
   const { url: activeLogo, scale: logoScale } = useActiveLogo(companyId);
+  const { hiddenTabs, toggle: toggleHiddenTab } = useSAHiddenTabs(userId);
+  const [hideTabsModalOpen, setHideTabsModalOpen] = useState(false);
 
   const sections = useMemo(() => DEFAULT_SECTIONS, []);
   const order = useSidebarOrder({ role: 'super_admin', sections, userId });
@@ -162,7 +167,8 @@ export default function SuperAdminSidebar({ activeView, onNavigate, collapsed, o
         style={{ background: editorZone2Bg || t.sidebar.bg }}
       >
         <SidebarReorderControls
-          entries={order.entries} reordering={order.reordering} collapsed={collapsed}
+          entries={order.reordering ? order.entries : filterHiddenEntries(order.entries, hiddenTabs)}
+          reordering={order.reordering} collapsed={collapsed}
           activeId={activeView} onNavigate={id => onNavigate(id as SAView)}
           startReorder={order.startReorder} cancelReorder={order.cancelReorder} confirmReorder={order.confirmReorder}
           move={order.move} handleDragStart={order.handleDragStart} handleDragOver={order.handleDragOver} handleDragEnd={order.handleDragEnd}
@@ -185,10 +191,39 @@ export default function SuperAdminSidebar({ activeView, onNavigate, collapsed, o
           reordering={order.reordering}
           tokens={t}
           rdrFontFamily={rdrFont}
+          onHideTabs={() => setHideTabsModalOpen(true)}
         />
       </div>
+
+      <SAHideTabsModal
+        open={hideTabsModalOpen}
+        onClose={() => setHideTabsModalOpen(false)}
+        sections={DEFAULT_SECTIONS}
+        hiddenTabs={hiddenTabs}
+        onToggle={toggleHiddenTab}
+      />
     </aside>
   );
+}
+
+function filterHiddenEntries(entries: import('../../lib/sidebarOrderTypes').SidebarEntry[], hidden: Set<string>): import('../../lib/sidebarOrderTypes').SidebarEntry[] {
+  if (hidden.size === 0) return entries;
+  const filtered = entries.filter(e => e.kind !== 'item' || !hidden.has(e.id));
+  const result: typeof filtered = [];
+  for (let i = 0; i < filtered.length; i++) {
+    const cur = filtered[i];
+    if (cur.kind === 'section') {
+      const next = filtered[i + 1];
+      if (!next || next.kind === 'section' || next.kind === 'divider') continue;
+    }
+    if (cur.kind === 'divider') {
+      const next = filtered[i + 1];
+      if (!next || next.kind === 'divider') continue;
+    }
+    result.push(cur);
+  }
+  if (result.length > 0 && result[result.length - 1].kind === 'divider') result.pop();
+  return result;
 }
 
 function SAItem({ id, label, icon, isActive, collapsed, onClick, tokens, editorCtx, mergedTextOverrides, itemFontFamily }: {

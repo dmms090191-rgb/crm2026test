@@ -1,12 +1,14 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Plus, RefreshCw, Bot } from 'lucide-react';
+import { Plus, RefreshCw, Bot, ClipboardCopy, Check } from 'lucide-react';
 import { useThemeTokens } from '../../../hooks/useThemeTokens';
 import { supabase } from '../../../lib/supabase';
 import SAApiIaModal, { type AiApi } from './SAApiIaModal';
 import type { CreditInfo } from './api-ia/apiIaTypes';
+import { formatAllApisForCopy } from './api-ia/apiIaTypes';
 import { fetchProviderBalance, parseCreditResult } from './api-ia/apiIaCreditPolling';
 import { ApiTable } from './api-ia/SAApiIaTable';
 import { ApiCard } from './api-ia/SAApiIaCard';
+import SAApiIaDetailModal from './api-ia/SAApiIaDetailModal';
 
 const POLL_INTERVAL_MS = 60_000;
 
@@ -18,7 +20,9 @@ export default function SAApiIa() {
   const [visiblePwd, setVisiblePwd] = useState<Set<string>>(new Set());
   const [visibleKey, setVisibleKey] = useState<Set<string>>(new Set());
   const [copied, setCopied] = useState<string | null>(null);
+  const [copiedAll, setCopiedAll] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [detailApi, setDetailApi] = useState<AiApi | null>(null);
 
   const [creditMap, setCreditMap] = useState<Record<string, CreditInfo>>({});
   const [creditLoading, setCreditLoading] = useState(false);
@@ -28,7 +32,7 @@ export default function SAApiIa() {
   const apisRef = useRef(apis);
   apisRef.current = apis;
 
-  const PROVIDER_MAP: Record<string, string> = { DeepSeek: 'deepseek', Recraft: 'recraft', 'Stability AI': 'stability' };
+  const PROVIDER_MAP: Record<string, string> = { DeepSeek: 'deepseek', Recraft: 'recraft', 'Stability AI': 'stability', 'Vectorizer.AI': 'vectorizer' };
 
   const load = useCallback(async () => {
     const { data } = await supabase.from('sa_ai_apis').select('*').order('created_at', { ascending: true });
@@ -144,6 +148,11 @@ export default function SAApiIa() {
   };
 
   const handleCopy = (text: string, id: string) => { navigator.clipboard.writeText(text); setCopied(id); };
+  const handleCopyAll = () => {
+    navigator.clipboard.writeText(formatAllApisForCopy(apis, creditMap));
+    setCopiedAll(true);
+    setTimeout(() => setCopiedAll(false), 2000);
+  };
   const togglePwd = (id: string) => setVisiblePwd(s => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const toggleKey = (id: string) => setVisibleKey(s => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
 
@@ -172,6 +181,15 @@ export default function SAApiIa() {
             <RefreshCw className={`w-3.5 h-3.5 ${creditLoading ? 'animate-spin' : ''}`} />
             Actualiser
           </button>
+          {apis.length > 0 && (
+            <button
+              onClick={handleCopyAll}
+              className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all hover:scale-[1.02] active:scale-[0.98]"
+              style={{ background: copiedAll ? 'rgba(34,197,94,0.1)' : tokens.surface.hover, border: `1px solid ${copiedAll ? 'rgba(34,197,94,0.3)' : tokens.surface.borderLight}`, color: copiedAll ? '#16a34a' : tokens.text.secondary }}
+            >
+              {copiedAll ? <><Check className="w-3.5 h-3.5" /> Copie !</> : <><ClipboardCopy className="w-3.5 h-3.5" /> Copier</>}
+            </button>
+          )}
           <button
             onClick={() => setModal({ open: true, api: null })}
             className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold transition-all hover:scale-[1.02] active:scale-[0.98]"
@@ -206,6 +224,7 @@ export default function SAApiIa() {
                 creditMap={creditMap} creditLoading={creditLoading} creditFlash={creditFlash}
                 onTogglePwd={togglePwd} onToggleKey={toggleKey}
                 onCopy={handleCopy} onEdit={api => setModal({ open: true, api })}
+                onDetail={setDetailApi}
                 onDeleteConfirm={setDeleteConfirm} onDelete={handleDelete}
               />
             </div>
@@ -219,6 +238,7 @@ export default function SAApiIa() {
                   onTogglePwd={() => togglePwd(api.id)} onToggleKey={() => toggleKey(api.id)}
                   onCopy={() => api.url && handleCopy(api.url, api.id)}
                   onEdit={() => setModal({ open: true, api })}
+                  onDetail={() => setDetailApi(api)}
                   onDelete={() => handleDelete(api.id)}
                 />
               ))}
@@ -229,6 +249,10 @@ export default function SAApiIa() {
 
       {modal.open && (
         <SAApiIaModal api={modal.api} onClose={() => setModal({ open: false, api: null })} onSave={handleSave} />
+      )}
+
+      {detailApi && (
+        <SAApiIaDetailModal api={detailApi} creditMap={creditMap} onClose={() => setDetailApi(null)} />
       )}
     </div>
   );

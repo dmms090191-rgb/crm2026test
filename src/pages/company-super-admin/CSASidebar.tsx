@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { LayoutDashboard, Users, UserCog, Shield, Smartphone } from 'lucide-react';
+import { LayoutDashboard, Users, UserCog, Shield, Smartphone, Globe } from 'lucide-react';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
 import { useSidebarOrder } from '../../hooks/useSidebarOrder';
 import SidebarReorderControls from '../../components/SidebarReorderControls';
@@ -7,7 +7,7 @@ import SidebarFooterActions from '../../components/layout/SidebarFooterActions';
 import type { SidebarSection } from '../../lib/sidebarOrderTypes';
 import type { ImpersonatedCompanySuperAdmin } from '../../App';
 
-export type CSAView = 'overview' | 'admins' | 'info' | 'application';
+export type CSAView = 'overview' | 'admins' | 'info' | 'application' | 'site';
 
 const DEFAULT_SECTIONS: SidebarSection[] = [
   {
@@ -17,6 +17,7 @@ const DEFAULT_SECTIONS: SidebarSection[] = [
       { id: 'info', label: 'Info Super Admin', icon: <UserCog className="w-4 h-4" /> },
       { id: 'admins', label: 'Liste des admins', icon: <Users className="w-4 h-4" /> },
       { id: 'application', label: 'Application', icon: <Smartphone className="w-4 h-4" /> },
+      { id: 'site', label: 'Site', icon: <Globe className="w-4 h-4" /> },
     ],
   },
 ];

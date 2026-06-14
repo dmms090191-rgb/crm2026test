@@ -23,6 +23,8 @@ export interface SiteTemplate {
   is_default: boolean;
   is_visible: boolean;
   config: SiteTemplateConfig | null;
+  owner_user_id: string | null;
+  owner_company_id: string | null;
   created_at: string;
   updated_at: string;
 }

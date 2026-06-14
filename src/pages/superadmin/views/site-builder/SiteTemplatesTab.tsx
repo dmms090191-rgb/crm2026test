@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Eye, Check, LayoutGrid, Loader2 } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Eye, Check, LayoutGrid, Loader2, Globe, User } from 'lucide-react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 import type { SiteTemplate } from '../../../../lib/companyHomePages';
 import type { SiteTab } from './SiteTabs';
@@ -10,9 +10,11 @@ interface Props {
   onPreview: (template: SiteTemplate) => void;
   onApply: (template: SiteTemplate) => Promise<void>;
   onTabChange: (tab: SiteTab) => void;
+  currentUserId?: string | null;
+  currentCompanyId?: string | null;
 }
 
-export default function SiteTemplatesTab({ templates, activeTemplateId, onPreview, onApply, onTabChange }: Props) {
+export default function SiteTemplatesTab({ templates, activeTemplateId, onPreview, onApply, onTabChange, currentUserId, currentCompanyId }: Props) {
   const t = useThemeTokens();
   const [applyingId, setApplyingId] = useState<string | null>(null);
 
@@ -24,6 +26,19 @@ export default function SiteTemplatesTab({ templates, activeTemplateId, onPrevie
       setApplyingId(null);
     }
   };
+
+  const { community, mine } = useMemo(() => {
+    const communityList: SiteTemplate[] = [];
+    const mineList: SiteTemplate[] = [];
+    for (const tmpl of templates) {
+      const isOwned =
+        (currentUserId && tmpl.owner_user_id === currentUserId) ||
+        (currentCompanyId && tmpl.owner_company_id === currentCompanyId);
+      if (isOwned) mineList.push(tmpl);
+      else communityList.push(tmpl);
+    }
+    return { community: communityList, mine: mineList };
+  }, [templates, currentUserId, currentCompanyId]);
 
   if (templates.length === 0) {
     return (
@@ -41,23 +56,117 @@ export default function SiteTemplatesTab({ templates, activeTemplateId, onPrevie
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-      {templates.map(tmpl => {
-        const isActive = tmpl.id === activeTemplateId;
-        const isApplying = applyingId === tmpl.id;
+    <div className="space-y-8">
+      {/* Templates communautaires */}
+      <TemplateSection
+        icon={<Globe className="w-4 h-4" />}
+        title="Templates communautaires"
+        count={community.length}
+        templates={community}
+        activeTemplateId={activeTemplateId}
+        applyingId={applyingId}
+        onPreview={onPreview}
+        onApply={handleApply}
+        onTabChange={onTabChange}
+        t={t}
+      />
 
-        return (
+      {/* Mes templates */}
+      <div>
+        <SectionHeader
+          icon={<User className="w-4 h-4" />}
+          title="Mes templates"
+          count={mine.length}
+          t={t}
+        />
+        {mine.length === 0 ? (
+          <div
+            className="flex flex-col items-center justify-center py-10 rounded-xl mt-3"
+            style={{
+              background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.35), rgba(15, 23, 42, 0.45))',
+              border: `1px dashed ${t.surface.border}`,
+            }}
+          >
+            <div
+              className="w-11 h-11 rounded-xl flex items-center justify-center mb-3"
+              style={{ background: t.surface.secondary, border: `1px solid ${t.surface.borderLight}` }}
+            >
+              <User className="w-5 h-5" style={{ color: t.text.tertiary }} />
+            </div>
+            <p className="text-sm font-medium" style={{ color: t.text.secondary }}>Aucun template personnel</p>
+            <p className="text-xs mt-1 max-w-xs text-center" style={{ color: t.text.tertiary }}>
+              Vos templates personnalises apparaitront ici.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 mt-3">
+            {mine.map(tmpl => (
+              <TemplateCard
+                key={tmpl.id}
+                template={tmpl}
+                isActive={tmpl.id === activeTemplateId}
+                isApplying={applyingId === tmpl.id}
+                onPreview={() => { onPreview(tmpl); onTabChange('apercu'); }}
+                onApply={() => handleApply(tmpl)}
+                t={t}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function SectionHeader({ icon, title, count, t }: {
+  icon: React.ReactNode;
+  title: string;
+  count: number;
+  t: ReturnType<typeof useThemeTokens>;
+}) {
+  return (
+    <div className="flex items-center gap-2.5">
+      <span style={{ color: t.text.tertiary }}>{icon}</span>
+      <h3 className="text-sm font-bold tracking-tight" style={{ color: t.text.primary }}>{title}</h3>
+      <span
+        className="px-2 py-0.5 rounded-md text-[10px] font-bold tabular-nums"
+        style={{ background: t.surface.secondary, color: t.text.tertiary, border: `1px solid ${t.surface.border}` }}
+      >
+        {count}
+      </span>
+    </div>
+  );
+}
+
+function TemplateSection({ icon, title, count, templates, activeTemplateId, applyingId, onPreview, onApply, onTabChange, t }: {
+  icon: React.ReactNode;
+  title: string;
+  count: number;
+  templates: SiteTemplate[];
+  activeTemplateId: string | null;
+  applyingId: string | null;
+  onPreview: (template: SiteTemplate) => void;
+  onApply: (template: SiteTemplate) => Promise<void>;
+  onTabChange: (tab: SiteTab) => void;
+  t: ReturnType<typeof useThemeTokens>;
+}) {
+  if (templates.length === 0) return null;
+  return (
+    <div>
+      <SectionHeader icon={icon} title={title} count={count} t={t} />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 mt-3">
+        {templates.map(tmpl => (
           <TemplateCard
             key={tmpl.id}
             template={tmpl}
-            isActive={isActive}
-            isApplying={isApplying}
+            isActive={tmpl.id === activeTemplateId}
+            isApplying={applyingId === tmpl.id}
             onPreview={() => { onPreview(tmpl); onTabChange('apercu'); }}
-            onApply={() => handleApply(tmpl)}
+            onApply={() => onApply(tmpl)}
             t={t}
           />
-        );
-      })}
+        ))}
+      </div>
     </div>
   );
 }
@@ -83,7 +192,6 @@ function TemplateCard({ template, isActive, isApplying, onPreview, onApply, t }:
         WebkitBackdropFilter: 'blur(24px) saturate(140%)',
       }}
     >
-      {/* Color banner */}
       <div className="h-20 relative" style={{ background: CATEGORY_GRADIENT[template.template_key] ?? 'linear-gradient(135deg, #334155, #1e293b)' }}>
         {isActive && (
           <div className="absolute top-2 right-2 inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold bg-green-500/90 text-white">
@@ -94,7 +202,6 @@ function TemplateCard({ template, isActive, isApplying, onPreview, onApply, t }:
       </div>
 
       <div className="p-4 space-y-3">
-        {/* Title + Category */}
         <div>
           <h3 className="text-sm font-bold truncate" style={{ color: t.text.primary }}>{template.name}</h3>
           <span
@@ -105,12 +212,10 @@ function TemplateCard({ template, isActive, isApplying, onPreview, onApply, t }:
           </span>
         </div>
 
-        {/* Description */}
         <p className="text-xs leading-relaxed line-clamp-2" style={{ color: t.text.tertiary }}>
           {template.description}
         </p>
 
-        {/* Actions */}
         <div className="flex gap-2 pt-1">
           <button
             onClick={onPreview}
@@ -154,4 +259,5 @@ const CATEGORY_GRADIENT: Record<string, string> = {
   renovation: 'linear-gradient(135deg, rgba(245,158,11,0.3), rgba(120,113,108,0.15))',
   gold_buying: 'linear-gradient(135deg, rgba(212,160,23,0.4), rgba(184,134,11,0.15))',
   builder_ready: 'linear-gradient(135deg, rgba(14,165,233,0.3), rgba(16,185,129,0.15))',
+  barbie_wellness: 'linear-gradient(135deg, rgba(201,149,107,0.4), rgba(143,188,143,0.15))',
 };

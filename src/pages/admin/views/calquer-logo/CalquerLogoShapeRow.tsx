@@ -1,8 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
-import { Square, Circle, Minus, Trash2, Pencil } from 'lucide-react';
-import type { MaskShape } from './calquer-logo-types';
-
-const TOOL_LABELS: Record<string, string> = { rectangle: 'Rectangle', ellipse: 'Ellipse', line: 'Ligne' };
+import { Square, Circle, Minus, Trash2, Pencil, Lasso, CircleDot, Spline, Hexagon, Eraser, Lock } from 'lucide-react';
+import type { MaskShape, MaskTool } from './calquer-logo-types';
+import { TOOL_LABELS } from './calquer-logo-types';
 
 interface Props {
   shape: MaskShape;
@@ -81,7 +80,8 @@ export default function CalquerLogoShapeRow({
               {displayName}
             </span>
           )}
-          <span className="text-[9px] font-semibold uppercase px-1 rounded"
+          {shape.locked && <Lock className="w-2.5 h-2.5 flex-shrink-0" style={{ color: 'rgba(148,163,184,0.5)' }} />}
+          <span className="text-[9px] font-semibold uppercase px-1 rounded flex-shrink-0"
             style={{ color: shapeColor, opacity: 0.7 }}>
             {isKeep ? 'G' : 'S'}
           </span>
@@ -98,9 +98,14 @@ export default function CalquerLogoShapeRow({
   );
 }
 
-function ShapeIcon({ tool, color }: { tool: string; color: string }) {
+function ShapeIcon({ tool, color }: { tool: MaskTool; color: string }) {
   const cls = "w-3 h-3";
   if (tool === 'rectangle') return <Square className={cls} style={{ color }} />;
   if (tool === 'ellipse') return <Circle className={cls} style={{ color }} />;
+  if (tool === 'lasso') return <Lasso className={cls} style={{ color }} />;
+  if (tool === 'arc') return <CircleDot className={cls} style={{ color }} />;
+  if (tool === 'bezier') return <Spline className={cls} style={{ color }} />;
+  if (tool === 'polygon') return <Hexagon className={cls} style={{ color }} />;
+  if (tool === 'eraser') return <Eraser className={cls} style={{ color }} />;
   return <Minus className={cls} style={{ color }} />;
 }

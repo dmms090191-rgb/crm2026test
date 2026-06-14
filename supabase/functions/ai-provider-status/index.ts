@@ -172,6 +172,48 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    if (provider === "vectorizer") {
+      const apiId = Deno.env.get("VECTORIZER_API_ID");
+      const apiSecret = Deno.env.get("VECTORIZER_API_SECRET");
+      if (!apiId || !apiSecret) {
+        return json({
+          provider: "vectorizer",
+          status: "key_missing",
+          key_configured: false,
+          error: "Cle manquante",
+          checked_at: new Date().toISOString(),
+        });
+      }
+
+      const basic = btoa(`${apiId}:${apiSecret}`);
+      const accountRes = await fetch("https://fr.vectorizer.ai/api/v1/account", {
+        method: "GET",
+        headers: { Authorization: `Basic ${basic}` },
+      });
+
+      if (!accountRes.ok) {
+        return json({
+          provider: "vectorizer",
+          status: "error",
+          key_configured: true,
+          error: `Vectorizer API ${accountRes.status}`,
+          checked_at: new Date().toISOString(),
+        });
+      }
+
+      const body = await accountRes.json();
+      const credits = body?.subscriptionCreditsRemaining ?? body?.credits ?? null;
+
+      return json({
+        provider: "vectorizer",
+        status: "available",
+        key_configured: true,
+        total_balance: credits != null ? String(credits) : null,
+        currency: "credits",
+        checked_at: new Date().toISOString(),
+      });
+    }
+
     return json({ error: `Provider inconnu: ${provider}` }, 400);
   } catch (err) {
     return new Response(

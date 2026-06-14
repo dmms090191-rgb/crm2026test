@@ -1,4 +1,4 @@
-import { Zap, PenTool } from 'lucide-react';
+import { Zap, PenTool, Pipette } from 'lucide-react';
 import type { CleanMethod } from './calquer-logo-types';
 
 interface Props {
@@ -11,10 +11,20 @@ export default function CalquerLogoMethodPicker({ active, onChange }: Props) {
     <div className="space-y-2.5">
       <h3 className="text-[11px] font-semibold uppercase tracking-wider"
         style={{ color: 'rgba(148,163,184,0.6)' }}>
-        Methode de nettoyage
+        Methodes d'isolation
       </h3>
 
       <div className="space-y-2">
+        <MethodCard
+          active={active === 'couleur-isolation'}
+          onClick={() => onChange('couleur-isolation')}
+          icon={<Pipette className="w-5 h-5" />}
+          title="Isolation par couleur"
+          description="Isolez votre logo en selectionnant ses couleurs avec la pipette. Ideal pour les fonds unis."
+          accentColor="#10b981"
+          accentBg="rgba(16,185,129,0.12)"
+          accentBorder="rgba(16,185,129,0.35)"
+        />
         <MethodCard
           active={active === 'rapide'}
           onClick={() => onChange('rapide')}

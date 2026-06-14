@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { LogOut, ChevronLeft, ArrowUpDown, ArrowLeft } from 'lucide-react';
+import { LogOut, ChevronLeft, ArrowUpDown, ArrowLeft, EyeOff } from 'lucide-react';
 import type { getThemeTokens } from '../../lib/themeTokens';
 
 interface SidebarFooterActionsProps {
@@ -12,10 +12,11 @@ interface SidebarFooterActionsProps {
   rdrFontFamily?: string;
   onBackToRoisAdmin?: () => void;
   backLabel?: string;
+  onHideTabs?: () => void;
 }
 
 export default function SidebarFooterActions({
-  collapsed, onLogout, onCollapse, onReorganize, reordering, tokens: t, rdrFontFamily, onBackToRoisAdmin, backLabel,
+  collapsed, onLogout, onCollapse, onReorganize, reordering, tokens: t, rdrFontFamily, onBackToRoisAdmin, backLabel, onHideTabs,
 }: SidebarFooterActionsProps) {
   return (
     <div
@@ -33,6 +34,20 @@ export default function SidebarFooterActions({
             hoverColor={t.sidebar.activeItemText}
             hoverShadow={`0 0 12px ${t.sidebar.activeItemDot}22`}
             onClick={onReorganize}
+            fontFamily={rdrFontFamily}
+          />
+        )}
+
+        {onHideTabs && !reordering && (
+          <FooterButton
+            icon={<EyeOff className="w-4 h-4" />}
+            label="Masquer onglets"
+            collapsed={collapsed}
+            restColor={t.sidebar.collapseText}
+            hoverBg={t.sidebar.activeItemBg}
+            hoverColor={t.sidebar.activeItemText}
+            hoverShadow={`0 0 12px ${t.sidebar.activeItemDot}22`}
+            onClick={onHideTabs}
             fontFamily={rdrFontFamily}
           />
         )}

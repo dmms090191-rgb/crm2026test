@@ -22,6 +22,7 @@ import CSAOverview from './CSAOverview';
 import CSAAdminsList from './CSAAdminsList';
 import CSAEditorPanels from './CSAEditorPanels';
 import CSAApplicationPage from './CSAApplicationPage';
+import SiteManagerShell from '../superadmin/views/site-builder/SiteManagerShell';
 import type { CSAAdminUser } from './CSAAdminsList';
 
 const AdminDashboard = lazy(() => import('../admin/AdminDashboard'));
@@ -284,6 +285,19 @@ function CSADashboardInner({ impersonated, onBack, isImpersonation = true, onCon
           {activeView === 'admins' && <CSAAdminsList companyId={impersonated.company_id} onConnectAsAdmin={onConnectAsAdmin} />}
           {activeView === 'info' && <CSAInfoPage impersonated={currentImpersonated} onNameUpdated={handleNameUpdated} />}
           {activeView === 'application' && <CSAApplicationPage companyId={impersonated.company_id} />}
+          {activeView === 'site' && (
+            <div className="h-full flex flex-col">
+              <div className="flex-1 min-h-0 flex flex-col">
+                <SiteManagerShell
+                  ownerType="admin_company"
+                  title="Site"
+                  subtitle="Gerez le site public de votre societe"
+                  companyId={impersonated.company_id}
+                  companyName={impersonated.company}
+                />
+              </div>
+            </div>
+          )}
         </main>
       </div>
 

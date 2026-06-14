@@ -1,225 +1,341 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import CalquerLogoToolbar from './CalquerLogoToolbar';
 import CalquerLogoCanvas from './CalquerLogoCanvas';
 import CalquerLogoTabBar, { type CalquerTab } from './CalquerLogoTabBar';
+import CalquerLogoPanel from './CalquerLogoPanel';
 import CalquerLogoColorPanel from './CalquerLogoColorPanel';
-import CalquerLogoMaskPanel from './CalquerLogoMaskPanel';
-import CalquerLogoShapesPanel from './CalquerLogoShapesPanel';
+import CalquerLogoColorLogoPanel from './CalquerLogoColorLogoPanel';
+import CalquerLogoSaveModal from './CalquerLogoSaveModal';
+import CalquerLogoLoadModal from './CalquerLogoLoadModal';
+import CalquerLogoWelcome from './CalquerLogoWelcome';
+import { useCalquerSaves } from './useCalquerSaves';
+import { createSession, updateSession, loadSession, imageUrlToDataUrl, dataUrlToObjectUrl } from './calquer-logo-save-api';
+import type { SessionEditorState } from './calquer-logo-save-types';
 
-import type { BgConfig, CleanMethod, MaskState, MaskShape, MaskFolder, MaskTool, MaskMode } from './calquer-logo-types';
-import { bgConfigToCss, DEFAULT_BG_CONFIG } from './calquer-logo-types';
-import { applyMaskToImage } from './calquer-logo-mask-apply';
-import { removeWhiteBackground } from './calquer-logo-remove-bg';
+import { applyLogoColorConfig, applyLogoColorConfigRaster } from './calquer-logo-recolor';
+import type { BgConfig, LogoColorConfig, ColorIsolationState } from './calquer-logo-types';
+import { bgConfigToCss, DEFAULT_BG_CONFIG, DEFAULT_LOGO_COLOR } from './calquer-logo-types';
+import {
+  pickColorFromImage, buildMaskFromImage, generatePreviewUrl,
+  applyKeepSelection,
+} from './calquer-logo-color-isolation';
 
 const STORAGE_KEY = 'calquer-logo-state';
-const MASK_ORG_KEY = 'calquer-logo-mask-org';
 
-interface SavedState {
-  zoom: number; hasOverlay: boolean; overlayOpacity: number;
-  inverted: boolean; panX: number; panY: number; bgConfig: BgConfig; cleanMethod: CleanMethod;
-}
-
-const DEFAULTS: SavedState = {
-  zoom: 1, hasOverlay: false, overlayOpacity: 0.5,
-  inverted: false, panX: 0, panY: 0, bgConfig: DEFAULT_BG_CONFIG, cleanMethod: 'none',
-};
-
+interface SavedState { zoom: number; panX: number; panY: number; bgConfig: BgConfig; }
+const DEFAULTS: SavedState = { zoom: 1, panX: 0, panY: 0, bgConfig: DEFAULT_BG_CONFIG };
 function loadState(): SavedState {
   try { const raw = localStorage.getItem(STORAGE_KEY); if (!raw) return { ...DEFAULTS }; return { ...DEFAULTS, ...JSON.parse(raw) }; }
   catch { return { ...DEFAULTS }; }
 }
 function saveState(s: SavedState) { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); } catch { /* */ } }
 
-interface MaskOrgState { folders: MaskFolder[]; }
-function loadMaskOrg(): MaskOrgState {
-  try { const r = localStorage.getItem(MASK_ORG_KEY); return r ? { folders: [], ...JSON.parse(r) } : { folders: [] }; }
-  catch { return { folders: [] }; }
-}
-function saveMaskOrg(o: MaskOrgState) { try { localStorage.setItem(MASK_ORG_KEY, JSON.stringify(o)); } catch { /* */ } }
-
-const DEFAULT_MASK: MaskState = {
-  tool: 'rectangle', mode: 'supprimer', opacity: 60, size: 20, strokeColor: '#ef4444',
-  shapes: [], selectedId: null, folders: [],
-};
+const DEFAULT_CI: ColorIsolationState = { pickedColor: null, tolerance: 30, selectionMask: null, inverted: false };
 
 export default function CalquerLogo() {
+  const [mode, setMode] = useState<'welcome' | 'editor'>('welcome');
   const [activeTab, setActiveTab] = useState<CalquerTab>('logo');
-  const [cleanMethod, setCleanMethod] = useState<CleanMethod>(() => loadState().cleanMethod);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [transformedUrl, setTransformedUrl] = useState<string | null>(null);
   const [showTransformed, setShowTransformed] = useState(false);
-  const [splitView, setSplitView] = useState(false);
-  const [transforming, setTransforming] = useState(false);
   const [zoom, setZoom] = useState(() => loadState().zoom);
-  const [hasOverlay, setHasOverlay] = useState(() => loadState().hasOverlay);
-  const [overlayOpacity, setOverlayOpacity] = useState(() => loadState().overlayOpacity);
-  const [inverted, setInverted] = useState(() => loadState().inverted);
   const [panX, setPanX] = useState(() => loadState().panX);
   const [panY, setPanY] = useState(() => loadState().panY);
   const [bgConfig, setBgConfig] = useState<BgConfig>(() => loadState().bgConfig);
-  const [mask, setMask] = useState<MaskState>(() => ({ ...DEFAULT_MASK, folders: loadMaskOrg().folders }));
-  const [applyingMask, setApplyingMask] = useState(false);
-  const [moveMode, setMoveMode] = useState(false);
+  const [logoColorConfig, setLogoColorConfig] = useState<LogoColorConfig>({ ...DEFAULT_LOGO_COLOR });
+  const baseTransformedRef = useRef<string | null>(null);
+  const [iaBaseSvg, setIaBaseSvg] = useState<string | null>(null);
+  const [iaSvgContent, setIaSvgContent] = useState<string | null>(null);
+
+  const [ciState, setCiState] = useState<ColorIsolationState>({ ...DEFAULT_CI });
+  const [ciPipetteActive, setCiPipetteActive] = useState(false);
+  const [ciApplying, setCiApplying] = useState(false);
+  const [ciPreviewUrl, setCiPreviewUrl] = useState<string | null>(null);
+  const ciUndoUrl = useRef<string | null>(null);
+  const [ciHasResult, setCiHasResult] = useState(false);
+
+  const [saveModalOpen, setSaveModalOpen] = useState(false);
+  const [loadModalOpen, setLoadModalOpen] = useState(false);
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const [savingChanges, setSavingChanges] = useState(false);
+  const [changesSaved, setChangesSaved] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<{ getImageRect: () => { x: number; y: number; w: number; h: number } | null }>(null);
+  const saves = useCalquerSaves();
 
-  useEffect(() => { saveState({ zoom, hasOverlay, overlayOpacity, inverted, panX, panY, bgConfig, cleanMethod }); },
-    [zoom, hasOverlay, overlayOpacity, inverted, panX, panY, bgConfig, cleanMethod]);
-  useEffect(() => { saveMaskOrg({ folders: mask.folders }); }, [mask.folders]);
+  useEffect(() => { saveState({ zoom, panX, panY, bgConfig }); }, [zoom, panX, panY, bgConfig]);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (!mask.selectedId) return;
-      if (e.key !== 'Delete' && e.key !== 'Backspace') return;
-      const tag = (e.target as HTMLElement)?.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
-      e.preventDefault();
-      setMask(m => ({ ...m, shapes: m.shapes.filter(s => s.id !== m.selectedId), selectedId: null }));
-    };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [mask.selectedId]);
-
-  const handleMethodChange = useCallback((method: CleanMethod) => {
-    setCleanMethod(method);
-    if (method === 'rapide') setActiveTab('logo');
-    if (method === 'manuel') setActiveTab('masque');
-  }, []);
   const handleUpload = useCallback(() => fileRef.current?.click(), []);
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]; if (!file) return;
     if (imageUrl) URL.revokeObjectURL(imageUrl);
     if (transformedUrl) URL.revokeObjectURL(transformedUrl);
-    setTransformedUrl(null); setShowTransformed(false); setSplitView(false);
-    setMask(m => ({ ...DEFAULT_MASK, folders: m.folders }));
-    setImageUrl(URL.createObjectURL(file)); e.target.value = '';
-  }, [imageUrl, transformedUrl]);
+    setTransformedUrl(null); setShowTransformed(false);
+    setImageUrl(URL.createObjectURL(file)); setCurrentSessionId(null); setChangesSaved(false);
+    setIaBaseSvg(null); setIaSvgContent(null);
+    setLogoColorConfig({ ...DEFAULT_LOGO_COLOR }); baseTransformedRef.current = null;
+    setCiState({ ...DEFAULT_CI }); setCiPipetteActive(false); setCiHasResult(false);
+    if (ciPreviewUrl) URL.revokeObjectURL(ciPreviewUrl); setCiPreviewUrl(null);
+    ciUndoUrl.current = null;
+    e.target.value = '';
+  }, [imageUrl, transformedUrl, ciPreviewUrl]);
 
-  const handleTransform = useCallback(async () => {
-    if (!imageUrl || transforming) return; setTransforming(true);
-    try { const url = await removeWhiteBackground(imageUrl); if (transformedUrl) URL.revokeObjectURL(transformedUrl); setTransformedUrl(url); setShowTransformed(true); } catch { /* */ }
-    setTransforming(false);
-  }, [imageUrl, transforming, transformedUrl]);
+  const handleDownloadPng = useCallback(() => {
+    const url = transformedUrl || imageUrl;
+    if (!url) return;
+    const a = document.createElement('a'); a.href = url; a.download = 'logo-transparent.png'; a.click();
+  }, [transformedUrl, imageUrl]);
 
-  const handleToggleView = useCallback(() => setShowTransformed(v => !v), []);
-  const handleToggleSplitView = useCallback(() => setSplitView(v => !v), []);
-  const handleResetTransform = useCallback(() => { if (transformedUrl) URL.revokeObjectURL(transformedUrl); setTransformedUrl(null); setShowTransformed(false); setSplitView(false); }, [transformedUrl]);
-  const handleDownloadPng = useCallback(() => { if (!transformedUrl) return; const a = document.createElement('a'); a.href = transformedUrl; a.download = 'logo-transparent.png'; a.click(); }, [transformedUrl]);
-  const handleZoomIn = useCallback(() => setZoom(z => Math.min(4, +(z + 0.25).toFixed(2))), []);
-  const handleZoomOut = useCallback(() => setZoom(z => Math.max(0.25, +(z - 0.25).toFixed(2))), []);
-  const handleZoomReset = useCallback(() => { setZoom(1); setPanX(0); setPanY(0); }, []);
-  const handleAddPage = useCallback(() => setHasOverlay(true), []);
-  const handleSwap = useCallback(() => setInverted(v => !v), []);
   const handlePanChange = useCallback((x: number, y: number) => { setPanX(x); setPanY(y); }, []);
 
-  const handleMaskToolChange = useCallback((t: MaskTool) => setMask(m => ({ ...m, tool: t })), []);
-  const handleMaskModeChange = useCallback((mode: MaskMode) => setMask(m => ({
-    ...m, mode, strokeColor: mode === 'garder' ? '#22c55e' : '#ef4444',
-  })), []);
-  const handleMaskSizeChange = useCallback((v: number) => setMask(m => {
-    if (m.selectedId) {
-      return { ...m, shapes: m.shapes.map(s => s.id === m.selectedId ? { ...s, size: v } : s), size: v };
-    }
-    return { ...m, size: v };
-  }), []);
-  const handleMaskAddShape = useCallback((s: MaskShape) => setMask(m => ({ ...m, shapes: [...m.shapes, s] })), []);
-  const handleMaskSelectShape = useCallback((id: string | null) => { setMask(m => ({ ...m, selectedId: id })); if (!id) setMoveMode(false); }, []);
-  const handleMaskDeleteSelected = useCallback(() => { setMask(m => ({ ...m, shapes: m.shapes.filter(s => s.id !== m.selectedId), selectedId: null })); setMoveMode(false); }, []);
-  const handleMoveModeToggle = useCallback(() => setMoveMode(v => !v), []);
-  const handleMaskDeleteShape = useCallback((id: string) => { setMask(m => ({ ...m, shapes: m.shapes.filter(s => s.id !== id), selectedId: m.selectedId === id ? null : m.selectedId })); }, []);
-  const handleMaskMoveShape = useCallback((id: string, x: number, y: number) => { setMask(m => ({ ...m, shapes: m.shapes.map(s => s.id === id ? { ...s, x, y } : s) })); }, []);
-  const handleMaskReset = useCallback(() => setMask(m => ({ ...m, shapes: [], selectedId: null })), []);
+  const setSvgAsTransformed = useCallback((svg: string) => {
+    const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
+    if (transformedUrl) URL.revokeObjectURL(transformedUrl);
+    setTransformedUrl(url); setShowTransformed(true);
+  }, [transformedUrl]);
 
-  const handleRenameShape = useCallback((id: string, name: string) => { setMask(m => ({ ...m, shapes: m.shapes.map(s => s.id === id ? { ...s, name } : s) })); }, []);
-  const handleShapeColorChange = useCallback((id: string, color: string) => { setMask(m => ({ ...m, shapes: m.shapes.map(s => s.id === id ? { ...s, color } : s), strokeColor: color })); }, []);
-  const handleCreateFolder = useCallback(() => {
-    const id = `folder_${Date.now()}`; const idx = mask.folders.length + 1;
-    setMask(m => ({ ...m, folders: [...m.folders, { id, name: `Dossier ${idx}`, expanded: true }] }));
-  }, [mask.folders.length]);
-  const handleRenameFolder = useCallback((id: string, name: string) => { setMask(m => ({ ...m, folders: m.folders.map(f => f.id === id ? { ...f, name } : f) })); }, []);
-  const handleToggleFolder = useCallback((id: string) => { setMask(m => ({ ...m, folders: m.folders.map(f => f.id === id ? { ...f, expanded: !f.expanded } : f) })); }, []);
-  const handleDeleteFolder = useCallback((id: string) => { setMask(m => { if (m.shapes.some(s => s.folderId === id)) return m; return { ...m, folders: m.folders.filter(f => f.id !== id) }; }); }, []);
-  const handleMoveToFolder = useCallback((shapeId: string, folderId: string | undefined) => { setMask(m => ({ ...m, shapes: m.shapes.map(s => s.id === shapeId ? { ...s, folderId } : s) })); }, []);
-  const handleReorderShape = useCallback((shapeId: string, targetShapeId: string | null, position: 'above' | 'below', targetFolderId: string | undefined) => {
-    setMask(m => {
-      const idx = m.shapes.findIndex(s => s.id === shapeId);
-      if (idx === -1) return m;
-      const shape = { ...m.shapes[idx], folderId: targetFolderId };
-      const without = m.shapes.filter(s => s.id !== shapeId);
-      if (!targetShapeId) { return { ...m, shapes: [...without, shape] }; }
-      const targetIdx = without.findIndex(s => s.id === targetShapeId);
-      if (targetIdx === -1) return { ...m, shapes: [...without, shape] };
-      const insertAt = position === 'below' ? targetIdx + 1 : targetIdx;
-      const result = [...without]; result.splice(insertAt, 0, shape);
-      return { ...m, shapes: result };
-    });
-  }, []);
+  const revokeRecolored = useCallback(() => {
+    if (transformedUrl && transformedUrl !== baseTransformedRef.current) URL.revokeObjectURL(transformedUrl);
+  }, [transformedUrl]);
 
-  const handleMaskApply = useCallback(async () => {
-    if (!imageUrl || mask.shapes.length === 0 || applyingMask) return;
-    const imgRect = canvasRef.current?.getImageRect(); if (!imgRect) return;
-    setApplyingMask(true);
-    try {
-      const containerEl = document.querySelector('[data-calquer-canvas]');
-      const cRect = containerEl ? { width: containerEl.clientWidth, height: containerEl.clientHeight } : { width: 800, height: 600 };
-      const url = await applyMaskToImage(imageUrl, mask.shapes, cRect, imgRect);
-      if (transformedUrl) URL.revokeObjectURL(transformedUrl);
+  const handleLogoColorChange = useCallback(async (cfg: LogoColorConfig) => {
+    setLogoColorConfig(cfg);
+    if (iaBaseSvg) {
+      const r = applyLogoColorConfig(iaBaseSvg, cfg); setIaSvgContent(r); setSvgAsTransformed(r);
+    } else if (baseTransformedRef.current) {
+      revokeRecolored();
+      const url = await applyLogoColorConfigRaster(baseTransformedRef.current, cfg);
       setTransformedUrl(url); setShowTransformed(true);
-      setMask(m => ({ ...m, shapes: [], selectedId: null }));
-    } catch { /* */ }
-    setApplyingMask(false);
-  }, [imageUrl, mask.shapes, applyingMask, transformedUrl]);
+    }
+  }, [iaBaseSvg, setSvgAsTransformed, revokeRecolored]);
+
+  const handleLogoColorReset = useCallback(() => {
+    setLogoColorConfig({ ...DEFAULT_LOGO_COLOR });
+    if (iaBaseSvg) { setIaSvgContent(iaBaseSvg); setSvgAsTransformed(iaBaseSvg); }
+    else if (baseTransformedRef.current) { revokeRecolored(); setTransformedUrl(baseTransformedRef.current); setShowTransformed(true); }
+  }, [iaBaseSvg, setSvgAsTransformed, revokeRecolored]);
+
+  const updateCiPreview = useCallback(async (mask: number[]) => {
+    if (!imageUrl) return;
+    if (ciPreviewUrl) URL.revokeObjectURL(ciPreviewUrl);
+    const url = await generatePreviewUrl(imageUrl, mask);
+    setCiPreviewUrl(url);
+  }, [imageUrl, ciPreviewUrl]);
+
+  const handleCiPipetteClick = useCallback(async (clickX: number, clickY: number) => {
+    if (!imageUrl || !ciPipetteActive) return;
+    const imgRect = canvasRef.current?.getImageRect(); if (!imgRect) return;
+    setCiApplying(true);
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.src = imageUrl;
+    await new Promise<void>(r => { img.onload = () => r(); });
+    const nw = img.naturalWidth;
+    const nh = img.naturalHeight;
+    const color = await pickColorFromImage(imageUrl, clickX, clickY, imgRect, nw, nh);
+    const { mask } = await buildMaskFromImage(imageUrl, color[0], color[1], color[2], ciState.tolerance);
+    setCiState(s => ({ ...s, pickedColor: color, selectionMask: mask, inverted: false }));
+    ciUndoUrl.current = imageUrl;
+    const url = await applyKeepSelection(imageUrl, mask);
+    if (transformedUrl) URL.revokeObjectURL(transformedUrl);
+    setTransformedUrl(url); setShowTransformed(true); baseTransformedRef.current = url;
+    if (ciPreviewUrl) URL.revokeObjectURL(ciPreviewUrl);
+    setCiPreviewUrl(null);
+    setCiPipetteActive(false);
+    setCiHasResult(true);
+    setCiApplying(false);
+  }, [imageUrl, ciPipetteActive, ciState.tolerance, ciPreviewUrl, transformedUrl]);
+
+  const handleCiToleranceChange = useCallback(async (t: number) => {
+    setCiState(s => {
+      const next = { ...s, tolerance: t };
+      const src = ciUndoUrl.current || imageUrl;
+      if (s.pickedColor && src && ciHasResult) {
+        buildMaskFromImage(src, s.pickedColor[0], s.pickedColor[1], s.pickedColor[2], t).then(async ({ mask }) => {
+          setCiState(cs => ({ ...cs, selectionMask: mask }));
+          const url = await applyKeepSelection(src, mask);
+          if (transformedUrl) URL.revokeObjectURL(transformedUrl);
+          setTransformedUrl(url); setShowTransformed(true); baseTransformedRef.current = url;
+        });
+      } else if (s.pickedColor && src) {
+        buildMaskFromImage(src, s.pickedColor[0], s.pickedColor[1], s.pickedColor[2], t).then(({ mask }) => {
+          setCiState(cs => ({ ...cs, selectionMask: mask }));
+          updateCiPreview(mask);
+        });
+      }
+      return next;
+    });
+  }, [imageUrl, updateCiPreview, ciHasResult, transformedUrl]);
+
+  const handleCiUndo = useCallback(() => {
+    if (!ciUndoUrl.current) return;
+    if (transformedUrl) URL.revokeObjectURL(transformedUrl);
+    setTransformedUrl(null); setShowTransformed(false);
+    setCiHasResult(false);
+    setCiState(s => ({ ...s, selectionMask: null }));
+  }, [transformedUrl]);
+
+  const handleCiReset = useCallback(() => {
+    setCiState({ ...DEFAULT_CI });
+    setCiPipetteActive(false);
+    setCiHasResult(false);
+    ciUndoUrl.current = null;
+    if (ciPreviewUrl) URL.revokeObjectURL(ciPreviewUrl);
+    setCiPreviewUrl(null);
+  }, [ciPreviewUrl]);
+
+  const buildEditorState = useCallback((): SessionEditorState => ({
+    cleanMethod: 'couleur-isolation', bgConfig, zoom, panX, panY,
+    hasOverlay: false, overlayOpacity: 0.5, inverted: false,
+    splitView: false, showTransformed,
+    maskShapes: [], maskFolders: [],
+    iaStep: iaSvgContent ? 'vectorized' : 'idle',
+    previewBgColor: null, logoColorConfig,
+  }), [bgConfig, zoom, panX, panY, showTransformed, iaSvgContent, logoColorConfig]);
+
+  const getSavePayload = useCallback(async () => {
+    const tSrc = baseTransformedRef.current || transformedUrl;
+    const [imgData, tData] = await Promise.all([
+      imageUrl ? imageUrlToDataUrl(imageUrl) : null,
+      tSrc ? imageUrlToDataUrl(tSrc) : null,
+    ]);
+    return { imgData, tData, state: buildEditorState(), baseSvg: iaBaseSvg || iaSvgContent, currentSvg: iaSvgContent };
+  }, [imageUrl, transformedUrl, iaBaseSvg, iaSvgContent, buildEditorState]);
+
+  const handleSave = useCallback(async (title: string) => {
+    const p = await getSavePayload();
+    if (currentSessionId) await updateSession(currentSessionId, p.imgData, p.baseSvg, p.currentSvg, p.state, p.tData);
+    else { const id = await createSession(title, p.imgData, p.baseSvg, p.currentSvg, p.state, undefined, p.tData); setCurrentSessionId(id); }
+    saves.refresh();
+  }, [getSavePayload, currentSessionId, saves]);
+
+  const handleSaveChanges = useCallback(async () => {
+    if (!currentSessionId || savingChanges) return;
+    setSavingChanges(true); setChangesSaved(false);
+    try {
+      const p = await getSavePayload();
+      await updateSession(currentSessionId, p.imgData, p.baseSvg, p.currentSvg, p.state, p.tData);
+      saves.refresh(); setChangesSaved(true);
+      setTimeout(() => setChangesSaved(false), 3000);
+    } catch { /* silent */ }
+    setSavingChanges(false);
+  }, [currentSessionId, savingChanges, getSavePayload, saves]);
+
+  const handleOpenSave = useCallback(async (id: string) => {
+    const session = await loadSession(id);
+    if (imageUrl) URL.revokeObjectURL(imageUrl);
+    if (transformedUrl) URL.revokeObjectURL(transformedUrl);
+    setImageUrl(session.original_image_data ? dataUrlToObjectUrl(session.original_image_data) : null);
+    const baseSvg = session.svg_content || null;
+    const currentSvg = session.current_svg_content || null;
+    setIaSvgContent(currentSvg || baseSvg); setIaBaseSvg(baseSvg);
+    const tUrl = session.transformed_image_data ? dataUrlToObjectUrl(session.transformed_image_data) : null;
+    baseTransformedRef.current = tUrl;
+    const es = session.editor_state;
+    const lcc = es?.logoColorConfig || { ...DEFAULT_LOGO_COLOR };
+    if (lcc.mode !== 'none' && baseSvg) {
+      const r = applyLogoColorConfig(baseSvg, lcc); setIaSvgContent(r);
+      const u = URL.createObjectURL(new Blob([r], { type: 'image/svg+xml' }));
+      setTransformedUrl(u); setShowTransformed(true);
+    } else if (lcc.mode !== 'none' && tUrl) {
+      const u = await applyLogoColorConfigRaster(tUrl, lcc);
+      setTransformedUrl(u); setShowTransformed(true);
+    } else {
+      setTransformedUrl(tUrl); setShowTransformed(!!tUrl);
+    }
+    if (es) {
+      setBgConfig(es.bgConfig || DEFAULT_BG_CONFIG);
+      setZoom(es.zoom || 1); setPanX(es.panX || 0); setPanY(es.panY || 0);
+      setLogoColorConfig(lcc);
+    }
+    setCurrentSessionId(id); setMode('editor');
+    setActiveTab(tUrl ? 'couleur' : 'logo');
+  }, [imageUrl, transformedUrl]);
 
   const displayUrl = (showTransformed && transformedUrl) ? transformedUrl : imageUrl;
-  const showMaskOverlay = cleanMethod === 'manuel' && activeTab === 'masque' && !!imageUrl && !showTransformed;
-  const handleTabChange = useCallback((tab: CalquerTab) => { if (tab === 'masque' && cleanMethod !== 'manuel') return; setActiveTab(tab); }, [cleanMethod]);
 
   const renderPanel = () => {
-    if (activeTab === 'couleur') return <CalquerLogoColorPanel bgConfig={bgConfig} onBgConfigChange={setBgConfig} hasTransformed={!!transformedUrl} />;
-    if (activeTab === 'masque') return (
-      <CalquerLogoMaskPanel mask={mask} moveMode={moveMode} onMoveModeToggle={handleMoveModeToggle}
-        onToolChange={handleMaskToolChange} onModeChange={handleMaskModeChange}
-        onSizeChange={handleMaskSizeChange} onColorChange={handleShapeColorChange}
-        onApply={handleMaskApply} onReset={handleMaskReset} onDeleteSelected={handleMaskDeleteSelected} applying={applyingMask} />
-    );
+    if (activeTab === 'couleur') {
+      return <CalquerLogoColorPanel bgConfig={bgConfig} onBgConfigChange={setBgConfig} hasTransformed={!!transformedUrl} />;
+    }
+    if (activeTab === 'couleur-logo') {
+      return (
+        <CalquerLogoColorLogoPanel
+          hasContent={!!iaSvgContent || !!transformedUrl}
+          logoColorConfig={logoColorConfig}
+          onConfigChange={handleLogoColorChange}
+          onReset={handleLogoColorReset}
+        />
+      );
+    }
     return (
-      <CalquerLogoToolbar onUpload={handleUpload} hasImage={!!imageUrl} zoom={zoom}
-        onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} onZoomReset={handleZoomReset}
-        hasOverlay={hasOverlay} onAddPage={handleAddPage} opacity={overlayOpacity}
-        onOpacityChange={setOverlayOpacity} onTransform={handleTransform}
-        hasTransformed={!!transformedUrl} showTransformed={showTransformed}
-        onToggleView={handleToggleView} onResetTransform={handleResetTransform}
-        onDownloadPng={handleDownloadPng} transforming={transforming}
-        splitView={splitView} onToggleSplitView={handleToggleSplitView}
-        cleanMethod={cleanMethod} onMethodChange={handleMethodChange} />
+      <CalquerLogoPanel
+        onUpload={handleUpload} hasImage={!!imageUrl}
+        ciState={ciState} pipetteActive={ciPipetteActive}
+        applying={ciApplying} hasResult={ciHasResult}
+        onActivatePipette={() => setCiPipetteActive(v => !v)}
+        onToleranceChange={handleCiToleranceChange}
+        onUndo={handleCiUndo} onReset={handleCiReset}
+      />
     );
   };
+
+  const resetEditor = useCallback(() => {
+    if (imageUrl) URL.revokeObjectURL(imageUrl);
+    if (transformedUrl) URL.revokeObjectURL(transformedUrl);
+    if (ciPreviewUrl) URL.revokeObjectURL(ciPreviewUrl);
+    setImageUrl(null); setTransformedUrl(null); setShowTransformed(false);
+    setActiveTab('logo'); setZoom(1); setPanX(0); setPanY(0);
+    setBgConfig({ ...DEFAULT_BG_CONFIG }); setLogoColorConfig({ ...DEFAULT_LOGO_COLOR });
+    baseTransformedRef.current = null;
+    setIaSvgContent(null); setIaBaseSvg(null);
+    setCiState({ ...DEFAULT_CI }); setCiPipetteActive(false);
+    setCiApplying(false); setCiPreviewUrl(null); setCiHasResult(false);
+    ciUndoUrl.current = null;
+    setCurrentSessionId(null); setSavingChanges(false); setChangesSaved(false);
+  }, [imageUrl, transformedUrl, ciPreviewUrl]);
+
+  const handleWelcomeLoad = useCallback(() => { saves.refresh(); setLoadModalOpen(true); }, [saves]);
+  const handleBackToWelcome = useCallback(() => { resetEditor(); setMode('welcome'); }, [resetEditor]);
+
+  if (mode === 'welcome') return (
+    <div className="flex flex-col h-full min-h-0">
+      <CalquerLogoWelcome onLoadSave={handleWelcomeLoad} onNewLogo={() => { resetEditor(); setMode('editor'); }} />
+      <CalquerLogoLoadModal open={loadModalOpen} onClose={() => setLoadModalOpen(false)}
+        sessions={saves.sessions} loading={saves.loading}
+        onOpen={handleOpenSave} onDelete={saves.handleDelete} onRename={saves.handleRename} />
+    </div>
+  );
 
   return (
     <div className="flex flex-col h-full min-h-0">
       <input ref={fileRef} type="file" className="hidden" accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml" onChange={handleFileChange} />
-      <CalquerLogoTabBar activeTab={activeTab} onTabChange={handleTabChange} showMask={cleanMethod === 'manuel'} />
+      <CalquerLogoTabBar
+        activeTab={activeTab} onTabChange={setActiveTab}
+        hasImage={!!imageUrl} hasTransformed={!!transformedUrl}
+        onLoad={() => setLoadModalOpen(true)} onSave={() => setSaveModalOpen(true)}
+        onDownload={handleDownloadPng}
+        hasActiveSession={!!currentSessionId} onSaveChanges={handleSaveChanges}
+        savingChanges={savingChanges} changesSaved={changesSaved} onBackToWelcome={handleBackToWelcome}
+      />
       <div className="flex flex-1 min-h-0">
         {renderPanel()}
         <CalquerLogoCanvas ref={canvasRef} imageUrl={displayUrl} zoom={zoom} onZoomChange={setZoom}
-          hasOverlay={hasOverlay} overlayOpacity={overlayOpacity} inverted={inverted}
-          onSwap={handleSwap} panX={panX} panY={panY} onPanChange={handlePanChange}
-          splitView={splitView} originalUrl={imageUrl} transformedUrl={transformedUrl}
+          hasOverlay={false} overlayOpacity={0.5} inverted={false}
+          onSwap={() => {}} panX={panX} panY={panY} onPanChange={handlePanChange}
+          splitView={false} originalUrl={imageUrl} transformedUrl={transformedUrl}
           transformedBg={bgConfigToCss(bgConfig)} showTransformed={showTransformed}
-          showMaskOverlay={showMaskOverlay} mask={mask} moveMode={moveMode}
-          onMaskAddShape={handleMaskAddShape} onMaskSelectShape={handleMaskSelectShape}
-          onMaskMoveShape={handleMaskMoveShape} onMaskDeleteSelected={handleMaskDeleteSelected} />
-        {showMaskOverlay && (
-          <CalquerLogoShapesPanel shapes={mask.shapes} selectedId={mask.selectedId}
-            folders={mask.folders}
-            onSelectShape={handleMaskSelectShape} onDeleteShape={handleMaskDeleteShape}
-            onRenameShape={handleRenameShape}
-            onCreateFolder={handleCreateFolder}
-            onRenameFolder={handleRenameFolder} onToggleFolder={handleToggleFolder}
-            onDeleteFolder={handleDeleteFolder} onMoveToFolder={handleMoveToFolder}
-            onReorderShape={handleReorderShape} />
-        )}
+          showMaskOverlay={false} mask={{ tool: 'rectangle', mode: 'supprimer', opacity: 60, size: 20, strokeColor: '#ef4444', shapes: [], selectedId: null, folders: [] }}
+          moveMode={false}
+          onMaskAddShape={() => {}} onMaskSelectShape={() => {}} onMaskMoveShape={() => {}} onMaskDeleteSelected={() => {}}
+          pipetteActive={activeTab === 'logo' && ciPipetteActive}
+          onPipetteClick={handleCiPipetteClick}
+          selectionPreviewUrl={activeTab === 'logo' ? ciPreviewUrl : null}
+        />
       </div>
+      <CalquerLogoSaveModal open={saveModalOpen} onClose={() => setSaveModalOpen(false)} onSave={handleSave} />
+      <CalquerLogoLoadModal open={loadModalOpen} onClose={() => setLoadModalOpen(false)}
+        sessions={saves.sessions} loading={saves.loading}
+        onOpen={handleOpenSave} onDelete={saves.handleDelete} onRename={saves.handleRename} />
     </div>
   );
 }

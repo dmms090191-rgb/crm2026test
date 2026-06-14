@@ -45,4 +45,5 @@ export type ActiveView =
   | 'application'
   | 'tuto'
   | 'editeur-ia'
-  | 'calquer-logo';
+  | 'calquer-logo'
+  | 'mes-logos-ra';

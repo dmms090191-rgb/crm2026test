@@ -7,6 +7,7 @@ import RealEstateTemplate from './RealEstateTemplate';
 import RenovationTemplate from './RenovationTemplate';
 import GoldBuyingTemplate from './GoldBuyingTemplate';
 import BuilderReadyTemplate from './BuilderReadyTemplate';
+import BarbieWellnessTemplate from './BarbieWellnessTemplate';
 
 export interface SectionOverride {
   content: Record<string, string>;
@@ -31,6 +32,7 @@ const TEMPLATE_REGISTRY: Record<string, ComponentType<TemplateProps>> = {
   renovation: RenovationTemplate,
   gold_buying: GoldBuyingTemplate,
   builder_ready: BuilderReadyTemplate,
+  barbie_wellness: BarbieWellnessTemplate,
 };
 
 export function getTemplateComponent(templateKey: string): ComponentType<TemplateProps> | null {

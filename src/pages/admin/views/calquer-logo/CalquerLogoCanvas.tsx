@@ -27,6 +27,9 @@ interface Props {
   onMaskSelectShape: (id: string | null) => void;
   onMaskMoveShape: (id: string, x: number, y: number) => void;
   onMaskDeleteSelected: () => void;
+  pipetteActive?: boolean;
+  onPipetteClick?: (x: number, y: number) => void;
+  selectionPreviewUrl?: string | null;
 }
 
 export interface CanvasHandle {
@@ -42,6 +45,7 @@ const CalquerLogoCanvas = forwardRef<CanvasHandle, Props>(function CalquerLogoCa
   inverted, onSwap, panX, panY, onPanChange,
   splitView, originalUrl, transformedUrl, transformedBg, showTransformed,
   showMaskOverlay, mask, moveMode, onMaskAddShape, onMaskSelectShape, onMaskMoveShape, onMaskDeleteSelected,
+  pipetteActive, onPipetteClick, selectionPreviewUrl,
 }, ref) {
   const containerRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
@@ -77,6 +81,14 @@ const CalquerLogoCanvas = forwardRef<CanvasHandle, Props>(function CalquerLogoCa
     lastPos.current = { x: e.clientX, y: e.clientY };
     setIsDragging(true);
   }, []);
+
+  const handleCanvasClick = useCallback((e: React.MouseEvent) => {
+    if (!pipetteActive || !onPipetteClick || e.button !== 0) return;
+    const container = containerRef.current;
+    if (!container) return;
+    const cRect = container.getBoundingClientRect();
+    onPipetteClick(e.clientX - cRect.left, e.clientY - cRect.top);
+  }, [pipetteActive, onPipetteClick]);
 
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
@@ -120,17 +132,25 @@ const CalquerLogoCanvas = forwardRef<CanvasHandle, Props>(function CalquerLogoCa
       style={{ background: `rgba(255, 255, 255, ${1 - overlayOpacity})`, transition: 'background 0.2s ease' }} />
   ) : null;
 
+  const canvasCursor = isDragging ? 'grabbing' : pipetteActive ? 'crosshair' : showMaskOverlay ? 'crosshair' : 'default';
+
   return (
     <div ref={containerRef} data-calquer-canvas
-      onWheel={handleWheel} onContextMenu={handleContextMenu} onMouseDown={showMaskOverlay ? undefined : handleMouseDown}
+      onWheel={handleWheel} onContextMenu={handleContextMenu}
+      onMouseDown={showMaskOverlay ? undefined : pipetteActive ? undefined : handleMouseDown}
+      onClick={handleCanvasClick}
       className="flex-1 overflow-hidden relative"
-      style={{ background: (showTransformed && transformedBg !== 'checker') ? transformedBg : checkerBg(), cursor: isDragging ? 'grabbing' : (showMaskOverlay ? 'crosshair' : 'default') }}>
+      style={{ background: (showTransformed && transformedBg !== 'checker') ? transformedBg : checkerBg(), cursor: canvasCursor }}>
 
       <div className="min-h-full flex items-center justify-center p-8"
         style={{ transform: `translate(${panX}px, ${panY}px)` }}>
         <div className="relative"
           style={{ transform: `scale(${zoom})`, transformOrigin: 'center center', transition: 'transform 0.15s ease-out' }}>
           {inverted ? (<>{overlayLayer && <div className="absolute inset-0" style={{ background: `rgba(255, 255, 255, ${1 - overlayOpacity})` }} />}{logoLayer}</>) : (<>{logoLayer}{overlayLayer}</>)}
+          {selectionPreviewUrl && (
+            <img src={selectionPreviewUrl} alt="" className="absolute inset-0 w-full h-full object-contain select-none pointer-events-none" draggable={false}
+              style={{ opacity: 0.8 }} />
+          )}
         </div>
       </div>
 

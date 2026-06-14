@@ -40,7 +40,7 @@ export function parseCreditResult(result: ProviderBalanceResult, provider: strin
     };
   }
 
-  if (provider === 'stability') {
+  if (provider === 'stability' || provider === 'vectorizer') {
     const credit = result.total_balance != null
       ? `${result.total_balance} credits`
       : 'Non disponible via API';
