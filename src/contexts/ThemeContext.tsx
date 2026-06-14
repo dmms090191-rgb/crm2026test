@@ -34,7 +34,12 @@ interface ThemeContextValue {
 
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
+function isSitePage() {
+  return document.documentElement.classList.contains('site-page');
+}
+
 function applyTheme(t: Theme) {
+  if (isSitePage()) return;
   document.documentElement.setAttribute('data-theme', t);
   document.body.style.background = THEME_BG[t] || '#020617';
   try { localStorage.setItem('crm_theme_last', t); } catch { /* ignore */ }
@@ -151,6 +156,11 @@ export function ThemeProvider({ children, panelRole, effectiveUserId, companyId 
 
   useLayoutEffect(() => {
     if (scope.kind === 'none') {
+      if (isSitePage()) {
+        setReady(true);
+        revealApp();
+        return;
+      }
       setReady(false);
       const t = setTimeout(() => { setReady(true); revealApp(); }, 600);
       return () => clearTimeout(t);
@@ -241,7 +251,7 @@ export function ThemeProvider({ children, panelRole, effectiveUserId, companyId 
   }, [scope, persist]);
 
   if (!ready) {
-    return <div className="min-h-screen" style={{ background: 'inherit' }} />;
+    return <div className="min-h-screen" style={{ background: isSitePage() ? '#f8fafb' : 'inherit' }} />;
   }
 
   return (

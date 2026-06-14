@@ -169,6 +169,7 @@ export default function BarbieWellnessTemplate() {
                   src="/logo_BW_transparent_4K.png"
                   alt="Barbie Wellness"
                   className="w-full h-full object-contain"
+                  style={{ filter: 'brightness(0.15) contrast(1.8)' }}
                 />
               </div>
             </div>
