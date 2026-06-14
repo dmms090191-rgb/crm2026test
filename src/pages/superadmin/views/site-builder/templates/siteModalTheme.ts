@@ -1,5 +1,5 @@
 import type { ComponentType } from 'react';
-import { Zap, Leaf, Crown, UserPlus } from 'lucide-react';
+import { Zap, Leaf, Crown, UserPlus, Heart } from 'lucide-react';
 
 export interface SiteModalTheme {
   primary: string;
@@ -81,11 +81,28 @@ const BUILDER_READY_THEME: SiteModalTheme = {
   registerIcon: UserPlus,
 };
 
+const BARBIE_WELLNESS_THEME: SiteModalTheme = {
+  primary: '#ec4899',
+  secondary: '#a855f7',
+  primaryRgb: '236,72,153',
+  secondaryRgb: '168,85,247',
+  gradient: 'linear-gradient(135deg, #ec4899, #a855f7)',
+  gradientHover: 'linear-gradient(135deg, #ec4899, #9333ea)',
+  textGradient: 'linear-gradient(to right, #f472b6, #c084fc, #ec4899)',
+  orbColor1: '#ec4899',
+  orbColor2: '#a855f7',
+  caretColor: '#f472b6',
+  placeholderColor: 'rgba(100,116,139,0.8)',
+  loginIcon: Heart,
+  registerIcon: UserPlus,
+};
+
 const THEME_REGISTRY: Record<string, SiteModalTheme> = {
   talvex_official: TALVEX_THEME,
   renewable_energy: RENEWABLE_THEME,
   gold_buying: GOLD_BUYING_THEME,
   builder_ready: BUILDER_READY_THEME,
+  barbie_wellness: BARBIE_WELLNESS_THEME,
 };
 
 export function getSiteModalTheme(templateKey?: string | null): SiteModalTheme {

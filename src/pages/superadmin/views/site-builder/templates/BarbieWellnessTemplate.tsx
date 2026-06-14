@@ -1,5 +1,7 @@
 import { useState } from 'react';
-import { ArrowRight, Sparkles, Heart, Users, Gem, CheckCircle2, Send, Phone, Mail, User } from 'lucide-react';
+import { ArrowRight, Sparkles, Heart, Users, Gem, CheckCircle2, Send, Phone, Mail, User, LogIn } from 'lucide-react';
+import TalvexLoginModal from './TalvexLoginModal';
+import { getSiteModalTheme } from './siteModalTheme';
 
 const CARDS = [
   {
@@ -15,7 +17,7 @@ const CARDS = [
   {
     icon: <Users className="w-6 h-6" />,
     title: 'Opportunite',
-    desc: 'Developper une activite independante au sein d\'une equipe bienveillante et dynamique.',
+    desc: 'Developper une activite independante au sein d\'une equipe bienveillante et motivante.',
   },
 ];
 
@@ -29,6 +31,14 @@ const AUDIENCE = [
 export default function BarbieWellnessTemplate() {
   const [form, setForm] = useState({ nom: '', tel: '', email: '', objectif: '' });
   const [sent, setSent] = useState(false);
+  const [loginOpen, setLoginOpen] = useState(false);
+
+  const bwTheme = getSiteModalTheme('barbie_wellness');
+
+  const handleLogin = () => {
+    setLoginOpen(false);
+    window.location.href = '/';
+  };
 
   return (
     <div className="min-h-full bg-[#050505] text-white selection:bg-pink-500/30 selection:text-white">
@@ -133,9 +143,10 @@ export default function BarbieWellnessTemplate() {
           </h1>
 
           {/* Subtitle */}
-          <p className="bw-animate-in-d3 text-sm sm:text-base md:text-lg text-white/50 leading-relaxed max-w-2xl mx-auto mb-8 sm:mb-10 font-light px-2">
-            J'accompagne les femmes qui souhaitent ameliorer leur bien-etre, retrouver confiance en elles
-            et decouvrir une activite independante dans l'univers de la nutrition et du wellness.
+          <p className="bw-animate-in-d3 text-sm sm:text-base md:text-lg text-white/50 leading-relaxed max-w-2xl mx-auto mb-10 sm:mb-12 font-light px-2">
+            Barbie Wellness accompagne les femmes qui souhaitent ameliorer leur bien-etre,
+            retrouver confiance en elles et decouvrir une activite independante
+            dans l'univers de la nutrition et du wellness.
           </p>
 
           {/* CTA Buttons */}
@@ -145,15 +156,16 @@ export default function BarbieWellnessTemplate() {
               Etre accompagnee
               <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
             </a>
-            <a href="#equipe"
+            <button
+              onClick={() => setLoginOpen(true)}
               className="inline-flex items-center justify-center gap-3 w-full sm:w-auto px-7 sm:px-8 py-3.5 sm:py-4 rounded-full bw-glass border-pink-500/15 text-white/80 font-semibold text-sm tracking-wide transition-all duration-300 hover:bg-white/[0.06] hover:border-pink-500/30 hover:text-white">
-              <Users className="w-4 h-4" />
-              Rejoindre mon equipe
-            </a>
+              <LogIn className="w-4 h-4" />
+              Connexion
+            </button>
           </div>
 
-          {/* Scroll hint - hidden on very small screens */}
-          <div className="absolute bottom-6 sm:bottom-8 left-1/2 -translate-x-1/2 hidden sm:flex flex-col items-center gap-2 text-white/20">
+          {/* Scroll hint */}
+          <div className="mt-16 sm:mt-20 flex flex-col items-center gap-2 text-white/20">
             <span className="text-[10px] font-medium tracking-[0.3em] uppercase">Decouvrir</span>
             <div className="w-px h-8 bg-gradient-to-b from-white/20 to-transparent" />
           </div>
@@ -170,17 +182,17 @@ export default function BarbieWellnessTemplate() {
           <div className="text-center mb-10 sm:mb-16">
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bw-glass border-pink-500/15 mb-5 sm:mb-6">
               <Heart className="w-3.5 h-3.5 text-pink-400" />
-              <span className="text-[10px] sm:text-xs font-semibold tracking-widest uppercase text-pink-300/80">Mon approche</span>
+              <span className="text-[10px] sm:text-xs font-semibold tracking-widest uppercase text-pink-300/80">Notre approche</span>
             </div>
             <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-4 sm:mb-5 text-white/95">
               Un accompagnement{' '}
               <span className="bw-gradient-text">simple et humain</span>
             </h2>
             <p className="text-sm sm:text-base text-white/40 max-w-2xl mx-auto leading-relaxed font-light px-2 sm:px-0">
-              Mon objectif est d'aider chaque femme a avancer a son rythme.
+              Chez Barbie Wellness, chaque femme avance a son rythme.
               Que vous souhaitiez ameliorer votre bien-etre, retrouver de l'energie
-              ou decouvrir une nouvelle activite, je vous accompagne etape par etape
-              avec des conseils personnalises.
+              ou decouvrir une nouvelle activite, notre equipe vous accompagne
+              etape par etape avec des conseils personnalises.
             </p>
           </div>
 
@@ -262,18 +274,18 @@ export default function BarbieWellnessTemplate() {
               </h2>
 
               <p className="text-sm sm:text-base text-white/40 max-w-xl mx-auto leading-relaxed mb-4 sm:mb-5 font-light">
-                Je forme et accompagne les femmes qui souhaitent apprendre a developper
-                leur clientele, vendre des produits de nutrition et evoluer dans un
-                environnement motivant.
+                Barbie Wellness forme et accompagne les femmes qui souhaitent apprendre
+                a developper leur clientele, vendre des produits de nutrition et evoluer
+                dans un environnement motivant.
               </p>
               <p className="text-sm sm:text-base text-white/40 max-w-xl mx-auto leading-relaxed mb-8 sm:mb-10 font-light">
-                Vous n'etes jamais seule : vous avancez avec le soutien d'une equipe
+                Vous n'etes jamais seule : vous avancez avec le soutien de notre equipe
                 et d'un accompagnement continu.
               </p>
 
               <a href="#contact"
                 className="group bw-btn-primary inline-flex items-center justify-center gap-3 w-full sm:w-auto px-7 sm:px-8 py-3.5 sm:py-4 rounded-full text-white font-semibold text-sm tracking-wide transition-all duration-300">
-                Je souhaite en savoir plus
+                En savoir plus
                 <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
               </a>
             </div>
@@ -299,7 +311,7 @@ export default function BarbieWellnessTemplate() {
               <span className="text-white/95"> ?</span>
             </h2>
             <p className="text-sm sm:text-base text-white/40 max-w-lg mx-auto leading-relaxed font-light px-2 sm:px-0">
-              Laissez-moi vos coordonnees et je vous recontacterai personnellement.
+              Laissez vos coordonnees et notre equipe vous recontactera personnellement.
             </p>
           </div>
 
@@ -309,7 +321,7 @@ export default function BarbieWellnessTemplate() {
                 <CheckCircle2 className="w-7 h-7 sm:w-8 sm:h-8 text-pink-400" />
               </div>
               <h3 className="text-lg sm:text-xl font-bold text-white/90 mb-3">Message envoye</h3>
-              <p className="text-xs sm:text-sm text-white/40">Merci ! Je vous recontacterai tres prochainement.</p>
+              <p className="text-xs sm:text-sm text-white/40">Merci ! Notre equipe vous recontactera tres prochainement.</p>
             </div>
           ) : (
             <div className="rounded-2xl bw-glass p-5 sm:p-8 md:p-10">
@@ -359,7 +371,7 @@ export default function BarbieWellnessTemplate() {
                   <textarea
                     value={form.objectif}
                     onChange={e => setForm(p => ({ ...p, objectif: e.target.value }))}
-                    placeholder="Dites-moi ce que vous recherchez..."
+                    placeholder="Dites-nous ce que vous recherchez..."
                     rows={3}
                     className="w-full px-4 sm:px-5 py-3 sm:py-3.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white/90 text-sm placeholder:text-white/20 focus:outline-none focus:border-pink-500/40 focus:bg-white/[0.06] transition-all resize-none"
                   />
@@ -395,6 +407,12 @@ export default function BarbieWellnessTemplate() {
           </div>
         </div>
       </footer>
+      <TalvexLoginModal
+        isOpen={loginOpen}
+        onClose={() => setLoginOpen(false)}
+        onLogin={handleLogin}
+        theme={bwTheme}
+      />
     </div>
   );
 }

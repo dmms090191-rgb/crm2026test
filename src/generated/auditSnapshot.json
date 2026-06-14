@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-14T19:20:19.679Z",
+  "generatedAt": "2026-06-14T19:45:30.313Z",
   "anyCount": 1,
   "anyOccurrences": [
     {
@@ -29,8 +29,8 @@
     },
     {
       "file": "src/pages/superadmin/views/site-builder/templates/BarbieWellnessTemplate.tsx",
-      "lines": 400,
-      "overflow": 100
+      "lines": 418,
+      "overflow": 118
     }
   ],
   "tscErrorCount": 0,
@@ -39,6 +39,6 @@
   "eslintWarningCount": 0,
   "eslintIssues": [],
   "totalFilesAnalyzed": 912,
-  "totalLinesAnalyzed": 123419,
-  "totalOverflowLines": 165
+  "totalLinesAnalyzed": 123454,
+  "totalOverflowLines": 183
 }
