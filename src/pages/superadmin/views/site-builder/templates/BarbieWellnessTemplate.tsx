@@ -162,18 +162,18 @@ export default function BarbieWellnessTemplate() {
         <div className="relative max-w-5xl mx-auto px-4 sm:px-6 py-16 sm:py-20 flex flex-col items-center text-center">
           {/* Logo */}
           <div className="bw-animate-in mb-8 sm:mb-10 relative" style={{ animation: 'bw-float 6s ease-in-out infinite' }}>
-            <div className="w-28 h-28 sm:w-36 sm:h-36 md:w-44 md:h-44 rounded-full overflow-hidden p-1"
+            <div className="w-40 h-40 sm:w-52 sm:h-52 md:w-64 md:h-64 rounded-full overflow-hidden p-1.5"
               style={{ background: 'linear-gradient(135deg, rgba(56,168,181,0.5), rgba(111,83,98,0.35), rgba(56,168,181,0.3))', boxShadow: '0 0 60px rgba(56,168,181,0.15), 0 0 120px rgba(111,83,98,0.06)' }}>
               <div className="w-full h-full rounded-full overflow-hidden" style={{ background: 'linear-gradient(135deg, #2a9aa8 0%, #38A8B5 15%, #4abbc8 30%, #7a8a90 45%, #8e6878 60%, #6F5362 75%, #7a5d6b 90%, #38A8B5 100%)', backgroundSize: '400% 400%', animation: 'bw-iridescent 6s ease infinite' }}>
                 <img
                   src="/logo_BW_transparent_4K.png"
                   alt="Barbie Wellness"
                   className="w-full h-full object-contain"
-                  style={{ filter: 'brightness(0.15) contrast(1.8)' }}
+                  style={{ filter: 'brightness(0) contrast(5)' }}
                 />
               </div>
             </div>
-            <div className="absolute -bottom-1 -right-1 w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center"
+            <div className="absolute -bottom-1 -right-1 w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center"
               style={{ background: 'linear-gradient(135deg, #38A8B5, #6F5362)', boxShadow: '0 4px 20px rgba(56,168,181,0.3)' }}>
               <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
             </div>
