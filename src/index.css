@@ -13,6 +13,7 @@
 /* Hide #root until React has applied the correct theme, then reveal instantly */
 #root { opacity: 0; }
 #root.app-ready { opacity: 1; }
+html.site-page #root { opacity: 1; }
 
 @media (max-width: 767px) {
   .mobile-main-scroll {
@@ -35,6 +36,11 @@ html, body, #root {
 html {
   background: #020617;
   transition: background-color 150ms ease;
+}
+
+html.site-page {
+  background: #f8fafb !important;
+  color: #1e293b !important;
 }
 
 body, #root {

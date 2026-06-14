@@ -31,8 +31,10 @@ export default function CompanySitePage({ preloadedPage, slug, pageId, domainCom
   const [loginOpen, setLoginOpen] = useState(false);
 
   useEffect(() => {
-    document.getElementById('root')?.classList.add('app-ready');
+    document.documentElement.classList.add('site-page');
+    document.documentElement.style.background = '#f8fafb';
     document.body.style.background = '#f8fafb';
+    document.getElementById('root')?.classList.add('app-ready');
   }, []);
 
   useEffect(() => {

@@ -40,7 +40,7 @@
       (function(){
         var isSitePage=location.pathname.indexOf('/site/')===0;
         var h=location.hostname;var knownHost=h==='localhost'||h==='127.0.0.1'||h.indexOf('supabase.co')!==-1||h.indexOf('vercel.app')!==-1||h.indexOf('webcontainer')!==-1||h.indexOf('stackblitz')!==-1||h.indexOf('bolt.new')!==-1||h.indexOf('cloudworkstations.dev')!==-1;
-        if(isSitePage||!knownHost){document.body.style.background='#f8fafb';return;}
+        if(isSitePage||!knownHost){document.documentElement.classList.add('site-page');document.documentElement.style.background='#f8fafb';document.body.style.background='#f8fafb';var r=document.getElementById('root');if(r)r.classList.add('app-ready');return;}
         var bg={dark:'#050810',light:'#080C16',graphite:'#1e2024',beige:'#14100A',rose:'#120A16',emerald:'#06130D',luxury:'#12100B',pink:'#120810',red:'#100808',orange:'#100A06',yellow:'#0E0C06',highlevel_light:'#f4f7fb',highlevel_dark:'#f3f6fb',highlevel_emerald:'#f8fafc',glass:'#0a0a14'};
         try{var t=localStorage.getItem('crm_theme_last');
         if(t&&bg[t]){document.documentElement.setAttribute('data-theme',t);document.body.style.background=bg[t];}

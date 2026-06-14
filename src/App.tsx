@@ -173,10 +173,10 @@ function App() {
   ) : null;
 
   const siteSlugMatch = window.location.pathname.match(/^\/site\/([^/]+)/);
-  if (siteSlugMatch) return <ThemeProvider panelRole="admin"><CompanySitePage slug={siteSlugMatch[1]} /></ThemeProvider>;
+  if (siteSlugMatch) return <CompanySitePage slug={siteSlugMatch[1]} />;
 
-  if ((customDomainSlug || customDomainPageId) && !role) return <ThemeProvider panelRole="admin"><CompanySitePage preloadedPage={customDomainPage} slug={customDomainSlug} pageId={customDomainPageId} domainCompanyId={customDomainCompanyId} onLogin={handleDomainLogin} /></ThemeProvider>;
-  if (customDomainNotFound && !role) return <ThemeProvider panelRole="admin"><CompanySitePage slug="__domain_not_found__" /></ThemeProvider>;
+  if ((customDomainSlug || customDomainPageId) && !role) return <CompanySitePage preloadedPage={customDomainPage} slug={customDomainSlug} pageId={customDomainPageId} domainCompanyId={customDomainCompanyId} onLogin={handleDomainLogin} />;
+  if (customDomainNotFound && !role) return <CompanySitePage slug="__domain_not_found__" />;
 
   if (loading || customDomainChecking) return <AppLoadingScreen />;
   if (domainBlocked) return <AppDomainBlocked onClear={() => setDomainBlocked(false)} />;
