@@ -172,16 +172,16 @@ function App() {
     <SessionExpiryWarning remainingSeconds={sessionTimeout.remainingSeconds} onStay={sessionTimeout.dismissWarning} onLogout={handleLogout} />
   ) : null;
 
-  if (loading || customDomainChecking) return <AppLoadingScreen />;
-  if (domainBlocked) return <AppDomainBlocked onClear={() => setDomainBlocked(false)} />;
-  if (accessBlocked) return <AppAccessBlocked onClear={() => setAccessBlocked(false)} />;
-  if (unauthorized) return <AppUnauthorizedPage onClear={() => setUnauthorized(false)} />;
-
   const siteSlugMatch = window.location.pathname.match(/^\/site\/([^/]+)/);
   if (siteSlugMatch) return <ThemeProvider panelRole="admin"><CompanySitePage slug={siteSlugMatch[1]} /></ThemeProvider>;
 
   if ((customDomainSlug || customDomainPageId) && !role) return <ThemeProvider panelRole="admin"><CompanySitePage preloadedPage={customDomainPage} slug={customDomainSlug} pageId={customDomainPageId} domainCompanyId={customDomainCompanyId} onLogin={handleDomainLogin} /></ThemeProvider>;
   if (customDomainNotFound && !role) return <ThemeProvider panelRole="admin"><CompanySitePage slug="__domain_not_found__" /></ThemeProvider>;
+
+  if (loading || customDomainChecking) return <AppLoadingScreen />;
+  if (domainBlocked) return <AppDomainBlocked onClear={() => setDomainBlocked(false)} />;
+  if (accessBlocked) return <AppAccessBlocked onClear={() => setAccessBlocked(false)} />;
+  if (unauthorized) return <AppUnauthorizedPage onClear={() => setUnauthorized(false)} />;
 
   if (role === 'company_super_admin' && !directCSA) {
     return <CompanySuperAdminWaitingPage onLogout={handleLogout} />;
