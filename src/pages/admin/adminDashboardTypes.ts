@@ -18,6 +18,10 @@ export interface AdminDashboardProps {
   onBackToSuperAdmin?: () => void;
   backLabel?: string;
   isSAViewing?: boolean;
+  visuBadgeLabel?: string;
+  canHideTabs?: boolean;
+  hideTabsTargetName?: string;
+  hideTabsTargetUserId?: string | null;
 }
 
 export type ActiveView =

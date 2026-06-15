@@ -22,7 +22,7 @@ interface Props {
 
 const VIEW_TITLES: Record<CSAView, string> = {
   overview: 'Dashboard',
-  admins: 'Liste des admins',
+  admins: 'Liste des distributeurs',
   info: 'Info Super Admin',
   application: 'Application',
   site: 'Site',

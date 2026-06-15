@@ -66,9 +66,9 @@ export default function CSAAdminsList({ companyId, onConnectAsAdmin }: { company
     <div className="p-3 sm:p-4 md:p-6 lg:p-8 space-y-5">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
-          <h2 className="text-lg sm:text-xl font-bold" style={{ color: t.text.primary }}>Liste des admins</h2>
+          <h2 className="text-lg sm:text-xl font-bold" style={{ color: t.text.primary }}>Liste des distributeurs</h2>
           <p className="text-xs mt-0.5" style={{ color: t.text.tertiary }}>
-            {admins.length} admin{admins.length !== 1 ? 's' : ''} dans votre societe
+            {admins.length} distributeur{admins.length !== 1 ? 's' : ''} dans votre societe
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -78,7 +78,7 @@ export default function CSAAdminsList({ companyId, onConnectAsAdmin }: { company
             style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', boxShadow: '0 2px 8px rgba(245,158,11,0.35)' }}
           >
             <Plus className="w-3.5 h-3.5" />
-            Creer un admin
+            Ajouter un distributeur
           </button>
           <button
             onClick={fetchAdmins}
@@ -116,7 +116,7 @@ export default function CSAAdminsList({ companyId, onConnectAsAdmin }: { company
             <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: t.accent.bg, border: `1px solid ${t.accent.border}` }}>
               <Users className="w-5 h-5" style={{ color: t.accent.text }} />
             </div>
-            <p className="text-sm font-medium" style={{ color: t.text.tertiary }}>Aucun admin — cliquez sur "Creer un admin" pour commencer</p>
+            <p className="text-sm font-medium" style={{ color: t.text.tertiary }}>Aucun distributeur — cliquez sur "Ajouter un distributeur" pour commencer</p>
           </div>
         ) : (
           <>

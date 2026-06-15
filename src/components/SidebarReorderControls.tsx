@@ -73,8 +73,9 @@ export default function SidebarReorderControls({
           }
           if (entry.kind === 'section') {
             if (collapsed) return null;
-            const sectionColor = sectionColorMap?.[entry.title] || t.sidebar.sectionTitle;
-            return <p key={`s-${entry.title}`} className="px-2 pb-1.5 pt-3 first:pt-1 text-[9px] font-bold tracking-[0.18em] uppercase" style={{ color: sectionColor, fontFamily: sectionFontFamily ? `"${sectionFontFamily}", sans-serif` : undefined }}>{entry.title}</p>;
+            const colorKey = entry._originalTitle ?? entry.title;
+            const sectionColor = sectionColorMap?.[colorKey] || t.sidebar.sectionTitle;
+            return <p key={`s-${colorKey}`} className="px-2 pb-1.5 pt-3 first:pt-1 text-[9px] font-bold tracking-[0.18em] uppercase" style={{ color: sectionColor, fontFamily: sectionFontFamily ? `"${sectionFontFamily}", sans-serif` : undefined }}>{entry.title}</p>;
           }
           if (entry.kind === 'divider') {
             return <div key={`d-${entry.afterSection}-${idx}`} className="mx-3 my-2" style={{ height: '1px', background: t.sidebar.divider }} />;
@@ -136,7 +137,7 @@ export default function SidebarReorderControls({
 
 function reorderKey(e: SidebarEntry, idx: number): string {
   if (e.kind === 'item') return e.id;
-  if (e.kind === 'section') return `s-${e.title}`;
+  if (e.kind === 'section') return `s-${e._originalTitle ?? e.title}`;
   return `d-${idx}`;
 }
 

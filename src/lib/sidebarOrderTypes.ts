@@ -8,6 +8,7 @@ export interface SidebarNavItem {
 export interface SidebarSectionHeader {
   kind: 'section';
   title: string;
+  _originalTitle?: string;
 }
 
 export interface SidebarDivider {
@@ -89,7 +90,7 @@ function applyLabels(entries: SidebarEntry[], labels: Record<string, string>): S
     const custom = labels[key];
     if (!custom) return e;
     if (e.kind === 'item') return { ...e, label: custom };
-    if (e.kind === 'section') return { ...e, title: custom };
+    if (e.kind === 'section') return { ...e, _originalTitle: e._originalTitle ?? e.title, title: custom };
     return e;
   });
 }
@@ -97,7 +98,7 @@ function applyLabels(entries: SidebarEntry[], labels: Record<string, string>): S
 export function entryKey(e: SidebarEntry): string {
   switch (e.kind) {
     case 'item': return `item:${e.id}`;
-    case 'section': return `section:${e.title}`;
+    case 'section': return `section:${e._originalTitle ?? e.title}`;
     case 'divider': return `divider:${e.afterSection}`;
   }
 }

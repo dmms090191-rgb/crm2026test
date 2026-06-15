@@ -1,11 +1,12 @@
 import { useState, useMemo } from 'react';
-import { LayoutDashboard, Users, UserCog, Shield, Smartphone, Globe } from 'lucide-react';
+import { LayoutDashboard, Users, UserCog, Shield, Smartphone, Globe, Eye, EyeOff } from 'lucide-react';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
 import { useSidebarOrder } from '../../hooks/useSidebarOrder';
 import SidebarReorderControls from '../../components/SidebarReorderControls';
 import SidebarFooterActions from '../../components/layout/SidebarFooterActions';
-import type { SidebarSection } from '../../lib/sidebarOrderTypes';
+import type { SidebarSection, SidebarEntry } from '../../lib/sidebarOrderTypes';
 import type { ImpersonatedCompanySuperAdmin } from '../../App';
+import { usePanelHiddenTabs } from '../../hooks/usePanelHiddenTabs';
 
 export type CSAView = 'overview' | 'admins' | 'info' | 'application' | 'site';
 
@@ -15,7 +16,7 @@ const DEFAULT_SECTIONS: SidebarSection[] = [
     items: [
       { id: 'overview', label: 'Dashboard', icon: <LayoutDashboard className="w-4 h-4" /> },
       { id: 'info', label: 'Info Super Admin', icon: <UserCog className="w-4 h-4" /> },
-      { id: 'admins', label: 'Liste des admins', icon: <Users className="w-4 h-4" /> },
+      { id: 'admins', label: 'Liste des distributeurs', icon: <Users className="w-4 h-4" /> },
       { id: 'application', label: 'Application', icon: <Smartphone className="w-4 h-4" /> },
       { id: 'site', label: 'Site', icon: <Globe className="w-4 h-4" /> },
     ],
@@ -31,6 +32,11 @@ interface CSASidebarProps {
   impersonated: ImpersonatedCompanySuperAdmin;
   isImpersonation: boolean;
   onBackToRoisAdmin?: () => void;
+  visuBadgeLabel?: string;
+  backLabel?: string;
+  canHideTabs?: boolean;
+  hideTabsTargetName?: string;
+  hideTabsTargetUserId?: string | null;
   logoZoneRef?: React.RefObject<HTMLDivElement | null>;
   sidebarBodyRef?: React.RefObject<HTMLDivElement | null>;
   zone1Bg?: string;
@@ -39,9 +45,11 @@ interface CSASidebarProps {
 
 export default function CSASidebar({
   activeView, onNavigate, collapsed, onCollapse, onLogout,
-  impersonated, isImpersonation, onBackToRoisAdmin, logoZoneRef, sidebarBodyRef, zone1Bg, zone2Bg,
+  impersonated, isImpersonation, onBackToRoisAdmin, visuBadgeLabel, backLabel, canHideTabs, hideTabsTargetName, hideTabsTargetUserId, logoZoneRef, sidebarBodyRef, zone1Bg, zone2Bg,
 }: CSASidebarProps) {
   const t = useThemeTokens();
+  const { hiddenTabs, loaded: hiddenTabsLoaded, toggle: toggleHiddenTab } = usePanelHiddenTabs('company_super_admin', impersonated.company_id, hideTabsTargetUserId);
+  const [hideEditMode, setHideEditMode] = useState(false);
   const sections = useMemo(() => DEFAULT_SECTIONS, []);
   const order = useSidebarOrder({
     role: 'company_super_admin',
@@ -78,8 +86,11 @@ export default function CSASidebar({
       </div>
 
       <div ref={sidebarBodyRef} className="flex-1 flex flex-col min-h-0" style={{ background: zone2Bg || t.sidebar.bg }}>
+        {!hiddenTabsLoaded ? (
+          <CSASidebarSkeleton collapsed={collapsed} tokens={t} />
+        ) : (
         <SidebarReorderControls
-          entries={order.entries}
+          entries={hideEditMode ? order.entries : filterHidden(order.entries, hiddenTabs)}
           reordering={order.reordering}
           collapsed={collapsed}
           activeId={activeView}
@@ -107,11 +118,15 @@ export default function CSASidebar({
               icon={entry.icon}
               isActive={isActive}
               collapsed={collapsed}
-              onClick={() => onNavigate(entry.id as CSAView)}
+              onClick={() => { if (!hideEditMode) onNavigate(entry.id as CSAView); }}
               tokens={t.sidebar}
+              hideEditMode={hideEditMode}
+              isHidden={hiddenTabs.has(entry.id)}
+              onToggleHide={() => toggleHiddenTab(entry.id)}
             />
           )}
         />
+        )}
 
         <SidebarFooterActions
           collapsed={collapsed}
@@ -121,33 +136,93 @@ export default function CSASidebar({
           reordering={order.reordering}
           tokens={t}
           onBackToRoisAdmin={onBackToRoisAdmin}
+          visuBadgeLabel={visuBadgeLabel}
+          backLabel={backLabel}
+          onHideTabs={canHideTabs ? () => setHideEditMode(prev => !prev) : undefined}
+          hideEditMode={hideEditMode}
         />
       </div>
     </aside>
   );
 }
 
-function CSANavItem({ id, label, icon, isActive, collapsed, onClick, tokens }: {
+function filterHidden(entries: SidebarEntry[], hidden: Set<string>): SidebarEntry[] {
+  if (hidden.size === 0) return entries;
+  const filtered = entries.filter(e => e.kind !== 'item' || !hidden.has(e.id));
+  const result: SidebarEntry[] = [];
+  for (let i = 0; i < filtered.length; i++) {
+    const cur = filtered[i];
+    if (cur.kind === 'section') { const next = filtered[i + 1]; if (!next || next.kind === 'section' || next.kind === 'divider') continue; }
+    if (cur.kind === 'divider') { const next = filtered[i + 1]; if (!next || next.kind === 'divider') continue; }
+    result.push(cur);
+  }
+  if (result.length > 0 && result[result.length - 1].kind === 'divider') result.pop();
+  return result;
+}
+
+function CSASidebarSkeleton({ collapsed, tokens: t }: { collapsed: boolean; tokens: ReturnType<typeof useThemeTokens> }) {
+  const rows = collapsed ? [1,2,3,4] : [1,2,3,4,5];
+  return (
+    <div className="flex-1 overflow-hidden py-3 px-2 space-y-1.5">
+      {rows.map(i => (
+        <div key={i} className={`flex items-center rounded-lg ${collapsed ? 'justify-center py-2.5 px-1' : 'gap-3 px-3 py-2'}`}>
+          <div className="w-4 h-4 rounded flex-shrink-0" style={{ background: t.sidebar.divider, opacity: 0.4 }} />
+          {!collapsed && <div className="h-3 rounded flex-1" style={{ background: t.sidebar.divider, opacity: 0.3, maxWidth: `${50 + (i % 3) * 20}%` }} />}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function CSANavItem({ id, label, icon, isActive, collapsed, onClick, tokens, hideEditMode, isHidden, onToggleHide }: {
   id: string; label: string; icon: React.ReactNode; isActive: boolean; collapsed: boolean;
   onClick: () => void;
   tokens: ReturnType<typeof useThemeTokens>['sidebar'];
+  hideEditMode?: boolean;
+  isHidden?: boolean;
+  onToggleHide?: () => void;
 }) {
   const [hovered, setHovered] = useState(false);
+  const [eyeHovered, setEyeHovered] = useState(false);
+  const dimmed = hideEditMode && isHidden;
+
   return (
-    <button
-      onClick={onClick}
-      title={collapsed ? label : undefined}
+    <div
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       className={`w-full flex items-center gap-2.5 rounded-lg transition-all duration-150 mb-0.5 ${collapsed ? 'justify-center px-2 py-2' : 'px-2.5 py-[7px]'}`}
       style={{
-        background: isActive ? tokens.activeItemBg : hovered ? 'rgba(255,255,255,0.04)' : 'transparent',
-        color: isActive ? tokens.activeItemText : hovered ? tokens.itemTextHover : tokens.itemText,
-        boxShadow: isActive ? tokens.activeItemShadow : 'none',
+        background: isActive && !hideEditMode ? tokens.activeItemBg : hovered && !hideEditMode ? 'rgba(255,255,255,0.04)' : 'transparent',
+        color: dimmed ? tokens.itemText : (isActive ? tokens.activeItemText : hovered ? tokens.itemTextHover : tokens.itemText),
+        boxShadow: isActive && !hideEditMode ? tokens.activeItemShadow : 'none',
+        opacity: dimmed ? 0.4 : 1,
+        cursor: hideEditMode ? 'default' : 'pointer',
       }}
     >
-      <span className="flex-shrink-0">{icon}</span>
-      {!collapsed && <span className="text-[12.5px] font-medium truncate">{label}</span>}
-    </button>
+      <button
+        onClick={onClick}
+        title={collapsed ? label : undefined}
+        className={`flex items-center gap-2.5 min-w-0 flex-1 ${hideEditMode ? 'pointer-events-none' : ''}`}
+        tabIndex={hideEditMode ? -1 : 0}
+      >
+        <span className="flex-shrink-0">{icon}</span>
+        {!collapsed && <span className="text-[12.5px] font-medium truncate">{label}</span>}
+      </button>
+      {hideEditMode && !collapsed && (
+        <button
+          onClick={e => { e.stopPropagation(); onToggleHide?.(); }}
+          onMouseEnter={() => setEyeHovered(true)}
+          onMouseLeave={() => setEyeHovered(false)}
+          className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-md ml-auto transition-all duration-150"
+          style={{
+            background: eyeHovered ? (isHidden ? 'rgba(239,68,68,0.12)' : 'rgba(34,197,94,0.10)') : 'transparent',
+            color: isHidden ? '#ef4444' : eyeHovered ? '#22c55e' : tokens.itemText,
+          }}
+          title={isHidden ? 'Afficher' : 'Masquer'}
+        >
+          {isHidden ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+        </button>
+      )}
+    </div>
   );
 }

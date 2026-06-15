@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { LayoutDashboard, Shield, UserCog, BookOpen, Monitor, HardDriveDownload, MessageSquare, CircleUser as UserCircle, FlaskConical, Building2, Settings, Bot, Globe, Blocks, LayoutTemplate, Brain, Image as ImageIcon, TrendingUp, GraduationCap, Smartphone, Palette, Sparkles, CopySlash, FolderOpen } from 'lucide-react';
+import { LayoutDashboard, Shield, UserCog, BookOpen, Monitor, HardDriveDownload, MessageSquare, CircleUser as UserCircle, FlaskConical, Building2, Settings, Bot, Globe, Blocks, LayoutTemplate, Brain, Image as ImageIcon, TrendingUp, GraduationCap, Smartphone, Palette, Sparkles, CopySlash, FolderOpen, Eye, EyeOff, Lock } from 'lucide-react';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
 import { useSidebarOrder } from '../../hooks/useSidebarOrder';
 import { useActiveLogo } from '../../hooks/useActiveLogo';
@@ -10,8 +10,7 @@ import { supabase } from '../../lib/supabase';
 import { useEditorModeSafe, resolveTextColor, resolveTypography } from '../../contexts/EditorModeContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { ensureGoogleFont } from '../../components/editor/EditorTypographyPanel';
-import { useSAHiddenTabs } from './useSAHiddenTabs';
-import SAHideTabsModal from './SAHideTabsModal';
+import { useSAHiddenTabs, isProtectedTab } from './useSAHiddenTabs';
 
 export type SAView = 'dashboard' | 'super-admins' | 'admins' | 'chat-admin' | 'documentation-crm' | 'system' | 'sauvegarde' | 'mon-compte' | 'tests-systeme' | 'crm-societe' | 'statuts' | 'api-ia' | 'cerveau-ia' | 'sites' | 'fonctions-talvex' | 'site-talvex' | 'logo' | 'ameliorations' | 'tuto' | 'application' | 'themes' | 'editeur-ia' | 'calquer-logo' | 'mes-logos-ra';
 
@@ -99,7 +98,7 @@ export default function SuperAdminSidebar({ activeView, onNavigate, collapsed, o
 
   const { url: activeLogo, scale: logoScale } = useActiveLogo(companyId);
   const { hiddenTabs, toggle: toggleHiddenTab } = useSAHiddenTabs(userId);
-  const [hideTabsModalOpen, setHideTabsModalOpen] = useState(false);
+  const [hideEditMode, setHideEditMode] = useState(false);
 
   const sections = useMemo(() => DEFAULT_SECTIONS, []);
   const order = useSidebarOrder({ role: 'super_admin', sections, userId });
@@ -167,7 +166,7 @@ export default function SuperAdminSidebar({ activeView, onNavigate, collapsed, o
         style={{ background: editorZone2Bg || t.sidebar.bg }}
       >
         <SidebarReorderControls
-          entries={order.reordering ? order.entries : filterHiddenEntries(order.entries, hiddenTabs)}
+          entries={order.reordering || hideEditMode ? order.entries : filterHiddenEntries(order.entries, hiddenTabs)}
           reordering={order.reordering} collapsed={collapsed}
           activeId={activeView} onNavigate={id => onNavigate(id as SAView)}
           startReorder={order.startReorder} cancelReorder={order.cancelReorder} confirmReorder={order.confirmReorder}
@@ -179,7 +178,15 @@ export default function SuperAdminSidebar({ activeView, onNavigate, collapsed, o
           sectionColorMap={sectionColorMap}
           sectionFontFamily={categoryFont}
           renderItem={(entry, isActive) => (
-            <SAItem id={entry.id} label={entry.label} icon={entry.icon} isActive={isActive} collapsed={collapsed} onClick={() => onNavigate(entry.id as SAView)} tokens={t.sidebar} editorCtx={editorCtx} mergedTextOverrides={mergedTextOverrides} itemFontFamily={itemFont} />
+            <SAItem
+              id={entry.id} label={entry.label} icon={entry.icon} isActive={isActive} collapsed={collapsed}
+              onClick={() => { if (!hideEditMode) onNavigate(entry.id as SAView); }}
+              tokens={t.sidebar} editorCtx={editorCtx} mergedTextOverrides={mergedTextOverrides} itemFontFamily={itemFont}
+              hideEditMode={hideEditMode}
+              isHidden={hiddenTabs.has(entry.id)}
+              isProtected={isProtectedTab(entry.id)}
+              onToggleHide={() => toggleHiddenTab(entry.id)}
+            />
           )}
         />
 
@@ -191,17 +198,10 @@ export default function SuperAdminSidebar({ activeView, onNavigate, collapsed, o
           reordering={order.reordering}
           tokens={t}
           rdrFontFamily={rdrFont}
-          onHideTabs={() => setHideTabsModalOpen(true)}
+          onHideTabs={() => setHideEditMode(prev => !prev)}
+          hideEditMode={hideEditMode}
         />
       </div>
-
-      <SAHideTabsModal
-        open={hideTabsModalOpen}
-        onClose={() => setHideTabsModalOpen(false)}
-        sections={DEFAULT_SECTIONS}
-        hiddenTabs={hiddenTabs}
-        onToggle={toggleHiddenTab}
-      />
     </aside>
   );
 }
@@ -226,27 +226,88 @@ function filterHiddenEntries(entries: import('../../lib/sidebarOrderTypes').Side
   return result;
 }
 
-function SAItem({ id, label, icon, isActive, collapsed, onClick, tokens, editorCtx, mergedTextOverrides, itemFontFamily }: {
+function SAItem({ id, label, icon, isActive, collapsed, onClick, tokens, editorCtx, mergedTextOverrides, itemFontFamily, hideEditMode, isHidden, isProtected: locked, onToggleHide }: {
   id: string; label: string; icon: React.ReactNode; isActive: boolean; collapsed: boolean; onClick: () => void;
   tokens: ReturnType<typeof useThemeTokens>['sidebar'];
   editorCtx: ReturnType<typeof useEditorModeSafe>;
   mergedTextOverrides: Record<string, string>;
   itemFontFamily?: string;
+  hideEditMode?: boolean;
+  isHidden?: boolean;
+  isProtected?: boolean;
+  onToggleHide?: () => void;
 }) {
   const [hovered, setHovered] = useState(false);
+  const [eyeHovered, setEyeHovered] = useState(false);
   const textColorOverride = resolveTextColor(`item:${id}`, mergedTextOverrides, editorCtx?.textPreview || {});
   const baseColor = isActive ? tokens.activeItemText : hovered ? tokens.itemTextHover : tokens.itemText;
   const finalColor = textColorOverride || baseColor;
 
+  const dimmed = hideEditMode && isHidden;
+
   return (
-    <button onClick={onClick} title={collapsed ? label : undefined} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
-      data-testid={id === 'admins' ? 'liste-admins-tab' : undefined}
-      data-sidebar-item={id}
-      className={`w-full flex items-center gap-2.5 rounded-lg transition-all duration-150 mb-0.5 ${collapsed ? 'justify-center px-2 py-2' : 'px-2.5 py-[7px]'}`}
-      style={{ background: isActive ? tokens.activeItemBg : hovered ? 'rgba(255,255,255,0.04)' : 'transparent', color: finalColor, boxShadow: isActive ? tokens.activeItemShadow : 'none' }}>
-      <span className="flex-shrink-0">{icon}</span>
-      {!collapsed && <span className="text-[12.5px] font-medium truncate" style={{ fontFamily: itemFontFamily ? `"${itemFontFamily}", sans-serif` : undefined }}>{label}</span>}
-    </button>
+    <div
+      className={`w-full flex items-center rounded-lg transition-all duration-150 mb-0.5 ${collapsed ? 'justify-center px-2 py-2' : 'px-2.5 py-[7px]'}`}
+      style={{
+        background: isActive && !hideEditMode ? tokens.activeItemBg : hovered && !hideEditMode ? 'rgba(255,255,255,0.04)' : hideEditMode ? 'transparent' : 'transparent',
+        opacity: dimmed ? 0.4 : 1,
+        boxShadow: isActive && !hideEditMode ? tokens.activeItemShadow : 'none',
+        cursor: hideEditMode ? 'default' : 'pointer',
+      }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      <button
+        onClick={onClick}
+        title={collapsed ? label : undefined}
+        data-testid={id === 'admins' ? 'liste-admins-tab' : undefined}
+        data-sidebar-item={id}
+        className={`flex items-center gap-2.5 min-w-0 flex-1 ${hideEditMode ? 'pointer-events-none' : ''}`}
+        style={{ color: dimmed ? tokens.itemText : finalColor }}
+        tabIndex={hideEditMode ? -1 : 0}
+      >
+        <span className="flex-shrink-0">{icon}</span>
+        {!collapsed && <span className="text-[12.5px] font-medium truncate" style={{ fontFamily: itemFontFamily ? `"${itemFontFamily}", sans-serif` : undefined }}>{label}</span>}
+      </button>
+
+      {hideEditMode && !collapsed && (
+        locked ? (
+          <span className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-md ml-1" style={{ color: tokens.itemText, opacity: 0.35 }} title="Protege">
+            <Lock className="w-3.5 h-3.5" />
+          </span>
+        ) : (
+          <button
+            onClick={e => { e.stopPropagation(); onToggleHide?.(); }}
+            onMouseEnter={() => setEyeHovered(true)}
+            onMouseLeave={() => setEyeHovered(false)}
+            className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-md ml-1 transition-all duration-150"
+            style={{
+              background: eyeHovered ? (isHidden ? 'rgba(239,68,68,0.12)' : 'rgba(34,197,94,0.10)') : 'transparent',
+              color: isHidden ? '#ef4444' : eyeHovered ? '#22c55e' : tokens.itemText,
+            }}
+            title={isHidden ? 'Afficher' : 'Masquer'}
+          >
+            {isHidden ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+          </button>
+        )
+      )}
+
+      {hideEditMode && collapsed && (
+        !locked ? (
+          <button
+            onClick={e => { e.stopPropagation(); onToggleHide?.(); }}
+            className="absolute right-0.5 top-0.5 w-4 h-4 flex items-center justify-center rounded-full transition-colors"
+            style={{
+              background: isHidden ? 'rgba(239,68,68,0.2)' : 'rgba(34,197,94,0.15)',
+              color: isHidden ? '#ef4444' : '#22c55e',
+            }}
+            title={isHidden ? 'Afficher' : 'Masquer'}
+          >
+            {isHidden ? <EyeOff className="w-2.5 h-2.5" /> : <Eye className="w-2.5 h-2.5" />}
+          </button>
+        ) : null
+      )}
+    </div>
   );
 }
 

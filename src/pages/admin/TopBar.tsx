@@ -6,7 +6,7 @@ import { getCurrentTime } from '../../lib/timezone';
 import TimezoneModal from '../../components/TimezoneSearchDropdown';
 import { ClockButton, ProfileMenu } from './components/topbar';
 import AdminMobileBellMenu from './components/topbar/AdminMobileBellMenu';
-import AdminDesktopNotifPill from './components/topbar/AdminDesktopNotifPill';
+import AdminNotificationsHub from './components/topbar/AdminNotificationsHub';
 import { PhoneButton, EditorButton } from './components/topbar/TopBarActionButtons';
 import FloatingPhoneWindow from '../../components/FloatingPhoneWindow';
 import { useFloatingPhoneState } from '../../components/useFloatingPhoneState';
@@ -86,29 +86,11 @@ interface TopBarProps {
 export default function TopBar({ breadcrumb, onMobileMenuToggle, adminName = 'Administrateur', unreadClientCount = 0, unreadClientEntries = [], onClientEntryClick, unreadVendorCount = 0, unreadVendorEntries = [], onVendorEntryClick, unreadSuperAdminCount = 0, onSuperAdminClick, agendaPersoCount = 0, agendaPersoEntries = [], onAgendaPersoEntryClick, agendaEquipeCount = 0, agendaEquipeEntries = [], onAgendaEquipeEntryClick, proposalsCount = 0, proposalsEntries = [], onProposalEntryClick, confirmedCount = 0, confirmedEntries = [], onConfirmedEntryClick, rescheduleCount = 0, rescheduleEntries = [], onRescheduleEntryClick, rescheduleRequestCount = 0, rescheduleRequestEntries = [], onRescheduleRequestEntryClick, impersonatedAdmin, onBackToSuperAdmin, demoSlot, demoStatus = 'idle', appIconUrl, appName, topbarRef, editorZone3Bg }: TopBarProps) {
   const { timezone, tzLabel, tzCode, setTimezone } = useTimezone();
   const t = useThemeTokens();
-  const [clientDropdownOpen, setClientDropdownOpen] = useState(false);
-  const [vendorDropdownOpen, setVendorDropdownOpen] = useState(false);
-  const [superAdminDropdownOpen, setSuperAdminDropdownOpen] = useState(false);
-  const [agendaDropdownOpen, setAgendaDropdownOpen] = useState(false);
-  const [equipeDropdownOpen, setEquipeDropdownOpen] = useState(false);
-  const [proposDropdownOpen, setProposDropdownOpen] = useState(false);
-  const [confirmedDropdownOpen, setConfirmedDropdownOpen] = useState(false);
-  const [rescheduleDropdownOpen, setRescheduleDropdownOpen] = useState(false);
-  const [rescheduleReqDropdownOpen, setRescheduleReqDropdownOpen] = useState(false);
   const [mobileNotifOpen, setMobileNotifOpen] = useState(false);
   const [mobileNotifCategory, setMobileNotifCategory] = useState<string | null>(null);
   const [tzModalOpen, setTzModalOpen] = useState(false);
   const phone = useFloatingPhoneState();
   const editor = useEditorModeSafe();
-  const clientDropdownRef = useRef<HTMLDivElement>(null);
-  const vendorDropdownRef = useRef<HTMLDivElement>(null);
-  const superAdminDropdownRef = useRef<HTMLDivElement>(null);
-  const agendaDropdownRef = useRef<HTMLDivElement>(null);
-  const equipeDropdownRef = useRef<HTMLDivElement>(null);
-  const proposDropdownRef = useRef<HTMLDivElement>(null);
-  const confirmedDropdownRef = useRef<HTMLDivElement>(null);
-  const rescheduleDropdownRef = useRef<HTMLDivElement>(null);
-  const rescheduleReqDropdownRef = useRef<HTMLDivElement>(null);
   const mobileNotifRef = useRef<HTMLDivElement>(null);
   const mobileNotifPanelRef = useRef<HTMLDivElement>(null);
   const [, setTick] = useState(0);
@@ -120,15 +102,6 @@ export default function TopBar({ breadcrumb, onMobileMenuToggle, adminName = 'Ad
   useEffect(() => {
     const outside = (e: MouseEvent) => {
       const tgt = e.target as Node;
-      if (clientDropdownRef.current && !clientDropdownRef.current.contains(tgt)) setClientDropdownOpen(false);
-      if (vendorDropdownRef.current && !vendorDropdownRef.current.contains(tgt)) setVendorDropdownOpen(false);
-      if (superAdminDropdownRef.current && !superAdminDropdownRef.current.contains(tgt)) setSuperAdminDropdownOpen(false);
-      if (agendaDropdownRef.current && !agendaDropdownRef.current.contains(tgt)) setAgendaDropdownOpen(false);
-      if (equipeDropdownRef.current && !equipeDropdownRef.current.contains(tgt)) setEquipeDropdownOpen(false);
-      if (proposDropdownRef.current && !proposDropdownRef.current.contains(tgt)) setProposDropdownOpen(false);
-      if (confirmedDropdownRef.current && !confirmedDropdownRef.current.contains(tgt)) setConfirmedDropdownOpen(false);
-      if (rescheduleDropdownRef.current && !rescheduleDropdownRef.current.contains(tgt)) setRescheduleDropdownOpen(false);
-      if (rescheduleReqDropdownRef.current && !rescheduleReqDropdownRef.current.contains(tgt)) setRescheduleReqDropdownOpen(false);
       if (mobileNotifRef.current && !mobileNotifRef.current.contains(tgt) && (!mobileNotifPanelRef.current || !mobileNotifPanelRef.current.contains(tgt))) setMobileNotifOpen(false);
     };
     document.addEventListener('mousedown', outside);
@@ -159,7 +132,7 @@ export default function TopBar({ breadcrumb, onMobileMenuToggle, adminName = 'Ad
       <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
         <AdminMobileBellMenu open={mobileNotifOpen} setOpen={setMobileNotifOpen} category={mobileNotifCategory} setCategory={setMobileNotifCategory} totalNotifCount={totalNotifCount} unreadClientCount={unreadClientCount} unreadClientEntries={unreadClientEntries} onClientEntryClick={onClientEntryClick} unreadVendorCount={unreadVendorCount} unreadVendorEntries={unreadVendorEntries} onVendorEntryClick={onVendorEntryClick} unreadSuperAdminCount={unreadSuperAdminCount} onSuperAdminClick={onSuperAdminClick} agendaPersoCount={agendaPersoCount} agendaPersoEntries={agendaPersoEntries} onAgendaPersoEntryClick={onAgendaPersoEntryClick} agendaEquipeCount={agendaEquipeCount} agendaEquipeEntries={agendaEquipeEntries} onAgendaEquipeEntryClick={onAgendaEquipeEntryClick} proposalsCount={proposalsCount} proposalsEntries={proposalsEntries} onProposalEntryClick={onProposalEntryClick} confirmedCount={confirmedCount} confirmedEntries={confirmedEntries} onConfirmedEntryClick={onConfirmedEntryClick} rescheduleCount={rescheduleCount} rescheduleEntries={rescheduleEntries} onRescheduleEntryClick={onRescheduleEntryClick} rescheduleRequestCount={rescheduleRequestCount} rescheduleRequestEntries={rescheduleRequestEntries} onRescheduleRequestEntryClick={onRescheduleRequestEntryClick} timezone={timezone} tokens={t} containerRef={mobileNotifRef} panelRef={mobileNotifPanelRef} />
 
-        <AdminDesktopNotifPill clientDropdownOpen={clientDropdownOpen} setClientDropdownOpen={setClientDropdownOpen} vendorDropdownOpen={vendorDropdownOpen} setVendorDropdownOpen={setVendorDropdownOpen} agendaDropdownOpen={agendaDropdownOpen} setAgendaDropdownOpen={setAgendaDropdownOpen} equipeDropdownOpen={equipeDropdownOpen} setEquipeDropdownOpen={setEquipeDropdownOpen} proposDropdownOpen={proposDropdownOpen} setProposDropdownOpen={setProposDropdownOpen} confirmedDropdownOpen={confirmedDropdownOpen} setConfirmedDropdownOpen={setConfirmedDropdownOpen} rescheduleDropdownOpen={rescheduleDropdownOpen} setRescheduleDropdownOpen={setRescheduleDropdownOpen} clientDropdownRef={clientDropdownRef} vendorDropdownRef={vendorDropdownRef} agendaDropdownRef={agendaDropdownRef} equipeDropdownRef={equipeDropdownRef} proposDropdownRef={proposDropdownRef} confirmedDropdownRef={confirmedDropdownRef} rescheduleDropdownRef={rescheduleDropdownRef} rescheduleReqDropdownOpen={rescheduleReqDropdownOpen} setRescheduleReqDropdownOpen={setRescheduleReqDropdownOpen} rescheduleReqDropdownRef={rescheduleReqDropdownRef} unreadClientCount={unreadClientCount} unreadClientEntries={unreadClientEntries} onClientEntryClick={onClientEntryClick} unreadVendorCount={unreadVendorCount} unreadVendorEntries={unreadVendorEntries} onVendorEntryClick={onVendorEntryClick} agendaPersoCount={agendaPersoCount} agendaPersoEntries={agendaPersoEntries} onAgendaPersoEntryClick={onAgendaPersoEntryClick} agendaEquipeCount={agendaEquipeCount} agendaEquipeEntries={agendaEquipeEntries} onAgendaEquipeEntryClick={onAgendaEquipeEntryClick} proposalsCount={proposalsCount} proposalsEntries={proposalsEntries} onProposalEntryClick={onProposalEntryClick} confirmedCount={confirmedCount} confirmedEntries={confirmedEntries} onConfirmedEntryClick={onConfirmedEntryClick} rescheduleCount={rescheduleCount} rescheduleEntries={rescheduleEntries} onRescheduleEntryClick={onRescheduleEntryClick} rescheduleRequestCount={rescheduleRequestCount} rescheduleRequestEntries={rescheduleRequestEntries} onRescheduleRequestEntryClick={onRescheduleRequestEntryClick} unreadSuperAdminCount={unreadSuperAdminCount} superAdminDropdownOpen={superAdminDropdownOpen} setSuperAdminDropdownOpen={setSuperAdminDropdownOpen} superAdminDropdownRef={superAdminDropdownRef} onSuperAdminClick={onSuperAdminClick} tokens={t} />
+        <AdminNotificationsHub unreadClientCount={unreadClientCount} unreadClientEntries={unreadClientEntries} onClientEntryClick={onClientEntryClick} unreadVendorCount={unreadVendorCount} unreadVendorEntries={unreadVendorEntries} onVendorEntryClick={onVendorEntryClick} unreadSuperAdminCount={unreadSuperAdminCount} onSuperAdminClick={onSuperAdminClick} agendaPersoCount={agendaPersoCount} agendaPersoEntries={agendaPersoEntries} onAgendaPersoEntryClick={onAgendaPersoEntryClick} agendaEquipeCount={agendaEquipeCount} agendaEquipeEntries={agendaEquipeEntries} onAgendaEquipeEntryClick={onAgendaEquipeEntryClick} proposalsCount={proposalsCount} proposalsEntries={proposalsEntries} onProposalEntryClick={onProposalEntryClick} confirmedCount={confirmedCount} confirmedEntries={confirmedEntries} onConfirmedEntryClick={onConfirmedEntryClick} rescheduleCount={rescheduleCount} rescheduleEntries={rescheduleEntries} onRescheduleEntryClick={onRescheduleEntryClick} rescheduleRequestCount={rescheduleRequestCount} rescheduleRequestEntries={rescheduleRequestEntries} onRescheduleRequestEntryClick={onRescheduleRequestEntryClick} tokens={t} />
 
         <PhoneButton open={phone.open} minimized={phone.minimized} onToggleMinimize={phone.toggleMinimize} onOpen={phone.openPhone} />
 

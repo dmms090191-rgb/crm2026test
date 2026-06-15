@@ -23,6 +23,7 @@ function formatBadge(n: number): string {
 
 export default function TopBarOverflowMenu({ items, tokens: t }: Props) {
   const [open, setOpen] = useState(false);
+  const [hovered, setHovered] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -41,20 +42,28 @@ export default function TopBarOverflowMenu({ items, tokens: t }: Props) {
     <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen(prev => !prev)}
-        className="relative flex items-center gap-1 px-1.5 py-1 rounded-md transition-all duration-200"
-        style={{ color: t.topbar.notifIcon }}
-        onMouseEnter={e => { e.currentTarget.style.background = t.surface.hover; e.currentTarget.style.color = t.topbar.notifIconHover; }}
-        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = t.topbar.notifIcon; }}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        className="relative flex items-center gap-1.5 px-2 py-1.5 rounded-lg transition-all duration-200"
+        style={{
+          color: hovered ? t.topbar.notifIconHover : t.topbar.notifIcon,
+          background: hovered ? 'rgba(148,163,184,0.08)' : 'rgba(148,163,184,0.03)',
+          border: `1px solid ${hovered ? 'rgba(148,163,184,0.12)' : 'rgba(148,163,184,0.06)'}`,
+        }}
       >
         <MoreHorizontal className="w-4 h-4" />
-        <span className="text-[10px] font-medium hidden xl:block"
-          style={{ color: t.topbar.notifLabel }}>Plus</span>
+        <span
+          className="text-[10.5px] font-medium hidden lg:block"
+          style={{ color: t.topbar.notifLabel }}
+        >
+          Plus
+        </span>
         {totalHidden > 0 && (
           <span
-            className="absolute -top-1 -right-1 flex items-center justify-center min-w-[14px] h-3.5 px-0.5 rounded-full text-[8px] font-bold text-white"
+            className="absolute -top-1.5 -right-1.5 flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full text-[9px] font-bold text-white"
             style={{
               background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
-              boxShadow: '0 0 6px rgba(239,68,68,0.4), 0 1px 3px rgba(0,0,0,0.3)',
+              boxShadow: '0 0 8px rgba(239,68,68,0.4), 0 1px 3px rgba(0,0,0,0.2)',
             }}
           >
             {formatBadge(totalHidden)}
@@ -79,34 +88,44 @@ export default function TopBarOverflowMenu({ items, tokens: t }: Props) {
           </div>
           <div className="py-1">
             {items.map(item => (
-              <button
-                key={item.key}
-                onClick={() => { setOpen(false); item.onClick(); }}
-                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs transition-colors duration-150"
-                style={{ color: t.dropdown.itemText }}
-                onMouseEnter={e => { e.currentTarget.style.background = t.dropdown.itemBgHover; e.currentTarget.style.color = t.dropdown.itemTextHover; }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = t.dropdown.itemText; }}
-              >
-                <span className="relative flex-shrink-0">
-                  {item.icon}
-                  {item.count > 0 && (
-                    <span
-                      className="absolute -top-1.5 -right-1.5 flex items-center justify-center min-w-[14px] h-3.5 px-0.5 rounded-full text-[8px] font-bold text-white"
-                      style={{
-                        background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
-                        boxShadow: '0 0 6px rgba(239,68,68,0.4)',
-                      }}
-                    >
-                      {formatBadge(item.count)}
-                    </span>
-                  )}
-                </span>
-                <span className="font-medium">{item.label}</span>
-              </button>
+              <OverflowRow key={item.key} item={item} tokens={t} onClose={() => setOpen(false)} />
             ))}
           </div>
         </div>
       )}
     </div>
+  );
+}
+
+function OverflowRow({ item, tokens: t, onClose }: { item: OverflowItem; tokens: ThemeTokens; onClose: () => void }) {
+  const [hovered, setHovered] = useState(false);
+
+  return (
+    <button
+      onClick={() => { onClose(); item.onClick(); }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs transition-all duration-150"
+      style={{
+        color: hovered ? t.dropdown.itemTextHover : t.dropdown.itemText,
+        background: hovered ? t.dropdown.itemBgHover : 'transparent',
+      }}
+    >
+      <span className="relative flex-shrink-0">
+        {item.icon}
+        {item.count > 0 && (
+          <span
+            className="absolute -top-1.5 -right-1.5 flex items-center justify-center min-w-[14px] h-3.5 px-0.5 rounded-full text-[8px] font-bold text-white"
+            style={{
+              background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+              boxShadow: '0 0 6px rgba(239,68,68,0.4)',
+            }}
+          >
+            {formatBadge(item.count)}
+          </span>
+        )}
+      </span>
+      <span className="font-medium">{item.label}</span>
+    </button>
   );
 }

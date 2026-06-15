@@ -244,14 +244,14 @@ function ClockButton({ tzLabel, tzCode, clock, onClick, innerRef, vcStyle }: { t
     <button
       ref={innerRef}
       onClick={onClick}
-      className="flex items-center gap-2 ml-2 px-3 py-1.5 rounded-xl transition-all duration-200"
+      className="flex items-center gap-1 sm:gap-2 ml-1 sm:ml-2 px-2 sm:px-3 py-1.5 rounded-xl transition-all duration-200"
       style={{ background: bg, border: bd, ...vcStyle }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      <Clock className="w-3.5 h-3.5" style={{ color: vcStyle?.color ?? '#f59e0b' }} />
-      <span className="text-xs font-medium hidden sm:block" style={{ color: vcStyle?.color ?? '#64748b' }}>{tzLabel}</span>
-      {tzCode && <span className="text-xs font-medium sm:hidden" style={{ color: vcStyle?.color ?? '#64748b' }}>{tzCode}</span>}
+      <Clock className="w-3.5 h-3.5 flex-shrink-0" style={{ color: vcStyle?.color ?? '#f59e0b' }} />
+      <span className="text-xs font-medium hidden lg:block" style={{ color: vcStyle?.color ?? '#64748b' }}>{tzLabel}</span>
+      {tzCode && <span className="text-xs font-medium hidden sm:block lg:hidden" style={{ color: vcStyle?.color ?? '#64748b' }}>{tzCode}</span>}
       <span className="text-xs font-semibold font-mono" style={{ color: vcStyle?.color ?? '#f59e0b' }}>{clock}</span>
     </button>
   );

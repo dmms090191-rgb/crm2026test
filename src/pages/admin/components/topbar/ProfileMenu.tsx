@@ -51,13 +51,13 @@ export default function ProfileMenu({ adminName, tokens }: ProfileMenuProps) {
 
   return (
     <div
-      className="relative ml-2 pl-4"
+      className="relative ml-1 sm:ml-2 pl-2 sm:pl-4"
       style={{ borderLeft: `1px solid ${t.notifDivider}` }}
       ref={dropdownRef}
     >
       <button
         onClick={() => setDropdownOpen(prev => !prev)}
-        className="flex items-center gap-3 px-3 py-1.5 rounded-xl transition-all duration-200"
+        className="flex items-center gap-1.5 lg:gap-3 px-1.5 sm:px-2 lg:px-3 py-1.5 rounded-xl transition-all duration-200"
         style={{
           background: dropdownOpen ? t.profileBtnBgOpen : t.profileBtnBg,
           border: `1px solid ${t.profileBtnBorder}`,
@@ -70,7 +70,7 @@ export default function ProfileMenu({ adminName, tokens }: ProfileMenuProps) {
         }}
       >
         <div
-          className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold text-white flex-shrink-0"
+          className="w-7 h-7 lg:w-8 lg:h-8 rounded-full flex items-center justify-center text-[10px] lg:text-[11px] font-bold text-white flex-shrink-0"
           style={{
             background: 'linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%)',
             boxShadow: '0 0 12px rgba(14,165,233,0.3)',
@@ -78,12 +78,12 @@ export default function ProfileMenu({ adminName, tokens }: ProfileMenuProps) {
         >
           {initials}
         </div>
-        <div className="hidden lg:block text-left">
+        <div className="hidden xl:block text-left">
           <p data-testid="topbar-admin-name" className="text-xs font-semibold leading-tight" style={{ color: t.profileName }}>{adminName}</p>
           <p className="text-[9px] tracking-wider uppercase" style={{ color: t.profileRole }}>Super Admin</p>
         </div>
         <ChevronDown
-          className={`w-3.5 h-3.5 transition-transform duration-200 hidden lg:block ${dropdownOpen ? 'rotate-180' : ''}`}
+          className={`w-3.5 h-3.5 transition-transform duration-200 hidden xl:block ${dropdownOpen ? 'rotate-180' : ''}`}
           style={{ color: t.chevron }}
         />
       </button>

@@ -21,7 +21,7 @@ export function PhoneButton({ open, minimized, onToggleMinimize, onOpen }: Phone
       title={open ? (minimized ? 'Afficher le telephone' : 'Reduire le telephone') : 'Apercu mobile'}
     >
       <Smartphone className="w-4 h-4 flex-shrink-0" style={{ color: '#0ea5e9' }} />
-      <span className="text-[11px] font-medium hidden sm:inline" style={{ color: '#0ea5e9' }}>
+      <span className="text-[11px] font-medium hidden lg:inline" style={{ color: '#0ea5e9' }}>
         {open && minimized ? 'Tel. ouvert' : 'Mobile'}
       </span>
       {open && minimized && (
@@ -50,7 +50,7 @@ export function EditorButton({ editorOpen, onToggle }: EditorButtonProps) {
       title={editorOpen ? 'Fermer l\'editeur' : 'Ouvrir l\'editeur de fonds'}
     >
       <Paintbrush className="w-4 h-4 flex-shrink-0" style={{ color: '#eab308' }} />
-      <span className="text-[11px] font-medium hidden sm:inline" style={{ color: '#eab308' }}>
+      <span className="text-[11px] font-medium hidden lg:inline" style={{ color: '#eab308' }}>
         Editeur
       </span>
       {editorOpen && (

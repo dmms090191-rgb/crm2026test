@@ -37,7 +37,7 @@ export default function EditorSubModeToolbar({
   return (
     <div
       data-editor-toolbar="true"
-      className="flex-shrink-0 flex items-center gap-2 px-4 py-1.5"
+      className="flex-shrink-0 flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-1.5 overflow-x-auto"
       style={{
         background: 'rgba(10,12,20,0.88)',
         borderBottom: '1px solid rgba(255,255,255,0.06)',
@@ -59,9 +59,9 @@ export default function EditorSubModeToolbar({
 
       <div className="w-px h-4 mx-1" style={{ background: 'rgba(255,255,255,0.08)' }} />
 
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-1.5 flex-shrink-0">
         <Paintbrush className="w-3 h-3" style={{ color: '#60a5fa' }} />
-        <span className="text-[10px] font-bold tracking-wide uppercase" style={{ color: '#60a5fa' }}>
+        <span className="text-[10px] font-bold tracking-wide uppercase hidden sm:block" style={{ color: '#60a5fa' }}>
           {title}
         </span>
       </div>
@@ -122,16 +122,17 @@ export default function EditorSubModeToolbar({
       <SaveSessionBtn status={saveStatus} onClick={handleSave} />
       <button
         onClick={onSaveTheme}
-        className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-semibold transition-all hover:scale-[1.03] active:scale-[0.97]"
+        className="flex items-center gap-1 px-2 sm:px-2.5 py-1 rounded-lg text-[10px] font-semibold transition-all hover:scale-[1.03] active:scale-[0.97] flex-shrink-0"
         style={{
           background: 'rgba(52,211,153,0.12)',
           border: '1px solid rgba(52,211,153,0.25)',
           color: '#34d399',
         }}
+        title={editingThemeKey ? 'Mettre a jour le theme' : 'Enregistrer dans Themes personnalises'}
       >
         <Bookmark className="w-3 h-3" />
-        <span className="hidden sm:inline">
-          {editingThemeKey ? 'Mettre a jour le theme' : 'Enregistrer dans Themes personnalises'}
+        <span className="hidden md:inline">
+          {editingThemeKey ? 'Mettre a jour le theme' : 'Enregistrer theme'}
         </span>
       </button>
     </div>
@@ -150,7 +151,7 @@ function VcSaveAllBtn({ hasPending, onSave }: { hasPending: boolean; onSave: () 
     <button
       onClick={handleClick}
       disabled={status === 'saving' || (!hasPending && status === 'idle')}
-      className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-semibold transition-all hover:scale-[1.03] active:scale-[0.97] disabled:opacity-40"
+      className="flex items-center gap-1 px-2 sm:px-2.5 py-1 rounded-lg text-[10px] font-semibold transition-all hover:scale-[1.03] active:scale-[0.97] disabled:opacity-40 flex-shrink-0"
       style={{
         background: hasPending ? 'linear-gradient(135deg, #06b6d4, #2563eb)' : 'rgba(255,255,255,0.06)',
         border: `1px solid ${hasPending ? 'rgba(34,211,238,0.4)' : 'rgba(255,255,255,0.10)'}`,
@@ -160,7 +161,7 @@ function VcSaveAllBtn({ hasPending, onSave }: { hasPending: boolean; onSave: () 
       title="Sauvegarder toutes les personnalisations"
     >
       <Save className="w-3 h-3" />
-      <span className="hidden sm:inline">
+      <span className="hidden md:inline">
         {status === 'saving' ? 'Sauvegarde...' : status === 'saved' ? 'Sauvegarde !' : 'Sauvegarder'}
       </span>
     </button>

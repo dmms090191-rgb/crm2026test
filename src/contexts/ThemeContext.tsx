@@ -208,8 +208,10 @@ export function ThemeProvider({ children, panelRole, effectiveUserId, companyId 
     return () => { cancelled = true; };
   }, [scopeId]);
 
+  const canPersist = isOwnAccount || scope.kind === 'company';
+
   const persist = useCallback(async (partial: { theme?: Theme; glass_config?: GlassConfig; custom_theme_key?: string | null; custom_theme_overrides?: CustomThemeOverrides | null }) => {
-    if (!isOwnAccount) return;
+    if (!canPersist) return;
     if (scope.kind === 'none') return;
     const run = async () => {
       savingRef.current = true;
@@ -217,7 +219,7 @@ export function ThemeProvider({ children, panelRole, effectiveUserId, companyId 
     };
     if (!savingRef.current) await run();
     else setTimeout(run, 300);
-  }, [isOwnAccount, scope]);
+  }, [canPersist, scope]);
 
   const setTheme = useCallback((t: Theme) => {
     setThemeState(t);

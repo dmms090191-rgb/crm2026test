@@ -43,7 +43,7 @@ export default function AdminDashboard(props: AdminDashboardProps) {
   );
 }
 
-function AdminDashboardInner({ onLogout, onConnectAsVendor, onConnectAsClient, impersonatedAdmin, onBackToSuperAdmin, backLabel, isSAViewing }: AdminDashboardProps) {
+function AdminDashboardInner({ onLogout, onConnectAsVendor, onConnectAsClient, impersonatedAdmin, onBackToSuperAdmin, backLabel, isSAViewing, visuBadgeLabel, canHideTabs, hideTabsTargetName, hideTabsTargetUserId }: AdminDashboardProps) {
   const t = useThemeTokens();
   const companyId = useCompanyId();
   const adminScopeKey = companyId ? `co_${companyId}` : 'co_none';
@@ -156,6 +156,10 @@ function AdminDashboardInner({ onLogout, onConnectAsVendor, onConnectAsClient, i
           sidebarBodyRef={sidebarBodyRef}
           onBackToRoisAdmin={onBackToSuperAdmin}
           backLabel={backLabel}
+          visuBadgeLabel={visuBadgeLabel}
+          canHideTabs={canHideTabs}
+          hideTabsTargetName={hideTabsTargetName}
+          hideTabsTargetUserId={hideTabsTargetUserId}
         />
       </div>
       <div className="flex flex-col flex-1 min-h-0">
