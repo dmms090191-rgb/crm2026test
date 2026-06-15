@@ -18,7 +18,6 @@ export interface AdminDashboardProps {
   onBackToSuperAdmin?: () => void;
   backLabel?: string;
   isSAViewing?: boolean;
-  visuBadgeLabel?: string;
 }
 
 export type ActiveView =

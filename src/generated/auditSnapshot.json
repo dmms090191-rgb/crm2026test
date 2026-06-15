@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-15T09:20:10.344Z",
+  "generatedAt": "2026-06-15T06:30:11.442Z",
   "anyCount": 1,
   "anyOccurrences": [
     {
@@ -19,8 +19,8 @@
     },
     {
       "file": "src/pages/company-super-admin/CompanySuperAdminDashboard.tsx",
-      "lines": 329,
-      "overflow": 29
+      "lines": 320,
+      "overflow": 20
     },
     {
       "file": "src/pages/admin/views/calquer-logo/CalquerLogo.tsx",
@@ -38,7 +38,7 @@
   "eslintErrorCount": 0,
   "eslintWarningCount": 0,
   "eslintIssues": [],
-  "totalFilesAnalyzed": 913,
-  "totalLinesAnalyzed": 123747,
-  "totalOverflowLines": 277
+  "totalFilesAnalyzed": 912,
+  "totalLinesAnalyzed": 123552,
+  "totalOverflowLines": 268
 }

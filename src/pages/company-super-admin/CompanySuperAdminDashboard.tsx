@@ -33,11 +33,9 @@ interface Props {
   impersonated: ImpersonatedCompanySuperAdmin;
   onBack: () => void;
   isImpersonation?: boolean;
-  visuBadgeLabel?: string;
-  backLabel?: string;
 }
 
-export default function CompanySuperAdminDashboard({ impersonated, onBack, isImpersonation = true, visuBadgeLabel, backLabel }: Props) {
+export default function CompanySuperAdminDashboard({ impersonated, onBack, isImpersonation = true }: Props) {
   const [impersonatedAdmin, setImpersonatedAdmin] = useState<ImpersonatedAdmin | null>(null);
 
   const handleConnectAsAdmin = useCallback((admin: CSAAdminUser) => {
@@ -59,7 +57,6 @@ export default function CompanySuperAdminDashboard({ impersonated, onBack, isImp
             onBackToSuperAdmin={() => setImpersonatedAdmin(null)}
             backLabel="Retour Super Admin"
             isSAViewing
-            visuBadgeLabel={visuBadgeLabel || (isImpersonation ? undefined : 'Visu Super Admin')}
           />
         </AppShell>
       </DemoSessionProvider>
@@ -72,7 +69,7 @@ export default function CompanySuperAdminDashboard({ impersonated, onBack, isImp
     <ThemeProvider panelRole="company_super_admin" effectiveUserId={impersonated.id} companyId={impersonated.company_id}>
       <EditorModeProvider scopeKey={scopeKey}>
         <VisualCustomizeProvider scope={vcScope}>
-          <CSADashboardInner impersonated={impersonated} onBack={onBack} isImpersonation={isImpersonation} onConnectAsAdmin={handleConnectAsAdmin} visuBadgeLabel={visuBadgeLabel} backLabel={backLabel} />
+          <CSADashboardInner impersonated={impersonated} onBack={onBack} isImpersonation={isImpersonation} onConnectAsAdmin={handleConnectAsAdmin} />
           <VisualCustomizeOverlay />
           <VisualCustomizeModal />
           <VCPreviewToolbar />
@@ -84,11 +81,9 @@ export default function CompanySuperAdminDashboard({ impersonated, onBack, isImp
 
 interface InnerProps extends Props {
   onConnectAsAdmin: (admin: CSAAdminUser) => void;
-  visuBadgeLabel?: string;
-  backLabel?: string;
 }
 
-function CSADashboardInner({ impersonated, onBack, isImpersonation = true, onConnectAsAdmin, visuBadgeLabel, backLabel }: InnerProps) {
+function CSADashboardInner({ impersonated, onBack, isImpersonation = true, onConnectAsAdmin }: InnerProps) {
   const t = useThemeTokens();
   const [activeView, setActiveView] = useState<CSAView>('overview');
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -217,8 +212,6 @@ function CSADashboardInner({ impersonated, onBack, isImpersonation = true, onCon
           impersonated={currentImpersonated}
           isImpersonation={isImpersonation}
           onBackToRoisAdmin={isImpersonation ? onBack : undefined}
-          visuBadgeLabel={visuBadgeLabel}
-          backLabel={backLabel}
           logoZoneRef={logoZoneRef}
           sidebarBodyRef={sidebarBodyRef}
           zone1Bg={zone1Bg}
@@ -236,8 +229,6 @@ function CSADashboardInner({ impersonated, onBack, isImpersonation = true, onCon
           impersonated={currentImpersonated}
           isImpersonation={isImpersonation}
           onBackToRoisAdmin={isImpersonation ? onBack : undefined}
-          visuBadgeLabel={visuBadgeLabel}
-          backLabel={backLabel}
           logoZoneRef={logoZoneRef}
           sidebarBodyRef={sidebarBodyRef}
           zone1Bg={zone1Bg}

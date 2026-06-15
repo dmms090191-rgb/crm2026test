@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { LogOut, ChevronLeft, ArrowUpDown, ArrowLeft, EyeOff, Eye } from 'lucide-react';
+import { LogOut, ChevronLeft, ArrowUpDown, ArrowLeft, EyeOff } from 'lucide-react';
 import type { getThemeTokens } from '../../lib/themeTokens';
 
 interface SidebarFooterActionsProps {
@@ -12,12 +12,11 @@ interface SidebarFooterActionsProps {
   rdrFontFamily?: string;
   onBackToRoisAdmin?: () => void;
   backLabel?: string;
-  visuBadgeLabel?: string;
   onHideTabs?: () => void;
 }
 
 export default function SidebarFooterActions({
-  collapsed, onLogout, onCollapse, onReorganize, reordering, tokens: t, rdrFontFamily, onBackToRoisAdmin, backLabel, visuBadgeLabel, onHideTabs,
+  collapsed, onLogout, onCollapse, onReorganize, reordering, tokens: t, rdrFontFamily, onBackToRoisAdmin, backLabel, onHideTabs,
 }: SidebarFooterActionsProps) {
   return (
     <div
@@ -82,12 +81,6 @@ export default function SidebarFooterActions({
           fontFamily={rdrFontFamily}
         />
 
-        {onBackToRoisAdmin && visuBadgeLabel && !collapsed && (
-          <div className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg" style={{ background: 'rgba(14,165,233,0.08)', border: '1px solid rgba(14,165,233,0.18)' }}>
-            <Eye className="w-3 h-3" style={{ color: '#0ea5e9' }} />
-            <span className="text-[10.5px] font-semibold tracking-wide" style={{ color: '#0ea5e9' }}>{visuBadgeLabel}</span>
-          </div>
-        )}
         {onBackToRoisAdmin && (
           <FooterButton
             icon={<ArrowLeft className="w-4 h-4" />}
