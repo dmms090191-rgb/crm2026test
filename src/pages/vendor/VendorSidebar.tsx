@@ -20,6 +20,8 @@ interface VendorSidebarProps {
   vendorAuthId?: string | null;
   companyId?: string | null;
   onBackToRoisAdmin?: () => void;
+  visuBadgeLabel?: string;
+  backLabel?: string;
 }
 
 const DEFAULT_SECTIONS: SidebarSection[] = [
@@ -40,7 +42,7 @@ const DEFAULT_SECTIONS: SidebarSection[] = [
   ] },
 ];
 
-export default function VendorSidebar({ activeView, onNavigate, collapsed, onCollapse, onLogout, vendorAuthId, companyId: propCompanyId, onBackToRoisAdmin }: VendorSidebarProps) {
+export default function VendorSidebar({ activeView, onNavigate, collapsed, onCollapse, onLogout, vendorAuthId, companyId: propCompanyId, onBackToRoisAdmin, visuBadgeLabel, backLabel }: VendorSidebarProps) {
   const tokens = useThemeTokens();
   const [authUserId, setAuthUserId] = useState<string | null>(vendorAuthId ?? null);
   const [companyId, setCompanyId] = useState<string | null>(propCompanyId ?? null);
@@ -102,6 +104,8 @@ export default function VendorSidebar({ activeView, onNavigate, collapsed, onCol
         reordering={order.reordering}
         tokens={tokens}
         onBackToRoisAdmin={onBackToRoisAdmin}
+        visuBadgeLabel={visuBadgeLabel}
+        backLabel={backLabel}
       />
     </aside>
   );

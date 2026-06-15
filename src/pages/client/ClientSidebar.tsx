@@ -17,6 +17,8 @@ interface ClientSidebarProps {
   onCollapse: () => void;
   onLogout: () => void;
   onBackToRoisAdmin?: () => void;
+  visuBadgeLabel?: string;
+  backLabel?: string;
 }
 
 interface NavItem {
@@ -58,7 +60,7 @@ const sections: NavSection[] = [
   },
 ];
 
-export default function ClientSidebar({ activeView, onNavigate, collapsed, onCollapse, onLogout, onBackToRoisAdmin }: ClientSidebarProps) {
+export default function ClientSidebar({ activeView, onNavigate, collapsed, onCollapse, onLogout, onBackToRoisAdmin, visuBadgeLabel, backLabel }: ClientSidebarProps) {
   const tokens = useThemeTokens();
 
   return (
@@ -153,6 +155,8 @@ export default function ClientSidebar({ activeView, onNavigate, collapsed, onCol
         onCollapse={onCollapse}
         tokens={tokens}
         onBackToRoisAdmin={onBackToRoisAdmin}
+        visuBadgeLabel={visuBadgeLabel}
+        backLabel={backLabel}
       />
     </aside>
   );

@@ -1,15 +1,20 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import type { SidebarEntry, SidebarSection, SidebarSaveData } from '../lib/sidebarOrderTypes';
 import { sectionsToEntries, applyOrder, entriesToSaveData, entryKey } from '../lib/sidebarOrderTypes';
+import { supabase } from '../lib/supabase';
 
-function storageKey(role: string, userId?: string | null, companyId?: string | null): string {
+function scopeKey(role: string, companyId?: string | null): string {
+  return companyId ? `${role}_${companyId}` : role;
+}
+
+function lsKey(role: string, userId?: string | null, companyId?: string | null): string {
   const parts = ['sidebar_order', role];
   if (companyId) parts.push(companyId);
   if (userId) parts.push(userId);
   return parts.join('_');
 }
 
-function loadSave(key: string): SidebarSaveData {
+function loadLocal(key: string): SidebarSaveData {
   try {
     const raw = localStorage.getItem(key);
     if (!raw) return { order: [], labels: {} };
@@ -19,8 +24,39 @@ function loadSave(key: string): SidebarSaveData {
   } catch { return { order: [], labels: {} }; }
 }
 
-function persistSave(key: string, data: SidebarSaveData) {
-  try { localStorage.setItem(key, JSON.stringify(data)); } catch { /* ignore */ }
+function saveLocal(key: string, data: SidebarSaveData) {
+  try { localStorage.setItem(key, JSON.stringify(data)); } catch { /* noop */ }
+}
+
+async function loadFromSupabase(scope: string): Promise<SidebarSaveData | null> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+  const { data, error } = await supabase
+    .from('user_preferences')
+    .select('sidebar_orders')
+    .eq('user_id', user.id)
+    .maybeSingle();
+  if (error || !data) return null;
+  const orders = data.sidebar_orders as Record<string, SidebarSaveData> | null;
+  if (!orders || !orders[scope]) return null;
+  const entry = orders[scope];
+  return { order: entry.order ?? [], labels: entry.labels ?? {} };
+}
+
+async function saveToSupabase(scope: string, saveData: SidebarSaveData) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+  const { data: existing } = await supabase
+    .from('user_preferences')
+    .select('sidebar_orders')
+    .eq('user_id', user.id)
+    .maybeSingle();
+  const current = (existing?.sidebar_orders as Record<string, unknown> | null) ?? {};
+  const merged = { ...current, [scope]: saveData };
+  await supabase.from('user_preferences').upsert(
+    { user_id: user.id, sidebar_orders: merged, updated_at: new Date().toISOString() },
+    { onConflict: 'user_id' },
+  );
 }
 
 interface UseSidebarOrderOptions {
@@ -31,12 +67,13 @@ interface UseSidebarOrderOptions {
 }
 
 export function useSidebarOrder({ role, sections, userId, companyId }: UseSidebarOrderOptions) {
-  const key = storageKey(role, userId, companyId);
+  const localKey = lsKey(role, userId, companyId);
+  const scope = scopeKey(role, companyId);
   const defaultEntries = useRef(sectionsToEntries(sections));
   const labelsRef = useRef<Record<string, string>>({});
 
   const [entries, setEntries] = useState<SidebarEntry[]>(() => {
-    const saved = loadSave(key);
+    const saved = loadLocal(localKey);
     labelsRef.current = saved.labels;
     return applyOrder(defaultEntries.current, saved);
   });
@@ -50,10 +87,17 @@ export function useSidebarOrder({ role, sections, userId, companyId }: UseSideba
 
   useEffect(() => {
     defaultEntries.current = sectionsToEntries(sections);
-    const saved = loadSave(key);
+    const saved = loadLocal(localKey);
     labelsRef.current = saved.labels;
     setEntries(applyOrder(defaultEntries.current, saved));
-  }, [key, sections]);
+    loadFromSupabase(scope).then(remote => {
+      if (!remote || remote.order.length === 0) return;
+      labelsRef.current = remote.labels;
+      const applied = applyOrder(defaultEntries.current, remote);
+      setEntries(applied);
+      saveLocal(localKey, remote);
+    });
+  }, [localKey, scope, sections]);
 
   const startReorder = useCallback(() => {
     setDraft([...entries]);
@@ -70,11 +114,13 @@ export function useSidebarOrder({ role, sections, userId, companyId }: UseSideba
   const confirmReorder = useCallback(() => {
     labelsRef.current = draftLabels;
     setEntries(draft);
-    persistSave(key, entriesToSaveData(draft, draftLabels));
+    const saveData = entriesToSaveData(draft, draftLabels);
+    saveLocal(localKey, saveData);
+    saveToSupabase(scope, saveData);
     setReordering(false);
     setDraft([]);
     setDraftLabels({});
-  }, [draft, draftLabels, key]);
+  }, [draft, draftLabels, localKey, scope]);
 
   const move = useCallback((from: number, to: number) => {
     setDraft(prev => {
@@ -110,17 +156,13 @@ export function useSidebarOrder({ role, sections, userId, companyId }: UseSideba
     const from = dragIdx.current;
     let to = dropEdge === 'after' ? dropTargetIdx + 1 : dropTargetIdx;
     if (from < to) to -= 1;
-    if (from !== to && to >= 0) {
-      move(from, to);
-    }
+    if (from !== to && to >= 0) move(from, to);
     dragIdx.current = null;
     setDragSourceIdx(null);
     setDropTargetIdx(null);
   }, [dropTargetIdx, dropEdge, move]);
 
-  const handleDragEnd = useCallback(() => {
-    applyDrop();
-  }, [applyDrop]);
+  const handleDragEnd = useCallback(() => { applyDrop(); }, [applyDrop]);
 
   const renameEntry = useCallback((idx: number, newLabel: string) => {
     setDraft(prev => {
@@ -152,8 +194,7 @@ export function useSidebarOrder({ role, sections, userId, companyId }: UseSideba
   }, []);
 
   const resetToDefault = useCallback(() => {
-    const fresh = sectionsToEntries(sections);
-    setDraft(fresh);
+    setDraft(sectionsToEntries(sections));
     setDraftLabels({});
   }, [sections]);
 
@@ -164,8 +205,6 @@ export function useSidebarOrder({ role, sections, userId, companyId }: UseSideba
     move, handleDragStart, handleDragOver, handleDragEnd,
     draftLength: draft.length,
     renameEntry, addSection, addDivider, removeEntry, resetToDefault,
-    dragSourceIdx,
-    dropTargetIdx,
-    dropEdge,
+    dragSourceIdx, dropTargetIdx, dropEdge,
   };
 }

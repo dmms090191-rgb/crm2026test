@@ -31,6 +31,8 @@ interface CSASidebarProps {
   impersonated: ImpersonatedCompanySuperAdmin;
   isImpersonation: boolean;
   onBackToRoisAdmin?: () => void;
+  visuBadgeLabel?: string;
+  backLabel?: string;
   logoZoneRef?: React.RefObject<HTMLDivElement | null>;
   sidebarBodyRef?: React.RefObject<HTMLDivElement | null>;
   zone1Bg?: string;
@@ -39,7 +41,7 @@ interface CSASidebarProps {
 
 export default function CSASidebar({
   activeView, onNavigate, collapsed, onCollapse, onLogout,
-  impersonated, isImpersonation, onBackToRoisAdmin, logoZoneRef, sidebarBodyRef, zone1Bg, zone2Bg,
+  impersonated, isImpersonation, onBackToRoisAdmin, visuBadgeLabel, backLabel, logoZoneRef, sidebarBodyRef, zone1Bg, zone2Bg,
 }: CSASidebarProps) {
   const t = useThemeTokens();
   const sections = useMemo(() => DEFAULT_SECTIONS, []);
@@ -121,6 +123,8 @@ export default function CSASidebar({
           reordering={order.reordering}
           tokens={t}
           onBackToRoisAdmin={onBackToRoisAdmin}
+          visuBadgeLabel={visuBadgeLabel}
+          backLabel={backLabel}
         />
       </div>
     </aside>

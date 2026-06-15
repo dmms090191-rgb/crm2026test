@@ -28,6 +28,7 @@ interface ClientDashboardProps {
   onBackToAdmin?: () => void;
   backLabel?: string;
   isSAViewing?: boolean;
+  visuBadgeLabel?: string;
 }
 
 export type ClientActiveView = 'vue-ensemble' | 'messagerie' | 'agenda' | 'propositions-rdv' | 'tuto';
@@ -40,7 +41,7 @@ const BREADCRUMB_LABELS: Record<ClientActiveView, string> = {
   'tuto': 'Tuto',
 };
 
-export default function ClientDashboard({ onLogout, impersonatedClient, onBackToAdmin, backLabel = 'Retour admin', isSAViewing }: ClientDashboardProps) {
+export default function ClientDashboard({ onLogout, impersonatedClient, onBackToAdmin, backLabel = 'Retour admin', isSAViewing, visuBadgeLabel }: ClientDashboardProps) {
   const tokens = useThemeTokens();
   const demoCtx = useDemoSessionSafe();
   const demoStatus: 'idle' | 'pending' | 'active' = demoCtx?.session?.status === 'active' ? 'active' : demoCtx?.session?.status === 'pending' ? 'pending' : 'idle';
@@ -148,6 +149,8 @@ export default function ClientDashboard({ onLogout, impersonatedClient, onBackTo
           onCollapse={() => { if (mobileOpen) setMobileOpen(false); else setSidebarCollapsed(!sidebarCollapsed); }}
           onLogout={onLogout}
           onBackToRoisAdmin={onBackToAdmin}
+          visuBadgeLabel={visuBadgeLabel}
+          backLabel={backLabel}
         />
       </div>
       <div className="flex flex-col flex-1 min-h-0">

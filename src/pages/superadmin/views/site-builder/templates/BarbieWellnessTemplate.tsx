@@ -214,9 +214,9 @@ export default function BarbieWellnessTemplate() {
             <button
               onClick={() => setLoginOpen(true)}
               className="inline-flex items-center justify-center gap-3 w-full sm:w-auto px-7 sm:px-8 py-3.5 sm:py-4 rounded-full font-semibold text-sm tracking-wide transition-all duration-300"
-              style={{ background: 'rgba(255,255,255,0.45)', backdropFilter: 'blur(16px)', border: '1px solid rgba(56,168,181,0.18)', color: '#4a6b73', boxShadow: '0 2px 16px rgba(56,168,181,0.06)' }}
-              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.6)'; e.currentTarget.style.borderColor = 'rgba(56,168,181,0.35)'; e.currentTarget.style.boxShadow = '0 4px 24px rgba(56,168,181,0.1)'; }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.45)'; e.currentTarget.style.borderColor = 'rgba(56,168,181,0.18)'; e.currentTarget.style.boxShadow = '0 2px 16px rgba(56,168,181,0.06)'; }}>
+              style={{ background: '#6F5362', color: '#ffffff', boxShadow: '0 4px 20px rgba(111,83,98,0.3)' }}
+              onMouseEnter={e => { e.currentTarget.style.background = '#7d5f70'; e.currentTarget.style.boxShadow = '0 6px 28px rgba(111,83,98,0.4)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = '#6F5362'; e.currentTarget.style.boxShadow = '0 4px 20px rgba(111,83,98,0.3)'; }}>
               <LogIn className="w-4 h-4" />
               Connexion
             </button>

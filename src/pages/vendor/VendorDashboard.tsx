@@ -33,6 +33,8 @@ interface VendorDashboardProps {
   onBackToAdmin?: () => void;
   onConnectAsClient?: (client: ImpersonatedClientInfo) => void;
   isSAViewing?: boolean;
+  visuBadgeLabel?: string;
+  backLabel?: string;
 }
 
 export type VendorActiveView = 'vue-ensemble' | 'leads' | 'chat-admin' | 'chat-client' | 'agenda' | 'propositions-rdv' | 'tuto';
@@ -45,7 +47,7 @@ export interface VendorChatLead {
   tel?: string;
 }
 
-export default function VendorDashboard({ onLogout, impersonatedVendor, onBackToAdmin, onConnectAsClient, isSAViewing }: VendorDashboardProps) {
+export default function VendorDashboard({ onLogout, impersonatedVendor, onBackToAdmin, onConnectAsClient, isSAViewing, visuBadgeLabel, backLabel }: VendorDashboardProps) {
   const tokens = useThemeTokens();
   const demoCtx = useDemoSessionSafe();
   const demoStatus: 'idle' | 'pending' | 'active' = demoCtx?.session?.status === 'active' ? 'active' : demoCtx?.session?.status === 'pending' ? 'pending' : 'idle';
@@ -244,6 +246,8 @@ export default function VendorDashboard({ onLogout, impersonatedVendor, onBackTo
           onLogout={onLogout}
           vendorAuthId={impersonatedVendor?.auth_user_id ?? null}
           onBackToRoisAdmin={onBackToAdmin}
+          visuBadgeLabel={visuBadgeLabel}
+          backLabel={backLabel}
         />
       </div>
       <div className="flex flex-col flex-1 min-h-0">
