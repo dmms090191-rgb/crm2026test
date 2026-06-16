@@ -45,22 +45,15 @@ export function sectionsToEntries(sections: SidebarSection[]): SidebarEntry[] {
 export function applyOrder(defaultEntries: SidebarEntry[], saved: SidebarSaveData): SidebarEntry[] {
   if (!saved.order.length) return applyLabels(defaultEntries, saved.labels);
 
-  const defaultSectionTitles = new Set(
-    defaultEntries.filter(e => e.kind === 'section').map(e => (e as SidebarSectionHeader).title),
-  );
   const defaultItemIds = new Set(
     defaultEntries.filter(e => e.kind === 'item').map(e => (e as SidebarNavItem).id),
   );
 
-  const savedSectionKeys = saved.order.filter(k => k.startsWith('section:')).map(k => k.slice('section:'.length));
-  const sectionStructureChanged = !defaultSectionTitles.size ||
-    savedSectionKeys.filter(t => defaultSectionTitles.has(t)).length !== defaultSectionTitles.size;
-
   const savedItemKeys = saved.order.filter(k => k.startsWith('item:')).map(k => k.slice('item:'.length));
-  const itemSetChanged = savedItemKeys.length !== defaultItemIds.size ||
-    savedItemKeys.some(id => !defaultItemIds.has(id));
+  const allDefaultItemsPresent = [...defaultItemIds].every(id => savedItemKeys.includes(id));
+  const noUnknownItems = savedItemKeys.every(id => defaultItemIds.has(id));
 
-  if (sectionStructureChanged || itemSetChanged) {
+  if (!allDefaultItemsPresent || !noUnknownItems) {
     return applyLabels(defaultEntries, {});
   }
 
@@ -74,7 +67,7 @@ export function applyOrder(defaultEntries: SidebarEntry[], saved: SidebarSaveDat
       ordered.push(existing);
       map.delete(key);
     } else if (key.startsWith('section:')) {
-      ordered.push({ kind: 'section', title: key.slice('section:'.length) });
+      ordered.push({ kind: 'section', title: key.slice('section:'.length), _originalTitle: key.slice('section:'.length) });
     } else if (key.startsWith('divider:')) {
       ordered.push({ kind: 'divider', afterSection: key.slice('divider:'.length) });
     }

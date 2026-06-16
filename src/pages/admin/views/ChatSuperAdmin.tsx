@@ -49,16 +49,33 @@ export default function ChatSuperAdmin({ adminIdOverride, onMessageSent, onSuper
 
   useEffect(() => {
     if (superAdminId || !adminId) return;
-    supabase
-      .from('super_admin_messages')
-      .select('super_admin_id')
-      .eq('admin_id', adminId)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data?.super_admin_id) setSuperAdminId(data.super_admin_id);
-      });
+    let cancelled = false;
+
+    (async () => {
+      const { data } = await supabase
+        .from('super_admin_messages')
+        .select('super_admin_id')
+        .eq('admin_id', adminId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (cancelled) return;
+      if (data?.super_admin_id) { setSuperAdminId(data.super_admin_id); return; }
+
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (cancelled || !session) return;
+        const res = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/resolve-parent-super-admin`,
+          { headers: { Authorization: `Bearer ${session.access_token}`, Apikey: import.meta.env.VITE_SUPABASE_ANON_KEY } },
+        );
+        if (!res.ok || cancelled) return;
+        const body = await res.json();
+        if (body.super_admin_id && !cancelled) setSuperAdminId(body.super_admin_id);
+      } catch { /* edge function not reachable */ }
+    })();
+
+    return () => { cancelled = true; };
   }, [adminId, superAdminId]);
 
   const loadMessages = useCallback(async (showLoader = true) => {

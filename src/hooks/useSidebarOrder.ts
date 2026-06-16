@@ -28,13 +28,11 @@ function saveLocal(key: string, data: SidebarSaveData) {
   try { localStorage.setItem(key, JSON.stringify(data)); } catch { /* noop */ }
 }
 
-async function loadFromSupabase(scope: string): Promise<SidebarSaveData | null> {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
+async function loadFromSupabase(targetUserId: string, scope: string): Promise<SidebarSaveData | null> {
   const { data, error } = await supabase
     .from('user_preferences')
     .select('sidebar_orders')
-    .eq('user_id', user.id)
+    .eq('user_id', targetUserId)
     .maybeSingle();
   if (error || !data) return null;
   const orders = data.sidebar_orders as Record<string, SidebarSaveData> | null;
@@ -43,18 +41,16 @@ async function loadFromSupabase(scope: string): Promise<SidebarSaveData | null> 
   return { order: entry.order ?? [], labels: entry.labels ?? {} };
 }
 
-async function saveToSupabase(scope: string, saveData: SidebarSaveData) {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return;
+async function saveToSupabase(targetUserId: string, scope: string, saveData: SidebarSaveData) {
   const { data: existing } = await supabase
     .from('user_preferences')
     .select('sidebar_orders')
-    .eq('user_id', user.id)
+    .eq('user_id', targetUserId)
     .maybeSingle();
   const current = (existing?.sidebar_orders as Record<string, unknown> | null) ?? {};
   const merged = { ...current, [scope]: saveData };
   await supabase.from('user_preferences').upsert(
-    { user_id: user.id, sidebar_orders: merged, updated_at: new Date().toISOString() },
+    { user_id: targetUserId, sidebar_orders: merged, updated_at: new Date().toISOString() },
     { onConflict: 'user_id' },
   );
 }
@@ -64,9 +60,10 @@ interface UseSidebarOrderOptions {
   sections: SidebarSection[];
   userId?: string | null;
   companyId?: string | null;
+  hiddenTabs?: Set<string>;
 }
 
-export function useSidebarOrder({ role, sections, userId, companyId }: UseSidebarOrderOptions) {
+export function useSidebarOrder({ role, sections, userId, companyId, hiddenTabs }: UseSidebarOrderOptions) {
   const localKey = lsKey(role, userId, companyId);
   const scope = scopeKey(role, companyId);
   const defaultEntries = useRef(sectionsToEntries(sections));
@@ -80,6 +77,13 @@ export function useSidebarOrder({ role, sections, userId, companyId }: UseSideba
   const [reordering, setReordering] = useState(false);
   const [draft, setDraft] = useState<SidebarEntry[]>([]);
   const [draftLabels, setDraftLabels] = useState<Record<string, string>>({});
+  const draftRef = useRef<SidebarEntry[]>([]);
+  const draftLabelsRef = useRef<Record<string, string>>({});
+  const hiddenEntriesRef = useRef<SidebarEntry[]>([]);
+  draftRef.current = draft;
+  draftLabelsRef.current = draftLabels;
+
+  const skipRemoteLoadRef = useRef(false);
   const dragIdx = useRef<number | null>(null);
   const [dragSourceIdx, setDragSourceIdx] = useState<number | null>(null);
   const [dropTargetIdx, setDropTargetIdx] = useState<number | null>(null);
@@ -90,17 +94,56 @@ export function useSidebarOrder({ role, sections, userId, companyId }: UseSideba
     const saved = loadLocal(localKey);
     labelsRef.current = saved.labels;
     setEntries(applyOrder(defaultEntries.current, saved));
-    loadFromSupabase(scope).then(remote => {
-      if (!remote || remote.order.length === 0) return;
+
+    if (skipRemoteLoadRef.current) {
+      skipRemoteLoadRef.current = false;
+      return;
+    }
+    if (!userId) return;
+
+    let cancelled = false;
+    loadFromSupabase(userId, scope).then(remote => {
+      if (cancelled || !remote || remote.order.length === 0) return;
       labelsRef.current = remote.labels;
       const applied = applyOrder(defaultEntries.current, remote);
       setEntries(applied);
       saveLocal(localKey, remote);
     });
-  }, [localKey, scope, sections]);
+    return () => { cancelled = true; };
+  }, [localKey, scope, sections, userId]);
+
+  const hiddenTabsRef = useRef(hiddenTabs);
+  hiddenTabsRef.current = hiddenTabs;
 
   const startReorder = useCallback(() => {
-    setDraft([...entries]);
+    const ht = hiddenTabsRef.current;
+    if (ht && ht.size > 0) {
+      const hidden: SidebarEntry[] = [];
+      const filtered: SidebarEntry[] = [];
+      for (const e of entries) {
+        if (e.kind === 'item' && ht.has(e.id)) { hidden.push(e); continue; }
+        filtered.push(e);
+      }
+      const cleaned: SidebarEntry[] = [];
+      for (let i = 0; i < filtered.length; i++) {
+        const cur = filtered[i];
+        if (cur.kind === 'section') {
+          const next = filtered[i + 1];
+          if (!next || next.kind === 'section' || next.kind === 'divider') continue;
+        }
+        if (cur.kind === 'divider') {
+          const next = filtered[i + 1];
+          if (!next || next.kind === 'divider') continue;
+        }
+        cleaned.push(cur);
+      }
+      if (cleaned.length > 0 && cleaned[cleaned.length - 1].kind === 'divider') cleaned.pop();
+      hiddenEntriesRef.current = hidden;
+      setDraft(cleaned);
+    } else {
+      hiddenEntriesRef.current = [];
+      setDraft([...entries]);
+    }
     setDraftLabels({ ...labelsRef.current });
     setReordering(true);
   }, [entries]);
@@ -109,18 +152,24 @@ export function useSidebarOrder({ role, sections, userId, companyId }: UseSideba
     setReordering(false);
     setDraft([]);
     setDraftLabels({});
+    hiddenEntriesRef.current = [];
   }, []);
 
   const confirmReorder = useCallback(() => {
-    labelsRef.current = draftLabels;
-    setEntries(draft);
-    const saveData = entriesToSaveData(draft, draftLabels);
+    const currentDraft = draftRef.current;
+    const currentLabels = draftLabelsRef.current;
+    labelsRef.current = currentLabels;
+    const merged = [...currentDraft, ...hiddenEntriesRef.current];
+    setEntries(merged);
+    const saveData = entriesToSaveData(merged, currentLabels);
     saveLocal(localKey, saveData);
-    saveToSupabase(scope, saveData);
+    skipRemoteLoadRef.current = true;
+    if (userId) saveToSupabase(userId, scope, saveData);
     setReordering(false);
     setDraft([]);
     setDraftLabels({});
-  }, [draft, draftLabels, localKey, scope]);
+    hiddenEntriesRef.current = [];
+  }, [localKey, scope, userId]);
 
   const move = useCallback((from: number, to: number) => {
     setDraft(prev => {
@@ -165,20 +214,23 @@ export function useSidebarOrder({ role, sections, userId, companyId }: UseSideba
   const handleDragEnd = useCallback(() => { applyDrop(); }, [applyDrop]);
 
   const renameEntry = useCallback((idx: number, newLabel: string) => {
+    const currentDraft = draftRef.current;
+    const e = currentDraft[idx];
+    if (!e) return;
+    const key = entryKey(e);
+    setDraftLabels(dl => ({ ...dl, [key]: newLabel }));
     setDraft(prev => {
-      const e = prev[idx];
-      if (!e) return prev;
-      const key = entryKey(e);
-      setDraftLabels(dl => ({ ...dl, [key]: newLabel }));
       const next = [...prev];
-      if (e.kind === 'item') next[idx] = { ...e, label: newLabel };
-      else if (e.kind === 'section') next[idx] = { ...e, _originalTitle: e._originalTitle ?? e.title, title: newLabel };
+      const entry = next[idx];
+      if (!entry) return prev;
+      if (entry.kind === 'item') next[idx] = { ...entry, label: newLabel };
+      else if (entry.kind === 'section') next[idx] = { ...entry, _originalTitle: entry._originalTitle ?? entry.title, title: newLabel };
       return next;
     });
   }, []);
 
   const addSection = useCallback((title: string) => {
-    setDraft(prev => [...prev, { kind: 'section' as const, title }]);
+    setDraft(prev => [...prev, { kind: 'section' as const, title, _originalTitle: title } as SidebarEntry]);
   }, []);
 
   const addDivider = useCallback(() => {

@@ -108,9 +108,9 @@ export default function ClientMessagerie({ clientName, clientAuthId, isAdmin }: 
     } as ChatMessage]);
 
     if (companyId) {
-      supabase.from('registrations').select('auth_user_id').eq('company_id', companyId).eq('role', 'admin').then(({ data }) => {
+      supabase.rpc('get_company_admin_ids', { p_company_id: companyId }).then(({ data }) => {
         const clientLabel = clientName || 'un client';
-        (data ?? []).forEach(r => {
+        (data ?? []).forEach((r: { auth_user_id: string }) => {
           if (r.auth_user_id) {
             sendPushForMessage({ targetUserId: r.auth_user_id, title: 'Talvex', body: `Nouveau message client de ${clientLabel}` });
           }

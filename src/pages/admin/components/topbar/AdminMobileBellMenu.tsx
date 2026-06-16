@@ -46,6 +46,9 @@ interface Props {
   tokens: ThemeTokens;
   containerRef: React.RefObject<HTMLDivElement>;
   panelRef?: React.RefObject<HTMLDivElement>;
+  hiddenNotifCards?: Set<string>;
+  notifCardOrder?: string[];
+  notifCardLabels?: Record<string, string>;
 }
 
 export default function AdminMobileBellMenu({
@@ -60,6 +63,7 @@ export default function AdminMobileBellMenu({
   rescheduleRequestCount = 0, rescheduleRequestEntries = [], onRescheduleRequestEntryClick,
   unreadSuperAdminCount = 0, onSuperAdminClick,
   timezone, tokens: t, containerRef, panelRef: externalPanelRef,
+  hiddenNotifCards, notifCardOrder, notifCardLabels,
 }: Props) {
   const internalPanelRef = useRef<HTMLDivElement>(null);
   const panelRef = externalPanelRef ?? internalPanelRef;
@@ -103,17 +107,24 @@ export default function AdminMobileBellMenu({
                   {formatTodayInTz(timezone)}
                 </p>
               </div>
-              {([
-                { key: 'client', icon: <MessageSquareText className="w-4 h-4" />, label: 'Client', count: unreadClientCount },
-                { key: 'vendeur', icon: <MessageSquareText className="w-4 h-4" />, label: 'Vendeur', count: unreadVendorCount },
-                { key: 'super-admin', icon: <Shield className="w-4 h-4" />, label: 'Super Admin', count: unreadSuperAdminCount },
-                { key: 'agenda', icon: <CalendarDays className="w-4 h-4" />, label: 'Agenda perso', count: agendaPersoCount },
-                { key: 'equipe', icon: <CalendarDays className="w-4 h-4" />, label: 'Agenda equipe', count: agendaEquipeCount },
-                { key: 'propositions', icon: <CalendarClock className="w-4 h-4" />, label: 'Propositions RDV', count: proposalsCount },
-                { key: 'rdv', icon: <CalendarCheck className="w-4 h-4" />, label: 'RDV Confirmes', count: confirmedCount },
-                { key: 'decalages', icon: <RefreshCw className="w-4 h-4" />, label: 'Decalages', count: rescheduleCount },
-                { key: 'demandes-decalage', icon: <RefreshCw className="w-4 h-4" />, label: 'Demandes decalage', count: rescheduleRequestCount },
-              ] as const).map((item) => (
+              {(() => {
+                const defaultItems = [
+                  { key: 'client', icon: <MessageSquareText className="w-4 h-4" />, label: 'Client', count: unreadClientCount },
+                  { key: 'vendeur', icon: <MessageSquareText className="w-4 h-4" />, label: 'Vendeur', count: unreadVendorCount },
+                  { key: 'super-admin', icon: <Shield className="w-4 h-4" />, label: 'Super Admin', count: unreadSuperAdminCount },
+                  { key: 'agenda', icon: <CalendarDays className="w-4 h-4" />, label: 'Agenda perso', count: agendaPersoCount },
+                  { key: 'equipe', icon: <CalendarDays className="w-4 h-4" />, label: 'Agenda equipe', count: agendaEquipeCount },
+                  { key: 'propositions', icon: <CalendarClock className="w-4 h-4" />, label: 'Propositions RDV', count: proposalsCount },
+                  { key: 'rdv', icon: <CalendarCheck className="w-4 h-4" />, label: 'RDV Confirmes', count: confirmedCount },
+                  { key: 'decalages', icon: <RefreshCw className="w-4 h-4" />, label: 'Decalages', count: rescheduleCount },
+                  { key: 'demandes-decalage', icon: <RefreshCw className="w-4 h-4" />, label: 'Demandes decalage', count: rescheduleRequestCount },
+                ];
+                const itemMap = new Map(defaultItems.map(i => [i.key, i]));
+                const keys = notifCardOrder && notifCardOrder.length > 0 ? notifCardOrder : defaultItems.map(i => i.key);
+                return keys
+                  .map(k => { const base = itemMap.get(k); if (!base) return null; return { ...base, label: notifCardLabels?.[k] || base.label }; })
+                  .filter((item): item is NonNullable<typeof item> => !!item && !hiddenNotifCards?.has(item.key));
+              })().map((item) => (
                 <button
                   key={item.key}
                   type="button"

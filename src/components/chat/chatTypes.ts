@@ -20,7 +20,7 @@ export interface ChatMessage {
   _failed?: boolean;
 }
 
-export type UserRole = 'admin' | 'vendor' | 'client' | 'super_admin';
+export type UserRole = 'admin' | 'vendor' | 'client' | 'super_admin' | 'company_super_admin';
 
 export interface ChatContact {
   id: string;
@@ -85,6 +85,12 @@ export const SENDER_STYLES: Record<string, { gradient: string; glow: string; bub
     bubbleGradient: 'linear-gradient(135deg,#f59e0b,#d97706)',
     bubbleSolid: (tokens) => ({ background: tokens.chat.messageBubbleOther, border: `1px solid ${tokens.chat.border}` }),
   },
+  company_super_admin: {
+    gradient: 'linear-gradient(135deg,#f59e0b,#ea580c)',
+    glow: 'rgba(245,158,11,0.35)',
+    bubbleGradient: 'linear-gradient(135deg,#f59e0b,#ea580c)',
+    bubbleSolid: (tokens) => ({ background: tokens.chat.messageBubbleOther, border: `1px solid ${tokens.chat.border}` }),
+  },
 };
 
 export const SENDER_LABELS: Record<string, string> = {
@@ -92,6 +98,7 @@ export const SENDER_LABELS: Record<string, string> = {
   vendor: 'Vendeur',
   client: 'Client',
   super_admin: 'Super Admin',
+  company_super_admin: 'Super Admin',
 };
 
 export function formatTime(iso: string, tz?: string) {

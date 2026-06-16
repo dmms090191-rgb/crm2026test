@@ -33,7 +33,7 @@ export default function SidebarFooterActions({
         }}
       >
         <div className={`flex flex-col ${collapsed ? 'gap-0.5' : 'gap-0.5'}`}>
-          {onReorganize && !reordering && (
+          {onReorganize && !reordering && !hideEditMode && (
             <SystemButton
               icon={<ArrowUpDown className="w-3.5 h-3.5" />}
               label="Reorganiser"

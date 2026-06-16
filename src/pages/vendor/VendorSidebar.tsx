@@ -69,7 +69,7 @@ export default function VendorSidebar({ activeView, onNavigate, collapsed, onCol
   const [hideEditMode, setHideEditMode] = useState(false);
 
   const sections = useMemo(() => DEFAULT_SECTIONS, []);
-  const order = useSidebarOrder({ role: 'vendor', sections, userId: authUserId, companyId });
+  const order = useSidebarOrder({ role: 'vendor', sections, userId: authUserId, companyId, hiddenTabs });
 
   return (
     <aside

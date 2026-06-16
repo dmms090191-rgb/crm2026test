@@ -24,6 +24,7 @@ interface SuperAdminSidebarProps {
   editorZone2Bg?: string;
   logoZoneRef?: React.RefObject<HTMLDivElement | null>;
   sidebarBodyRef?: React.RefObject<HTMLDivElement | null>;
+  badgeCounts?: Record<string, number>;
 }
 
 const DEFAULT_SECTIONS: SidebarSection[] = [
@@ -54,7 +55,7 @@ const DEFAULT_SECTIONS: SidebarSection[] = [
   {
     title: 'Contact',
     items: [
-      { id: 'chat-admin', label: 'Chat Admin RA', icon: <MessageSquare className="w-4 h-4" /> },
+      { id: 'chat-admin', label: 'Chat Super Admin RA', icon: <MessageSquare className="w-4 h-4" /> },
     ],
   },
   {
@@ -78,7 +79,7 @@ const DEFAULT_SECTIONS: SidebarSection[] = [
   },
 ];
 
-export default function SuperAdminSidebar({ activeView, onNavigate, collapsed, onCollapse, onLogout, editorZone1Bg, editorZone2Bg, logoZoneRef, sidebarBodyRef }: SuperAdminSidebarProps) {
+export default function SuperAdminSidebar({ activeView, onNavigate, collapsed, onCollapse, onLogout, editorZone1Bg, editorZone2Bg, logoZoneRef, sidebarBodyRef, badgeCounts }: SuperAdminSidebarProps) {
   const t = useThemeTokens();
   const editorCtx = useEditorModeSafe();
   const { customThemeOverrides } = useTheme();
@@ -101,7 +102,7 @@ export default function SuperAdminSidebar({ activeView, onNavigate, collapsed, o
   const [hideEditMode, setHideEditMode] = useState(false);
 
   const sections = useMemo(() => DEFAULT_SECTIONS, []);
-  const order = useSidebarOrder({ role: 'super_admin', sections, userId });
+  const order = useSidebarOrder({ role: 'super_admin', sections, userId, hiddenTabs });
 
   const mergedTextOverrides = useMemo(() => {
     const base = { ...ctTextOverrides };
@@ -166,7 +167,7 @@ export default function SuperAdminSidebar({ activeView, onNavigate, collapsed, o
         style={{ background: editorZone2Bg || t.sidebar.bg }}
       >
         <SidebarReorderControls
-          entries={order.reordering || hideEditMode ? order.entries : filterHiddenEntries(order.entries, hiddenTabs)}
+          entries={hideEditMode ? order.entries : filterHiddenEntries(order.entries, hiddenTabs)}
           reordering={order.reordering} collapsed={collapsed}
           activeId={activeView} onNavigate={id => onNavigate(id as SAView)}
           startReorder={order.startReorder} cancelReorder={order.cancelReorder} confirmReorder={order.confirmReorder}
@@ -186,6 +187,7 @@ export default function SuperAdminSidebar({ activeView, onNavigate, collapsed, o
               isHidden={hiddenTabs.has(entry.id)}
               isProtected={isProtectedTab(entry.id)}
               onToggleHide={() => toggleHiddenTab(entry.id)}
+              badgeCount={badgeCounts?.[entry.id]}
             />
           )}
         />
@@ -226,7 +228,7 @@ function filterHiddenEntries(entries: import('../../lib/sidebarOrderTypes').Side
   return result;
 }
 
-function SAItem({ id, label, icon, isActive, collapsed, onClick, tokens, editorCtx, mergedTextOverrides, itemFontFamily, hideEditMode, isHidden, isProtected: locked, onToggleHide }: {
+function SAItem({ id, label, icon, isActive, collapsed, onClick, tokens, editorCtx, mergedTextOverrides, itemFontFamily, hideEditMode, isHidden, isProtected: locked, onToggleHide, badgeCount }: {
   id: string; label: string; icon: React.ReactNode; isActive: boolean; collapsed: boolean; onClick: () => void;
   tokens: ReturnType<typeof useThemeTokens>['sidebar'];
   editorCtx: ReturnType<typeof useEditorModeSafe>;
@@ -236,6 +238,7 @@ function SAItem({ id, label, icon, isActive, collapsed, onClick, tokens, editorC
   isHidden?: boolean;
   isProtected?: boolean;
   onToggleHide?: () => void;
+  badgeCount?: number;
 }) {
   const [hovered, setHovered] = useState(false);
   const [eyeHovered, setEyeHovered] = useState(false);
@@ -266,8 +269,16 @@ function SAItem({ id, label, icon, isActive, collapsed, onClick, tokens, editorC
         style={{ color: dimmed ? tokens.itemText : finalColor }}
         tabIndex={hideEditMode ? -1 : 0}
       >
-        <span className="flex-shrink-0">{icon}</span>
+        <span className="flex-shrink-0 relative">
+          {icon}
+          {collapsed && !!badgeCount && badgeCount > 0 && !hideEditMode && (
+            <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 flex items-center justify-center rounded-full text-[10px] font-bold text-white bg-red-500 shadow-sm">{badgeCount > 99 ? '99+' : badgeCount}</span>
+          )}
+        </span>
         {!collapsed && <span className="text-[12.5px] font-medium truncate" style={{ fontFamily: itemFontFamily ? `"${itemFontFamily}", sans-serif` : undefined }}>{label}</span>}
+        {!collapsed && !!badgeCount && badgeCount > 0 && !hideEditMode && (
+          <span className="ml-auto flex-shrink-0 min-w-[20px] h-5 px-1.5 flex items-center justify-center rounded-full text-[10px] font-bold text-white bg-red-500 shadow-sm">{badgeCount > 99 ? '99+' : badgeCount}</span>
+        )}
       </button>
 
       {hideEditMode && !collapsed && (

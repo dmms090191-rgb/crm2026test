@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import Sidebar from './Sidebar';
 import TopBar from './TopBar';
 import type { ChatLead } from './views/Crm';
@@ -30,6 +30,8 @@ import { EditorModeProvider, useEditorMode, resolveZoneEffective } from '../../c
 import EditorSaveThemeModal from '../../components/editor/EditorSaveThemeModal';
 import EditorToolbar from '../../components/editor/EditorToolbar';
 import { useEditorSessionPersistence } from '../superadmin/useEditorSessionPersistence';
+import { useHiddenNotifCards } from '../../hooks/useHiddenNotifCards';
+import { useNotifCardOrder } from '../../hooks/useNotifCardOrder';
 
 export type { ImpersonatedAdminInfo, ActiveView } from './adminDashboardTypes';
 
@@ -56,6 +58,9 @@ function AdminDashboardInner({ onLogout, onConnectAsVendor, onConnectAsClient, i
   const { unreadCount: unreadVendorCount, unreadEntries: unreadVendorEntries, markAsRead: markVendorRead } = useUnreadVendorMessages();
   const [adminAuthId, setAdminAuthId] = useState<string | null>(null);
   const effectiveAdminId = impersonatedAdmin?.id ?? adminAuthId;
+  const notifTargetUserId = hideTabsTargetUserId ?? effectiveAdminId ?? null;
+  const { hiddenTabs: hiddenNotifCards, loaded: hiddenNotifCardsLoaded, toggle: toggleNotifCard } = useHiddenNotifCards(companyId, notifTargetUserId);
+  const notifCardOrderHook = useNotifCardOrder(notifTargetUserId, companyId);
   const { notifications: agendaNotifs, count: agendaPersoCount, markAsSeen: markAgendaSeen } = useAgendaNotifications('admin', adminAuthId);
   const { notifications: agendaEquipeNotifs, count: agendaEquipeCount, markAsSeen: markAgendaEquipeSeen } = useAgendaEquipeNotifications(adminAuthId);
   const { unreadCount: unreadSuperAdminCount, markAsRead: markSuperAdminRead } = useUnreadFromSuperAdmin(effectiveAdminId);
@@ -98,6 +103,12 @@ function AdminDashboardInner({ onLogout, onConnectAsVendor, onConnectAsClient, i
     markClientRead, markVendorRead, markAgendaSeen, markAgendaEquipeSeen,
     pendingScrollRef,
   });
+
+  useEffect(() => {
+    if (!impersonatedAdmin) return;
+    const name = [impersonatedAdmin.first_name, impersonatedAdmin.last_name].filter(Boolean).join(' ');
+    if (name) setAdminName(name);
+  }, [impersonatedAdmin]);
 
   const { handleNameChange } = useAdminDashboardEffects({
     companyId,
@@ -199,6 +210,20 @@ function AdminDashboardInner({ onLogout, onConnectAsVendor, onConnectAsClient, i
           appName={configAppName || companyName || undefined}
           topbarRef={topbarZoneRef}
           editorZone3Bg={zone3Bg}
+          canHideNotifCards={!!isSAViewing}
+          hiddenNotifCards={hiddenNotifCards}
+          hiddenNotifCardsLoaded={hiddenNotifCardsLoaded}
+          onToggleNotifCard={toggleNotifCard}
+          canReorderNotifCards={true}
+          notifCardOrder={notifCardOrderHook.order}
+          notifCardLabels={notifCardOrderHook.labels}
+          notifReordering={notifCardOrderHook.reordering}
+          onStartNotifReorder={notifCardOrderHook.startReorder}
+          onCancelNotifReorder={notifCardOrderHook.cancelReorder}
+          onConfirmNotifReorder={notifCardOrderHook.confirmReorder}
+          onMoveNotifDraft={notifCardOrderHook.moveDraft}
+          onRenameNotifDraft={notifCardOrderHook.renameDraft}
+          onResetNotifDefault={notifCardOrderHook.resetToDefault}
         />
         <EditorToolbar onSaveTheme={() => setSaveThemeOpen(true)} onResetPositions={handleResetPanelPositions} onAlignPanels={handleAlignPanels} onSaveSession={handleSaveSession} />
         {isSAViewing && impersonatedAdmin && (

@@ -6,6 +6,7 @@ import {
   CalendarClock,
   Hexagon,
   GraduationCap,
+  Activity,
   Eye,
   EyeOff,
 } from 'lucide-react';
@@ -26,6 +27,7 @@ interface ClientSidebarProps {
   canHideTabs?: boolean;
   hideTabsTargetName?: string;
   hideTabsTargetUserId?: string | null;
+  showSuiviCorporel?: boolean;
 }
 
 interface NavItem {
@@ -39,7 +41,7 @@ interface NavSection {
   items: NavItem[];
 }
 
-const sections: NavSection[] = [
+const BASE_SECTIONS: NavSection[] = [
   {
     title: 'G\u00e9n\u00e9ral',
     items: [
@@ -67,15 +69,27 @@ const sections: NavSection[] = [
   },
 ];
 
-export default function ClientSidebar({ activeView, onNavigate, collapsed, onCollapse, onLogout, onBackToRoisAdmin, visuBadgeLabel, backLabel, canHideTabs, hideTabsTargetName, hideTabsTargetUserId }: ClientSidebarProps) {
+const WELLNESS_SECTION: NavSection = {
+  title: 'Bien-\u00eatre',
+  items: [
+    { id: 'suivi-corporel', label: 'Suivi corporel', icon: <Activity className="w-4 h-4" /> },
+  ],
+};
+
+export default function ClientSidebar({ activeView, onNavigate, collapsed, onCollapse, onLogout, onBackToRoisAdmin, visuBadgeLabel, backLabel, canHideTabs, hideTabsTargetName, hideTabsTargetUserId, showSuiviCorporel }: ClientSidebarProps) {
   const tokens = useThemeTokens();
   const { hiddenTabs, loaded: hiddenTabsLoaded, toggle: toggleHiddenTab } = usePanelHiddenTabs('client', null, hideTabsTargetUserId);
   const [hideEditMode, setHideEditMode] = useState(false);
 
+  const sections = useMemo(() => {
+    if (!showSuiviCorporel) return BASE_SECTIONS;
+    return [...BASE_SECTIONS, WELLNESS_SECTION];
+  }, [showSuiviCorporel]);
+
   const visibleSections = useMemo(() => {
     if (hideEditMode || hiddenTabs.size === 0) return sections;
     return sections.map(s => ({ ...s, items: s.items.filter(i => !hiddenTabs.has(i.id)) })).filter(s => s.items.length > 0);
-  }, [hiddenTabs, hideEditMode]);
+  }, [sections, hiddenTabs, hideEditMode]);
 
   return (
     <aside

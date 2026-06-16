@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { LayoutDashboard, Users, UserCog, Shield, Smartphone, Globe, Eye, EyeOff } from 'lucide-react';
+import { LayoutDashboard, Users, UserCog, Shield, Smartphone, Globe, MessageSquare, Crown, Eye, EyeOff } from 'lucide-react';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
 import { useSidebarOrder } from '../../hooks/useSidebarOrder';
 import SidebarReorderControls from '../../components/SidebarReorderControls';
@@ -8,7 +8,7 @@ import type { SidebarSection, SidebarEntry } from '../../lib/sidebarOrderTypes';
 import type { ImpersonatedCompanySuperAdmin } from '../../App';
 import { usePanelHiddenTabs } from '../../hooks/usePanelHiddenTabs';
 
-export type CSAView = 'overview' | 'admins' | 'info' | 'application' | 'site';
+export type CSAView = 'overview' | 'admins' | 'info' | 'chat-admin' | 'chat-rois-admin' | 'application' | 'site';
 
 const DEFAULT_SECTIONS: SidebarSection[] = [
   {
@@ -16,7 +16,24 @@ const DEFAULT_SECTIONS: SidebarSection[] = [
     items: [
       { id: 'overview', label: 'Dashboard', icon: <LayoutDashboard className="w-4 h-4" /> },
       { id: 'info', label: 'Info Super Admin', icon: <UserCog className="w-4 h-4" /> },
+    ],
+  },
+  {
+    title: 'Distributeur',
+    items: [
       { id: 'admins', label: 'Liste des distributeurs', icon: <Users className="w-4 h-4" /> },
+    ],
+  },
+  {
+    title: 'Contact',
+    items: [
+      { id: 'chat-admin', label: 'Chat Admin', icon: <MessageSquare className="w-4 h-4" /> },
+      { id: 'chat-rois-admin', label: 'Chat Rois Admin', icon: <Crown className="w-4 h-4" /> },
+    ],
+  },
+  {
+    title: 'Configuration',
+    items: [
       { id: 'application', label: 'Application', icon: <Smartphone className="w-4 h-4" /> },
       { id: 'site', label: 'Site', icon: <Globe className="w-4 h-4" /> },
     ],
@@ -41,11 +58,12 @@ interface CSASidebarProps {
   sidebarBodyRef?: React.RefObject<HTMLDivElement | null>;
   zone1Bg?: string;
   zone2Bg?: string;
+  badgeCounts?: Record<string, number>;
 }
 
 export default function CSASidebar({
   activeView, onNavigate, collapsed, onCollapse, onLogout,
-  impersonated, isImpersonation, onBackToRoisAdmin, visuBadgeLabel, backLabel, canHideTabs, hideTabsTargetName, hideTabsTargetUserId, logoZoneRef, sidebarBodyRef, zone1Bg, zone2Bg,
+  impersonated, isImpersonation, onBackToRoisAdmin, visuBadgeLabel, backLabel, canHideTabs, hideTabsTargetName, hideTabsTargetUserId, logoZoneRef, sidebarBodyRef, zone1Bg, zone2Bg, badgeCounts,
 }: CSASidebarProps) {
   const t = useThemeTokens();
   const { hiddenTabs, loaded: hiddenTabsLoaded, toggle: toggleHiddenTab } = usePanelHiddenTabs('company_super_admin', impersonated.company_id, hideTabsTargetUserId);
@@ -56,6 +74,7 @@ export default function CSASidebar({
     sections,
     userId: impersonated.id,
     companyId: impersonated.company_id,
+    hiddenTabs,
   });
 
   return (
@@ -123,6 +142,7 @@ export default function CSASidebar({
               hideEditMode={hideEditMode}
               isHidden={hiddenTabs.has(entry.id)}
               onToggleHide={() => toggleHiddenTab(entry.id)}
+              badgeCount={badgeCounts?.[entry.id]}
             />
           )}
         />
@@ -174,13 +194,14 @@ function CSASidebarSkeleton({ collapsed, tokens: t }: { collapsed: boolean; toke
   );
 }
 
-function CSANavItem({ id, label, icon, isActive, collapsed, onClick, tokens, hideEditMode, isHidden, onToggleHide }: {
+function CSANavItem({ id, label, icon, isActive, collapsed, onClick, tokens, hideEditMode, isHidden, onToggleHide, badgeCount }: {
   id: string; label: string; icon: React.ReactNode; isActive: boolean; collapsed: boolean;
   onClick: () => void;
   tokens: ReturnType<typeof useThemeTokens>['sidebar'];
   hideEditMode?: boolean;
   isHidden?: boolean;
   onToggleHide?: () => void;
+  badgeCount?: number;
 }) {
   const [hovered, setHovered] = useState(false);
   const [eyeHovered, setEyeHovered] = useState(false);
@@ -205,8 +226,16 @@ function CSANavItem({ id, label, icon, isActive, collapsed, onClick, tokens, hid
         className={`flex items-center gap-2.5 min-w-0 flex-1 ${hideEditMode ? 'pointer-events-none' : ''}`}
         tabIndex={hideEditMode ? -1 : 0}
       >
-        <span className="flex-shrink-0">{icon}</span>
+        <span className="flex-shrink-0 relative">
+          {icon}
+          {collapsed && !!badgeCount && badgeCount > 0 && !hideEditMode && (
+            <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 flex items-center justify-center rounded-full text-[10px] font-bold text-white bg-red-500 shadow-sm">{badgeCount > 99 ? '99+' : badgeCount}</span>
+          )}
+        </span>
         {!collapsed && <span className="text-[12.5px] font-medium truncate">{label}</span>}
+        {!collapsed && !!badgeCount && badgeCount > 0 && !hideEditMode && (
+          <span className="ml-auto flex-shrink-0 min-w-[20px] h-5 px-1.5 flex items-center justify-center rounded-full text-[10px] font-bold text-white bg-red-500 shadow-sm">{badgeCount > 99 ? '99+' : badgeCount}</span>
+        )}
       </button>
       {hideEditMode && !collapsed && (
         <button

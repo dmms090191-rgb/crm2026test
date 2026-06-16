@@ -1,6 +1,7 @@
-import { lazy, useState, useCallback, useRef, useEffect } from 'react';
+import { lazy, Suspense, startTransition, useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import type { ImpersonatedCompanySuperAdmin, ImpersonatedAdmin } from '../../App';
 import { ThemeProvider, useTheme } from '../../contexts/ThemeContext';
+import { TimezoneProvider } from '../../contexts/TimezoneContext';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
 import { supabase } from '../../lib/supabase';
 import { EditorModeProvider, useEditorMode, resolveZoneEffective } from '../../contexts/EditorModeContext';
@@ -24,8 +25,15 @@ import CSAEditorPanels from './CSAEditorPanels';
 import CSAApplicationPage from './CSAApplicationPage';
 import SiteManagerShell from '../superadmin/views/site-builder/SiteManagerShell';
 import type { CSAAdminUser } from './CSAAdminsList';
+import { useUnreadCSAAdminMessages } from '../../hooks/useUnreadCSAAdminMessages';
+import type { ImpersonatedClientInfo } from '../client/ClientDashboard';
+import type { ImpersonatedVendor } from '../vendor/VendorDashboard';
 
 const AdminDashboard = lazy(() => import('../admin/AdminDashboard'));
+const VendorDashboard = lazy(() => import('../vendor/VendorDashboard'));
+const ClientDashboard = lazy(() => import('../client/ClientDashboard'));
+const SAchatAdmin = lazy(() => import('../superadmin/views/SAchatAdmin'));
+const CSAChatRoisAdmin = lazy(() => import('./CSAChatRoisAdmin'));
 
 type EditorSubMode = null | 'onglet' | 'zone_droite';
 
@@ -40,6 +48,8 @@ interface Props {
 
 export default function CompanySuperAdminDashboard({ impersonated, onBack, isImpersonation = true, visuBadgeLabel, backLabel, canHideTabs }: Props) {
   const [impersonatedAdmin, setImpersonatedAdmin] = useState<ImpersonatedAdmin | null>(null);
+  const [impersonatedClient, setImpersonatedClient] = useState<ImpersonatedClientInfo | null>(null);
+  const [impersonatedVendor, setImpersonatedVendor] = useState<ImpersonatedVendor | null>(null);
 
   const handleConnectAsAdmin = useCallback((admin: CSAAdminUser) => {
     saveConnectReturnContext({ fromRole: 'company_super_admin', fromTab: 'admins', adminId: admin.id, scrollY: window.scrollY });
@@ -50,6 +60,83 @@ export default function CompanySuperAdminDashboard({ impersonated, onBack, isImp
     });
   }, []);
 
+  const handleConnectAsClient = useCallback((client: ImpersonatedClientInfo) => {
+    setImpersonatedClient(client);
+  }, []);
+
+  const handleConnectAsVendor = useCallback((vendor: { id: string; first_name: string; last_name: string; auth_user_id?: string | null }) => {
+    setImpersonatedVendor({ id: vendor.id, first_name: vendor.first_name, last_name: vendor.last_name, auth_user_id: vendor.auth_user_id });
+  }, []);
+
+  const visuBadge = visuBadgeLabel || (isImpersonation ? undefined : 'Visu Super Admin');
+
+  if (impersonatedAdmin && impersonatedVendor && impersonatedClient) {
+    return (
+      <DemoSessionProvider>
+        <AppShell panelRole="client" useCompanyProvider companyId={impersonatedAdmin.company_id} effectiveUserId={impersonatedClient.id}>
+          <Suspense fallback={<div className="flex items-center justify-center h-screen"><div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" /></div>}>
+            <ClientDashboard
+              onLogout={() => {}}
+              impersonatedClient={impersonatedClient}
+              onBackToAdmin={() => setImpersonatedClient(null)}
+              backLabel="Retour vendeur"
+              isSAViewing
+              visuBadgeLabel={visuBadge}
+              canHideTabs={canHideTabs}
+              hideTabsTargetName={`${impersonatedClient.prenom} ${impersonatedClient.nom}`.trim() || impersonatedClient.email}
+              hideTabsTargetUserId={impersonatedClient.id}
+            />
+          </Suspense>
+        </AppShell>
+      </DemoSessionProvider>
+    );
+  }
+
+  if (impersonatedAdmin && impersonatedVendor) {
+    return (
+      <DemoSessionProvider>
+        <AppShell panelRole="vendor" useCompanyProvider companyId={impersonatedAdmin.company_id} effectiveUserId={impersonatedVendor.auth_user_id ?? impersonatedVendor.id}>
+          <Suspense fallback={<div className="flex items-center justify-center h-screen"><div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" /></div>}>
+            <VendorDashboard
+              onLogout={() => {}}
+              impersonatedVendor={impersonatedVendor}
+              onBackToAdmin={() => setImpersonatedVendor(null)}
+              onConnectAsClient={(client) => setImpersonatedClient(client)}
+              isSAViewing
+              visuBadgeLabel={visuBadge}
+              backLabel="Retour admin"
+              canHideTabs={canHideTabs}
+              hideTabsTargetName={`${impersonatedVendor.first_name} ${impersonatedVendor.last_name}`.trim()}
+              hideTabsTargetUserId={impersonatedVendor.auth_user_id ?? impersonatedVendor.id}
+            />
+          </Suspense>
+        </AppShell>
+      </DemoSessionProvider>
+    );
+  }
+
+  if (impersonatedAdmin && impersonatedClient) {
+    return (
+      <DemoSessionProvider>
+        <AppShell panelRole="client" useCompanyProvider companyId={impersonatedAdmin.company_id} effectiveUserId={impersonatedClient.id}>
+          <Suspense fallback={<div className="flex items-center justify-center h-screen"><div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" /></div>}>
+            <ClientDashboard
+              onLogout={() => {}}
+              impersonatedClient={impersonatedClient}
+              onBackToAdmin={() => setImpersonatedClient(null)}
+              backLabel="Retour admin"
+              isSAViewing
+              visuBadgeLabel={visuBadge}
+              canHideTabs={canHideTabs}
+              hideTabsTargetName={`${impersonatedClient.prenom} ${impersonatedClient.nom}`.trim() || impersonatedClient.email}
+              hideTabsTargetUserId={impersonatedClient.id}
+            />
+          </Suspense>
+        </AppShell>
+      </DemoSessionProvider>
+    );
+  }
+
   if (impersonatedAdmin) {
     return (
       <DemoSessionProvider>
@@ -58,9 +145,11 @@ export default function CompanySuperAdminDashboard({ impersonated, onBack, isImp
             onLogout={() => {}}
             impersonatedAdmin={impersonatedAdmin}
             onBackToSuperAdmin={() => setImpersonatedAdmin(null)}
+            onConnectAsClient={handleConnectAsClient}
+            onConnectAsVendor={handleConnectAsVendor}
             backLabel="Retour Super Admin"
             isSAViewing
-            visuBadgeLabel={visuBadgeLabel || (isImpersonation ? undefined : 'Visu Super Admin')}
+            visuBadgeLabel={visuBadge}
             canHideTabs={canHideTabs}
             hideTabsTargetName={`${impersonatedAdmin.first_name} ${impersonatedAdmin.last_name}`.trim() || impersonatedAdmin.email}
             hideTabsTargetUserId={impersonatedAdmin.id}
@@ -74,14 +163,16 @@ export default function CompanySuperAdminDashboard({ impersonated, onBack, isImp
   const vcScope = `csa_${impersonated.id}`;
   return (
     <ThemeProvider panelRole="company_super_admin" effectiveUserId={impersonated.id} companyId={impersonated.company_id}>
-      <EditorModeProvider scopeKey={scopeKey}>
-        <VisualCustomizeProvider scope={vcScope}>
-          <CSADashboardInner impersonated={impersonated} onBack={onBack} isImpersonation={isImpersonation} onConnectAsAdmin={handleConnectAsAdmin} visuBadgeLabel={visuBadgeLabel} backLabel={backLabel} canHideTabs={canHideTabs} />
-          <VisualCustomizeOverlay />
-          <VisualCustomizeModal />
-          <VCPreviewToolbar />
-        </VisualCustomizeProvider>
-      </EditorModeProvider>
+      <TimezoneProvider panelRole="super_admin">
+        <EditorModeProvider scopeKey={scopeKey}>
+          <VisualCustomizeProvider scope={vcScope}>
+            <CSADashboardInner impersonated={impersonated} onBack={onBack} isImpersonation={isImpersonation} onConnectAsAdmin={handleConnectAsAdmin} visuBadgeLabel={visuBadgeLabel} backLabel={backLabel} canHideTabs={canHideTabs} />
+            <VisualCustomizeOverlay />
+            <VisualCustomizeModal />
+            <VCPreviewToolbar />
+          </VisualCustomizeProvider>
+        </EditorModeProvider>
+      </TimezoneProvider>
     </ThemeProvider>
   );
 }
@@ -94,7 +185,10 @@ interface InnerProps extends Props {
 
 function CSADashboardInner({ impersonated, onBack, isImpersonation = true, onConnectAsAdmin, visuBadgeLabel, backLabel, canHideTabs }: InnerProps) {
   const t = useThemeTokens();
-  const [activeView, setActiveView] = useState<CSAView>('overview');
+  const [activeView, setActiveViewRaw] = useState<CSAView>('overview');
+  const setActiveView = useCallback((v: CSAView) => {
+    startTransition(() => setActiveViewRaw(v));
+  }, []);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [csaFirstName, setCsaFirstName] = useState(impersonated.first_name);
@@ -189,6 +283,24 @@ function CSADashboardInner({ impersonated, onBack, isImpersonation = true, onCon
     }
   }, [ongletPanelsVisible, setTabsVisible, setTabsCollapsed, setFondsVisible, setCouleurVisible, setSavedVisible]);
 
+  const { unreadCount: unreadAdminMsgCount, unreadEntries: unreadAdminMsgEntries, markAsRead: markAdminMsgRead } = useUnreadCSAAdminMessages(impersonated.id);
+  const [chatInitialAdmin, setChatInitialAdmin] = useState<{ id: string; email: string; first_name: string; last_name: string } | null>(null);
+
+  const sidebarBadgeCounts = useMemo(() => {
+    const m: Record<string, number> = {};
+    if (unreadAdminMsgCount > 0) m['chat-admin'] = unreadAdminMsgCount;
+    return m;
+  }, [unreadAdminMsgCount]);
+
+  const handleOpenChatAdmin = useCallback((adminId: string) => {
+    const entry = unreadAdminMsgEntries.find(e => e.adminId === adminId);
+    if (entry) {
+      setChatInitialAdmin({ id: entry.adminId, email: entry.email, first_name: entry.firstName, last_name: entry.lastName });
+    }
+    setActiveView('chat-admin');
+    markAdminMsgRead(adminId);
+  }, [unreadAdminMsgEntries, markAdminMsgRead]);
+
   const handleLogout = useCallback(async () => {
     await supabase.auth.signOut();
     window.location.reload();
@@ -230,6 +342,7 @@ function CSADashboardInner({ impersonated, onBack, isImpersonation = true, onCon
           sidebarBodyRef={sidebarBodyRef}
           zone1Bg={zone1Bg}
           zone2Bg={zone2Bg}
+          badgeCounts={sidebarBadgeCounts}
         />
       </div>
 
@@ -252,6 +365,7 @@ function CSADashboardInner({ impersonated, onBack, isImpersonation = true, onCon
           sidebarBodyRef={sidebarBodyRef}
           zone1Bg={zone1Bg}
           zone2Bg={zone2Bg}
+          badgeCounts={sidebarBadgeCounts}
         />
       </div>
 
@@ -266,6 +380,9 @@ function CSADashboardInner({ impersonated, onBack, isImpersonation = true, onCon
           onMobileMenu={() => setMobileOpen(true)}
           topbarRef={topbarZoneRef}
           editorZone3Bg={zone3Bg}
+          unreadAdminMsgCount={unreadAdminMsgCount}
+          unreadAdminMsgEntries={unreadAdminMsgEntries}
+          onAdminMsgEntryClick={handleOpenChatAdmin}
         />
         {showChoice && (
           <EditorChoiceButtons onSelectOnglet={handleSelectOnglet} onSelectZoneDroite={handleSelectZoneDroite} onClose={editorCtx.closeEditor} />
@@ -303,6 +420,23 @@ function CSADashboardInner({ impersonated, onBack, isImpersonation = true, onCon
           {activeView === 'overview' && <CSAOverview impersonated={currentImpersonated} fullName={fullName} />}
           {activeView === 'admins' && <CSAAdminsList companyId={impersonated.company_id} onConnectAsAdmin={onConnectAsAdmin} />}
           {activeView === 'info' && <CSAInfoPage impersonated={currentImpersonated} onNameUpdated={handleNameUpdated} />}
+          {activeView === 'chat-admin' && (
+            <Suspense fallback={<div className="flex-1 flex items-center justify-center"><div className="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" /></div>}>
+              <div className="h-full flex flex-col">
+                <SAchatAdmin
+                  initialAdmin={chatInitialAdmin ? { id: chatInitialAdmin.id, email: chatInitialAdmin.email, first_name: chatInitialAdmin.first_name, last_name: chatInitialAdmin.last_name, phone: '', company: '', company_id: '', role: 'admin', pin: '', created_at: '', last_sign_in_at: null, access_enabled: true, ai_enabled: false } : null}
+                  onAdminViewed={(adminId) => { markAdminMsgRead(adminId); setChatInitialAdmin(null); }}
+                />
+              </div>
+            </Suspense>
+          )}
+          {activeView === 'chat-rois-admin' && (
+            <Suspense fallback={<div className="flex-1 flex items-center justify-center"><div className="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" /></div>}>
+              <div className="h-full flex flex-col">
+                <CSAChatRoisAdmin csaAuthId={impersonated.id} />
+              </div>
+            </Suspense>
+          )}
           {activeView === 'application' && <CSAApplicationPage companyId={impersonated.company_id} />}
           {activeView === 'site' && (
             <div className="h-full flex flex-col">

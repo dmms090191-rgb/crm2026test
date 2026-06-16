@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from 'react';
 import SuperAdminSidebar, { type SAView } from './SuperAdminSidebar';
 import SuperAdminTopBar from './SuperAdminTopBar';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
@@ -171,6 +171,12 @@ function SuperAdminDashboardInner({ onLogout, onConnectAsAdmin, onConnectAsCompa
   const handleChangeAppIcon = useCallback(() => { setAppIconSelectionMode(true); setActiveView('logo'); }, []);
   const handleAppIconSelected = useCallback(() => { setAppIconSelectionMode(false); setActiveView('application'); }, []);
 
+  const sidebarBadgeCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    if (unreadAdminMsgCount > 0) counts['chat-admin'] = unreadAdminMsgCount;
+    return counts;
+  }, [unreadAdminMsgCount]);
+
   useEditorLocateHandler(activeView, setActiveView);
 
   const { customThemeOverrides } = useTheme();
@@ -210,11 +216,11 @@ function SuperAdminDashboardInner({ onLogout, onConnectAsAdmin, onConnectAsCompa
       {mobileOpen && <div className="fixed inset-0 z-40 md:hidden" style={{ background: t.modal.overlayBg }} onClick={() => setMobileOpen(false)} />}
 
       <div className={`fixed inset-y-0 left-0 z-50 md:hidden transition-transform duration-300 ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-        <SuperAdminSidebar activeView={activeView} onNavigate={(v) => { handleNavigate(v); setMobileOpen(false); }} collapsed={false} onCollapse={() => setMobileOpen(false)} onLogout={onLogout} editorZone1Bg={zone1Bg} editorZone2Bg={zone2Bg} logoZoneRef={logoZoneRef} sidebarBodyRef={sidebarBodyRef} />
+        <SuperAdminSidebar activeView={activeView} onNavigate={(v) => { handleNavigate(v); setMobileOpen(false); }} collapsed={false} onCollapse={() => setMobileOpen(false)} onLogout={onLogout} editorZone1Bg={zone1Bg} editorZone2Bg={zone2Bg} logoZoneRef={logoZoneRef} sidebarBodyRef={sidebarBodyRef} badgeCounts={sidebarBadgeCounts} />
       </div>
 
       <div className="hidden md:block relative z-[1]">
-        <SuperAdminSidebar activeView={activeView} onNavigate={handleNavigate} collapsed={sidebarCollapsed} onCollapse={() => setSidebarCollapsed(prev => !prev)} onLogout={onLogout} editorZone1Bg={zone1Bg} editorZone2Bg={zone2Bg} logoZoneRef={logoZoneRef} sidebarBodyRef={sidebarBodyRef} />
+        <SuperAdminSidebar activeView={activeView} onNavigate={handleNavigate} collapsed={sidebarCollapsed} onCollapse={() => setSidebarCollapsed(prev => !prev)} onLogout={onLogout} editorZone1Bg={zone1Bg} editorZone2Bg={zone2Bg} logoZoneRef={logoZoneRef} sidebarBodyRef={sidebarBodyRef} badgeCounts={sidebarBadgeCounts} />
       </div>
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative z-[1]">

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-15T15:45:55.192Z",
+  "generatedAt": "2026-06-16T18:17:38.078Z",
   "anyCount": 1,
   "anyOccurrences": [
     {
@@ -10,7 +10,7 @@
   ],
   "unusedImportCount": 0,
   "unusedImports": [],
-  "largeFileCount": 7,
+  "largeFileCount": 8,
   "largeFiles": [
     {
       "file": "src/pages/admin/views/calquer-logo/calquer-logo-svg-decompose.ts",
@@ -23,14 +23,14 @@
       "overflow": 4
     },
     {
-      "file": "src/pages/superadmin/SuperAdminSidebar.tsx",
-      "lines": 314,
-      "overflow": 14
+      "file": "src/pages/admin/components/topbar/AdminNotificationsHub.tsx",
+      "lines": 320,
+      "overflow": 20
     },
     {
-      "file": "src/pages/company-super-admin/CompanySuperAdminDashboard.tsx",
-      "lines": 339,
-      "overflow": 39
+      "file": "src/pages/superadmin/SuperAdminSidebar.tsx",
+      "lines": 325,
+      "overflow": 25
     },
     {
       "file": "src/pages/admin/views/calquer-logo/CalquerLogo.tsx",
@@ -43,6 +43,11 @@
       "overflow": 45
     },
     {
+      "file": "src/pages/company-super-admin/CompanySuperAdminDashboard.tsx",
+      "lines": 473,
+      "overflow": 173
+    },
+    {
       "file": "src/pages/superadmin/views/site-builder/templates/BarbieWellnessTemplate.tsx",
       "lines": 503,
       "overflow": 203
@@ -53,7 +58,7 @@
   "eslintErrorCount": 0,
   "eslintWarningCount": 0,
   "eslintIssues": [],
-  "totalFilesAnalyzed": 916,
-  "totalLinesAnalyzed": 124804,
-  "totalOverflowLines": 350
+  "totalFilesAnalyzed": 927,
+  "totalLinesAnalyzed": 127065,
+  "totalOverflowLines": 515
 }

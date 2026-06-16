@@ -19,6 +19,7 @@ export default function SAchatAdmin({ initialAdmin, onAdminViewed, cachedAdmins 
   const [contactLoading, setContactLoading] = useState(true);
   const [adminsWithMessages, setAdminsWithMessages] = useState<string[]>([]);
   const [lastMessages, setLastMessages] = useState<Record<string, { content: string; created_at: string; sender_role: string }>>({});
+  const [csaUsers, setCsaUsers] = useState<AdminUser[]>([]);
 
   const [selectMode, setSelectMode] = useState(false);
   const [selectedConvos, setSelectedConvos] = useState<Set<string>>(new Set());
@@ -27,6 +28,24 @@ export default function SAchatAdmin({ initialAdmin, onAdminViewed, cachedAdmins 
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (user) setSuperAdminId(user.id);
     });
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (cancelled || !session) return;
+      try {
+        const res = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/list-company-super-admins`,
+          { headers: { Authorization: `Bearer ${session.access_token}`, Apikey: import.meta.env.VITE_SUPABASE_ANON_KEY } },
+        );
+        if (!res.ok || cancelled) return;
+        const body = await res.json();
+        if (body.company_super_admins && !cancelled) setCsaUsers(body.company_super_admins);
+      } catch { /* ignore */ }
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   const refreshContacts = useCallback(async (showLoader = true) => {
@@ -86,14 +105,14 @@ export default function SAchatAdmin({ initialAdmin, onAdminViewed, cachedAdmins 
 
   useEffect(() => {
     if (!selectedAdminId || messages.length === 0 || markingRef.current) return;
-    const hasUnread = messages.some(m => m.sender === 'admin' && m.read === false && !m.deleted);
+    const hasUnread = messages.some(m => m.sender !== 'super_admin' && m.read === false && !m.deleted);
     if (hasUnread) {
       markingRef.current = true;
       supabase
         .from('super_admin_messages')
         .update({ read: true })
         .eq('admin_id', selectedAdminId)
-        .eq('sender_role', 'admin')
+        .neq('sender_role', 'super_admin')
         .eq('read', false)
         .eq('deleted', false)
         .then(() => {
@@ -180,25 +199,38 @@ export default function SAchatAdmin({ initialAdmin, onAdminViewed, cachedAdmins 
     refreshContacts(false).catch(() => {});
   }, [selectedAdminId, superAdminId, refreshContacts]);
 
+  const allKnownUsers = useMemo(() => {
+    const map = new Map<string, AdminUser>();
+    for (const a of cachedAdmins) map.set(a.id, a);
+    for (const c of csaUsers) if (!map.has(c.id)) map.set(c.id, c);
+    return map;
+  }, [cachedAdmins, csaUsers]);
+
   const adminsForContacts = useMemo(() => {
-    const withMsgs = cachedAdmins.filter(a => adminsWithMessages.includes(a.id));
+    const withMsgs = adminsWithMessages
+      .map(id => allKnownUsers.get(id))
+      .filter((a): a is AdminUser => !!a);
     if (initialAdmin && !withMsgs.some(a => a.id === initialAdmin.id)) {
-      const fromAll = cachedAdmins.find(a => a.id === initialAdmin.id);
+      const fromAll = allKnownUsers.get(initialAdmin.id);
       return [fromAll ?? initialAdmin, ...withMsgs];
     }
     return withMsgs;
-  }, [cachedAdmins, adminsWithMessages, initialAdmin]);
+  }, [allKnownUsers, adminsWithMessages, initialAdmin]);
 
   const contacts: ChatContact[] = useMemo(() =>
-    adminsForContacts.map(a => ({
-      id: a.id,
-      displayName: [a.first_name, a.last_name].filter(Boolean).join(' ') || a.email,
-      subtitle: a.email,
-      initial: (a.first_name || a.email || '?').charAt(0).toUpperCase(),
-      lastMessage: lastMessages[a.id]?.content,
-      lastMessageAt: lastMessages[a.id]?.created_at,
-      lastMessageSender: lastMessages[a.id]?.sender_role === 'super_admin' ? 'super_admin' : 'admin',
-    })),
+    adminsForContacts.map(a => {
+      const isCsa = a.role === 'company_super_admin';
+      const lastSender = lastMessages[a.id]?.sender_role;
+      return {
+        id: a.id,
+        displayName: [a.first_name, a.last_name].filter(Boolean).join(' ') || a.email,
+        subtitle: isCsa ? `Super Admin · ${a.company || a.email}` : a.email,
+        initial: (a.first_name || a.email || '?').charAt(0).toUpperCase(),
+        lastMessage: lastMessages[a.id]?.content,
+        lastMessageAt: lastMessages[a.id]?.created_at,
+        lastMessageSender: lastSender === 'super_admin' ? 'super_admin' : lastSender || 'admin',
+      };
+    }),
   [adminsForContacts, lastMessages]);
 
   const handleToggleSelectMode = useCallback(() => {

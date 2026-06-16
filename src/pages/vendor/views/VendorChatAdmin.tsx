@@ -124,8 +124,8 @@ export default function VendorChatAdmin({ vendorName, vendorDbId, vendorAuthId, 
       loadMessages(false).catch(() => {});
     });
     if (companyId) {
-      supabase.from('registrations').select('auth_user_id').eq('company_id', companyId).eq('role', 'admin').then(({ data }) => {
-        (data ?? []).forEach(r => {
+      supabase.rpc('get_company_admin_ids', { p_company_id: companyId }).then(({ data }) => {
+        (data ?? []).forEach((r: { auth_user_id: string }) => {
           if (r.auth_user_id && r.auth_user_id !== userId) {
             sendPushForMessage({ targetUserId: r.auth_user_id, title: 'Talvex', body: 'Nouveau message vendeur' });
           }

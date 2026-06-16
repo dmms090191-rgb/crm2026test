@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import ClientSidebar from './ClientSidebar';
 import ClientTopBar from './ClientTopBar';
 import ClientVueEnsemble from './views/ClientVueEnsemble';
@@ -14,6 +14,9 @@ import DemoEmitterLayer from '../../components/demo/DemoEmitterLayer';
 import DemoReceiverLayer from '../../components/demo/DemoReceiverLayer';
 import { useDemoSessionSafe } from '../../components/demo/DemoSessionContext';
 import { useClientUnseenProposals } from './hooks/useClientUnseenProposals';
+import { useIsWellnessClient } from '../../hooks/useIsWellnessClient';
+
+const ClientSuiviCorporel = lazy(() => import('./views/ClientSuiviCorporel'));
 
 export interface ImpersonatedClientInfo {
   id: string;
@@ -34,7 +37,7 @@ interface ClientDashboardProps {
   hideTabsTargetUserId?: string | null;
 }
 
-export type ClientActiveView = 'vue-ensemble' | 'messagerie' | 'agenda' | 'propositions-rdv' | 'tuto';
+export type ClientActiveView = 'vue-ensemble' | 'messagerie' | 'agenda' | 'propositions-rdv' | 'tuto' | 'suivi-corporel';
 
 const BREADCRUMB_LABELS: Record<ClientActiveView, string> = {
   'vue-ensemble': "Vue d'ensemble",
@@ -42,6 +45,7 @@ const BREADCRUMB_LABELS: Record<ClientActiveView, string> = {
   'agenda': 'Agenda',
   'propositions-rdv': 'Propositions RDV',
   'tuto': 'Tuto',
+  'suivi-corporel': 'Suivi corporel',
 };
 
 export default function ClientDashboard({ onLogout, impersonatedClient, onBackToAdmin, backLabel = 'Retour admin', isSAViewing, visuBadgeLabel, canHideTabs, hideTabsTargetName, hideTabsTargetUserId }: ClientDashboardProps) {
@@ -57,6 +61,7 @@ export default function ClientDashboard({ onLogout, impersonatedClient, onBackTo
   const { unreadCount: unreadMsgCount, latestAt: unreadLatestAt, markAsRead: markMsgRead } = useUnreadAdminMessages(clientAuthId);
   const { notifications: agendaNotifs, count: agendaCount, markAsSeen: markAgendaSeen } = useAgendaNotifications('client', clientEmail || null);
   const { unseenProposals, handleProposalNotifClick, markProposalsSeen } = useClientUnseenProposals(clientEmail);
+  const isWellnessClient = useIsWellnessClient(clientEmail);
 
   useEffect(() => {
     if (impersonatedClient) {
@@ -127,6 +132,7 @@ export default function ClientDashboard({ onLogout, impersonatedClient, onBackTo
       case 'agenda': return <ClientAgenda clientEmail={clientEmail} />;
       case 'propositions-rdv': return <ClientPropositionsRdv clientEmail={clientEmail} onMount={markProposalsSeen} />;
       case 'tuto': return <div className="p-6"><p className="text-sm" style={{ color: 'inherit' }}>Tuto - Contenu a venir</p></div>;
+      case 'suivi-corporel': return isWellnessClient ? <Suspense fallback={null}><ClientSuiviCorporel clientId={clientAuthId} clientEmail={clientEmail} /></Suspense> : null;
       default: return <ClientVueEnsemble clientName={clientName} clientAuthId={clientAuthId} onNavigate={(v) => setActiveView(v as ClientActiveView)} />;
     }
   };
@@ -157,6 +163,7 @@ export default function ClientDashboard({ onLogout, impersonatedClient, onBackTo
           canHideTabs={canHideTabs}
           hideTabsTargetName={hideTabsTargetName}
           hideTabsTargetUserId={hideTabsTargetUserId}
+          showSuiviCorporel={isWellnessClient}
         />
       </div>
       <div className="flex flex-col flex-1 min-h-0">

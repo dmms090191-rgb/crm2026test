@@ -59,7 +59,7 @@ const DEFAULT_SECTIONS: SidebarSection[] = [
   { title: 'Contact', items: [
     { id: 'chat-client', label: 'Chat Client', icon: <MessageCircle className="w-4 h-4" /> },
     { id: 'chat-vendeur', label: 'Chat Vendeur', icon: <MessageSquare className="w-4 h-4" /> },
-    { id: 'chat-super-admin', label: 'Super Admin', icon: <Shield className="w-4 h-4" /> },
+    { id: 'chat-super-admin', label: 'Chat SP', icon: <Shield className="w-4 h-4" /> },
   ] },
   { title: 'Agenda', items: [
     { id: 'agenda', label: 'Agenda perso', icon: <Calendar className="w-4 h-4" /> },
@@ -94,7 +94,8 @@ export default function Sidebar({ activeView, onNavigate, collapsed, onCollapse,
   const [hideEditMode, setHideEditMode] = useState(false);
 
   const sections = useMemo(() => DEFAULT_SECTIONS, []);
-  const order = useSidebarOrder({ role: 'admin', sections, userId, companyId });
+  const effectiveUserId = hideTabsTargetUserId ?? userId;
+  const order = useSidebarOrder({ role: 'admin', sections, userId: effectiveUserId, companyId, hiddenTabs });
 
   const mergedTextOverrides = useMemo(() => {
     const base = { ...ctTextOverrides };

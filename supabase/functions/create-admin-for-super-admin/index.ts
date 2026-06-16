@@ -116,6 +116,7 @@ Deno.serve(async (req: Request) => {
       app_metadata: {
         role: "admin",
         company_id: newCompanyId,
+        created_by_user_id: caller.id,
       },
     });
 
