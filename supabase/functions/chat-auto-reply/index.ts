@@ -211,12 +211,35 @@ Deno.serve(async (req: Request) => {
       return jsonResp({ skipped: true, reason: "no_client_auth_id" });
     }
 
-    const { data: lead } = await db
+    // Try direct lookup by id + company_id first
+    let { data: lead } = await db
       .from("leads")
       .select("ai_enabled")
       .eq("id", clientAuthId)
       .eq("company_id", companyId)
       .maybeSingle();
+
+    // If not found, the client_auth_id might reference a lead in another company
+    // (same person registered in multiple companies). Fall back to email + company_id.
+    if (!lead) {
+      const { data: sourceLead } = await db
+        .from("leads")
+        .select("email")
+        .eq("id", clientAuthId)
+        .maybeSingle();
+
+      if (sourceLead?.email) {
+        const { data: companyLead } = await db
+          .from("leads")
+          .select("ai_enabled")
+          .eq("email", sourceLead.email)
+          .eq("company_id", companyId)
+          .eq("actif", true)
+          .maybeSingle();
+        lead = companyLead;
+        console.log("[chat-auto-reply] Lead fallback by email:", sourceLead.email, "| found:", !!companyLead);
+      }
+    }
 
     console.log("[chat-auto-reply] Lead lookup — found:", !!lead, "| ai_enabled:", lead?.ai_enabled);
 

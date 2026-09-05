@@ -138,7 +138,7 @@ export default function ClientMessagerie({ clientName, clientAuthId, isAdmin }: 
         });
       }
     });
-  }, [clientAuthId, leadVendorId, loadMessages]);
+  }, [clientAuthId, leadVendorId, companyId, clientName, loadMessages]);
 
   const handleDelete = useCallback(async (id: string) => {
     setMessages(prev => prev.map(m => m.id === id ? { ...m, deleted: true } : m));
