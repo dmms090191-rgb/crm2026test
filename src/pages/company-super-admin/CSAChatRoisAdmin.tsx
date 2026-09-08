@@ -10,11 +10,17 @@ interface CSAChatRoisAdminProps {
   csaAuthId: string;
 }
 
+/** Identifiant local de l'unique conversation affichee (pas un id de base). */
+const RA_CONTACT_ID = 'rois-admin';
+
 export default function CSAChatRoisAdmin({ csaAuthId }: CSAChatRoisAdminProps) {
   const tokens = useThemeTokens();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [superAdminId, setSuperAdminId] = useState<string | null>(null);
+
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedConvos, setSelectedConvos] = useState<Set<string>>(new Set());
 
   const markingRef = useRef(false);
 
@@ -125,9 +131,52 @@ export default function CSAChatRoisAdmin({ csaAuthId }: CSAChatRoisAdminProps) {
     if (error) loadMessages(false).catch(() => {});
   }, [loadMessages]);
 
+  const handleToggleSelectMode = useCallback(() => {
+    setSelectMode(prev => !prev);
+    setSelectedConvos(new Set());
+  }, []);
+
+  const handleToggleConvo = useCallback((id: string) => {
+    setSelectedConvos(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const handleSelectAll = useCallback((all: boolean) => {
+    setSelectedConvos(all ? new Set([RA_CONTACT_ID]) : new Set());
+  }, []);
+
+  /**
+   * Suppression logique, STRICTEMENT bornee au couple
+   *   super_admin_id = Talvex  ·  admin_id = ce Groupe
+   *
+   * Les deux colonnes sont posees explicitement : le perimetre ne repose
+   * jamais sur la seule RLS. Sans super_admin_id resolu, on refuse plutot
+   * que d'emettre un UPDATE non borne qui toucherait aussi les
+   * conversations Groupe <-> Societe (ou ce Groupe est super_admin_id).
+   */
+  const handleDeleteSelected = useCallback(async () => {
+    if (!csaAuthId || !superAdminId) return;
+    if (!selectedConvos.has(RA_CONTACT_ID)) return;
+
+    const { error } = await supabase
+      .from('super_admin_messages')
+      .update({ deleted: true })
+      .eq('super_admin_id', superAdminId)
+      .eq('admin_id', csaAuthId);
+
+    setSelectedConvos(new Set());
+    setSelectMode(false);
+    if (error) { loadMessages(false).catch(() => {}); return; }
+    setMessages([]);
+    loadMessages(false).catch(() => {});
+  }, [csaAuthId, superAdminId, selectedConvos, loadMessages]);
+
   const raContact: ChatContact = useMemo(() => ({
-    id: 'rois-admin',
-    displayName: 'Rois Admin',
+    id: RA_CONTACT_ID,
+    displayName: 'Talvex Administrateur',
     subtitle: 'Direction plateforme',
     initial: 'R',
     lastMessage: messages.length > 0 ? messages[messages.length - 1].content : undefined,
@@ -139,7 +188,7 @@ export default function CSAChatRoisAdmin({ csaAuthId }: CSAChatRoisAdminProps) {
     <div className="flex flex-col flex-1 space-y-2 md:space-y-4 p-3 sm:p-4 md:p-6" style={{ minHeight: 0 }}>
       <div className="flex items-center justify-between flex-shrink-0">
         <div>
-          <h2 className="text-base md:text-xl font-bold" style={{ color: tokens.heading?.primary || tokens.text.primary }}>Chat Rois Admin</h2>
+          <h2 className="text-base md:text-xl font-bold" style={{ color: tokens.heading?.primary || tokens.text.primary }}>Chat Talvex Administrateur</h2>
           <p className="text-[11px] md:text-xs mt-0.5 hidden sm:block" style={{ color: tokens.text.quaternary }}>Communiquez avec la direction de la plateforme</p>
         </div>
         <div
@@ -152,7 +201,7 @@ export default function CSAChatRoisAdmin({ csaAuthId }: CSAChatRoisAdminProps) {
       <div className="flex-1 overflow-hidden" style={{ minHeight: 0 }}>
         <MessagingPanel
           contacts={[raContact]}
-          selectedContactId="rois-admin"
+          selectedContactId={RA_CONTACT_ID}
           onSelectContact={() => {}}
           messages={messages}
           currentRole="company_super_admin"
@@ -165,7 +214,14 @@ export default function CSAChatRoisAdmin({ csaAuthId }: CSAChatRoisAdminProps) {
           isAdmin={false}
           loading={loading}
           contactLoading={false}
-          emptyText="Aucun message avec le Rois Admin pour le moment."
+          emptyText="Aucun message avec Talvex Administrateur pour le moment."
+          sidebarSelectable
+          sidebarSelectMode={selectMode}
+          onSidebarToggleSelectMode={handleToggleSelectMode}
+          sidebarSelectedIds={selectedConvos}
+          onSidebarToggleSelect={handleToggleConvo}
+          onSidebarSelectAll={handleSelectAll}
+          onSidebarDeleteSelected={handleDeleteSelected}
         />
       </div>
     </div>

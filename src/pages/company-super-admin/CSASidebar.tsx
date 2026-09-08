@@ -1,44 +1,48 @@
 import { useState, useMemo } from 'react';
-import { LayoutDashboard, Users, UserCog, Shield, Smartphone, Globe, MessageSquare, Crown, Eye, EyeOff } from 'lucide-react';
+import { LayoutDashboard, Users, UserCog, Smartphone, Globe, MessageSquare, Crown, Eye, EyeOff, Tag } from 'lucide-react';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
-import { useSidebarOrder } from '../../hooks/useSidebarOrder';
-import SidebarReorderControls from '../../components/SidebarReorderControls';
 import SidebarFooterActions from '../../components/layout/SidebarFooterActions';
-import type { SidebarSection, SidebarEntry } from '../../lib/sidebarOrderTypes';
+import SidebarLayoutControls from '../../components/sidebar-v2/SidebarLayoutControls';
+import { useSidebarLayout } from '../../hooks/useSidebarLayout';
+import type { LayoutDefaultSection } from '../../lib/sidebarLayout';
 import type { ImpersonatedCompanySuperAdmin } from '../../App';
-import { usePanelHiddenTabs } from '../../hooks/usePanelHiddenTabs';
+import SidebarPanelTitle from '../../components/layout/SidebarPanelTitle';
 
-export type CSAView = 'overview' | 'admins' | 'info' | 'chat-admin' | 'chat-rois-admin' | 'application' | 'site';
+export type CSAView = 'overview' | 'admins' | 'info' | 'chat-admin' | 'chat-rois-admin' | 'application' | 'site' | 'statuts';
 
-const DEFAULT_SECTIONS: SidebarSection[] = [
-  {
-    title: 'Principal',
-    items: [
-      { id: 'overview', label: 'Dashboard', icon: <LayoutDashboard className="w-4 h-4" /> },
-      { id: 'info', label: 'Info Super Admin', icon: <UserCog className="w-4 h-4" /> },
-    ],
-  },
-  {
-    title: 'Distributeur',
-    items: [
-      { id: 'admins', label: 'Liste des distributeurs', icon: <Users className="w-4 h-4" /> },
-    ],
-  },
-  {
-    title: 'Contact',
-    items: [
-      { id: 'chat-admin', label: 'Chat Admin', icon: <MessageSquare className="w-4 h-4" /> },
-      { id: 'chat-rois-admin', label: 'Chat Rois Admin', icon: <Crown className="w-4 h-4" /> },
-    ],
-  },
-  {
-    title: 'Configuration',
-    items: [
-      { id: 'application', label: 'Application', icon: <Smartphone className="w-4 h-4" /> },
-      { id: 'site', label: 'Site', icon: <Globe className="w-4 h-4" /> },
-    ],
-  },
+/**
+ * Structure par defaut du panel Groupe — moteur V2.
+ * Les icones vivent hors de la structure : celle-ci doit rester serialisable.
+ */
+const LAYOUT_SECTIONS: LayoutDefaultSection[] = [
+  { title: 'Principal', items: [
+    { id: 'overview', label: 'Dashboard' },
+    { id: 'info', label: 'Accès & sécurité' },
+  ] },
+  { title: 'Sociétés', items: [
+    { id: 'statuts', label: 'Statuts' },
+    { id: 'admins', label: 'Gestion des sociétés' },
+  ] },
+  { title: 'Contact', items: [
+    { id: 'chat-rois-admin', label: 'Chat Talvex Administrateur' },
+    { id: 'chat-admin', label: 'Chat Sociétés' },
+  ] },
+  { title: 'Configuration', items: [
+    { id: 'application', label: 'Application' },
+    { id: 'site', label: 'Site' },
+  ] },
 ];
+
+const ICONS: Record<string, React.ReactNode> = {
+  overview: <LayoutDashboard className="w-4 h-4" />,
+  info: <UserCog className="w-4 h-4" />,
+  statuts: <Tag className="w-4 h-4" />,
+  admins: <Users className="w-4 h-4" />,
+  'chat-rois-admin': <Crown className="w-4 h-4" />,
+  'chat-admin': <MessageSquare className="w-4 h-4" />,
+  application: <Smartphone className="w-4 h-4" />,
+  site: <Globe className="w-4 h-4" />,
+};
 
 interface CSASidebarProps {
   activeView: CSAView;
@@ -51,6 +55,7 @@ interface CSASidebarProps {
   onBackToRoisAdmin?: () => void;
   visuBadgeLabel?: string;
   backLabel?: string;
+  /** Conserves pour compatibilite d'appel. En V2 le masquage vit dans Reorganiser. */
   canHideTabs?: boolean;
   hideTabsTargetName?: string;
   hideTabsTargetUserId?: string | null;
@@ -63,18 +68,19 @@ interface CSASidebarProps {
 
 export default function CSASidebar({
   activeView, onNavigate, collapsed, onCollapse, onLogout,
-  impersonated, isImpersonation, onBackToRoisAdmin, visuBadgeLabel, backLabel, canHideTabs, hideTabsTargetName, hideTabsTargetUserId, logoZoneRef, sidebarBodyRef, zone1Bg, zone2Bg, badgeCounts,
+  impersonated, onBackToRoisAdmin, visuBadgeLabel, backLabel,
+  logoZoneRef, sidebarBodyRef, zone1Bg, zone2Bg, badgeCounts, canHideTabs,
 }: CSASidebarProps) {
   const t = useThemeTokens();
-  const { hiddenTabs, loaded: hiddenTabsLoaded, toggle: toggleHiddenTab } = usePanelHiddenTabs('company_super_admin', impersonated.company_id, hideTabsTargetUserId);
-  const [hideEditMode, setHideEditMode] = useState(false);
-  const sections = useMemo(() => DEFAULT_SECTIONS, []);
-  const order = useSidebarOrder({
-    role: 'company_super_admin',
+  const sections = useMemo(() => LAYOUT_SECTIONS, []);
+
+  // Moteur V2, scope sur l'ENTITE : la ligne user_preferences du Groupe
+  // visualise, cle sidebar_orders["v2:company_super_admin"].
+  // En Visu, impersonated.id est bien le Groupe, jamais le compte Talvex.
+  const layout = useSidebarLayout({
+    panel: 'company_super_admin',
+    entityUserId: impersonated.id,
     sections,
-    userId: impersonated.id,
-    companyId: impersonated.company_id,
-    hiddenTabs,
   });
 
   return (
@@ -82,66 +88,40 @@ export default function CSASidebar({
       className={`relative flex flex-col flex-shrink-0 h-full transition-[width] duration-300 ${collapsed ? 'w-16' : 'w-full md:w-60'}`}
       style={{ borderRight: `1px solid ${t.sidebar.border}`, backdropFilter: 'blur(16px) saturate(1.4)', WebkitBackdropFilter: 'blur(16px) saturate(1.4)' }}
     >
-      <div
-        ref={logoZoneRef}
-        className={`flex items-center h-16 flex-shrink-0 overflow-hidden gap-3 px-4`}
-        style={{ background: zone1Bg || t.sidebar.bg, borderBottom: `1px solid ${t.sidebar.border}` }}
-      >
-        {collapsed ? (
-          <div className="w-8 h-8 rounded-xl flex items-center justify-center shadow-lg mx-auto" style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)', boxShadow: '0 0 20px rgba(245,158,11,0.4)' }}>
-            <Shield className="w-4 h-4 text-white" strokeWidth={2} />
-          </div>
-        ) : (
-          <>
-            <div className="w-8 h-8 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0" style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)', boxShadow: '0 0 20px rgba(245,158,11,0.4)' }}>
-              <Shield className="w-4 h-4 text-white" strokeWidth={2} />
-            </div>
-            <div className="min-w-0 leading-tight">
-              <p className="text-sm font-bold tracking-tight truncate" style={{ color: t.sidebar.logoText }}>SUPER ADMIN</p>
-              <p className="text-[9px] tracking-[0.2em] uppercase" style={{ color: t.sidebar.logoSub }}>{impersonated.company}</p>
-            </div>
-          </>
-        )}
+      <div ref={logoZoneRef}>
+        <SidebarPanelTitle label="Groupe" collapsed={collapsed} tokens={t} background={zone1Bg || undefined} />
       </div>
 
       <div ref={sidebarBodyRef} className="flex-1 flex flex-col min-h-0" style={{ background: zone2Bg || t.sidebar.bg }}>
-        {!hiddenTabsLoaded ? (
+        {!layout.loaded ? (
           <CSASidebarSkeleton collapsed={collapsed} tokens={t} />
         ) : (
-        <SidebarReorderControls
-          entries={hideEditMode ? order.entries : filterHidden(order.entries, hiddenTabs)}
-          reordering={order.reordering}
+        <SidebarLayoutControls
+          entries={layout.reordering ? layout.draft : layout.visible}
+          reordering={layout.reordering}
           collapsed={collapsed}
           activeId={activeView}
-          onNavigate={id => onNavigate(id as CSAView)}
-          startReorder={order.startReorder}
-          cancelReorder={order.cancelReorder}
-          confirmReorder={order.confirmReorder}
-          move={order.move}
-          handleDragStart={order.handleDragStart}
-          handleDragOver={order.handleDragOver}
-          handleDragEnd={order.handleDragEnd}
-          draftLength={order.draftLength}
-          renameEntry={order.renameEntry}
-          addSection={order.addSection}
-          addDivider={order.addDivider}
-          removeEntry={order.removeEntry}
-          resetToDefault={order.resetToDefault}
-          dragSourceIdx={order.dragSourceIdx}
-          dropTargetIdx={order.dropTargetIdx}
-          dropEdge={order.dropEdge}
-          renderItem={(entry, isActive) => (
+          defaultLabels={layout.defaultLabels}
+          cancelReorder={layout.cancelReorder}
+          confirmReorder={layout.confirmReorder}
+          resetToDefault={layout.resetToDefault}
+          move={layout.move}
+          addSection={layout.addSection}
+          addDivider={layout.addDivider}
+          remove={layout.remove}
+          rename={layout.rename}
+          toggleHidden={layout.toggleHidden}
+          // Masquer pilote la disponibilite des fonctionnalites : Talvex seul.
+          canHide={canHideTabs === true}
+          renderItem={(entry, isActive, label) => (
             <CSANavItem
               id={entry.id}
-              label={entry.label}
-              icon={entry.icon}
+              label={label}
+              icon={ICONS[entry.id]}
               isActive={isActive}
               collapsed={collapsed}
-              onClick={() => { if (!hideEditMode) onNavigate(entry.id as CSAView); }}
+              onClick={() => onNavigate(entry.id as CSAView)}
               tokens={t.sidebar}
-              hideEditMode={hideEditMode}
-              isHidden={hiddenTabs.has(entry.id)}
-              onToggleHide={() => toggleHiddenTab(entry.id)}
               badgeCount={badgeCounts?.[entry.id]}
             />
           )}
@@ -152,33 +132,18 @@ export default function CSASidebar({
           collapsed={collapsed}
           onLogout={onLogout}
           onCollapse={onCollapse}
-          onReorganize={order.startReorder}
-          reordering={order.reordering}
+          onReorganize={layout.startReorder}
+          reordering={layout.reordering}
           tokens={t}
           onBackToRoisAdmin={onBackToRoisAdmin}
           visuBadgeLabel={visuBadgeLabel}
           backLabel={backLabel}
-          onHideTabs={canHideTabs ? () => setHideEditMode(prev => !prev) : undefined}
-          hideEditMode={hideEditMode}
         />
       </div>
     </aside>
   );
 }
 
-function filterHidden(entries: SidebarEntry[], hidden: Set<string>): SidebarEntry[] {
-  if (hidden.size === 0) return entries;
-  const filtered = entries.filter(e => e.kind !== 'item' || !hidden.has(e.id));
-  const result: SidebarEntry[] = [];
-  for (let i = 0; i < filtered.length; i++) {
-    const cur = filtered[i];
-    if (cur.kind === 'section') { const next = filtered[i + 1]; if (!next || next.kind === 'section' || next.kind === 'divider') continue; }
-    if (cur.kind === 'divider') { const next = filtered[i + 1]; if (!next || next.kind === 'divider') continue; }
-    result.push(cur);
-  }
-  if (result.length > 0 && result[result.length - 1].kind === 'divider') result.pop();
-  return result;
-}
 
 function CSASidebarSkeleton({ collapsed, tokens: t }: { collapsed: boolean; tokens: ReturnType<typeof useThemeTokens> }) {
   const rows = collapsed ? [1,2,3,4] : [1,2,3,4,5];
@@ -194,7 +159,7 @@ function CSASidebarSkeleton({ collapsed, tokens: t }: { collapsed: boolean; toke
   );
 }
 
-function CSANavItem({ id, label, icon, isActive, collapsed, onClick, tokens, hideEditMode, isHidden, onToggleHide, badgeCount }: {
+function CSANavItem({ label, icon, isActive, collapsed, onClick, tokens, hideEditMode, isHidden, onToggleHide, badgeCount }: {
   id: string; label: string; icon: React.ReactNode; isActive: boolean; collapsed: boolean;
   onClick: () => void;
   tokens: ReturnType<typeof useThemeTokens>['sidebar'];

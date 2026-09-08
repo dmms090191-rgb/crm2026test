@@ -168,6 +168,9 @@ function SuperAdminDashboardInner({ onLogout, onConnectAsAdmin, onConnectAsCompa
   const handleConnectAsAdmin = (admin: AdminUser) => { saveConnectReturnContext({ fromRole: 'super_admin', fromTab: 'admins', adminId: admin.id, scrollY: window.scrollY }); onConnectAsAdmin?.(admin); };
   const handleConnectAsCompanySuperAdmin = (sa: CompanySuperAdmin) => { onConnectAsCompanySuperAdmin?.(sa); };
   const handleOpenChatAdmin = useCallback((admin: AdminUser) => { setChatAdmin(admin); setActiveView('chat-admin'); }, []);
+  // Le destinataire vient du groupe clique : sa.id EST son auth_user_id, celui utilise par super_admin_messages.admin_id.
+  // pin et ai_enabled n'existent que pour l'affichage des societes et ne servent jamais a identifier le destinataire.
+  const handleOpenChatCSA = useCallback((sa: CompanySuperAdmin) => { setChatAdmin({ ...sa, pin: '', ai_enabled: false }); setActiveView('chat-admin'); }, []);
   const handleChangeAppIcon = useCallback(() => { setAppIconSelectionMode(true); setActiveView('logo'); }, []);
   const handleAppIconSelected = useCallback(() => { setAppIconSelectionMode(false); setActiveView('application'); }, []);
 
@@ -224,7 +227,7 @@ function SuperAdminDashboardInner({ onLogout, onConnectAsAdmin, onConnectAsCompa
       </div>
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative z-[1]">
-        <SuperAdminTopBar activeView={activeView} onMobileMenuToggle={() => setMobileOpen(prev => !prev)} unreadAdminMsgCount={unreadAdminMsgCount} unreadAdminMsgEntries={unreadAdminMsgEntries} onAdminMsgEntryClick={(entry) => { markAdminMsgRead(entry.adminId); setChatAdmin(cachedAdmins.find(a => a.id === entry.adminId) ?? { id: entry.adminId, email: entry.email, first_name: entry.firstName, last_name: entry.lastName, phone: '', role: 'admin', created_at: '', last_sign_in_at: null, access_enabled: true }); setActiveView('chat-admin'); }} saFirstName={saFirstName} saLastName={saLastName} appIconUrl={saAppIconUrl} appName={saAppName || 'Talvex'} topbarRef={topbarZoneRef} editorZone3Bg={zone3Bg} />
+        <SuperAdminTopBar activeView={activeView} onMobileMenuToggle={() => setMobileOpen(prev => !prev)} unreadAdminMsgCount={unreadAdminMsgCount} unreadAdminMsgEntries={unreadAdminMsgEntries} onAdminMsgEntryClick={(entry) => { markAdminMsgRead(entry.adminId); setChatAdmin(cachedAdmins.find(a => a.id === entry.adminId) ?? { id: entry.adminId, email: entry.email, first_name: entry.firstName, last_name: entry.lastName, company: entry.company, phone: '', role: entry.senderKind, created_at: '', last_sign_in_at: null, access_enabled: true }); setActiveView('chat-admin'); }} saFirstName={saFirstName} saLastName={saLastName} appIconUrl={saAppIconUrl} appName={saAppName || 'Talvex'} topbarRef={topbarZoneRef} editorZone3Bg={zone3Bg} />
 
         {showChoice && (
           <EditorChoiceButtons onSelectOnglet={handleSelectOnglet} onSelectZoneDroite={handleSelectZoneDroite} onClose={editorCtx.closeEditor} />
@@ -267,7 +270,7 @@ function SuperAdminDashboardInner({ onLogout, onConnectAsAdmin, onConnectAsCompa
           )}
           {activeView !== 'chat-admin' && (
             <Suspense fallback={<div className="flex items-center justify-center h-64"><div className="w-8 h-8 border-3 border-amber-500 border-t-transparent rounded-full animate-spin" /></div>}>
-              <SAViewRouter activeView={activeView} handleNavigate={handleNavigate} handleConnectAsAdmin={handleConnectAsAdmin} handleConnectAsCompanySuperAdmin={handleConnectAsCompanySuperAdmin} handleOpenChatAdmin={handleOpenChatAdmin} cachedAdmins={cachedAdmins} adminsRefreshing={adminsRefreshing} adminsError={adminsError} fetchAdminsCache={fetchAdminsCache} docInitialTab={docInitialTab} setDocInitialTab={setDocInitialTab} docKey={docKey} setDocKey={setDocKey} setActiveView={setActiveView} saFirstName={saFirstName} saLastName={saLastName} setSaFirstName={setSaFirstName} setSaLastName={setSaLastName} appIconSelectionMode={appIconSelectionMode} handleAppIconSelected={handleAppIconSelected} handleChangeAppIcon={handleChangeAppIcon} />
+              <SAViewRouter activeView={activeView} handleNavigate={handleNavigate} handleConnectAsAdmin={handleConnectAsAdmin} handleConnectAsCompanySuperAdmin={handleConnectAsCompanySuperAdmin} handleOpenChatAdmin={handleOpenChatAdmin} handleOpenChatCSA={handleOpenChatCSA} cachedAdmins={cachedAdmins} adminsRefreshing={adminsRefreshing} adminsError={adminsError} fetchAdminsCache={fetchAdminsCache} docInitialTab={docInitialTab} setDocInitialTab={setDocInitialTab} docKey={docKey} setDocKey={setDocKey} setActiveView={setActiveView} saFirstName={saFirstName} saLastName={saLastName} setSaFirstName={setSaFirstName} setSaLastName={setSaLastName} appIconSelectionMode={appIconSelectionMode} handleAppIconSelected={handleAppIconSelected} handleChangeAppIcon={handleChangeAppIcon} />
             </Suspense>
           )}
         </main>

@@ -14,12 +14,14 @@ interface ListeVendeursMobileCardProps {
   onDetail: (vendor: Vendor, fromActions?: boolean) => void;
   onOpenChat?: (vendor: Vendor) => void;
   onConnectAsVendor?: (vendor: Vendor) => void;
+  /** Id Auth de la Societe effective : proprietaire du reglage des actions. */
+  ownerUserId?: string | null;
   tokens: ThemeTokens;
 }
 
 export default function ListeVendeursMobileCard({
   vendor, isSelected, selectMode, onToggleSelect,
-  onDetail, onOpenChat, onConnectAsVendor, tokens,
+  onDetail, onOpenChat, onConnectAsVendor, ownerUserId = null, tokens,
 }: ListeVendeursMobileCardProps) {
   const [actionsOpen, setActionsOpen] = useState(false);
   const initials = `${(vendor.first_name?.[0] ?? '').toUpperCase()}${(vendor.last_name?.[0] ?? '').toUpperCase()}`;
@@ -74,6 +76,7 @@ export default function ListeVendeursMobileCard({
         <VendorActionModal
           vendor={vendor}
           tokens={tokens}
+          ownerUserId={ownerUserId}
           onClose={() => setActionsOpen(false)}
           onDetail={() => { setActionsOpen(false); onDetail(vendor, true); }}
           onConnect={() => { setActionsOpen(false); onConnectAsVendor?.(vendor); }}

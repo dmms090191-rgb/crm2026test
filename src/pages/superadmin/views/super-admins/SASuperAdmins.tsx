@@ -1,31 +1,170 @@
-import { useState } from 'react';
-import { ShieldPlus, Users, RefreshCw, AlertCircle } from 'lucide-react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
+import { RefreshCw } from 'lucide-react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 import { useSuperAdminsData } from './useSuperAdminsData';
 import SASuperAdminsTable from './SASuperAdminsTable';
+import type { SortKey } from './SASuperAdminsTable';
+import ListFilters, { EMPTY_FIELDS } from '../../../../components/filters/ListFilters';
+import type { FieldFilters } from '../../../../components/filters/ListFilters';
 import SASuperAdminMobileCard from './SASuperAdminMobileCard';
-import SASuperAdminCreateModal from './SASuperAdminCreateModal';
-import SASuperAdminActionsModal from './SASuperAdminActionsModal';
-import DomainManagementModal from '../admins/DomainManagementModal';
-import SiteManagerModal from '../site-builder/SiteManagerModal';
+import { supabase } from '../../../../lib/supabase';
+import { useSaStatuts } from './useSaStatuts';
 import type { CompanySuperAdmin } from './superAdminTypes';
+import SASuperAdminsHeader from './SASuperAdminsHeader';
+import SASuperAdminsNotices from './SASuperAdminsNotices';
+import { SASuperAdminsEmpty, SASuperAdminsNoMatch } from './SASuperAdminsEmpty';
+import SASuperAdminsModals from './SASuperAdminsModals';
+import { useSyncedFromList } from '../../../../hooks/useSyncedFromList';
 
 interface Props {
   onConnectAsCompanySuperAdmin?: (sa: CompanySuperAdmin) => void;
+  onOpenChat?: (sa: CompanySuperAdmin) => void;
 }
 
-export default function SASuperAdmins({ onConnectAsCompanySuperAdmin }: Props) {
+export default function SASuperAdmins({ onConnectAsCompanySuperAdmin, onOpenChat }: Props) {
   const t = useThemeTokens();
-  const { list, loading, error, refresh } = useSuperAdminsData();
+  const { list, loading, error, refresh, statuts, setGroupStatut } = useSuperAdminsData();
+  const { saStatuts } = useSaStatuts();
+  const [statutFor, setStatutFor] = useState<string | null>(null);
+  const [statutRect, setStatutRect] = useState<{ top: number; left: number } | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [actionsSa, setActionsSa] = useState<CompanySuperAdmin | null>(null);
   const [domainSa, setDomainSa] = useState<CompanySuperAdmin | null>(null);
   const [siteSa, setSiteSa] = useState<CompanySuperAdmin | null>(null);
+  const [detailSa, setDetailSa] = useState<CompanySuperAdmin | null>(null);
+
+  useSyncedFromList(list, setActionsSa, setDetailSa);
+  // Ouvrir Actions recharge la liste : si le Groupe a modifie son profil de
+  // son cote, le Detail part de donnees fraiches.
+  const openActions = (sa: CompanySuperAdmin | null) => { setActionsSa(sa); if (sa) refresh(); };
+
+  // --- Selection et suppression ---
+  const [selectMode, setSelectMode] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());   // ids Auth des Groupes
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [openJobs, setOpenJobs] = useState<{ id: string; group_label: string | null }[]>([]);
+  const [resuming, setResuming] = useState(false);
+
+  const loadOpenJobs = useCallback(async () => {
+    const { data } = await supabase
+      .from('group_deletion_jobs')
+      .select('id, group_label')
+      .or('auth_status.neq.done,storage_status.neq.done');
+    setOpenJobs(data ?? []);
+  }, []);
+
+  useEffect(() => { loadOpenJobs(); }, [loadOpenJobs]);
+
+  const toggleSelect = (id: string) => setSelected(prev => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
+
+  const exitSelectMode = () => { setSelectMode(false); setSelected(new Set()); };
+
+  const resumeCleanup = async () => {
+    setResuming(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-groups`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+          Apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify({ mode: 'resume' }),
+      });
+    } finally {
+      setResuming(false);
+      loadOpenJobs();
+      refresh();
+    }
+  };
+
+  const [search, setSearch] = useState('');
+  const [statutFilter, setStatutFilter] = useState('all');
+  const [fields, setFields] = useState<FieldFilters>(EMPTY_FIELDS);
+  const [sortKey, setSortKey] = useState<SortKey | null>(null);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+
+  // Filtrage et tri purement visuels, sur la liste deja chargee. Aucune requete, aucune ecriture.
+  const filtered = useMemo(() => {
+    const norm = (v?: string) => (v ?? '').toLowerCase().trim();
+    const digits = (v?: string) => (v ?? '').replace(/D/g, '');
+    const q = norm(search);
+    const f = {
+      firstName: norm(fields.firstName), lastName: norm(fields.lastName),
+      company: norm(fields.company), email: norm(fields.email), phone: digits(fields.phone),
+    };
+    return list.filter(sa => {
+      const st = sa.company_id ? (statuts[sa.company_id] ?? '') : '';
+      if (statutFilter === 'none' && st) return false;
+      if (statutFilter !== 'all' && statutFilter !== 'none' && st !== statutFilter) return false;
+      if (f.firstName && !norm(sa.first_name).includes(f.firstName)) return false;
+      if (f.lastName && !norm(sa.last_name).includes(f.lastName)) return false;
+      if (f.company && !norm(sa.company).includes(f.company)) return false;
+      if (f.email && !norm(sa.email).includes(f.email)) return false;
+      if (f.phone && !digits(sa.phone).includes(f.phone)) return false;
+      if (q && ![sa.first_name, sa.last_name, sa.company, sa.email, sa.phone].map(norm).join(' ').includes(q)) return false;
+      return true;
+    });
+  }, [list, statuts, search, statutFilter, fields]);
+
+  const shown = useMemo(() => {
+    if (!sortKey) return filtered;
+    const val = (sa: CompanySuperAdmin) =>
+      sortKey === 'statut' ? (sa.company_id ? (statuts[sa.company_id] ?? '') : '') : (sa[sortKey] ?? '');
+    return [...filtered].sort((a, b) => {
+      const r = String(val(a)).localeCompare(String(val(b)), 'fr', { sensitivity: 'base' });
+      return sortDir === 'asc' ? r : -r;
+    });
+  }, [filtered, sortKey, sortDir, statuts]);
+
+  // croissant -> decroissant -> tri par defaut
+  const handleSort = (key: SortKey) => {
+    if (sortKey !== key) { setSortKey(key); setSortDir('asc'); return; }
+    if (sortDir === 'asc') { setSortDir('desc'); return; }
+    setSortKey(null); setSortDir('asc');
+  };
+
+  const selectedGroups = list.filter(sa => selected.has(sa.id));
+  const allShownSelected = shown.length > 0 && shown.every(sa => selected.has(sa.id));
+  const toggleAllShown = () => setSelected(prev => {
+    const next = new Set(prev);
+    if (allShownSelected) shown.forEach(sa => next.delete(sa.id));
+    else shown.forEach(sa => next.add(sa.id));
+    return next;
+  });
+
+  const activeFieldCount = Object.values(fields).filter(Boolean).length;
+  const hasAnyFilter = !!search || statutFilter !== 'all' || activeFieldCount > 0 || sortKey !== null;
+
+  const resetAll = () => {
+    setSearch('');
+    setStatutFilter('all');
+    setFields(EMPTY_FIELDS);
+    setSortKey(null);
+    setSortDir('asc');
+  };
 
   const handleConnect = (sa: CompanySuperAdmin) => {
     setActionsSa(null);
     onConnectAsCompanySuperAdmin?.(sa);
   };
+
+  const handleChat = (sa: CompanySuperAdmin) => {
+    setActionsSa(null);
+    onOpenChat?.(sa);
+  };
+
+  const openStatut = (companyId: string, rect: { top: number; left: number }) => {
+    setStatutFor(companyId);
+    setStatutRect(rect);
+  };
+  const closeStatut = () => { setStatutFor(null); setStatutRect(null); };
 
   const handleDomain = (sa: CompanySuperAdmin) => {
     setActionsSa(null);
@@ -39,38 +178,38 @@ export default function SASuperAdmins({ onConnectAsCompanySuperAdmin }: Props) {
 
   return (
     <div className="p-3 sm:p-4 md:p-6 flex flex-col h-full min-h-0">
-      <div className="flex items-center justify-between gap-3 mb-4 sm:mb-6">
-        <div className="flex items-center gap-2 min-w-0">
-          <h1 className="text-base sm:text-lg font-bold truncate" style={{ color: t.text.primary }}>
-            Liste Super Admins
-          </h1>
-          {list.length > 0 && (
-            <span className="flex-shrink-0 min-w-[22px] h-[22px] flex items-center justify-center rounded-full text-[10px] font-bold text-white px-1" style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}>
-              {list.length}
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <button onClick={refresh} disabled={loading} className="p-2 rounded-lg transition-colors" style={{ background: t.surface.hover, color: t.text.tertiary }} title="Actualiser">
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          </button>
-          <button
-            onClick={() => setShowCreate(true)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-white transition-all hover:brightness-110"
-            style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' }}
-          >
-            <ShieldPlus className="w-4 h-4" />
-            <span className="hidden sm:inline">Creer un Super Admin</span>
-            <span className="sm:hidden">Creer</span>
-          </button>
-        </div>
-      </div>
+      <SASuperAdminsHeader
+        total={list.length} shownCount={shown.length} loading={loading}
+        selectMode={selectMode} selectedCount={selected.size} tokens={t}
+        onRefresh={refresh}
+        onDelete={() => setDeleteOpen(true)}
+        onToggleSelectMode={() => (selectMode ? exitSelectMode() : setSelectMode(true))}
+        onCreate={() => setShowCreate(true)}
+      />
 
-      {error && (
-        <div className="flex items-center gap-2 px-4 py-3 rounded-xl mb-4" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)' }}>
-          <AlertCircle className="w-4 h-4 flex-shrink-0" style={{ color: '#ef4444' }} />
-          <p className="text-xs" style={{ color: '#f87171' }}>{error}</p>
-        </div>
+      <SASuperAdminsNotices
+        error={error} openJobs={openJobs} resuming={resuming} onResume={resumeCleanup}
+        selectMode={selectMode} shownCount={shown.length} totalCount={list.length}
+        allShownSelected={allShownSelected} selectedCount={selected.size}
+        onToggleAllShown={toggleAllShown} tokens={t}
+      />
+
+      {list.length > 0 && (
+        <ListFilters
+          search={search}
+          onSearchChange={setSearch}
+          statut={statutFilter}
+          onStatutChange={setStatutFilter}
+          saStatuts={saStatuts}
+          fields={fields}
+          onFieldChange={(k, v) => setFields(prev => ({ ...prev, [k]: v }))}
+          activeCount={activeFieldCount}
+          hasAnyFilter={hasAnyFilter}
+          onReset={resetAll}
+          tokens={t}
+          searchPlaceholder="Rechercher un groupe..."
+          companyLabel="Groupe"
+        />
       )}
 
       {loading && list.length === 0 ? (
@@ -78,80 +217,45 @@ export default function SASuperAdmins({ onConnectAsCompanySuperAdmin }: Props) {
           <RefreshCw className="w-6 h-6 animate-spin" style={{ color: t.text.tertiary }} />
         </div>
       ) : list.length === 0 && !error ? (
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center space-y-4 max-w-sm">
-            <div className="w-16 h-16 mx-auto rounded-2xl flex items-center justify-center" style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.15)' }}>
-              <Users className="w-8 h-8" style={{ color: '#f59e0b' }} />
-            </div>
-            <div className="space-y-1.5">
-              <h2 className="text-sm font-semibold" style={{ color: t.text.primary }}>Aucun Super Admin</h2>
-              <p className="text-xs leading-relaxed" style={{ color: t.text.tertiary }}>
-                Les Super Admins sont des comptes de niveau superieur, chacun rattache a sa propre societe. Creez-en un pour commencer.
-              </p>
-            </div>
-            <button
-              onClick={() => setShowCreate(true)}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold text-white transition-all hover:brightness-110"
-              style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' }}
-            >
-              <ShieldPlus className="w-4 h-4" />
-              Creer un Super Admin
-            </button>
-          </div>
-        </div>
+        <SASuperAdminsEmpty tokens={t} onCreate={() => setShowCreate(true)} />
+      ) : shown.length === 0 ? (
+        <SASuperAdminsNoMatch tokens={t} onReset={resetAll} />
       ) : (
         <>
           <div className="hidden md:block flex-1 min-h-0 overflow-y-auto">
-            <SASuperAdminsTable list={list} tokens={t} onActions={setActionsSa} />
+            <SASuperAdminsTable list={shown} tokens={t} onActions={openActions} saStatuts={saStatuts} statuts={statuts} onStatutClick={openStatut} sortKey={sortKey} sortDir={sortDir} onSort={handleSort} selectMode={selectMode} selected={selected} onToggleSelect={toggleSelect} />
           </div>
           <div className="md:hidden flex-1 min-h-0 overflow-y-auto space-y-3">
-            {list.map(sa => (
-              <SASuperAdminMobileCard key={sa.id} sa={sa} tokens={t} onActions={setActionsSa} />
+            {shown.map(sa => (
+              <SASuperAdminMobileCard key={sa.id} sa={sa} tokens={t} onActions={openActions} saStatuts={saStatuts} statut={sa.company_id ? (statuts[sa.company_id] ?? '') : ''} selectMode={selectMode} isSelected={selected.has(sa.id)} onToggleSelect={() => toggleSelect(sa.id)} />
             ))}
           </div>
         </>
       )}
 
-      {showCreate && (
-        <SASuperAdminCreateModal
-          tokens={t}
-          onClose={() => setShowCreate(false)}
-          onCreated={() => { setShowCreate(false); refresh(); }}
-        />
-      )}
-
-      {actionsSa && (
-        <SASuperAdminActionsModal
-          sa={actionsSa}
-          tokens={t}
-          onClose={() => setActionsSa(null)}
-          onConnect={handleConnect}
-          onDomain={handleDomain}
-          onSite={handleSite}
-        />
-      )}
-
-      {domainSa && (
-        <DomainManagementModal
-          companyId={domainSa.company_id}
-          companyName={domainSa.company}
-          onClose={() => setDomainSa(null)}
-          onUpdate={refresh}
-          onBack={() => { setDomainSa(null); setActionsSa(domainSa); }}
-        />
-      )}
-
-      {siteSa && (
-        <SiteManagerModal
-          ownerType="admin_company"
-          title={`Site de ${siteSa.company || [siteSa.first_name, siteSa.last_name].filter(Boolean).join(' ')}`}
-          subtitle={`Gestion du site pour la societe ${siteSa.company || siteSa.email}`}
-          companyId={siteSa.company_id}
-          hideDomainTab
-          onClose={() => setSiteSa(null)}
-          onBack={() => { setSiteSa(null); setActionsSa(siteSa); }}
-        />
-      )}
+      <SASuperAdminsModals
+        tokens={t}
+        showCreate={showCreate}
+        onCloseCreate={() => setShowCreate(false)}
+        onCreated={() => { setShowCreate(false); refresh(); }}
+        statutFor={statutFor} statutRect={statutRect} statuts={statuts} saStatuts={saStatuts}
+        onSelectStatut={async nom => { if (statutFor) await setGroupStatut(statutFor, nom); closeStatut(); }}
+        onCloseStatut={closeStatut}
+        deleteOpen={deleteOpen} selectedGroups={selectedGroups}
+        onCloseDelete={() => setDeleteOpen(false)}
+        onDeleteDone={() => { refresh(); loadOpenJobs(); exitSelectMode(); }}
+        actionsSa={actionsSa}
+        onCloseActions={() => setActionsSa(null)}
+        onConnect={handleConnect} onChat={handleChat} onDomain={handleDomain} onSite={handleSite}
+        onDetail={setDetailSa} detailSa={detailSa} onCloseDetail={() => setDetailSa(null)} onDetailUpdate={refresh}
+        domainSa={domainSa}
+        onCloseDomain={() => setDomainSa(null)}
+        onDomainUpdate={refresh}
+        onDomainBack={() => { const sa = domainSa; setDomainSa(null); setActionsSa(sa); }}
+        siteSa={siteSa}
+        onCloseSite={() => setSiteSa(null)}
+        onSiteBack={() => { const sa = siteSa; setSiteSa(null); setActionsSa(sa); }}
+      />
     </div>
   );
 }

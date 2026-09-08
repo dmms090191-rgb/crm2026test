@@ -1,50 +1,58 @@
 import { useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { MessageCircle, MessageSquare, CalendarDays, CalendarClock, CalendarCheck, ChevronRight, Bell } from 'lucide-react';
-import { AdminNotifRow, ClientNotifRow, VendorAgendaNotifItem, VendorProposalItem, VendorConfirmedItem, VendorDropdownEmpty } from './index';
-import type { VendorClientNotifEntry, ConfirmedProposalEntry } from '../../VendorTopBar';
-import type { AgendaNotifEntry } from '../../../../hooks/useAgendaNotifications';
+import { ChevronRight, Bell } from 'lucide-react';
+import VendorNotificationDetail from './VendorNotificationDetail';
+import type { VendorNotifData } from './vendorNotifCategories';
+import type { HubCardDef } from '../../../../components/notifications/hub/notifHubTypes';
 import type { ThemeTokens } from '../../../../lib/themeTokensTypes';
 import { formatTodayInTz } from '../../../../lib/timezone';
 
+/**
+ * Cloche Notifications du Commercial, version mobile.
+ *
+ * Elle ne connait plus la liste des categories : elle recoit les memes cartes
+ * que le hub desktop, dans le meme ordre personnalise, avec le meme masquage,
+ * et delegue le detail au meme composant. Desktop et mobile ne peuvent donc
+ * plus diverger.
+ */
 interface Props {
   open: boolean;
   setOpen: (v: boolean | ((p: boolean) => boolean)) => void;
   category: string | null;
   setCategory: (v: string | null) => void;
   totalNotifCount: number;
-  unreadAdminCount: number;
-  unreadAdminLatestAt?: string | null;
-  onAdminNotifClick?: () => void;
-  unreadClientCount: number;
-  unreadClientEntries: VendorClientNotifEntry[];
-  onClientEntryClick?: (entry: VendorClientNotifEntry) => void;
-  agendaCount: number;
-  agendaEntries: AgendaNotifEntry[];
-  onAgendaEntryClick?: (rdvId: string, type?: 'starting' | 'untreated') => void;
-  proposalsCount: number;
-  proposalsEntries: ConfirmedProposalEntry[];
-  onProposalEntryClick?: (proposalId: string) => void;
-  confirmedCount: number;
-  confirmedEntries: ConfirmedProposalEntry[];
-  onConfirmedEntryClick?: (proposalId: string) => void;
+  /** Cartes dans leur ordre par defaut, compteurs reels inclus. */
+  cards: HubCardDef[];
+  /** Ordre personnalise et libelles renommes par le titulaire du panel. */
+  cardOrder?: string[];
+  cardLabels?: Record<string, string>;
+  /** Categories masquees par Talvex : invisibles ici comme sur desktop. */
+  hiddenCards?: Set<string>;
+  data: VendorNotifData;
   timezone: string;
   tokens: ThemeTokens;
   containerRef: React.RefObject<HTMLDivElement>;
   panelRef?: React.RefObject<HTMLDivElement>;
 }
 
+function visibleCards(cards: HubCardDef[], order?: string[], hidden?: Set<string>): HubCardDef[] {
+  const byKey = new Map(cards.map(c => [c.key, c]));
+  const keys = order && order.length > 0
+    ? [...order.filter(k => byKey.has(k)), ...cards.map(c => c.key).filter(k => !order.includes(k))]
+    : cards.map(c => c.key);
+  return keys.filter(k => !hidden?.has(k)).map(k => byKey.get(k)!).filter(Boolean);
+}
+
 export default function VendorMobileBellMenu({
   open, setOpen, category, setCategory, totalNotifCount,
-  unreadAdminCount, unreadAdminLatestAt, onAdminNotifClick,
-  unreadClientCount, unreadClientEntries, onClientEntryClick,
-  agendaCount, agendaEntries, onAgendaEntryClick,
-  proposalsCount, proposalsEntries, onProposalEntryClick,
-  confirmedCount, confirmedEntries, onConfirmedEntryClick,
+  cards, cardOrder, cardLabels, hiddenCards, data,
   timezone, tokens, containerRef, panelRef: externalPanelRef,
 }: Props) {
   const internalPanelRef = useRef<HTMLDivElement>(null);
   const panelRef = externalPanelRef ?? internalPanelRef;
+  const list = visibleCards(cards, cardOrder, hiddenCards);
+  const current = list.find(c => c.key === category);
+  const close = () => { setOpen(false); setCategory(null); };
 
   return (
     <div className="relative md:hidden" ref={containerRef}>
@@ -75,7 +83,7 @@ export default function VendorMobileBellMenu({
             boxShadow: `${tokens.dropdown.shadow}, 0 25px 50px -12px rgba(0,0,0,0.5)`,
           }}
         >
-          {!category ? (
+          {!current ? (
             <>
               <div className="px-3 py-2 border-b" style={{ borderColor: tokens.dropdown.border }}>
                 <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: tokens.topbar.notifIcon }}>
@@ -85,23 +93,19 @@ export default function VendorMobileBellMenu({
                   {formatTodayInTz(timezone)}
                 </p>
               </div>
-              {([
-                { key: 'admin', icon: <MessageSquare className="w-4 h-4" />, label: 'Chat Admin', count: unreadAdminCount },
-                { key: 'client', icon: <MessageCircle className="w-4 h-4" />, label: 'Chat Client', count: unreadClientCount },
-                { key: 'agenda', icon: <CalendarDays className="w-4 h-4" />, label: 'Agenda', count: agendaCount },
-                { key: 'propositions', icon: <CalendarClock className="w-4 h-4" />, label: 'Propositions RDV', count: proposalsCount },
-                { key: 'rdv', icon: <CalendarCheck className="w-4 h-4" />, label: 'RDV Confirmes', count: confirmedCount },
-              ] as const).map((item) => (
+              {list.map(card => (
                 <button
-                  key={item.key}
+                  key={card.key}
                   type="button"
                   className="flex items-center gap-3 w-full px-3 py-2.5 text-left transition-colors hover-token"
                   style={{ '--hover-bg': tokens.dropdown.itemBgHover } as React.CSSProperties}
-                  onClick={() => setCategory(item.key)}
+                  onClick={() => setCategory(card.key)}
                 >
-                  <span style={{ color: tokens.topbar.notifIcon }}>{item.icon}</span>
-                  <span className="text-sm flex-1" style={{ color: tokens.dropdown.itemText }}>{item.label}</span>
-                  {item.count > 0 && (
+                  <span style={{ color: tokens.topbar.notifIcon }}>{card.icon}</span>
+                  <span className="text-sm flex-1" style={{ color: tokens.dropdown.itemText }}>
+                    {cardLabels?.[card.key] || card.label}
+                  </span>
+                  {card.count > 0 && (
                     <span
                       className="flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-bold text-white"
                       style={{
@@ -109,7 +113,7 @@ export default function VendorMobileBellMenu({
                         boxShadow: '0 0 6px rgba(239,68,68,0.4)',
                       }}
                     >
-                      {item.count > 99 ? '99+' : item.count}
+                      {card.count > 99 ? '99+' : card.count}
                     </span>
                   )}
                 </button>
@@ -122,57 +126,11 @@ export default function VendorMobileBellMenu({
                   <ChevronRight className="w-3.5 h-3.5 rotate-180" />
                 </button>
                 <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: tokens.topbar.notifIcon }}>
-                  {category === 'admin' && 'Messages Admin'}
-                  {category === 'client' && 'Messages clients'}
-                  {category === 'agenda' && 'Agenda'}
-                  {category === 'propositions' && 'Propositions RDV'}
-                  {category === 'rdv' && 'RDV Confirmes'}
+                  {cardLabels?.[current.key] || current.label}
                 </p>
               </div>
               <div className="max-h-64 overflow-y-auto">
-                {category === 'admin' && (
-                  unreadAdminCount === 0 ? (
-                    <VendorDropdownEmpty text="Aucun nouveau message" tokens={tokens} />
-                  ) : (
-                    <AdminNotifRow count={unreadAdminCount} latestAt={unreadAdminLatestAt} tokens={tokens.dropdown} onClick={() => { onAdminNotifClick?.(); setOpen(false); setCategory(null); }} />
-                  )
-                )}
-                {category === 'client' && (
-                  unreadClientEntries.length === 0 ? (
-                    <VendorDropdownEmpty text="Aucun nouveau message" tokens={tokens} />
-                  ) : (
-                    unreadClientEntries.map(entry => (
-                      <ClientNotifRow key={entry.clientAuthId} entry={entry} tokens={tokens.dropdown} onClick={() => { onClientEntryClick?.(entry); setOpen(false); setCategory(null); }} />
-                    ))
-                  )
-                )}
-                {category === 'agenda' && (
-                  agendaEntries.length === 0 ? (
-                    <VendorDropdownEmpty text="Aucun rendez-vous imminent" tokens={tokens} />
-                  ) : (
-                    agendaEntries.map(entry => (
-                      <VendorAgendaNotifItem key={`${entry.rdvId}-${entry.type}`} entry={entry} tokens={tokens.dropdown} onClick={() => { onAgendaEntryClick?.(entry.rdvId, entry.type); setOpen(false); setCategory(null); }} />
-                    ))
-                  )
-                )}
-                {category === 'propositions' && (
-                  proposalsEntries.length === 0 ? (
-                    <VendorDropdownEmpty text="Aucune nouvelle proposition" tokens={tokens} />
-                  ) : (
-                    proposalsEntries.map(entry => (
-                      <VendorProposalItem key={entry.id} entry={entry} dropTokens={tokens.dropdown} onClick={() => { onProposalEntryClick?.(entry.id); setOpen(false); setCategory(null); }} />
-                    ))
-                  )
-                )}
-                {category === 'rdv' && (
-                  confirmedEntries.length === 0 ? (
-                    <VendorDropdownEmpty text="Aucune nouvelle confirmation" tokens={tokens} />
-                  ) : (
-                    confirmedEntries.map(entry => (
-                      <VendorConfirmedItem key={entry.id} entry={entry} dropTokens={tokens.dropdown} onClick={() => { onConfirmedEntryClick?.(entry.id); setOpen(false); setCategory(null); }} />
-                    ))
-                  )
-                )}
+                <VendorNotificationDetail category={current.key} d={data} tokens={tokens} onClose={close} />
               </div>
             </>
           )}

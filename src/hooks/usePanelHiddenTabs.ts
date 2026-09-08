@@ -1,22 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-
-function cacheKey(panelRole: string, companyId: string | null, targetUserId: string | null) {
-  return `pht:${panelRole}:${companyId ?? '_'}:${targetUserId ?? '_'}`;
-}
-
-function readCache(key: string): string[] | null {
-  try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : null;
-  } catch { return null; }
-}
-
-function writeCache(key: string, tabs: string[]) {
-  try { localStorage.setItem(key, JSON.stringify(tabs)); } catch {}
-}
+import { cacheKey, readCache, writeCache } from '../lib/hiddenTabsCache';
 
 export function usePanelHiddenTabs(
   panelRole: string,
@@ -24,12 +8,21 @@ export function usePanelHiddenTabs(
   targetUserId?: string | null,
 ) {
   const lsKey = cacheKey(panelRole, companyId ?? null, targetUserId ?? null);
-  const cached = readCache(lsKey);
+  const [state, setState] = useState(() => {
+    const c = readCache(lsKey);
+    return { key: lsKey, tabs: new Set<string>(c ?? []), loaded: c !== null };
+  });
 
-  const [hiddenTabs, setHiddenTabs] = useState<Set<string>>(
-    () => new Set(cached ?? []),
-  );
-  const [loaded, setLoaded] = useState(cached !== null);
+  // companyId / targetUserId arrivent de facon asynchrone : la cle change apres
+  // le premier render, or l'initialiseur de useState ne rejoue jamais. On relit
+  // donc le cache pendant le render — React re-rend avant de peindre, sans flash.
+  if (state.key !== lsKey) {
+    const c = readCache(lsKey);
+    setState({ key: lsKey, tabs: new Set<string>(c ?? []), loaded: c !== null });
+  }
+
+  const hiddenTabs = state.tabs;
+  const loaded = state.loaded;
 
   useEffect(() => {
     if (!panelRole) return;
@@ -68,23 +61,23 @@ export function usePanelHiddenTabs(
 
       if (cancelled) return;
       const final = resolved ?? [];
-      writeCache(cacheKey(panelRole, companyId ?? null, targetUserId ?? null), final);
-      setHiddenTabs(new Set(final));
-      setLoaded(true);
+      const key = cacheKey(panelRole, companyId ?? null, targetUserId ?? null);
+      writeCache(key, final);
+      setState({ key, tabs: new Set(final), loaded: true });
     })();
 
     return () => { cancelled = true; };
   }, [panelRole, companyId, targetUserId]);
 
   const toggle = useCallback((tabId: string) => {
-    setHiddenTabs(prev => {
-      const next = new Set(prev);
+    setState(prev => {
+      const next = new Set(prev.tabs);
       if (next.has(tabId)) next.delete(tabId);
       else next.add(tabId);
       const arr = Array.from(next);
       writeCache(cacheKey(panelRole, companyId ?? null, targetUserId ?? null), arr);
       persistHiddenTabs(panelRole, companyId ?? null, targetUserId ?? null, next);
-      return next;
+      return { ...prev, tabs: next };
     });
   }, [panelRole, companyId, targetUserId]);
 

@@ -45,7 +45,7 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const { admin_id, first_name, last_name, phone, company } = await req.json();
+    const { admin_id, first_name, last_name, phone, company, email } = await req.json();
 
     if (!admin_id) {
       return new Response(
@@ -118,9 +118,27 @@ Deno.serve(async (req: Request) => {
       ...(company !== undefined ? { company } : {}),
     };
 
-    const { data, error } = await supabaseAdmin.auth.admin.updateUserById(admin_id, {
-      user_metadata: updatedMetadata,
-    });
+    const updates: Record<string, unknown> = { user_metadata: updatedMetadata };
+
+    // Email : bascule IMMEDIATE par l API admin, sans workflow de
+    // confirmation — flux administrateur assume. `email_confirm` garantit
+    // que le nouvel email est utilisable tout de suite pour se connecter,
+    // avec le PIN inchange.
+    if (typeof email === "string" && email.trim()) {
+      const next = email.trim().toLowerCase();
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(next)) {
+        return new Response(
+          JSON.stringify({ error: "Email invalide" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      if (next !== (targetUser.user.email ?? "").toLowerCase()) {
+        updates.email = next;
+        updates.email_confirm = true;
+      }
+    }
+
+    const { data, error } = await supabaseAdmin.auth.admin.updateUserById(admin_id, updates);
 
     if (error) {
       return new Response(
@@ -129,10 +147,20 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    if (adminCompanyId && (first_name !== undefined || last_name !== undefined)) {
+    const companyName =
+      typeof company === "string" && company.trim() ? company.trim() : undefined;
+
+    if (
+      adminCompanyId &&
+      (first_name !== undefined || last_name !== undefined || companyName !== undefined)
+    ) {
       const nameUpdate: Record<string, string> = {};
       if (first_name !== undefined) nameUpdate.admin_first_name = first_name;
       if (last_name !== undefined) nameUpdate.admin_last_name = last_name;
+      // `companies.name` et `user_metadata.company` sont poses ENSEMBLE a la
+      // creation : on les maintient ensemble ici. Un nom vide est ignore,
+      // pour ne jamais effacer le nom de la company.
+      if (companyName !== undefined) nameUpdate.name = companyName;
       await supabaseAdmin.from("companies").update(nameUpdate).eq("id", adminCompanyId);
     }
 

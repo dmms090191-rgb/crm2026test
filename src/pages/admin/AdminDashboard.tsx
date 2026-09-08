@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import Sidebar from './Sidebar';
 import TopBar from './TopBar';
 import type { ChatLead } from './views/Crm';
@@ -20,6 +20,7 @@ import { BREADCRUMB_LABELS } from './adminDashboardConstants';
 import { useAdminProposalNotifs } from './dashboard/useAdminProposalNotifs';
 import { useAdminNavHandlers } from './dashboard/useAdminNavHandlers';
 import { useAdminDashboardEffects } from './dashboard/useAdminDashboardEffects';
+import { useAdminIdentity } from './dashboard/useAdminIdentity';
 import DemoEmitterLayer from '../../components/demo/DemoEmitterLayer';
 import DemoReceiverLayer from '../../components/demo/DemoReceiverLayer';
 import { useDemoSessionSafe } from '../../components/demo/DemoSessionContext';
@@ -67,7 +68,6 @@ function AdminDashboardInner({ onLogout, onConnectAsVendor, onConnectAsClient, i
   const [activeView, setActiveView] = useState<ActiveView>('vue-ensemble');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [adminName, setAdminName] = useState('Administrateur');
   const [chatLead, setChatLead] = useState<ChatLead | null>(null);
   const [rdvLead, setRdvLead] = useState<ChatLead | null>(null);
   const [chatVendor, setChatVendor] = useState<Vendor | null>(null);
@@ -104,16 +104,16 @@ function AdminDashboardInner({ onLogout, onConnectAsVendor, onConnectAsClient, i
     pendingScrollRef,
   });
 
-  useEffect(() => {
-    if (!impersonatedAdmin) return;
-    const name = [impersonatedAdmin.first_name, impersonatedAdmin.last_name].filter(Boolean).join(' ');
-    if (name) setAdminName(name);
-  }, [impersonatedAdmin]);
+  // Identite affichee : edition de la session > Societe visualisee > compte connecte.
+  const { adminName, setAdminName, setAdminEmail, applyNameEdit, identityName, identityEmail } = useAdminIdentity(impersonatedAdmin);
 
-  const { handleNameChange } = useAdminDashboardEffects({
+  useAdminDashboardEffects({
     companyId,
     setAdminAuthId,
     setAdminName,
+    setAdminEmail,
+    // Une Societe visualisee ne doit jamais etre ecrasee par le compte JWT.
+    isImpersonating: Boolean(impersonatedAdmin),
     setCompanyName,
     setActiveView,
     activeView,
@@ -266,7 +266,8 @@ function AdminDashboardInner({ onLogout, onConnectAsVendor, onConnectAsClient, i
             setChatClientMessageSent={setChatClientMessageSent}
             setChatVendorMessageSent={setChatVendorMessageSent}
             setDocInitialTab={setDocInitialTab}
-            onNameChange={handleNameChange}
+            identityName={identityName} identityEmail={identityEmail} companyName={companyName}
+            onNameChange={applyNameEdit}
             onConnectAsVendor={onConnectAsVendor}
             onConnectAsClient={onConnectAsClient}
             handleNavigate={handleNavigate}
@@ -286,7 +287,7 @@ function AdminDashboardInner({ onLogout, onConnectAsVendor, onConnectAsClient, i
         couleurVisible={couleurVisible} setCouleurVisible={setCouleurVisible}
         savedVisible={savedVisible} setSavedVisible={setSavedVisible}
         savedRefreshKey={savedRefreshKey} setSavedRefreshKey={setSavedRefreshKey}
-        getPositionFor={getPositionFor} updatePositionFor={updatePositionFor}
+        getPositionFor={(panel: string) => getPositionFor(panel) ?? null} updatePositionFor={updatePositionFor}
         contenuPos={contenuPos}
         logoZoneRef={logoZoneRef} sidebarBodyRef={sidebarBodyRef}
         topbarZoneRef={topbarZoneRef} contentZoneRef={contentZoneRef}

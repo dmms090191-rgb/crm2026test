@@ -68,7 +68,7 @@ export default function VendorDesktopNotifPill({
     >
       {/* PRIMARY: always visible */}
       <div className="relative" ref={adminDropdownRef}>
-        <VendorBadgeButton icon={<MessageSquare className="w-[15px] h-[15px]" />} label="Chat Admin" count={unreadAdminCount} {...badgeColors} onClick={() => setAdminDropdownOpen((prev: boolean) => !prev)} />
+        <VendorBadgeButton icon={<MessageSquare className="w-[15px] h-[15px]" />} label="Chat Administration" count={unreadAdminCount > 0 ? 1 : 0} {...badgeColors} onClick={() => setAdminDropdownOpen((prev: boolean) => !prev)} />
         {adminDropdownOpen && (
           <VendorDropdownPanel tokens={tokens} width="w-72" align="left">
             <VendorDropdownHeader label="Messages Admin" tokens={tokens} />

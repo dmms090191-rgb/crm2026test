@@ -37,6 +37,10 @@ interface ClientTopBarProps {
   clientName?: string;
   unreadMessageCount?: number;
   unreadLatestAt?: string | null;
+  /** Nom reel de l expediteur — MEME source que l ecran Support. */
+  unreadSenderName?: string;
+  /** Dernier message recu. */
+  unreadPreview?: string;
   onMessageNotifClick?: () => void;
   agendaCount?: number;
   agendaEntries?: AgendaNotifEntry[];
@@ -46,7 +50,7 @@ interface ClientTopBarProps {
   onPropositionEntryClick?: (proposalId: string) => void;
 }
 
-export default function ClientTopBar({ breadcrumb, onMobileMenuToggle, clientName = 'Client', unreadMessageCount = 0, unreadLatestAt, onMessageNotifClick, agendaCount = 0, agendaEntries = [], onAgendaEntryClick, propositionsCount = 0, propositionsEntries = [], onPropositionEntryClick }: ClientTopBarProps) {
+export default function ClientTopBar({ breadcrumb, onMobileMenuToggle, clientName = 'Client', unreadMessageCount = 0, unreadLatestAt, unreadSenderName = '', unreadPreview = '', onMessageNotifClick, agendaCount = 0, agendaEntries = [], onAgendaEntryClick, propositionsCount = 0, propositionsEntries = [], onPropositionEntryClick }: ClientTopBarProps) {
   const t = useThemeTokens();
   const { timezone, tzLabel, tzCode, setTimezone } = useTimezone();
   const [tzModalOpen, setTzModalOpen] = useState(false);
@@ -142,6 +146,8 @@ export default function ClientTopBar({ breadcrumb, onMobileMenuToggle, clientNam
           totalNotifCount={totalNotifCount}
           unreadMessageCount={unreadMessageCount}
           unreadLatestAt={unreadLatestAt}
+          unreadSenderName={unreadSenderName}
+          unreadPreview={unreadPreview}
           onMessageNotifClick={handleNotifItemClick}
           agendaCount={agendaCount}
           agendaEntries={agendaEntries}
@@ -166,7 +172,7 @@ export default function ClientTopBar({ breadcrumb, onMobileMenuToggle, clientNam
               <ClientDropdownPanel tokens={t} width="w-72" align="left">
                 <ClientDropdownHeader label="Messages" tokens={t} />
                 <div className="max-h-64 overflow-y-auto">
-                  {unreadMessageCount === 0 ? <ClientDropdownEmpty text="Aucun nouveau message" tokens={t} /> : <NotifRow count={unreadMessageCount} latestAt={unreadLatestAt} tokens={t.dropdown} onClick={handleNotifItemClick} />}
+                  {unreadMessageCount === 0 ? <ClientDropdownEmpty text="Aucun nouveau message" tokens={t} /> : <NotifRow count={unreadMessageCount} latestAt={unreadLatestAt} senderName={unreadSenderName} preview={unreadPreview} tokens={t.dropdown} onClick={handleNotifItemClick} />}
                 </div>
               </ClientDropdownPanel>
             )}

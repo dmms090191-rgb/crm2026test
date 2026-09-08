@@ -117,7 +117,7 @@ export default function SASuperAdminCreateModal({ onClose, onCreated, tokens: t 
     <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4" style={{ background: t.modal.overlayBg, backdropFilter: 'blur(6px)' }} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="w-full max-w-md rounded-2xl overflow-hidden" style={{ background: t.modal.bg, border: `1px solid ${t.modal.border}`, boxShadow: t.modal.shadow }}>
         <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: `1px solid ${t.surface.border}` }}>
-          <h2 className="text-sm font-semibold" style={{ color: t.modal.title }}>Creer un Super Admin</h2>
+          <h2 className="text-sm font-semibold" style={{ color: t.modal.title }}>Créer un groupe</h2>
           <button onClick={onClose} className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors" style={{ background: t.modal.closeBtnBg, color: t.modal.closeBtnText }}>
             <span className="text-lg leading-none">&times;</span>
           </button>
@@ -134,8 +134,8 @@ export default function SASuperAdminCreateModal({ onClose, onCreated, tokens: t 
             </div>
           </div>
           <div>
-            <label className="block text-[10px] font-bold tracking-[0.15em] uppercase mb-1.5" style={{ color: t.modal.fieldLabel }}>Societe *</label>
-            <input type="text" value={company} onChange={e => setCompany(e.target.value)} placeholder="Societe / entreprise" className="w-full px-3 py-2 rounded-lg text-sm outline-none transition-all" style={{ background: t.modal.fieldBg, border: `1px solid ${t.modal.fieldBorder}`, color: t.modal.fieldValue }} />
+            <label className="block text-[10px] font-bold tracking-[0.15em] uppercase mb-1.5" style={{ color: t.modal.fieldLabel }}>Groupe *</label>
+            <input type="text" value={company} onChange={e => setCompany(e.target.value)} placeholder="Nom du groupe" className="w-full px-3 py-2 rounded-lg text-sm outline-none transition-all" style={{ background: t.modal.fieldBg, border: `1px solid ${t.modal.fieldBorder}`, color: t.modal.fieldValue }} />
           </div>
           <div>
             <label className="block text-[10px] font-bold tracking-[0.15em] uppercase mb-1.5" style={{ color: t.modal.fieldLabel }}>Email *</label>

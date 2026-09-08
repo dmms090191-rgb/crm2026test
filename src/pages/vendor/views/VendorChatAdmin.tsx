@@ -157,7 +157,7 @@ export default function VendorChatAdmin({ vendorName, vendorDbId, vendorAuthId, 
     <div className="flex flex-col flex-1 space-y-2 md:space-y-4" style={{ minHeight: 0 }}>
       <div className="flex items-center justify-between flex-shrink-0">
         <div>
-          <h2 className="text-base md:text-xl font-bold" style={{ color: tokens.heading.primary }}>Chat Admin</h2>
+          <h2 className="text-base md:text-xl font-bold" style={{ color: tokens.heading.primary }}>Chat Administration</h2>
           <p className="text-[11px] md:text-xs mt-0.5 hidden sm:block" style={{ color: tokens.text.quaternary }}>Communiquez avec votre responsable</p>
         </div>
         <div

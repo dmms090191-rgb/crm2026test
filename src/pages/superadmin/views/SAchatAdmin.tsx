@@ -1,18 +1,32 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../../../lib/supabase';
 import MessagingPanel from '../../../components/chat/ChatView';
-import type { ChatMessage, ChatContact } from '../../../components/chat/chatTypes';
+import type { ChatMessage } from '../../../components/chat/chatTypes';
 import { sendPushForMessage } from '../../../lib/sendPushForMessage';
 import type { AdminUser } from './SAAdmins';
+import { useSaChatContacts } from './saChatAdminContacts';
 
 interface SAchatAdminProps {
   initialAdmin?: AdminUser | null;
   onAdminViewed?: (adminId: string) => void;
   cachedAdmins?: AdminUser[];
+  /**
+   * Identite METIER de l'emetteur, quand elle differe du JWT.
+   * En Visu Talvex -> Groupe, le JWT reste super_admin mais la conversation
+   * appartient au Groupe : le panel Groupe passe ici l'id Auth du vrai Groupe.
+   * Non fourni = panel Talvex, on utilise l'utilisateur reellement connecte.
+   */
+  superAdminIdOverride?: string | null;
+  /**
+   * Affiche tout `cachedAdmins` dans la liste de contacts, meme sans conversation.
+   * Utilise par le panel Groupe pour pouvoir initier un echange avec une Societe
+   * silencieuse. Laisse a false, le panel Talvex garde son comportement actuel.
+   */
+  showAllCachedAdmins?: boolean;
 }
 
-export default function SAchatAdmin({ initialAdmin, onAdminViewed, cachedAdmins = [] }: SAchatAdminProps) {
-  const [superAdminId, setSuperAdminId] = useState<string | null>(null);
+export default function SAchatAdmin({ initialAdmin, onAdminViewed, cachedAdmins = [], superAdminIdOverride = null, showAllCachedAdmins = false }: SAchatAdminProps) {
+  const [authSuperAdminId, setAuthSuperAdminId] = useState<string | null>(null);
   const [selectedAdminId, setSelectedAdminId] = useState<string | null>(initialAdmin?.id ?? null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
@@ -26,9 +40,14 @@ export default function SAchatAdmin({ initialAdmin, onAdminViewed, cachedAdmins 
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) setSuperAdminId(user.id);
+      if (user) setAuthSuperAdminId(user.id);
     });
   }, []);
+
+  // Identite METIER effective : l'override si le panel en fournit un, sinon le JWT.
+  // Toutes les requetes de ce composant sont deja filtrees sur super_admin_id,
+  // elles suivent donc automatiquement la bonne conversation.
+  const superAdminId = superAdminIdOverride ?? authSuperAdminId;
 
   useEffect(() => {
     let cancelled = false;
@@ -104,7 +123,7 @@ export default function SAchatAdmin({ initialAdmin, onAdminViewed, cachedAdmins 
   }, [selectedAdminId]);
 
   useEffect(() => {
-    if (!selectedAdminId || messages.length === 0 || markingRef.current) return;
+    if (!selectedAdminId || !superAdminId || messages.length === 0 || markingRef.current) return;
     const hasUnread = messages.some(m => m.sender !== 'super_admin' && m.read === false && !m.deleted);
     if (hasUnread) {
       markingRef.current = true;
@@ -112,6 +131,9 @@ export default function SAchatAdmin({ initialAdmin, onAdminViewed, cachedAdmins 
         .from('super_admin_messages')
         .update({ read: true })
         .eq('admin_id', selectedAdminId)
+        // Sans ce filtre, marquer lue une conversation Talvex <-> Societe marquerait
+        // aussi lus les messages que cette Societe a envoyes a SON Groupe.
+        .eq('super_admin_id', superAdminId)
         .neq('sender_role', 'super_admin')
         .eq('read', false)
         .eq('deleted', false)
@@ -120,7 +142,7 @@ export default function SAchatAdmin({ initialAdmin, onAdminViewed, cachedAdmins 
           markingRef.current = false;
         });
     }
-  }, [selectedAdminId, messages]);
+  }, [selectedAdminId, superAdminId, messages]);
 
   const loadMessages = useCallback(async (showLoader = true) => {
     if (!selectedAdminId || !superAdminId) return;
@@ -199,39 +221,7 @@ export default function SAchatAdmin({ initialAdmin, onAdminViewed, cachedAdmins 
     refreshContacts(false).catch(() => {});
   }, [selectedAdminId, superAdminId, refreshContacts]);
 
-  const allKnownUsers = useMemo(() => {
-    const map = new Map<string, AdminUser>();
-    for (const a of cachedAdmins) map.set(a.id, a);
-    for (const c of csaUsers) if (!map.has(c.id)) map.set(c.id, c);
-    return map;
-  }, [cachedAdmins, csaUsers]);
-
-  const adminsForContacts = useMemo(() => {
-    const withMsgs = adminsWithMessages
-      .map(id => allKnownUsers.get(id))
-      .filter((a): a is AdminUser => !!a);
-    if (initialAdmin && !withMsgs.some(a => a.id === initialAdmin.id)) {
-      const fromAll = allKnownUsers.get(initialAdmin.id);
-      return [fromAll ?? initialAdmin, ...withMsgs];
-    }
-    return withMsgs;
-  }, [allKnownUsers, adminsWithMessages, initialAdmin]);
-
-  const contacts: ChatContact[] = useMemo(() =>
-    adminsForContacts.map(a => {
-      const isCsa = a.role === 'company_super_admin';
-      const lastSender = lastMessages[a.id]?.sender_role;
-      return {
-        id: a.id,
-        displayName: [a.first_name, a.last_name].filter(Boolean).join(' ') || a.email,
-        subtitle: isCsa ? `Super Admin · ${a.company || a.email}` : a.email,
-        initial: (a.first_name || a.email || '?').charAt(0).toUpperCase(),
-        lastMessage: lastMessages[a.id]?.content,
-        lastMessageAt: lastMessages[a.id]?.created_at,
-        lastMessageSender: lastSender === 'super_admin' ? 'super_admin' : lastSender || 'admin',
-      };
-    }),
-  [adminsForContacts, lastMessages]);
+  const { contacts, adminsForContacts } = useSaChatContacts(cachedAdmins, csaUsers, adminsWithMessages, initialAdmin, showAllCachedAdmins, lastMessages);
 
   const handleToggleSelectMode = useCallback(() => {
     setSelectMode(prev => { if (prev) setSelectedConvos(new Set()); return !prev; });

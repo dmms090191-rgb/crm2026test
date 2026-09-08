@@ -1,35 +1,23 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import CalquerLogoCanvas from './CalquerLogoCanvas';
+import CalquerLogoStage from './CalquerLogoStage';
 import CalquerLogoTabBar, { type CalquerTab } from './CalquerLogoTabBar';
-import CalquerLogoPanel from './CalquerLogoPanel';
-import CalquerLogoColorPanel from './CalquerLogoColorPanel';
-import CalquerLogoColorLogoPanel from './CalquerLogoColorLogoPanel';
+import CalquerLogoPanelSwitch from './CalquerLogoPanelSwitch';
 import CalquerLogoSaveModal from './CalquerLogoSaveModal';
 import CalquerLogoLoadModal from './CalquerLogoLoadModal';
-import CalquerLogoWelcome from './CalquerLogoWelcome';
+import CalquerLogoWelcomeScreen from './CalquerLogoWelcomeScreen';
 import { useCalquerSaves } from './useCalquerSaves';
 import { createSession, updateSession, loadSession, imageUrlToDataUrl, dataUrlToObjectUrl } from './calquer-logo-save-api';
 import type { SessionEditorState } from './calquer-logo-save-types';
 
 import { applyLogoColorConfig, applyLogoColorConfigRaster } from './calquer-logo-recolor';
 import type { BgConfig, LogoColorConfig, ColorIsolationState } from './calquer-logo-types';
-import { bgConfigToCss, DEFAULT_BG_CONFIG, DEFAULT_LOGO_COLOR } from './calquer-logo-types';
+import { DEFAULT_BG_CONFIG, DEFAULT_LOGO_COLOR } from './calquer-logo-types';
 import {
   pickColorFromImage, buildMaskFromImage, generatePreviewUrl,
   applyKeepSelection,
 } from './calquer-logo-color-isolation';
 
-const STORAGE_KEY = 'calquer-logo-state';
-
-interface SavedState { zoom: number; panX: number; panY: number; bgConfig: BgConfig; }
-const DEFAULTS: SavedState = { zoom: 1, panX: 0, panY: 0, bgConfig: DEFAULT_BG_CONFIG };
-function loadState(): SavedState {
-  try { const raw = localStorage.getItem(STORAGE_KEY); if (!raw) return { ...DEFAULTS }; return { ...DEFAULTS, ...JSON.parse(raw) }; }
-  catch { return { ...DEFAULTS }; }
-}
-function saveState(s: SavedState) { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); } catch { /* */ } }
-
-const DEFAULT_CI: ColorIsolationState = { pickedColor: null, tolerance: 30, selectionMask: null, inverted: false };
+import { loadState, saveState, DEFAULT_CI } from './calquerLogoLocalState';
 
 export default function CalquerLogo() {
   const [mode, setMode] = useState<'welcome' | 'editor'>('welcome');
@@ -252,32 +240,15 @@ export default function CalquerLogo() {
   }, [imageUrl, transformedUrl]);
 
   const displayUrl = (showTransformed && transformedUrl) ? transformedUrl : imageUrl;
-
-  const renderPanel = () => {
-    if (activeTab === 'couleur') {
-      return <CalquerLogoColorPanel bgConfig={bgConfig} onBgConfigChange={setBgConfig} hasTransformed={!!transformedUrl} />;
-    }
-    if (activeTab === 'couleur-logo') {
-      return (
-        <CalquerLogoColorLogoPanel
-          hasContent={!!iaSvgContent || !!transformedUrl}
-          logoColorConfig={logoColorConfig}
-          onConfigChange={handleLogoColorChange}
-          onReset={handleLogoColorReset}
-        />
-      );
-    }
-    return (
-      <CalquerLogoPanel
-        onUpload={handleUpload} hasImage={!!imageUrl}
-        ciState={ciState} pipetteActive={ciPipetteActive}
-        applying={ciApplying} hasResult={ciHasResult}
-        onActivatePipette={() => setCiPipetteActive(v => !v)}
-        onToleranceChange={handleCiToleranceChange}
-        onUndo={handleCiUndo} onReset={handleCiReset}
-      />
-    );
-  };
+  const renderPanel = () => (
+    <CalquerLogoPanelSwitch activeTab={activeTab} bgConfig={bgConfig} setBgConfig={setBgConfig}
+      transformedUrl={transformedUrl} iaSvgContent={iaSvgContent} imageUrl={imageUrl}
+      logoColorConfig={logoColorConfig} handleLogoColorChange={handleLogoColorChange}
+      handleLogoColorReset={handleLogoColorReset} handleUpload={handleUpload}
+      ciState={ciState} ciPipetteActive={ciPipetteActive} ciApplying={ciApplying} ciHasResult={ciHasResult}
+      setCiPipetteActive={setCiPipetteActive} handleCiToleranceChange={handleCiToleranceChange}
+      handleCiUndo={handleCiUndo} handleCiReset={handleCiReset} />
+  );
 
   const resetEditor = useCallback(() => {
     if (imageUrl) URL.revokeObjectURL(imageUrl);
@@ -298,14 +269,10 @@ export default function CalquerLogo() {
   const handleBackToWelcome = useCallback(() => { resetEditor(); setMode('welcome'); }, [resetEditor]);
 
   if (mode === 'welcome') return (
-    <div className="flex flex-col h-full min-h-0">
-      <CalquerLogoWelcome onLoadSave={handleWelcomeLoad} onNewLogo={() => { resetEditor(); setMode('editor'); }} />
-      <CalquerLogoLoadModal open={loadModalOpen} onClose={() => setLoadModalOpen(false)}
-        sessions={saves.sessions} loading={saves.loading}
-        onOpen={handleOpenSave} onDelete={saves.handleDelete} onRename={saves.handleRename} />
-    </div>
+    <CalquerLogoWelcomeScreen handleWelcomeLoad={handleWelcomeLoad} resetEditor={resetEditor}
+      setMode={setMode} loadModalOpen={loadModalOpen} setLoadModalOpen={setLoadModalOpen}
+      saves={saves} handleOpenSave={handleOpenSave} />
   );
-
   return (
     <div className="flex flex-col h-full min-h-0">
       <input ref={fileRef} type="file" className="hidden" accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml" onChange={handleFileChange} />
@@ -317,21 +284,10 @@ export default function CalquerLogo() {
         hasActiveSession={!!currentSessionId} onSaveChanges={handleSaveChanges}
         savingChanges={savingChanges} changesSaved={changesSaved} onBackToWelcome={handleBackToWelcome}
       />
-      <div className="flex flex-1 min-h-0">
-        {renderPanel()}
-        <CalquerLogoCanvas ref={canvasRef} imageUrl={displayUrl} zoom={zoom} onZoomChange={setZoom}
-          hasOverlay={false} overlayOpacity={0.5} inverted={false}
-          onSwap={() => {}} panX={panX} panY={panY} onPanChange={handlePanChange}
-          splitView={false} originalUrl={imageUrl} transformedUrl={transformedUrl}
-          transformedBg={bgConfigToCss(bgConfig)} showTransformed={showTransformed}
-          showMaskOverlay={false} mask={{ tool: 'rectangle', mode: 'supprimer', opacity: 60, size: 20, strokeColor: '#ef4444', shapes: [], selectedId: null, folders: [] }}
-          moveMode={false}
-          onMaskAddShape={() => {}} onMaskSelectShape={() => {}} onMaskMoveShape={() => {}} onMaskDeleteSelected={() => {}}
-          pipetteActive={activeTab === 'logo' && ciPipetteActive}
-          onPipetteClick={handleCiPipetteClick}
-          selectionPreviewUrl={activeTab === 'logo' ? ciPreviewUrl : null}
-        />
-      </div>
+      <CalquerLogoStage renderPanel={renderPanel} canvasRef={canvasRef} displayUrl={displayUrl}
+        zoom={zoom} setZoom={setZoom} panX={panX} panY={panY} handlePanChange={handlePanChange}
+        imageUrl={imageUrl} transformedUrl={transformedUrl} bgConfig={bgConfig} showTransformed={showTransformed}
+        activeTab={activeTab} ciPipetteActive={ciPipetteActive} handleCiPipetteClick={handleCiPipetteClick} ciPreviewUrl={ciPreviewUrl} />
       <CalquerLogoSaveModal open={saveModalOpen} onClose={() => setSaveModalOpen(false)} onSave={handleSave} />
       <CalquerLogoLoadModal open={loadModalOpen} onClose={() => setLoadModalOpen(false)}
         sessions={saves.sessions} loading={saves.loading}

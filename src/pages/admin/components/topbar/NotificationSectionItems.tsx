@@ -1,7 +1,8 @@
-import { useState, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import NotificationButton from './NotificationButton';
 import { DropdownPanel, DropdownHeader, DropdownEmpty } from './DropdownShell';
 import type { ThemeTokens } from '../../../../lib/themeTokensTypes';
+import { BubbleRow } from '../../../../components/notifications/MessageBubblePopover';
 
 type DropdownTokens = ThemeTokens['dropdown'];
 
@@ -58,36 +59,19 @@ export function NotifDropdownSection({
   );
 }
 
-export function SuperAdminNotifItem({ count, tokens, onClick }: { count: number; tokens: DropdownTokens; onClick: () => void }) {
-  const [hovered, setHovered] = useState(false);
-
+export function SuperAdminNotifItem({ count, name, subtitle, preview, at, tokens, onClick }: {
+  count: number; name: string; subtitle?: string; preview: string; at: string;
+  tokens: DropdownTokens; onClick: () => void;
+}) {
   return (
-    <button
-      type="button"
+    <BubbleRow
+      name={name || 'Talvex Administrateur'}
+      subtitle={subtitle}
+      preview={preview}
+      at={at}
+      unread={count}
+      d={tokens}
       onClick={onClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      className="w-full flex items-center gap-3 px-3 py-2.5 transition-colors duration-150 text-left"
-      style={{ background: hovered ? tokens.itemBgHover : 'transparent' }}
-    >
-      <div
-        className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0"
-        style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)', boxShadow: '0 0 8px rgba(245,158,11,0.3)' }}
-      >
-        S
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-[12px] font-medium whitespace-normal break-words" style={{ color: tokens.itemTextHover }}>
-          Vous avez reçu un message du Super Admin.
-        </p>
-        <p className="text-[10px] mt-0.5" style={{ color: tokens.itemText }}>
-          {count} message{count > 1 ? 's' : ''} non lu{count > 1 ? 's' : ''}
-        </p>
-      </div>
-      <div
-        className="w-2 h-2 rounded-full flex-shrink-0"
-        style={{ background: '#f59e0b', boxShadow: '0 0 6px rgba(245,158,11,0.5)' }}
-      />
-    </button>
+    />
   );
 }

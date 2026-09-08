@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 export function useUnreadAdminMessages(clientAuthId: string) {
   const [unreadCount, setUnreadCount] = useState(0);
   const [latestAt, setLatestAt] = useState<string | null>(null);
+  const [latestContent, setLatestContent] = useState('');
   const justMarked = useRef(false);
 
   const load = useCallback(async () => {
@@ -11,11 +12,11 @@ export function useUnreadAdminMessages(clientAuthId: string) {
       justMarked.current = false;
       return;
     }
-    if (!clientAuthId) { setUnreadCount(0); setLatestAt(null); return; }
+    if (!clientAuthId) { setUnreadCount(0); setLatestAt(null); setLatestContent(''); return; }
 
     const { data } = await supabase
       .from('client_messages')
-      .select('created_at')
+      .select('created_at, content')
       .eq('client_auth_id', clientAuthId)
       .or('sender.eq.admin,sender.eq.vendor')
       .eq('read', false)
@@ -24,12 +25,15 @@ export function useUnreadAdminMessages(clientAuthId: string) {
     if (!data || data.length === 0) {
       setUnreadCount(0);
       setLatestAt(null);
+      setLatestContent('');
       return;
     }
 
     setUnreadCount(data.length);
-    const latest = data.reduce((max, m) => m.created_at > max ? m.created_at : max, data[0].created_at);
-    setLatestAt(latest);
+    // Le message le plus recent fournit la date ET l apercu.
+    const newest = data.reduce((a, b) => (b.created_at > a.created_at ? b : a), data[0]);
+    setLatestAt(newest.created_at);
+    setLatestContent(newest.content ?? '');
   }, [clientAuthId]);
 
   useEffect(() => { load(); }, [load]);
@@ -51,6 +55,7 @@ export function useUnreadAdminMessages(clientAuthId: string) {
     justMarked.current = true;
     setUnreadCount(0);
     setLatestAt(null);
+    setLatestContent('');
 
     await supabase
       .from('client_messages')
@@ -61,5 +66,5 @@ export function useUnreadAdminMessages(clientAuthId: string) {
       .eq('deleted', false);
   }, [clientAuthId]);
 
-  return { unreadCount, latestAt, markAsRead, reload: load };
+  return { unreadCount, latestAt, latestContent, markAsRead, reload: load };
 }

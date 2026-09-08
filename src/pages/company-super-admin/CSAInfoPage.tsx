@@ -125,9 +125,9 @@ export default function CSAInfoPage({ impersonated, onNameUpdated }: Props) {
             <Shield className="w-4 h-4 md:w-6 md:h-6 text-white" />
           </div>
           <div>
-            <h2 className="text-sm md:text-base font-bold" style={{ color: t.text.primary }}>Info Super Admin</h2>
+            <h2 className="text-sm md:text-base font-bold" style={{ color: t.text.primary }}>Accès &amp; sécurité</h2>
             <p className="text-[11px] md:text-xs" style={{ color: t.text.tertiary }}>
-              Informations de {impersonated.first_name} {impersonated.last_name} — {impersonated.company}
+              Gérez les informations de connexion du groupe.
             </p>
           </div>
         </div>

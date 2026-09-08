@@ -4,6 +4,8 @@ import { supabase } from '../lib/supabase';
 export function useUnreadVendorAdminMessages(vendorDbId: string | null) {
   const [unreadCount, setUnreadCount] = useState(0);
   const [latestAt, setLatestAt] = useState<string | null>(null);
+  // Apercu du dernier message non lu, tel qu il a ete ecrit.
+  const [preview, setPreview] = useState('');
   const justMarked = useRef(false);
 
   const load = useCallback(async () => {
@@ -11,11 +13,11 @@ export function useUnreadVendorAdminMessages(vendorDbId: string | null) {
       justMarked.current = false;
       return;
     }
-    if (!vendorDbId) { setUnreadCount(0); setLatestAt(null); return; }
+    if (!vendorDbId) { setUnreadCount(0); setLatestAt(null); setPreview(''); return; }
 
     const { data } = await supabase
       .from('vendor_admin_messages')
-      .select('created_at')
+      .select('created_at, content')
       .eq('vendor_id', vendorDbId)
       .eq('sender', 'admin')
       .eq('read', false)
@@ -24,12 +26,14 @@ export function useUnreadVendorAdminMessages(vendorDbId: string | null) {
     if (!data || data.length === 0) {
       setUnreadCount(0);
       setLatestAt(null);
+      setPreview('');
       return;
     }
 
     setUnreadCount(data.length);
-    const latest = data.reduce((max, m) => m.created_at > max ? m.created_at : max, data[0].created_at);
-    setLatestAt(latest);
+    const last = data.reduce((acc, m) => (m.created_at > acc.created_at ? m : acc), data[0]);
+    setLatestAt(last.created_at);
+    setPreview(last.content ?? '');
   }, [vendorDbId]);
 
   useEffect(() => { load(); }, [load]);
@@ -51,6 +55,7 @@ export function useUnreadVendorAdminMessages(vendorDbId: string | null) {
     justMarked.current = true;
     setUnreadCount(0);
     setLatestAt(null);
+    setPreview('');
 
     await supabase
       .from('vendor_admin_messages')
@@ -61,5 +66,5 @@ export function useUnreadVendorAdminMessages(vendorDbId: string | null) {
       .eq('deleted', false);
   }, [vendorDbId]);
 
-  return { unreadCount, latestAt, markAsRead, reload: load };
+  return { unreadCount, latestAt, preview, markAsRead, reload: load };
 }

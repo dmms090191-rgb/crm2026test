@@ -1,16 +1,18 @@
 import { useState, useEffect, useMemo } from 'react';
-import { LayoutDashboard, Shield, UserCog, BookOpen, Monitor, HardDriveDownload, MessageSquare, CircleUser as UserCircle, FlaskConical, Building2, Settings, Bot, Globe, Blocks, LayoutTemplate, Brain, Image as ImageIcon, TrendingUp, GraduationCap, Smartphone, Palette, Sparkles, CopySlash, FolderOpen, Eye, EyeOff, Lock } from 'lucide-react';
+import { LayoutDashboard, Shield, UserCog, BookOpen, Monitor, HardDriveDownload, MessageSquare, CircleUser as UserCircle, FlaskConical, Building2, Settings, Bot, Globe, Blocks, LayoutTemplate, Brain, Image as ImageIcon, TrendingUp, GraduationCap, Smartphone, Palette, Sparkles, CopySlash, FolderOpen } from 'lucide-react';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
-import { useSidebarOrder } from '../../hooks/useSidebarOrder';
 import { useActiveLogo } from '../../hooks/useActiveLogo';
-import SidebarReorderControls from '../../components/SidebarReorderControls';
+import SidebarLayoutControls from '../../components/sidebar-v2/SidebarLayoutControls';
+import { SASidebarSkeleton, SAItem } from './SuperAdminSidebarItem';
 import SidebarFooterActions from '../../components/layout/SidebarFooterActions';
-import type { SidebarSection } from '../../lib/sidebarOrderTypes';
+import { useSidebarLayout } from '../../hooks/useSidebarLayout';
+import { defaultEntries } from '../../lib/sidebarLayout';
+import type { LayoutDefaultSection } from '../../lib/sidebarLayout';
 import { supabase } from '../../lib/supabase';
 import { useEditorModeSafe, resolveTextColor, resolveTypography } from '../../contexts/EditorModeContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { ensureGoogleFont } from '../../components/editor/EditorTypographyPanel';
-import { useSAHiddenTabs, isProtectedTab } from './useSAHiddenTabs';
+import { isProtectedTab, PROTECTED_TAB_IDS } from './useSAHiddenTabs';
 
 export type SAView = 'dashboard' | 'super-admins' | 'admins' | 'chat-admin' | 'documentation-crm' | 'system' | 'sauvegarde' | 'mon-compte' | 'tests-systeme' | 'crm-societe' | 'statuts' | 'api-ia' | 'cerveau-ia' | 'sites' | 'fonctions-talvex' | 'site-talvex' | 'logo' | 'ameliorations' | 'tuto' | 'application' | 'themes' | 'editeur-ia' | 'calquer-logo' | 'mes-logos-ra';
 
@@ -27,57 +29,70 @@ interface SuperAdminSidebarProps {
   badgeCounts?: Record<string, number>;
 }
 
-const DEFAULT_SECTIONS: SidebarSection[] = [
-  {
-    title: 'Principal',
-    items: [
-      { id: 'dashboard', label: 'Dashboard RA', icon: <LayoutDashboard className="w-4 h-4" /> },
-      { id: 'logo', label: 'Logo RA', icon: <ImageIcon className="w-4 h-4" /> },
-      { id: 'calquer-logo', label: 'Calquer logo RA', icon: <CopySlash className="w-4 h-4" /> },
-      { id: 'mes-logos-ra', label: 'Mes logos RA', icon: <FolderOpen className="w-4 h-4" /> },
-      { id: 'site-talvex', label: 'Site RA', icon: <LayoutTemplate className="w-4 h-4" /> },
-      { id: 'application', label: 'Application RA', icon: <Smartphone className="w-4 h-4" /> },
-      { id: 'themes', label: 'Gestion themes RA', icon: <Palette className="w-4 h-4" /> },
-      { id: 'tuto', label: 'Tuto RA', icon: <GraduationCap className="w-4 h-4" /> },
-    ],
-  },
-  {
-    title: 'Gestion',
-    items: [
-      { id: 'super-admins', label: 'Liste Super Admins RA', icon: <Shield className="w-4 h-4" /> },
-      { id: 'admins', label: 'Liste admins RA', icon: <UserCog className="w-4 h-4" /> },
-      { id: 'mon-compte', label: 'Mon compte RA', icon: <UserCircle className="w-4 h-4" /> },
-      { id: 'crm-societe', label: 'CRM Societe RA', icon: <Building2 className="w-4 h-4" /> },
-      { id: 'sites', label: 'Sites & Domaines RA', icon: <Globe className="w-4 h-4" /> },
-      { id: 'statuts', label: 'Statuts RA', icon: <Settings className="w-4 h-4" /> },
-    ],
-  },
-  {
-    title: 'Contact',
-    items: [
-      { id: 'chat-admin', label: 'Chat Super Admin RA', icon: <MessageSquare className="w-4 h-4" /> },
-    ],
-  },
-  {
-    title: 'Outils & Système',
-    items: [
-      { id: 'api-ia', label: 'API IA RA', icon: <Bot className="w-4 h-4" /> },
-      { id: 'ameliorations', label: 'Ameliorations RA', icon: <TrendingUp className="w-4 h-4" /> },
-      { id: 'fonctions-talvex', label: 'Fonctions Talvex RA', icon: <Blocks className="w-4 h-4" /> },
-      { id: 'cerveau-ia', label: 'Cerveau IA SA RA', icon: <Brain className="w-4 h-4" /> },
-      { id: 'editeur-ia', label: 'Editeur IA RA', icon: <Sparkles className="w-4 h-4" /> },
-    ],
-  },
-  {
-    title: 'Maintenance',
-    items: [
-      { id: 'system', label: 'System RA', icon: <Monitor className="w-4 h-4" /> },
-      { id: 'documentation-crm', label: 'Documentation CRM RA', icon: <BookOpen className="w-4 h-4" /> },
-      { id: 'tests-systeme', label: 'Tests Systeme RA', icon: <FlaskConical className="w-4 h-4" /> },
-      { id: 'sauvegarde', label: 'Sauvegarde & restauration RA', icon: <HardDriveDownload className="w-4 h-4" /> },
-    ],
-  },
+const LAYOUT_SECTIONS: LayoutDefaultSection[] = [
+  { title: 'Principal', items: [
+    { id: 'dashboard', label: 'Dashboard' },
+    { id: 'mon-compte', label: 'Accès & sécurité' },
+    { id: 'logo', label: 'Logo' },
+    { id: 'calquer-logo', label: 'Calquer logo' },
+    { id: 'mes-logos-ra', label: 'Mes logos' },
+    { id: 'site-talvex', label: 'Site' },
+    { id: 'application', label: 'Application' },
+    { id: 'themes', label: 'Gestion des thèmes' },
+    { id: 'tuto', label: 'Tuto' },
+  ] },
+  { title: 'Gestion', items: [
+    { id: 'super-admins', label: 'Liste des groupes' },
+    { id: 'statuts', label: 'Gestion des statuts' },
+    { id: 'admins', label: 'Liste admins' },
+    { id: 'crm-societe', label: 'CRM Sociétés' },
+    { id: 'sites', label: 'Sites & Domaines' },
+  ] },
+  { title: 'Communication', items: [
+    { id: 'chat-admin', label: 'Chat Groupes' },
+  ] },
+  { title: 'Maintenance', items: [
+    { id: 'documentation-crm', label: 'Documentation CRM' },
+    { id: 'system', label: 'Système' },
+    { id: 'tests-systeme', label: 'Tests Système' },
+    { id: 'sauvegarde', label: 'Sauvegarde & restauration' },
+  ] },
+  { title: 'Outils & Système', items: [
+    { id: 'api-ia', label: 'API IA' },
+    { id: 'ameliorations', label: 'Améliorations' },
+    { id: 'fonctions-talvex', label: 'Fonctions Talvex' },
+    { id: 'cerveau-ia', label: 'Cerveau IA Talvex' },
+    { id: 'editeur-ia', label: 'Éditeur IA' },
+  ] },
 ];
+
+const ICONS: Record<string, React.ReactNode> = {
+  'dashboard': <LayoutDashboard className="w-4 h-4" />,
+  'mon-compte': <UserCircle className="w-4 h-4" />,
+  'logo': <ImageIcon className="w-4 h-4" />,
+  'calquer-logo': <CopySlash className="w-4 h-4" />,
+  'mes-logos-ra': <FolderOpen className="w-4 h-4" />,
+  'site-talvex': <LayoutTemplate className="w-4 h-4" />,
+  'application': <Smartphone className="w-4 h-4" />,
+  'themes': <Palette className="w-4 h-4" />,
+  'tuto': <GraduationCap className="w-4 h-4" />,
+  'super-admins': <Shield className="w-4 h-4" />,
+  'statuts': <Settings className="w-4 h-4" />,
+  'admins': <UserCog className="w-4 h-4" />,
+  'crm-societe': <Building2 className="w-4 h-4" />,
+  'sites': <Globe className="w-4 h-4" />,
+  'chat-admin': <MessageSquare className="w-4 h-4" />,
+  'documentation-crm': <BookOpen className="w-4 h-4" />,
+  'system': <Monitor className="w-4 h-4" />,
+  'tests-systeme': <FlaskConical className="w-4 h-4" />,
+  'sauvegarde': <HardDriveDownload className="w-4 h-4" />,
+  'api-ia': <Bot className="w-4 h-4" />,
+  'ameliorations': <TrendingUp className="w-4 h-4" />,
+  'fonctions-talvex': <Blocks className="w-4 h-4" />,
+  'cerveau-ia': <Brain className="w-4 h-4" />,
+  'editeur-ia': <Sparkles className="w-4 h-4" />,
+};
+
 
 export default function SuperAdminSidebar({ activeView, onNavigate, collapsed, onCollapse, onLogout, editorZone1Bg, editorZone2Bg, logoZoneRef, sidebarBodyRef, badgeCounts }: SuperAdminSidebarProps) {
   const t = useThemeTokens();
@@ -98,11 +113,9 @@ export default function SuperAdminSidebar({ activeView, onNavigate, collapsed, o
   }, []);
 
   const { url: activeLogo, scale: logoScale } = useActiveLogo(companyId);
-  const { hiddenTabs, toggle: toggleHiddenTab } = useSAHiddenTabs(userId);
-  const [hideEditMode, setHideEditMode] = useState(false);
-
-  const sections = useMemo(() => DEFAULT_SECTIONS, []);
-  const order = useSidebarOrder({ role: 'super_admin', sections, userId, hiddenTabs });
+  const sections = useMemo(() => LAYOUT_SECTIONS, []);
+  // Configuration propre au compte Talvex connecte : cle v2:super_admin.
+  const layout = useSidebarLayout({ panel: 'super_admin', entityUserId: userId, sections, protectedIds: PROTECTED_TAB_IDS });
 
   const mergedTextOverrides = useMemo(() => {
     const base = { ...ctTextOverrides };
@@ -110,11 +123,17 @@ export default function SuperAdminSidebar({ activeView, onNavigate, collapsed, o
     return base;
   }, [ctTextOverrides, editorCtx?.textOverrides]);
 
-  const sectionColorMap = useMemo(() => {
+  // Couleurs d'editeur indexees par ID de compartiment : renommer un
+  // compartiment ne casse plus la correspondance.
+  const sectionColorById = useMemo(() => {
+    const defs = defaultEntries(LAYOUT_SECTIONS);
     const map: Record<string, string> = {};
-    for (const section of DEFAULT_SECTIONS) {
-      const color = resolveTextColor(`cat:${section.title}`, mergedTextOverrides, editorCtx?.textPreview || {});
-      if (color) map[section.title] = color;
+    let i = 0;
+    for (const e of defs) {
+      if (e.kind !== 'section') continue;
+      const title = LAYOUT_SECTIONS[i++].title;
+      const color = resolveTextColor(`cat:${title}`, mergedTextOverrides, editorCtx?.textPreview || {});
+      if (color) map[e.id] = color;
     }
     return Object.keys(map).length > 0 ? map : undefined;
   }, [mergedTextOverrides, editorCtx?.textPreview]);
@@ -166,159 +185,52 @@ export default function SuperAdminSidebar({ activeView, onNavigate, collapsed, o
         className="flex-1 flex flex-col min-h-0"
         style={{ background: editorZone2Bg || t.sidebar.bg }}
       >
-        <SidebarReorderControls
-          entries={hideEditMode ? order.entries : filterHiddenEntries(order.entries, hiddenTabs)}
-          reordering={order.reordering} collapsed={collapsed}
-          activeId={activeView} onNavigate={id => onNavigate(id as SAView)}
-          startReorder={order.startReorder} cancelReorder={order.cancelReorder} confirmReorder={order.confirmReorder}
-          move={order.move} handleDragStart={order.handleDragStart} handleDragOver={order.handleDragOver} handleDragEnd={order.handleDragEnd}
-          draftLength={order.draftLength}
-          renameEntry={order.renameEntry} addSection={order.addSection} addDivider={order.addDivider} removeEntry={order.removeEntry}
-          resetToDefault={order.resetToDefault}
-          dragSourceIdx={order.dragSourceIdx} dropTargetIdx={order.dropTargetIdx} dropEdge={order.dropEdge}
-          sectionColorMap={sectionColorMap}
+        {!layout.loaded ? (
+          <SASidebarSkeleton collapsed={collapsed} tokens={t} />
+        ) : (
+        <SidebarLayoutControls
+          entries={layout.reordering ? layout.draft : layout.visible}
+          reordering={layout.reordering}
+          collapsed={collapsed}
+          activeId={activeView}
+          defaultLabels={layout.defaultLabels}
+          cancelReorder={layout.cancelReorder}
+          confirmReorder={layout.confirmReorder}
+          resetToDefault={layout.resetToDefault}
+          move={layout.move}
+          addSection={layout.addSection}
+          addDivider={layout.addDivider}
+          remove={layout.remove}
+          rename={layout.rename}
+          toggleHidden={layout.toggleHidden}
+          // Panel de Talvex Administrateur : le niveau qui decide de la
+          // disponibilite des fonctionnalites. Droit acquis.
+          canHide
+          isProtected={isProtectedTab}
+          sectionColorById={sectionColorById}
           sectionFontFamily={categoryFont}
-          renderItem={(entry, isActive) => (
+          renderItem={(entry, isActive, label) => (
             <SAItem
-              id={entry.id} label={entry.label} icon={entry.icon} isActive={isActive} collapsed={collapsed}
-              onClick={() => { if (!hideEditMode) onNavigate(entry.id as SAView); }}
+              id={entry.id} label={label} icon={ICONS[entry.id]} isActive={isActive} collapsed={collapsed}
+              onClick={() => onNavigate(entry.id as SAView)}
               tokens={t.sidebar} editorCtx={editorCtx} mergedTextOverrides={mergedTextOverrides} itemFontFamily={itemFont}
-              hideEditMode={hideEditMode}
-              isHidden={hiddenTabs.has(entry.id)}
-              isProtected={isProtectedTab(entry.id)}
-              onToggleHide={() => toggleHiddenTab(entry.id)}
               badgeCount={badgeCounts?.[entry.id]}
             />
           )}
         />
+        )}
 
         <SidebarFooterActions
           collapsed={collapsed}
           onLogout={onLogout}
           onCollapse={onCollapse}
-          onReorganize={order.startReorder}
-          reordering={order.reordering}
+          onReorganize={layout.startReorder}
+          reordering={layout.reordering}
           tokens={t}
           rdrFontFamily={rdrFont}
-          onHideTabs={() => setHideEditMode(prev => !prev)}
-          hideEditMode={hideEditMode}
         />
       </div>
     </aside>
-  );
-}
-
-function filterHiddenEntries(entries: import('../../lib/sidebarOrderTypes').SidebarEntry[], hidden: Set<string>): import('../../lib/sidebarOrderTypes').SidebarEntry[] {
-  if (hidden.size === 0) return entries;
-  const filtered = entries.filter(e => e.kind !== 'item' || !hidden.has(e.id));
-  const result: typeof filtered = [];
-  for (let i = 0; i < filtered.length; i++) {
-    const cur = filtered[i];
-    if (cur.kind === 'section') {
-      const next = filtered[i + 1];
-      if (!next || next.kind === 'section' || next.kind === 'divider') continue;
-    }
-    if (cur.kind === 'divider') {
-      const next = filtered[i + 1];
-      if (!next || next.kind === 'divider') continue;
-    }
-    result.push(cur);
-  }
-  if (result.length > 0 && result[result.length - 1].kind === 'divider') result.pop();
-  return result;
-}
-
-function SAItem({ id, label, icon, isActive, collapsed, onClick, tokens, editorCtx, mergedTextOverrides, itemFontFamily, hideEditMode, isHidden, isProtected: locked, onToggleHide, badgeCount }: {
-  id: string; label: string; icon: React.ReactNode; isActive: boolean; collapsed: boolean; onClick: () => void;
-  tokens: ReturnType<typeof useThemeTokens>['sidebar'];
-  editorCtx: ReturnType<typeof useEditorModeSafe>;
-  mergedTextOverrides: Record<string, string>;
-  itemFontFamily?: string;
-  hideEditMode?: boolean;
-  isHidden?: boolean;
-  isProtected?: boolean;
-  onToggleHide?: () => void;
-  badgeCount?: number;
-}) {
-  const [hovered, setHovered] = useState(false);
-  const [eyeHovered, setEyeHovered] = useState(false);
-  const textColorOverride = resolveTextColor(`item:${id}`, mergedTextOverrides, editorCtx?.textPreview || {});
-  const baseColor = isActive ? tokens.activeItemText : hovered ? tokens.itemTextHover : tokens.itemText;
-  const finalColor = textColorOverride || baseColor;
-
-  const dimmed = hideEditMode && isHidden;
-
-  return (
-    <div
-      className={`w-full flex items-center rounded-lg transition-all duration-150 mb-0.5 ${collapsed ? 'justify-center px-2 py-2' : 'px-2.5 py-[7px]'}`}
-      style={{
-        background: isActive && !hideEditMode ? tokens.activeItemBg : hovered && !hideEditMode ? 'rgba(255,255,255,0.04)' : hideEditMode ? 'transparent' : 'transparent',
-        opacity: dimmed ? 0.4 : 1,
-        boxShadow: isActive && !hideEditMode ? tokens.activeItemShadow : 'none',
-        cursor: hideEditMode ? 'default' : 'pointer',
-      }}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-    >
-      <button
-        onClick={onClick}
-        title={collapsed ? label : undefined}
-        data-testid={id === 'admins' ? 'liste-admins-tab' : undefined}
-        data-sidebar-item={id}
-        className={`flex items-center gap-2.5 min-w-0 flex-1 ${hideEditMode ? 'pointer-events-none' : ''}`}
-        style={{ color: dimmed ? tokens.itemText : finalColor }}
-        tabIndex={hideEditMode ? -1 : 0}
-      >
-        <span className="flex-shrink-0 relative">
-          {icon}
-          {collapsed && !!badgeCount && badgeCount > 0 && !hideEditMode && (
-            <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 flex items-center justify-center rounded-full text-[10px] font-bold text-white bg-red-500 shadow-sm">{badgeCount > 99 ? '99+' : badgeCount}</span>
-          )}
-        </span>
-        {!collapsed && <span className="text-[12.5px] font-medium truncate" style={{ fontFamily: itemFontFamily ? `"${itemFontFamily}", sans-serif` : undefined }}>{label}</span>}
-        {!collapsed && !!badgeCount && badgeCount > 0 && !hideEditMode && (
-          <span className="ml-auto flex-shrink-0 min-w-[20px] h-5 px-1.5 flex items-center justify-center rounded-full text-[10px] font-bold text-white bg-red-500 shadow-sm">{badgeCount > 99 ? '99+' : badgeCount}</span>
-        )}
-      </button>
-
-      {hideEditMode && !collapsed && (
-        locked ? (
-          <span className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-md ml-1" style={{ color: tokens.itemText, opacity: 0.35 }} title="Protege">
-            <Lock className="w-3.5 h-3.5" />
-          </span>
-        ) : (
-          <button
-            onClick={e => { e.stopPropagation(); onToggleHide?.(); }}
-            onMouseEnter={() => setEyeHovered(true)}
-            onMouseLeave={() => setEyeHovered(false)}
-            className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-md ml-1 transition-all duration-150"
-            style={{
-              background: eyeHovered ? (isHidden ? 'rgba(239,68,68,0.12)' : 'rgba(34,197,94,0.10)') : 'transparent',
-              color: isHidden ? '#ef4444' : eyeHovered ? '#22c55e' : tokens.itemText,
-            }}
-            title={isHidden ? 'Afficher' : 'Masquer'}
-          >
-            {isHidden ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-          </button>
-        )
-      )}
-
-      {hideEditMode && collapsed && (
-        !locked ? (
-          <button
-            onClick={e => { e.stopPropagation(); onToggleHide?.(); }}
-            className="absolute right-0.5 top-0.5 w-4 h-4 flex items-center justify-center rounded-full transition-colors"
-            style={{
-              background: isHidden ? 'rgba(239,68,68,0.2)' : 'rgba(34,197,94,0.15)',
-              color: isHidden ? '#ef4444' : '#22c55e',
-            }}
-            title={isHidden ? 'Afficher' : 'Masquer'}
-          >
-            {isHidden ? <EyeOff className="w-2.5 h-2.5" /> : <Eye className="w-2.5 h-2.5" />}
-          </button>
-        ) : null
-      )}
-    </div>
   );
 }
 

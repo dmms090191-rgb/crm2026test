@@ -14,9 +14,19 @@ import { useAdminRdvData } from './propositions-rdv/useAdminRdvData';
 import DualScrollWrapper from '../../../components/DualScrollWrapper';
 
 interface RdvLeadRef { id: string; nom: string; prenom: string; email: string; tel?: string; }
-interface PropositionsRdvProps { initialLead?: RdvLeadRef | null; onInitialLeadConsumed?: () => void; onNavigateToCrm?: (leadId?: string) => void; }
+import type { RdvFormSnapshot } from './propositions-rdv/useAdminRdvData';
 
-export default function PropositionsRdv({ initialLead, onInitialLeadConsumed, onNavigateToCrm }: PropositionsRdvProps) {
+interface PropositionsRdvProps {
+  initialLead?: RdvLeadRef | null;
+  onInitialLeadConsumed?: () => void;
+  onNavigateToCrm?: (leadId?: string) => void;
+  /** Ouvre le CRM en mode « choisir un contact », en emportant la saisie en cours. */
+  onPickContact?: (form: RdvFormSnapshot) => void;
+  /** Saisie a remettre en place au retour du CRM. */
+  restoreForm?: RdvFormSnapshot | null;
+}
+
+export default function PropositionsRdv({ initialLead, onInitialLeadConsumed, onNavigateToCrm, onPickContact, restoreForm }: PropositionsRdvProps) {
   const tokens = useThemeTokens();
   const {
     rdvs, vendors, loading, filter, setFilter, vendorFilter, setVendorFilter,
@@ -28,7 +38,7 @@ export default function PropositionsRdv({ initialLead, onInitialLeadConsumed, on
     handleAcceptReschedule, handleRefuseReschedule, handleCounterReschedule,
     vendorName, toggleSelect, toggleAll, load,
     rescheduleTarget, setRescheduleTarget,
-  } = useAdminRdvData(initialLead, onInitialLeadConsumed);
+  } = useAdminRdvData(initialLead, onInitialLeadConsumed, restoreForm);
 
   function openRescheduleEdit(rdv: RdvProposal) {
     setRescheduleTarget(rdv);
@@ -76,7 +86,7 @@ export default function PropositionsRdv({ initialLead, onInitialLeadConsumed, on
           onChange={(k, v) => setNewForm(f => ({ ...f, [k]: v }))}
           onSubmit={handleAdd}
           onCancel={() => { setShowAdd(false); setPendingLeadId(null); setPendingLeadName(''); }}
-          onPickContact={onNavigateToCrm}
+          onPickContact={onPickContact ? () => onPickContact(newForm) : undefined}
           saving={saving}
           error={addError}
         />

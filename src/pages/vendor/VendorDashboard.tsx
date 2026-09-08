@@ -1,20 +1,17 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import VendorSidebar from './VendorSidebar';
 import VendorTopBar from './VendorTopBar';
-import VendorVueEnsemble from './views/VendorVueEnsemble';
-import VendorLeads from './views/VendorLeads';
-import VendorChatAdmin from './views/VendorChatAdmin';
-import VendorChatClient from './views/VendorChatClient';
-import VendorAgenda from './views/VendorAgenda';
-import VendorPropositionsRdv from './views/VendorPropositionsRdv';
+import VendorViewRenderer, { vendorBreadcrumb } from './VendorViewRenderer';
 import { supabase } from '../../lib/supabase';
-import { saveConnectReturnContext, consumeConnectReturnContext, saveChatReturnContext, consumeChatReturnContext } from '../../lib/connectReturnContext';
+import { consumeConnectReturnContext, consumeChatReturnContext } from '../../lib/connectReturnContext';
 import type { ImpersonatedClientInfo } from '../client/ClientDashboard';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
 import GlassBackgroundLayer from '../../components/theme/GlassBackgroundLayer';
 import { useUnreadVendorAdminMessages } from '../../hooks/useUnreadVendorAdminMessages';
 import { useUnreadVendorClientMessages } from '../../hooks/useUnreadVendorClientMessages';
 import { useAgendaNotifications } from '../../hooks/useAgendaNotifications';
+import { useVendorNotifPrefs } from './dashboard/useVendorNotifPrefs';
+import { useVendorProposalNotifs } from './dashboard/useVendorProposalNotifs';
 import type { VendorClientNotifEntry } from './VendorTopBar';
 import DemoEmitterLayer from '../../components/demo/DemoEmitterLayer';
 import DemoReceiverLayer from '../../components/demo/DemoReceiverLayer';
@@ -59,14 +56,16 @@ export default function VendorDashboard({ onLogout, impersonatedVendor, onBackTo
   const [mobileOpen, setMobileOpen] = useState(false);
   const [vendorName, setVendorName] = useState('Vendeur');
   const [vendorDbId, setVendorDbId] = useState<string | null>(null);
+  const [connectedAuthId, setConnectedAuthId] = useState<string | null>(null);
   const [chatLead, setChatLead] = useState<VendorChatLead | null>(null);
   const [rdvLead, setRdvLead] = useState<VendorChatLead | null>(null);
-  const { unreadCount: unreadAdminCount, latestAt: unreadAdminLatestAt, markAsRead: markAdminRead } = useUnreadVendorAdminMessages(vendorDbId);
+  const { unreadCount: unreadAdminCount, latestAt: unreadAdminLatestAt, preview: unreadAdminPreview, markAsRead: markAdminRead } = useUnreadVendorAdminMessages(vendorDbId);
   const { unreadCount: unreadClientCount, unreadEntries: unreadClientEntries, markAsRead: markClientRead } = useUnreadVendorClientMessages(vendorDbId);
   const { notifications: agendaNotifs, count: agendaCount, markAsSeen: markAgendaSeen } = useAgendaNotifications('vendor', vendorDbId);
-  const [proposalUnseen, setProposalUnseen] = useState<{ id: string; lead_name: string; created_at: string; created_by_role?: string; parent_proposal_id?: string | null }[]>([]);
-  const [confirmedUnseen, setConfirmedUnseen] = useState<{ id: string; lead_name: string; created_at: string; created_by_role?: string; parent_proposal_id?: string | null }[]>([]);
+  const { proposalUnseen, confirmedUnseen, markProposalSeen, markConfirmedSeen } = useVendorProposalNotifs(vendorDbId);
   const pendingScrollRef = useRef<{ leadId?: string; scrollY: number } | null>(null);
+  // --- Hub Notifications ---------------------------------------------------
+  const notifPrefs = useVendorNotifPrefs(vendorDbId, connectedAuthId, impersonatedVendor, canHideTabs);
 
   useEffect(() => {
     const ctx = consumeConnectReturnContext('vendor');
@@ -110,6 +109,7 @@ export default function VendorDashboard({ onLogout, impersonatedVendor, onBackTo
           setVendorName([first_name, last_name].filter(Boolean).join(' '));
         }
       }
+      setConnectedAuthId(user.id);
       const { data: vendorRow } = await supabase
         .from('vendors')
         .select('id')
@@ -118,35 +118,6 @@ export default function VendorDashboard({ onLogout, impersonatedVendor, onBackTo
       if (vendorRow) setVendorDbId(vendorRow.id);
     });
   }, [impersonatedVendor]);
-
-  useEffect(() => {
-    if (!vendorDbId) return;
-    const fetchUnseen = async () => {
-      const { data: proposals } = await supabase
-        .from('rdv_proposals')
-        .select('id, lead_name, created_at, created_by_role, parent_proposal_id')
-        .eq('vendor_id', vendorDbId)
-        .eq('seen_by_vendor', false)
-        .eq('status', 'pending')
-        .eq('created_by_role', 'client')
-        .order('created_at', { ascending: false });
-      const { data: confirmed } = await supabase
-        .from('rdv_proposals')
-        .select('id, lead_name, created_at, created_by_role, parent_proposal_id')
-        .eq('vendor_id', vendorDbId)
-        .eq('status', 'confirmed')
-        .eq('seen_by_vendor', false)
-        .order('created_at', { ascending: false });
-      setProposalUnseen(proposals ?? []);
-      setConfirmedUnseen(confirmed ?? []);
-    };
-    fetchUnseen();
-    const ch = supabase
-      .channel(`vendor-confirmed-unseen-${vendorDbId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'rdv_proposals' }, fetchUnseen)
-      .subscribe();
-    return () => { supabase.removeChannel(ch); };
-  }, [vendorDbId]);
 
   useEffect(() => {
     if (activeView === 'chat-admin') {
@@ -164,26 +135,14 @@ export default function VendorDashboard({ onLogout, impersonatedVendor, onBackTo
   }, [markAgendaSeen]);
 
   const handleProposalEntryClick = useCallback((proposalId: string) => {
-    supabase
-      .from('rdv_proposals')
-      .update({ seen_by_vendor: true })
-      .eq('id', proposalId)
-      .then(() => {
-        setProposalUnseen(prev => prev.filter(p => p.id !== proposalId));
-      });
+    markProposalSeen(proposalId);
     setActiveView('propositions-rdv');
-  }, []);
+  }, [markProposalSeen]);
 
   const handleConfirmedEntryClick = useCallback((proposalId: string) => {
-    supabase
-      .from('rdv_proposals')
-      .update({ seen_by_vendor: true })
-      .eq('id', proposalId)
-      .then(() => {
-        setConfirmedUnseen(prev => prev.filter(p => p.id !== proposalId));
-      });
+    markConfirmedSeen(proposalId);
     setActiveView('propositions-rdv');
-  }, []);
+  }, [markConfirmedSeen]);
 
   const handleClientEntryClick = useCallback((entry: VendorClientNotifEntry) => {
     setChatLead({ id: entry.leadId, nom: entry.nom, prenom: entry.prenom, email: entry.email });
@@ -201,31 +160,7 @@ export default function VendorDashboard({ onLogout, impersonatedVendor, onBackTo
     if (ctx) pendingScrollRef.current = { leadId: ctx.leadId, scrollY: 0 };
   }, []);
 
-  const getBreadcrumb = useCallback(() => {
-    const labels: Record<VendorActiveView, string> = {
-      'vue-ensemble': "Vue d'ensemble",
-      'leads': 'Leads',
-      'chat-admin': 'Chat Admin',
-      'chat-client': 'Chat Client',
-      'agenda': 'Agenda',
-      'propositions-rdv': 'Propositions RDV',
-      'tuto': 'Tuto',
-    };
-    return labels[activeView];
-  }, [activeView]);
-
-  const renderView = () => {
-    switch (activeView) {
-      case 'vue-ensemble': return <VendorVueEnsemble vendorId={vendorDbId} unreadConversations={unreadClientEntries.length} />;
-      case 'leads': return <VendorLeads vendorId={vendorDbId} onOpenChat={(lead) => { saveChatReturnContext(lead.id, [lead.prenom, lead.nom].filter(Boolean).join(' ') || lead.email); setChatLead(lead); setActiveView('chat-client'); }} onConnectAsClient={(client) => { saveConnectReturnContext({ fromRole: 'vendor', fromTab: 'leads', leadId: client.id, scrollY: window.scrollY }); onConnectAsClient?.(client); }} onOpenRdv={(lead) => { setRdvLead(lead); setActiveView('propositions-rdv'); }} />;
-      case 'chat-admin': return <VendorChatAdmin vendorName={vendorName} vendorDbId={vendorDbId} vendorAuthId={impersonatedVendor?.auth_user_id ?? undefined} onAdminMessageViewed={markAdminRead} isAdmin={!!impersonatedVendor} />;
-      case 'chat-client': return <VendorChatClient vendorName={vendorName} vendorDbId={vendorDbId} initialLead={chatLead} onClientViewed={handleClientViewed} onReturnToLeads={handleReturnToLeads} isAdmin={!!impersonatedVendor} />;
-      case 'agenda': return <VendorAgenda vendorId={vendorDbId} />;
-      case 'propositions-rdv': return <VendorPropositionsRdv vendorDbId={vendorDbId} initialLead={rdvLead} onInitialLeadConsumed={() => setRdvLead(null)} onNavigateToLeads={(leadId?: string) => { if (leadId) pendingScrollRef.current = { leadId, scrollY: 0 }; setActiveView('leads'); }} />;
-      case 'tuto': return <div className="p-6"><p className="text-sm" style={{ color: 'inherit' }}>Tuto - Contenu a venir</p></div>;
-      default: return <VendorVueEnsemble vendorId={vendorDbId} unreadConversations={unreadClientEntries.length} />;
-    }
-  };
+  const getBreadcrumb = useCallback(() => vendorBreadcrumb(activeView), [activeView]);
 
   return (
     <div className="flex h-[100dvh] overflow-hidden relative" style={{ background: tokens.main.bg }}>
@@ -265,6 +200,9 @@ export default function VendorDashboard({ onLogout, impersonatedVendor, onBackTo
           onBackToAdmin={onBackToAdmin}
           unreadAdminCount={unreadAdminCount}
           unreadAdminLatestAt={unreadAdminLatestAt}
+          unreadAdminPreview={unreadAdminPreview}
+          adminName={notifPrefs.adminIdentity.name}
+          adminSubtitle={notifPrefs.adminIdentity.subtitle}
           onAdminNotifClick={handleAdminNotifClick}
           unreadClientCount={unreadClientCount}
           unreadClientEntries={unreadClientEntries}
@@ -278,6 +216,19 @@ export default function VendorDashboard({ onLogout, impersonatedVendor, onBackTo
           confirmedCount={confirmedUnseen.length}
           confirmedEntries={confirmedUnseen}
           onConfirmedEntryClick={handleConfirmedEntryClick}
+          canReorderNotifCards={notifPrefs.canReorderNotifCards}
+          canHideNotifCards={notifPrefs.canHideNotifCards}
+          hiddenNotifCards={notifPrefs.hiddenNotifCards}
+          onToggleNotifCard={notifPrefs.toggleNotifCard}
+          notifCardOrder={notifPrefs.order.order}
+          notifCardLabels={notifPrefs.order.labels}
+          notifReordering={notifPrefs.order.reordering}
+          onStartNotifReorder={notifPrefs.order.startReorder}
+          onCancelNotifReorder={notifPrefs.order.cancelReorder}
+          onConfirmNotifReorder={notifPrefs.order.confirmReorder}
+          onMoveNotifDraft={notifPrefs.order.moveDraft}
+          onRenameNotifDraft={notifPrefs.order.renameDraft}
+          onResetNotifDefault={notifPrefs.order.resetToDefault}
         />
         {isSAViewing && impersonatedVendor && (
           <DemoEmitterLayer
@@ -295,7 +246,14 @@ export default function VendorDashboard({ onLogout, impersonatedVendor, onBackTo
           className={`flex-1 flex flex-col md:p-6 mobile-main-scroll ${(activeView === 'chat-admin' || activeView === 'chat-client') ? 'p-2 sm:p-3 overflow-hidden' : 'p-3 sm:p-4 overflow-auto'}`}
           style={{ minHeight: 0 }}
         >
-          {renderView()}
+          <VendorViewRenderer
+            activeView={activeView} vendorDbId={vendorDbId} vendorName={vendorName}
+            unreadClientEntries={unreadClientEntries} chatLead={chatLead} rdvLead={rdvLead}
+            impersonatedVendor={impersonatedVendor} pendingScrollRef={pendingScrollRef}
+            setActiveView={setActiveView} setChatLead={setChatLead} setRdvLead={setRdvLead}
+            onConnectAsClient={onConnectAsClient} markAdminRead={markAdminRead}
+            handleClientViewed={handleClientViewed} handleReturnToLeads={handleReturnToLeads}
+          />
         </main>
       </div>
     </div>

@@ -9,6 +9,8 @@ export interface VendorNotifEntry {
   email: string;
   count: number;
   latestAt: string;
+  /** Dernier message recu, tel qu il a ete ecrit. Jamais une phrase generique. */
+  preview: string;
 }
 
 export function useUnreadVendorMessages() {
@@ -27,7 +29,7 @@ export function useUnreadVendorMessages() {
 
     const { data: msgs } = await supabase
       .from('vendor_admin_messages')
-      .select('vendor_id, created_at')
+      .select('vendor_id, created_at, content')
       .eq('company_id', companyId)
       .eq('sender', 'vendor')
       .eq('read', false)
@@ -39,15 +41,19 @@ export function useUnreadVendorMessages() {
       return;
     }
 
-    const grouped = new Map<string, { count: number; latestAt: string }>();
+    const grouped = new Map<string, { count: number; latestAt: string; preview: string }>();
     for (const m of msgs) {
       if (!m.vendor_id) continue;
       const existing = grouped.get(m.vendor_id);
       if (!existing) {
-        grouped.set(m.vendor_id, { count: 1, latestAt: m.created_at });
+        grouped.set(m.vendor_id, { count: 1, latestAt: m.created_at, preview: m.content ?? '' });
       } else {
         existing.count++;
-        if (m.created_at > existing.latestAt) existing.latestAt = m.created_at;
+        // Le plus recent gagne : l apercu montre bien le DERNIER message.
+        if (m.created_at > existing.latestAt) {
+          existing.latestAt = m.created_at;
+          existing.preview = m.content ?? '';
+        }
       }
     }
 
@@ -69,6 +75,7 @@ export function useUnreadVendorMessages() {
           email: v.email ?? '',
           count: g.count,
           latestAt: g.latestAt,
+          preview: g.preview,
         });
       }
     }
@@ -76,7 +83,8 @@ export function useUnreadVendorMessages() {
     entries.sort((a, b) => b.latestAt.localeCompare(a.latestAt));
     entriesRef.current = entries;
     setUnreadEntries(entries);
-    setUnreadCount(entries.reduce((acc, e) => acc + e.count, 0));
+    // Badge = nombre de CONVERSATIONS non lues. Le detail par message reste dans e.count.
+    setUnreadCount(entries.length);
   }, [companyId]);
 
   useEffect(() => { load(); }, [load]);
@@ -101,7 +109,7 @@ export function useUnreadVendorMessages() {
       entriesRef.current = next;
       return next;
     });
-    setUnreadCount(prev => Math.max(0, prev - (entry?.count ?? 0)));
+    setUnreadCount(prev => Math.max(0, prev - (entry ? 1 : 0)));
 
     await supabase
       .from('vendor_admin_messages')

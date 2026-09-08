@@ -103,8 +103,8 @@ export default function SAMonCompte({ onNameChange }: SAMonCompteProps) {
               <User className="w-4 h-4 md:w-6 md:h-6" style={{ color: '#ffffff' }} />
             </div>
             <div>
-              <h2 className="text-sm md:text-base font-bold" style={{ color: t.heading.primary }}>Mon compte</h2>
-              <p className="text-[11px] md:text-xs" style={{ color: t.label.muted }}>Informations sur le Rois Admin</p>
+              <h2 className="text-sm md:text-base font-bold" style={{ color: t.heading.primary }}>Accès &amp; sécurité</h2>
+              <p className="text-[11px] md:text-xs" style={{ color: t.label.muted }}>Informations du compte Talvex Administrateur</p>
             </div>
           </div>
 
@@ -158,8 +158,8 @@ export default function SAMonCompte({ onNameChange }: SAMonCompteProps) {
             <User className="w-4 h-4 md:w-6 md:h-6" style={{ color: '#ffffff' }} />
           </div>
           <div>
-            <h2 className="text-sm md:text-base font-bold" style={{ color: t.heading.primary }}>Mon compte</h2>
-            <p className="text-[11px] md:text-xs" style={{ color: t.label.muted }}>Informations sur le Rois Admin</p>
+            <h2 className="text-sm md:text-base font-bold" style={{ color: t.heading.primary }}>Accès &amp; sécurité</h2>
+            <p className="text-[11px] md:text-xs" style={{ color: t.label.muted }}>Informations du compte Talvex Administrateur</p>
           </div>
         </div>
 

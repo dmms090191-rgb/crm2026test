@@ -26,7 +26,7 @@ export function ClientNotifItem({
       onClick={onClick}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      className="w-full flex items-center gap-3 px-3 py-2.5 transition-colors duration-150 text-left"
+      className="w-full flex items-start gap-3 px-3 py-2.5 transition-colors duration-150 text-left"
       style={{ background: hovered ? tokens.itemBgHover : 'transparent' }}
     >
       <div
@@ -39,12 +39,15 @@ export function ClientNotifItem({
         {initial}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-[12px] font-medium whitespace-normal break-words" style={{ color: tokens.itemTextHover }}>
-          {displayName} <span style={{ color: tokens.itemText, fontWeight: 400 }}>vous a envoy&eacute; un message</span>
-        </p>
+        <div className="flex items-baseline justify-between gap-2">
+          <p className="text-[12px] font-semibold truncate" style={{ color: tokens.itemTextHover }}>{displayName}</p>
+          <span className="text-[10px] flex-shrink-0" style={{ color: tokens.itemText }}>{formatRelativeTime(entry.latestAt)}</span>
+        </div>
+        {entry.preview && (
+          <p className="text-[11px] mt-0.5 truncate" style={{ color: tokens.itemText }}>{entry.preview}</p>
+        )}
         <p className="text-[10px] mt-0.5" style={{ color: tokens.itemText }}>
-          {formatRelativeTime(entry.latestAt)}
-          {entry.count > 1 && <span className="ml-1.5 font-medium" style={{ color: '#22d3ee' }}>({entry.count} messages)</span>}
+          {entry.count} message{entry.count > 1 ? 's' : ''} non lu{entry.count > 1 ? 's' : ''}
         </p>
       </div>
       <div

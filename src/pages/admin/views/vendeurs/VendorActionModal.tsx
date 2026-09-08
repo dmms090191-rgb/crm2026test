@@ -1,8 +1,25 @@
-import { Eye, LogIn, MessageSquare, Mail, Phone, User } from 'lucide-react';
-import ActionModal from '../../../../components/action-menu/ActionModal';
-import type { ActionSectionDef } from '../../../../components/action-menu/ActionModal';
+import { useState } from 'react';
+import { Eye, LogIn, MessageSquare, Phone } from 'lucide-react';
+import PremiumActionsModal from '../../../../components/action-menu/premium/PremiumActionsModal';
+import PremiumHiddenActionsModal from '../../../../components/action-menu/premium/PremiumHiddenActionsModal';
+import type { ActionDef } from '../../../../components/action-menu/ActionModal';
+import { useActionOrder } from '../../../../hooks/useActionOrder';
+import { useActionVisibility } from '../../../../hooks/useActionVisibility';
 import type { ThemeTokens } from '../../../../lib/themeTokensTypes';
 import type { Vendor } from './vendeurTypes';
+
+/**
+ * Reglage d'interface de la SOCIETE, pas du commercial.
+ *
+ * Le proprietaire est l'id Auth de la Societe effective — celle qui est
+ * visualisee en Visu, jamais le compte Talvex ou Groupe qui la regarde. Le
+ * meme ordre et le meme masquage valent donc pour TOUS ses commerciaux.
+ *
+ * Cles dediees, sans rapport avec `admin_lead_actions*`, `csa_societe_actions*`
+ * ni `sa_group_actions*`.
+ */
+const ORDER_KEY = 'admin_commercial_actions';
+const HIDDEN_KEY = 'admin_commercial_actions_hidden';
 
 interface Props {
   vendor: Vendor;
@@ -11,55 +28,89 @@ interface Props {
   onDetail: () => void;
   onConnect: () => void;
   onChat: () => void;
+  /** Id Auth de la Societe effective : proprietaire du reglage. */
+  ownerUserId?: string | null;
 }
 
-export default function VendorActionModal({ vendor, tokens, onClose, onDetail, onConnect, onChat }: Props) {
-  const name = [vendor.first_name, vendor.last_name].filter(Boolean).join(' ') || 'Vendeur';
+export default function VendorActionModal({
+  vendor, tokens, onClose, onDetail, onConnect, onChat, ownerUserId = null,
+}: Props) {
+  const [hiddenListOpen, setHiddenListOpen] = useState(false);
+  const name = [vendor.first_name, vendor.last_name].filter(Boolean).join(' ') || 'Commercial';
 
-  const sections: ActionSectionDef[] = [
+  // Les actions telles que le CODE les definit. Ids stables, deja existants :
+  // ni les ids ni les onClick metier ne changent ici.
+  const actions: ActionDef[] = [
     {
-      title: 'Gestion',
-      actions: [
-        {
-          id: 'detail', label: 'Detail', description: 'Informations du vendeur',
-          icon: <Eye className="w-4 h-4" />,
-          color: tokens.accent.text, colorBg: tokens.accent.bg, colorBorder: tokens.accent.border,
-          onClick: () => { onClose(); onDetail(); },
-        },
-        {
-          id: 'connect', label: 'Connecter', description: 'Se connecter en tant que',
-          icon: <LogIn className="w-4 h-4" />,
-          color: tokens.success.text, colorBg: tokens.success.bg, colorBorder: tokens.success.border,
-          onClick: () => { onClose(); onConnect(); },
-        },
-      ],
+      id: 'detail', label: 'Detail', description: 'Informations du commercial',
+      icon: <Eye className="w-4 h-4" />,
+      color: tokens.accent.text, colorBg: tokens.accent.bg, colorBorder: tokens.accent.border,
+      onClick: () => { onClose(); onDetail(); },
     },
     {
-      title: 'Communication',
-      actions: [
-        {
-          id: 'chat', label: 'Message', description: 'Ouvrir la conversation',
-          icon: <MessageSquare className="w-4 h-4" />,
-          color: tokens.accent.text, colorBg: tokens.accent.bg, colorBorder: tokens.accent.border,
-          onClick: () => { onClose(); onChat(); },
-        },
-      ],
+      id: 'connect', label: 'Connecter', description: 'Se connecter en tant que',
+      icon: <LogIn className="w-4 h-4" />,
+      color: tokens.success.text, colorBg: tokens.success.bg, colorBorder: tokens.success.border,
+      onClick: () => { onClose(); onConnect(); },
+    },
+    {
+      id: 'chat', label: 'Message', description: 'Ouvrir la conversation',
+      icon: <MessageSquare className="w-4 h-4" />,
+      color: '#f59e0b', colorBg: 'rgba(245,158,11,0.08)', colorBorder: 'rgba(245,158,11,0.2)',
+      onClick: () => { onClose(); onChat(); },
     },
   ];
 
-  const subtitleFields = [
-    { label: 'Nom', value: name, icon: <User className="w-3.5 h-3.5" /> },
-    ...(vendor.email ? [{ label: 'Email', value: vendor.email, icon: <Mail className="w-3.5 h-3.5" /> }] : []),
-    ...(vendor.phone ? [{ label: 'Tel', value: vendor.phone, icon: <Phone className="w-3.5 h-3.5" /> }] : []),
-  ];
+  const ids = actions.map(a => a.id);
+  const order = useActionOrder(ownerUserId, ORDER_KEY, ids);
+  // Meme regle que les autres modals du panel Societe.
+  const vis = useActionVisibility(ownerUserId, HIDDEN_KEY, ids, true);
+
+  const byId = new Map(actions.map(a => [a.id, a]));
+  // L'ordre s'applique d'abord, le masquage filtre ensuite : une action
+  // reaffichee retrouve exactement sa place.
+  const ordered = order.order.map(id => byId.get(id)).filter((a): a is ActionDef => !!a);
+  const shown = ordered.filter(a => !vis.hidden.includes(a.id));
+  const hiddenActions = ordered.filter(a => vis.hidden.includes(a.id));
 
   return (
-    <ActionModal
-      title="Actions vendeur"
-      subtitleFields={subtitleFields}
-      sections={sections}
-      tokens={tokens}
-      onClose={onClose}
-    />
+    <>
+      <PremiumActionsModal
+        title="Actions commercial"
+        identity={{
+          name,
+          email: vendor.email ?? '',
+          ...(vendor.phone ? { detail: { label: 'Tél', value: vendor.phone, icon: <Phone className="w-3 h-3" /> } } : {}),
+        }}
+        actions={shown}
+        t={tokens}
+        onClose={onClose}
+        reorder={{
+          active: order.reordering,
+          onStart: order.startReorder,
+          onCancel: order.cancelReorder,
+          onConfirm: order.confirmReorder,
+          onMove: order.move,
+        }}
+        visibility={{
+          active: vis.editing,
+          hiddenCount: hiddenActions.length,
+          onStart: vis.startEdit,
+          onCancel: () => { setHiddenListOpen(false); vis.cancelEdit(); },
+          onConfirm: () => { setHiddenListOpen(false); vis.confirmEdit(); },
+          onHide: vis.toggle,
+          onOpenHiddenList: () => setHiddenListOpen(true),
+        }}
+      />
+
+      {hiddenListOpen && (
+        <PremiumHiddenActionsModal
+          actions={hiddenActions}
+          t={tokens}
+          onShow={vis.toggle}
+          onClose={() => setHiddenListOpen(false)}
+        />
+      )}
+    </>
   );
 }

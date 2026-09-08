@@ -69,7 +69,6 @@ export default function CSAProfileMenu({ csaUserId, companyId, firstName, lastNa
         </div>
         <div className="hidden lg:block text-left">
           <p className="text-xs font-semibold leading-tight" style={{ color: tTopbar.profileName }}>{displayName}</p>
-          <p className="text-[9px] tracking-wider uppercase" style={{ color: tTopbar.profileRole }}>SUPER ADMIN</p>
         </div>
         <ChevronDown
           className={`w-3.5 h-3.5 transition-transform duration-200 hidden lg:block ${dropdownOpen ? 'rotate-180' : ''}`}

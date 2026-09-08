@@ -1,99 +1,191 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Users, RefreshCw, AlertCircle, UserCheck, UserX, Plus, MoreHorizontal, User, Mail, Building2, Phone, Shield, CalendarDays, Lock, Settings } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { Users, RefreshCw, AlertCircle, RotateCcw } from 'lucide-react';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
 import { supabase } from '../../lib/supabase';
-import CSAAdminsCreateModal from './CSAAdminsCreateModal';
-import CSAAdminActionsModal from './CSAAdminActionsModal';
-import CSAAdminDetailModal from './CSAAdminDetailModal';
+import { useCsaStatuts } from './useCsaStatuts';
+import { useCsaCompanies } from './useCsaCompanies';
+import type { CSAAdminUser } from './useCsaCompanies';
+import ListFilters, { EMPTY_FIELDS } from '../../components/filters/ListFilters';
+import type { FieldFilters } from '../../components/filters/ListFilters';
+import { CSAAdminsDesktopTable, CSAAdminsMobileList } from './CSAAdminsTables';
+import type { SortKey } from './CSAAdminsTables';
+import CSAAdminsHeader from './CSAAdminsHeader';
+import CSAAdminsModals from './CSAAdminsModals';
+import { useSyncedFromList } from '../../hooks/useSyncedFromList';
 
-export interface CSAAdminUser {
-  id: string;
-  email: string;
-  first_name: string;
-  last_name: string;
-  phone: string;
-  company: string;
-  company_id: string;
-  role: string;
-  pin: string;
-  created_at: string;
-  last_sign_in_at: string | null;
-  access_enabled: boolean;
-}
+// L'annuaire vient de useCsaCompanies : source unique, partagee avec le chat
+// du Groupe. Type re-exporte ici pour les imports existants.
+export type { CSAAdminUser } from './useCsaCompanies';
 
-function formatDate(d: string | null) {
-  if (!d) return '\u2014';
-  return new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-}
-
-export default function CSAAdminsList({ companyId, onConnectAsAdmin }: { companyId: string; onConnectAsAdmin?: (admin: CSAAdminUser) => void }) {
+export default function CSAAdminsList({ companyId, csaAuthId = null, canHideTabs = false, onConnectAsAdmin, onMessageAdmin }: {
+  companyId: string;
+  csaAuthId?: string | null;   // Id Auth du Groupe : proprietaire de l'ordre des actions.
+  canHideTabs?: boolean;       // Talvex en Visu : seul a pouvoir masquer des actions.
+  onConnectAsAdmin?: (admin: CSAAdminUser) => void;
+  /** Ouvre le fil « Chat Sociétés » sur CETTE Société. */
+  onMessageAdmin?: (admin: CSAAdminUser) => void;
+}) {
   const t = useThemeTokens();
-  const [admins, setAdmins] = useState<CSAAdminUser[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  // Source UNIQUE de l'annuaire, partagee avec le chat du Groupe.
+  const { admins, loading, error, refresh: fetchAdmins } = useCsaCompanies(companyId);
   const [showCreate, setShowCreate] = useState(false);
   const [actionsAdmin, setActionsAdmin] = useState<CSAAdminUser | null>(null);
   const [detailAdmin, setDetailAdmin] = useState<CSAAdminUser | null>(null);
+  useSyncedFromList(admins, setActionsAdmin, setDetailAdmin);
+  // Ouvrir Actions recharge l annuaire : si la Societe a modifie son profil de
+  // son cote, le Detail part de donnees fraiches, pas du dernier fetch.
+  const openActions = (a: CSAAdminUser | null) => { setActionsAdmin(a); if (a) fetchAdmins(); };
 
-  const fetchAdmins = useCallback(async () => {
-    setLoading(true);
-    setError('');
+  // Statuts du GROUPE courant (csa_statuts) + affectations par societe.
+  const { statuts } = useCsaStatuts(companyId);
+  const [statutsMap, setStatutsMap] = useState<Record<string, string>>({});
+  const [statutFor, setStatutFor] = useState<string | null>(null);
+  const [statutRect, setStatutRect] = useState<{ top: number; left: number } | null>(null);
+  const loadStatutsMap = useCallback(async () => {
+    const { data } = await supabase.from('csa_company_statuts').select('company_id, statut');
+    const map: Record<string, string> = {};
+    (data ?? []).forEach((r: { company_id: string; statut: string }) => {
+      if (r.company_id) map[r.company_id] = r.statut;
+    });
+    setStatutsMap(map);
+  }, []);
+
+  useEffect(() => { loadStatutsMap(); }, [loadStatutsMap]);
+
+  const assignStatut = useCallback(async (societeCompanyId: string, nom: string) => {
+    if (!societeCompanyId) return;
+    setStatutsMap(prev => ({ ...prev, [societeCompanyId]: nom }));
+    await supabase
+      .from('csa_company_statuts')
+      .upsert({ company_id: societeCompanyId, statut: nom, updated_at: new Date().toISOString() }, { onConflict: 'company_id' });
+  }, []);
+
+  const closeStatut = () => { setStatutFor(null); setStatutRect(null); };
+
+  // --- Selection et suppression de Societes ---
+  const [selectMode, setSelectMode] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());   // company_id des Societes
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [openJobs, setOpenJobs] = useState<{ id: string; group_label: string | null }[]>([]);
+  const [resuming, setResuming] = useState(false);
+
+  // Une company RACINE (sans parent) n'est pas une vraie Societe : jamais supprimable.
+  const [rootCompanies, setRootCompanies] = useState<Set<string>>(new Set());
+
+  const loadGuards = useCallback(async () => {
+    const [{ data: roots }, { data: jobs }] = await Promise.all([
+      supabase.from('companies').select('id').is('parent_company_id', null),
+      supabase.from('group_deletion_jobs').select('id, group_label')
+        .or('auth_status.neq.done,storage_status.neq.done'),
+    ]);
+    setRootCompanies(new Set((roots ?? []).map((r: { id: string }) => r.id)));
+    setOpenJobs(jobs ?? []);
+  }, []);
+
+  useEffect(() => { loadGuards(); }, [loadGuards]);
+
+  const isDeletable = (a: CSAAdminUser) => !!a.company_id && !rootCompanies.has(a.company_id);
+
+  const toggleSelect = (companyId: string) => setSelected(prev => {
+    const next = new Set(prev);
+    if (next.has(companyId)) next.delete(companyId); else next.add(companyId);
+    return next;
+  });
+
+  const exitSelectMode = () => { setSelectMode(false); setSelected(new Set()); };
+
+  const resumeCleanup = async () => {
+    setResuming(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { setError('Session expiree'); setLoading(false); return; }
-      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/list-admins-for-super-admin`, {
+      if (!session) return;
+      await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-groups`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${session.access_token}`,
           'Content-Type': 'application/json',
           Apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
         },
-        body: JSON.stringify({ target_company_id: companyId }),
+        body: JSON.stringify({ mode: 'resume' }),
       });
-      if (!res.ok) { setError('Erreur lors du chargement'); setLoading(false); return; }
-      const data = await res.json();
-      setAdmins(data.admins ?? []);
-    } catch {
-      setError('Erreur reseau');
     } finally {
-      setLoading(false);
+      setResuming(false); loadGuards(); fetchAdmins();
     }
-  }, [companyId]);
+  };
 
-  useEffect(() => { fetchAdmins(); }, [fetchAdmins]);
+  const [search, setSearch] = useState('');
+  const [statutFilter, setStatutFilter] = useState('all');
+  const [fields, setFields] = useState<FieldFilters>(EMPTY_FIELDS);
+  const [sortKey, setSortKey] = useState<SortKey | null>(null);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+
+  // Filtrage et tri purement visuels, sur la liste deja chargee. Aucune requete, aucune ecriture.
+  const filtered = useMemo(() => {
+    const norm = (v?: string) => (v ?? '').toLowerCase().trim();
+    const digits = (v?: string) => (v ?? '').replace(/D/g, '');
+    const q = norm(search);
+    const f = {
+      firstName: norm(fields.firstName), lastName: norm(fields.lastName),
+      company: norm(fields.company), email: norm(fields.email), phone: digits(fields.phone),
+    };
+    return admins.filter(a => {
+      const st = a.company_id ? (statutsMap[a.company_id] ?? '') : '';
+      if (statutFilter === 'none' && st) return false;
+      if (statutFilter !== 'all' && statutFilter !== 'none' && st !== statutFilter) return false;
+      if (f.firstName && !norm(a.first_name).includes(f.firstName)) return false;
+      if (f.lastName && !norm(a.last_name).includes(f.lastName)) return false;
+      if (f.company && !norm(a.company).includes(f.company)) return false;
+      if (f.email && !norm(a.email).includes(f.email)) return false;
+      if (f.phone && !digits(a.phone).includes(f.phone)) return false;
+      if (q && ![a.first_name, a.last_name, a.company, a.email, a.phone].map(norm).join(' ').includes(q)) return false;
+      return true;
+    });
+  }, [admins, statutsMap, search, statutFilter, fields]);
+
+  const shown = useMemo(() => {
+    if (!sortKey) return filtered;
+    const val = (a: CSAAdminUser) =>
+      sortKey === 'statut' ? (a.company_id ? (statutsMap[a.company_id] ?? '') : '') : (a[sortKey] ?? '');
+    return [...filtered].sort((x, y) => {
+      const r = String(val(x)).localeCompare(String(val(y)), 'fr', { sensitivity: 'base' });
+      return sortDir === 'asc' ? r : -r;
+    });
+  }, [filtered, sortKey, sortDir, statutsMap]);
+
+  // croissant -> decroissant -> tri par defaut
+  const handleSort = (key: SortKey) => {
+    if (sortKey !== key) { setSortKey(key); setSortDir('asc'); return; }
+    if (sortDir === 'asc') { setSortDir('desc'); return; }
+    setSortKey(null); setSortDir('asc');
+  };
+
+  const deletableShown = shown.filter(isDeletable);
+  const selectedTargets = admins.filter(a => a.company_id && selected.has(a.company_id));
+  const allShownSelected = deletableShown.length > 0 && deletableShown.every(a => selected.has(a.company_id));
+  const toggleAllShown = () => setSelected(prev => {
+    const next = new Set(prev);
+    if (allShownSelected) deletableShown.forEach(a => next.delete(a.company_id));
+    else deletableShown.forEach(a => next.add(a.company_id));
+    return next;
+  });
+
+  const activeFieldCount = Object.values(fields).filter(Boolean).length;
+  const hasAnyFilter = !!search || statutFilter !== 'all' || activeFieldCount > 0 || sortKey !== null;
+  const resetAll = () => {
+    setSearch(''); setStatutFilter('all'); setFields(EMPTY_FIELDS);
+    setSortKey(null); setSortDir('asc');
+  };
+
 
   return (
     <div className="p-3 sm:p-4 md:p-6 lg:p-8 space-y-5">
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div>
-          <h2 className="text-lg sm:text-xl font-bold" style={{ color: t.text.primary }}>Liste des distributeurs</h2>
-          <p className="text-xs mt-0.5" style={{ color: t.text.tertiary }}>
-            {admins.length} distributeur{admins.length !== 1 ? 's' : ''} dans votre societe
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowCreate(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition-all hover:scale-105 hover:brightness-110"
-            style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', boxShadow: '0 2px 8px rgba(245,158,11,0.35)' }}
-          >
-            <Plus className="w-3.5 h-3.5" />
-            Ajouter un distributeur
-          </button>
-          <button
-            onClick={fetchAdmins}
-            disabled={loading}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105"
-            style={{ background: t.surface.secondary, border: `1px solid ${t.surface.border}`, color: t.text.secondary }}
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-            Actualiser
-          </button>
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: t.accent.bg, boxShadow: `0 0 16px ${t.accent.border}` }}>
-            <Users className="w-4 h-4" style={{ color: t.accent.text }} />
-          </div>
-        </div>
-      </div>
+      <CSAAdminsHeader
+        total={admins.length} shownCount={shown.length} loading={loading}
+        selectMode={selectMode} selectedCount={selected.size} t={t}
+        setDeleteOpen={setDeleteOpen}
+        onToggleSelectMode={() => (selectMode ? exitSelectMode() : setSelectMode(true))}
+        setShowCreate={setShowCreate} fetchAdmins={fetchAdmins}
+      />
 
       {error && (
         <div className="flex items-center gap-2 px-4 py-3 rounded-xl" style={{ background: t.danger.bg, border: `1px solid ${t.danger.border}` }}>
@@ -107,6 +199,59 @@ export default function CSAAdminsList({ companyId, onConnectAsAdmin }: { company
         border: `1px solid ${t.surface.border}`,
         boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
       }}>
+        {openJobs.length > 0 && (
+          <div className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl mb-3"
+            style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)' }}>
+            <div className="flex items-center gap-2 min-w-0">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" style={{ color: '#f59e0b' }} />
+              <p className="text-xs truncate" style={{ color: '#f59e0b' }}>
+                {openJobs.length} nettoyage{openJobs.length > 1 ? 's' : ''} incomplet{openJobs.length > 1 ? 's' : ''}
+              </p>
+            </div>
+            <button onClick={resumeCleanup} disabled={resuming}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold flex-shrink-0 disabled:opacity-50"
+              style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b' }}>
+              <RotateCcw className={`w-3.5 h-3.5 ${resuming ? 'animate-spin' : ''}`} />
+              Reprendre le nettoyage
+            </button>
+          </div>
+        )}
+
+        {selectMode && shown.length > 0 && (
+          <div className="flex items-center gap-2 px-3 py-2 rounded-xl mb-3"
+            style={{ background: t.surface.primary, border: `1px solid ${t.surface.border}` }}>
+            <input type="checkbox" checked={allShownSelected} onChange={toggleAllShown}
+              disabled={deletableShown.length === 0}
+              className="w-4 h-4 cursor-pointer accent-red-500 disabled:opacity-30" />
+            <span className="text-xs" style={{ color: t.text.secondary }}>
+              Tout sélectionner{deletableShown.length !== shown.length ? ` (${deletableShown.length} sur ${shown.length} supprimables)` : ''}
+            </span>
+            {selected.size > 0 && (
+              <span className="text-xs font-semibold ml-auto" style={{ color: '#ef4444' }}>
+                {selected.size} sélectionnée{selected.size > 1 ? 's' : ''}
+              </span>
+            )}
+          </div>
+        )}
+
+        {admins.length > 0 && (
+          <ListFilters
+            search={search}
+            onSearchChange={setSearch}
+            statut={statutFilter}
+            onStatutChange={setStatutFilter}
+            saStatuts={statuts}
+            fields={fields}
+            onFieldChange={(k, v) => setFields(prev => ({ ...prev, [k]: v }))}
+            activeCount={activeFieldCount}
+            hasAnyFilter={hasAnyFilter}
+            onReset={resetAll}
+            tokens={t}
+            searchPlaceholder="Rechercher une société..."
+            companyLabel="Société"
+          />
+        )}
+
         {loading && admins.length === 0 ? (
           <div className="flex items-center justify-center py-16">
             <RefreshCw className="w-6 h-6 animate-spin" style={{ color: t.text.tertiary }} />
@@ -116,173 +261,39 @@ export default function CSAAdminsList({ companyId, onConnectAsAdmin }: { company
             <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: t.accent.bg, border: `1px solid ${t.accent.border}` }}>
               <Users className="w-5 h-5" style={{ color: t.accent.text }} />
             </div>
-            <p className="text-sm font-medium" style={{ color: t.text.tertiary }}>Aucun distributeur — cliquez sur "Ajouter un distributeur" pour commencer</p>
+            <p className="text-sm font-medium" style={{ color: t.text.tertiary }}>Aucune société — cliquez sur "Ajouter une société" pour commencer</p>
           </div>
         ) : (
           <>
-            <CSAAdminsDesktopTable admins={admins} t={t} onActions={setActionsAdmin} />
-            <CSAAdminsMobileList admins={admins} t={t} onActions={setActionsAdmin} />
+            {shown.length === 0 ? (
+              <div className="flex flex-col items-center justify-center gap-3 py-12 text-center">
+                <p className="text-sm font-semibold" style={{ color: t.text.primary }}>Aucune société ne correspond</p>
+                <p className="text-xs" style={{ color: t.text.tertiary }}>Aucune société ne correspond aux filtres appliqués.</p>
+                <button
+                  onClick={resetAll}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition-all"
+                  style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.25)', color: '#f59e0b' }}
+                >
+                  Réinitialiser les filtres
+                </button>
+              </div>
+            ) : (
+              <>
+                <CSAAdminsDesktopTable admins={shown} t={t} onActions={openActions} statuts={statuts} statutsMap={statutsMap} onStatutClick={(cid, rect) => { setStatutFor(cid); setStatutRect(rect); }} sortKey={sortKey} sortDir={sortDir} onSort={handleSort} selectMode={selectMode} selected={selected} onToggleSelect={toggleSelect} isDeletable={isDeletable} />
+                <CSAAdminsMobileList admins={shown} t={t} onActions={openActions} selectMode={selectMode} selected={selected} onToggleSelect={toggleSelect} isDeletable={isDeletable} />
+              </>
+            )}
           </>
         )}
       </div>
-
-      {showCreate && (
-        <CSAAdminsCreateModal
-          onClose={() => setShowCreate(false)}
-          onCreated={() => { setShowCreate(false); fetchAdmins(); }}
-          targetCompanyId={companyId}
-        />
-      )}
-      {actionsAdmin && (
-        <CSAAdminActionsModal
-          admin={actionsAdmin}
-          onClose={() => setActionsAdmin(null)}
-          onDetail={a => { setActionsAdmin(null); setDetailAdmin(a); }}
-          onConnect={a => { setActionsAdmin(null); onConnectAsAdmin?.(a); }}
-        />
-      )}
-      {detailAdmin && (
-        <CSAAdminDetailModal
-          admin={detailAdmin}
-          onClose={() => setDetailAdmin(null)}
-          onUpdate={fetchAdmins}
-        />
-      )}
-    </div>
-  );
-}
-
-interface TableProps {
-  admins: CSAAdminUser[];
-  t: ReturnType<typeof useThemeTokens>;
-  onActions: (admin: CSAAdminUser) => void;
-}
-
-const COL_ICONS: Record<string, React.FC<{ className?: string; style?: React.CSSProperties }>> = {
-  Prenom: User, Nom: User, Email: Mail, Societe: Building2, Telephone: Phone,
-  Role: Shield, 'Cree le': CalendarDays, Acces: Lock, Actions: Settings,
-};
-
-function CSAAdminsDesktopTable({ admins, t, onActions }: TableProps) {
-  const cols = ['Prenom', 'Nom', 'Email', 'Societe', 'Telephone', 'Role', 'Cree le', 'Acces', 'Actions'];
-  return (
-    <div className="hidden md:block overflow-x-auto">
-      <table className="w-full table-auto" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
-        <thead>
-          <tr style={{ background: t.table.headerBg }}>
-            {cols.map((col) => {
-              const Icon = COL_ICONS[col];
-              return (
-                <th key={col} className="px-5 py-4 text-left" style={{ borderBottom: `2px solid ${t.accent.solid}` }}>
-                  <div className="flex items-center gap-2">
-                    {Icon && <Icon className="w-3 h-3 flex-shrink-0" style={{ color: t.accent.text, opacity: 0.6 }} />}
-                    <span className="text-[10px] font-bold tracking-[0.1em] uppercase" style={{ color: t.table.headerText }}>{col}</span>
-                  </div>
-                </th>
-              );
-            })}
-          </tr>
-        </thead>
-        <tbody>
-          {admins.map((admin, idx) => (
-            <tr key={admin.id} style={{ borderBottom: idx < admins.length - 1 ? `1px solid ${t.table.rowBorder}` : 'none' }}
-              className="transition-colors duration-100"
-              onMouseEnter={e => { e.currentTarget.style.background = t.table.rowHover; }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
-            >
-              <td className="px-4 py-3 text-xs font-medium" style={{ color: t.text.primary, borderRight: `1px solid ${t.table.rowBorder}` }}>{admin.first_name || '\u2014'}</td>
-              <td className="px-4 py-3 text-xs font-medium" style={{ color: t.text.primary, borderRight: `1px solid ${t.table.rowBorder}` }}>{admin.last_name || '\u2014'}</td>
-              <td className="px-4 py-3 text-xs" style={{ color: t.text.secondary, borderRight: `1px solid ${t.table.rowBorder}` }}>{admin.email}</td>
-              <td className="px-4 py-3 text-xs font-medium" style={{ color: t.text.secondary, borderRight: `1px solid ${t.table.rowBorder}` }}>{admin.company || '\u2014'}</td>
-              <td className="px-4 py-3 text-xs font-mono" style={{ color: t.text.secondary, borderRight: `1px solid ${t.table.rowBorder}` }}>{admin.phone || '\u2014'}</td>
-              <td className="px-4 py-3 text-xs" style={{ color: t.text.secondary, borderRight: `1px solid ${t.table.rowBorder}` }}>
-                <span className="inline-flex px-2 py-0.5 rounded-md text-[10px] font-semibold" style={{ background: t.accent.bg, border: `1px solid ${t.accent.border}`, color: t.accent.text }}>
-                  {admin.role || 'admin'}
-                </span>
-              </td>
-              <td className="px-4 py-3 text-xs" style={{ color: t.text.tertiary, borderRight: `1px solid ${t.table.rowBorder}` }}>{formatDate(admin.created_at)}</td>
-              <td className="px-4 py-3" style={{ borderRight: `1px solid ${t.table.rowBorder}` }}>
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold" style={
-                  admin.access_enabled
-                    ? { background: t.success.bg, border: `1px solid ${t.success.border}`, color: t.success.text }
-                    : { background: t.danger.bg, border: `1px solid ${t.danger.border}`, color: t.danger.text }
-                }>
-                  {admin.access_enabled ? <UserCheck className="w-3 h-3" /> : <UserX className="w-3 h-3" />}
-                  {admin.access_enabled ? 'Actif' : 'Inactif'}
-                </span>
-              </td>
-              <td className="px-4 py-3 text-center">
-                <button
-                  onClick={() => onActions(admin)}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold transition-all duration-200"
-                  style={{ background: t.accent.bg, border: `1px solid ${t.accent.border}`, color: t.accent.text }}
-                  onMouseEnter={e => { e.currentTarget.style.background = t.accent.bgHover; e.currentTarget.style.boxShadow = `0 2px 8px ${t.accent.bg}`; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = t.accent.bg; e.currentTarget.style.boxShadow = 'none'; }}
-                >
-                  <MoreHorizontal className="w-3.5 h-3.5" />Actions
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-function CSAAdminsMobileList({ admins, t, onActions }: TableProps) {
-  return (
-    <div className="md:hidden divide-y" style={{ borderColor: t.table.rowBorder }}>
-      {admins.map(admin => (
-        <div key={admin.id} className="p-4 space-y-3">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold text-white flex-shrink-0" style={{
-              background: admin.access_enabled
-                ? `linear-gradient(135deg, ${t.accent.text}, ${t.accent.text}cc)`
-                : `linear-gradient(135deg, ${t.text.quaternary}, ${t.text.quaternary}cc)`,
-            }}>
-              {(admin.first_name || admin.email).charAt(0).toUpperCase()}
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold truncate" style={{ color: t.text.primary }}>
-                {[admin.first_name, admin.last_name].filter(Boolean).join(' ') || admin.email}
-              </p>
-              <p className="text-xs truncate" style={{ color: t.text.tertiary }}>{admin.email}</p>
-            </div>
-            <button
-              onClick={() => onActions(admin)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold flex-shrink-0 transition-all duration-200"
-              style={{ background: t.accent.bg, border: `1px solid ${t.accent.border}`, color: t.accent.text }}
-            >
-              <MoreHorizontal className="w-3.5 h-3.5" />Actions
-            </button>
-          </div>
-          <div className="grid grid-cols-2 gap-2 text-xs">
-            <div>
-              <span className="text-[10px] font-bold tracking-wider uppercase block mb-0.5" style={{ color: t.text.quaternary }}>Societe</span>
-              <span className="font-medium" style={{ color: t.text.secondary }}>{admin.company || '\u2014'}</span>
-            </div>
-            <div>
-              <span className="text-[10px] font-bold tracking-wider uppercase block mb-0.5" style={{ color: t.text.quaternary }}>Acces</span>
-              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold" style={
-                admin.access_enabled
-                  ? { background: t.success.bg, color: t.success.text }
-                  : { background: t.danger.bg, color: t.danger.text }
-              }>
-                {admin.access_enabled ? 'Actif' : 'Inactif'}
-              </span>
-            </div>
-            <div>
-              <span className="text-[10px] font-bold tracking-wider uppercase block mb-0.5" style={{ color: t.text.quaternary }}>Telephone</span>
-              <span className="font-mono" style={{ color: t.text.secondary }}>{admin.phone || '\u2014'}</span>
-            </div>
-            <div>
-              <span className="text-[10px] font-bold tracking-wider uppercase block mb-0.5" style={{ color: t.text.quaternary }}>Cree le</span>
-              <span style={{ color: t.text.secondary }}>{formatDate(admin.created_at)}</span>
-            </div>
-          </div>
-        </div>
-      ))}
+      <CSAAdminsModals
+        t={t} companyId={companyId} csaAuthId={csaAuthId} canHideTabs={canHideTabs}
+        showCreate={showCreate} setShowCreate={setShowCreate} fetchAdmins={fetchAdmins} statutFor={statutFor}
+        statutRect={statutRect} statutsMap={statutsMap} statuts={statuts} assignStatut={assignStatut} closeStatut={closeStatut}
+        deleteOpen={deleteOpen} setDeleteOpen={setDeleteOpen} selectedTargets={selectedTargets} loadGuards={loadGuards}
+        exitSelectMode={exitSelectMode} actionsAdmin={actionsAdmin} setActionsAdmin={setActionsAdmin}
+        setDetailAdmin={setDetailAdmin} onConnectAsAdmin={onConnectAsAdmin} onMessageAdmin={onMessageAdmin} detailAdmin={detailAdmin}
+      />
     </div>
   );
 }

@@ -42,11 +42,17 @@ export function ThemeOption({
 export function NotifRow({
   count,
   latestAt,
+  senderName,
+  preview,
   tokens,
   onClick,
 }: {
   count: number;
   latestAt?: string | null;
+  /** Nom reel de l expediteur. Meme identite que l ecran Support. */
+  senderName?: string;
+  /** Dernier message recu. */
+  preview?: string;
   tokens: ThemeTokens['dropdown'];
   onClick: () => void;
 }) {
@@ -57,7 +63,7 @@ export function NotifRow({
       onClick={onClick}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      className="w-full flex items-center gap-3 px-3 py-2.5 transition-colors duration-150 text-left cursor-pointer"
+      className="w-full flex items-start gap-3 px-3 py-2.5 transition-colors duration-150 text-left cursor-pointer"
       style={{ background: hovered ? tokens.itemBgHover : 'transparent' }}
     >
       <div
@@ -67,15 +73,22 @@ export function NotifRow({
           boxShadow: '0 0 8px rgba(6,182,212,0.3)',
         }}
       >
-        S
+        {(senderName || 'S').trim().charAt(0).toUpperCase()}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-[12px] font-medium" style={{ color: tokens.itemTextHover }}>
-          Le support vous a r&#233;pondu
-        </p>
+        <div className="flex items-baseline justify-between gap-2">
+          <p className="text-[12px] font-semibold truncate" style={{ color: tokens.itemTextHover }}>
+            {senderName || 'Support'}
+          </p>
+          <span className="text-[10px] flex-shrink-0" style={{ color: tokens.itemText }}>
+            {latestAt ? formatRelativeTime(latestAt) : ''}
+          </span>
+        </div>
+        {preview && (
+          <p className="text-[11px] mt-0.5 truncate" style={{ color: tokens.itemText }}>{preview}</p>
+        )}
         <p className="text-[10px] mt-0.5" style={{ color: tokens.itemText }}>
-          {latestAt ? formatRelativeTime(latestAt) : ''}
-          {count > 1 && <span className="ml-1.5 font-medium" style={{ color: '#34d399' }}>({count} messages)</span>}
+          {count} message{count > 1 ? 's' : ''} non lu{count > 1 ? 's' : ''}
         </p>
       </div>
       <div

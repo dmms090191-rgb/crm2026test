@@ -84,7 +84,7 @@ export default function InfoAdmin({ onNameChange, impersonatedAdmin }: InfoAdmin
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) { setIdentityMsg({ text: 'Session expirée.', type: 'error' }); setSavingIdentity(false); return; }
         const res = await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/update-admin`,
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/update-admin-for-super-admin`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}`, 'Apikey': import.meta.env.VITE_SUPABASE_ANON_KEY },

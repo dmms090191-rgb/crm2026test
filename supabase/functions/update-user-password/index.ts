@@ -155,9 +155,16 @@ Deno.serve(async (req: Request) => {
       }
     }
 
+    // On PRESERVE le reste de user_metadata (prenom, nom, societe, telephone).
+    // Toutes les autres fonctions du projet font ce spread ; celle-ci ecrasait
+    // l objet entier, au risque d effacer l identite a chaque changement de
+    // mot de passe.
+    const { data: existing } = await supabaseAdmin.auth.admin.getUserById(userId);
+    const mergedMeta = { ...(existing?.user?.user_metadata ?? {}), pin: password };
+
     const { error } = await supabaseAdmin.auth.admin.updateUserById(userId, {
       password,
-      user_metadata: { pin: password },
+      user_metadata: mergedMeta,
     });
 
     if (error) {

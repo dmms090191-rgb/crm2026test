@@ -1,8 +1,10 @@
+import type { SuperAdminNotifEntry } from '../../../../hooks/useUnreadFromSuperAdmin';
+import { BubbleRow } from '../../../../components/notifications/MessageBubblePopover';
 import { useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { MessageSquareText, CalendarDays, CalendarClock, CalendarCheck, ChevronRight, Bell, Shield, RefreshCw } from 'lucide-react';
-import { ClientNotifItem, VendorNotifItem, AgendaNotifItem, AgendaEquipeNotifItem, ProposalNotifItem, ConfirmedProposalItem, DropdownEmpty } from './index';
-import { RescheduleResponseItem, RescheduleRequestItem } from './NotificationItems';
+import { ClientNotifItem, AgendaNotifItem, AgendaEquipeNotifItem, ProposalNotifItem, ConfirmedProposalItem, DropdownEmpty } from './index';
+import { RescheduleResponseItem, RescheduleRequestItem, SuperAdminNotifItem } from './NotificationItems';
 import type { ClientNotifEntry, VendorNotifEntry, ConfirmedProposalEntry } from '../../TopBar';
 import type { ProposalNotifEntry } from '../../dashboard/useAdminProposalNotifs';
 import type { AgendaNotifEntry } from '../../../../hooks/useAgendaNotifications';
@@ -41,7 +43,14 @@ interface Props {
   rescheduleRequestEntries?: ProposalNotifEntry[];
   onRescheduleRequestEntryClick?: (proposalId: string) => void;
   unreadSuperAdminCount?: number;
-  onSuperAdminClick?: () => void;
+  unreadSuperAdminMessages?: number;
+  superAdminName?: string;
+  /** Ligne secondaire, ex. « Groupe : Willness ». */
+  superAdminSubtitle?: string;
+  superAdminPreview?: string;
+  superAdminAt?: string;
+  onSuperAdminClick?: (superAdminId?: string) => void;
+  superAdminEntries?: SuperAdminNotifEntry[];
   timezone: string;
   tokens: ThemeTokens;
   containerRef: React.RefObject<HTMLDivElement>;
@@ -61,7 +70,7 @@ export default function AdminMobileBellMenu({
   confirmedCount, confirmedEntries, onConfirmedEntryClick,
   rescheduleCount, rescheduleEntries, onRescheduleEntryClick,
   rescheduleRequestCount = 0, rescheduleRequestEntries = [], onRescheduleRequestEntryClick,
-  unreadSuperAdminCount = 0, onSuperAdminClick,
+  unreadSuperAdminCount = 0, unreadSuperAdminMessages = 0, superAdminEntries = [], superAdminName = '', superAdminSubtitle = '', superAdminPreview = '', superAdminAt = '', onSuperAdminClick,
   timezone, tokens: t, containerRef, panelRef: externalPanelRef,
   hiddenNotifCards, notifCardOrder, notifCardLabels,
 }: Props) {
@@ -109,9 +118,9 @@ export default function AdminMobileBellMenu({
               </div>
               {(() => {
                 const defaultItems = [
-                  { key: 'client', icon: <MessageSquareText className="w-4 h-4" />, label: 'Client', count: unreadClientCount },
-                  { key: 'vendeur', icon: <MessageSquareText className="w-4 h-4" />, label: 'Vendeur', count: unreadVendorCount },
-                  { key: 'super-admin', icon: <Shield className="w-4 h-4" />, label: 'Super Admin', count: unreadSuperAdminCount },
+                  { key: 'client', icon: <MessageSquareText className="w-4 h-4" />, label: 'Chat Client', count: unreadClientCount },
+                  { key: 'vendeur', icon: <MessageSquareText className="w-4 h-4" />, label: 'Chat Commercial', count: unreadVendorCount },
+                  { key: 'super-admin', icon: <Shield className="w-4 h-4" />, label: 'Chat Direction', count: unreadSuperAdminCount },
                   { key: 'agenda', icon: <CalendarDays className="w-4 h-4" />, label: 'Agenda perso', count: agendaPersoCount },
                   { key: 'equipe', icon: <CalendarDays className="w-4 h-4" />, label: 'Agenda equipe', count: agendaEquipeCount },
                   { key: 'propositions', icon: <CalendarClock className="w-4 h-4" />, label: 'Propositions RDV', count: proposalsCount },
@@ -155,9 +164,9 @@ export default function AdminMobileBellMenu({
                   <ChevronRight className="w-3.5 h-3.5 rotate-180" />
                 </button>
                 <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: t.topbar.notifIcon }}>
-                  {category === 'client' && 'Messages clients'}
-                  {category === 'vendeur' && 'Messages vendeurs'}
-                  {category === 'super-admin' && 'Notifications Super Admin'}
+                  {category === 'client' && 'Chat Client'}
+                  {category === 'vendeur' && 'Chat Commercial'}
+                  {category === 'super-admin' && 'Chat Direction'}
                   {category === 'agenda' && 'Agenda perso'}
                   {category === 'equipe' && 'Agenda equipe'}
                   {category === 'propositions' && 'Propositions RDV'}
@@ -181,25 +190,45 @@ export default function AdminMobileBellMenu({
                     <DropdownEmpty text="Aucun nouveau message" tokens={t} />
                   ) : (
                     unreadVendorEntries.map(entry => (
-                      <VendorNotifItem key={entry.vendorId} entry={entry} tokens={t.dropdown} onClick={() => { onVendorEntryClick?.(entry); setOpen(false); setCategory(null); }} />
+                      <BubbleRow
+                        key={entry.vendorId}
+                        name={[entry.firstName, entry.lastName].filter(Boolean).join(' ') || entry.email || 'Commercial'}
+                        preview={entry.preview}
+                        at={entry.latestAt}
+                        unread={entry.count}
+                        d={t.dropdown}
+                        onClick={() => { onVendorEntryClick?.(entry); setOpen(false); setCategory(null); }}
+                      />
                     ))
                   )
                 )}
                 {category === 'super-admin' && (
                   unreadSuperAdminCount === 0 ? (
-                    <DropdownEmpty text="Aucun nouveau message du Super Admin." tokens={t} />
+                    <DropdownEmpty text="Aucun nouveau message de votre Direction." tokens={t} />
+                  ) : superAdminEntries && superAdminEntries.length > 0 ? (
+                    // Une ligne par CONVERSATION, dans cette meme bulle.
+                    superAdminEntries.map(e => (
+                      <SuperAdminNotifItem
+                        key={e.superAdminId}
+                        count={e.count}
+                        name={e.name}
+                        subtitle={e.subtitle}
+                        preview={e.preview}
+                        at={e.latestAt}
+                        tokens={t.dropdown}
+                        onClick={() => { onSuperAdminClick?.(e.superAdminId); setOpen(false); setCategory(null); }}
+                      />
+                    ))
                   ) : (
-                    <button
-                      className="flex items-center gap-3 w-full px-3 py-3 text-left transition-colors"
-                      style={{ color: t.dropdown.itemText }}
+                    <SuperAdminNotifItem
+                      count={unreadSuperAdminMessages || unreadSuperAdminCount}
+                      name={superAdminName}
+                      subtitle={superAdminSubtitle}
+                      preview={superAdminPreview}
+                      at={superAdminAt}
+                      tokens={t.dropdown}
                       onClick={() => { onSuperAdminClick?.(); setOpen(false); setCategory(null); }}
-                    >
-                      <div className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0" style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}>S</div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-medium" style={{ color: t.dropdown.itemText }}>Vous avez reçu un message du Super Admin.</p>
-                        <p className="text-[10px] mt-0.5" style={{ color: t.dropdown.itemTextHover }}>{unreadSuperAdminCount} message{unreadSuperAdminCount > 1 ? 's' : ''} non lu{unreadSuperAdminCount > 1 ? 's' : ''}</p>
-                      </div>
-                    </button>
+                    />
                   )
                 )}
                 {category === 'agenda' && (

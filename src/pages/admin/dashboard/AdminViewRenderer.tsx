@@ -27,6 +27,11 @@ interface Props {
   docInitialTab?: string;
   unreadClientConversations: number;
   unreadVendorConversations: number;
+  /** Identite effective du panel, transmise telle quelle au dashboard Societe. */
+  identityName?: string;
+  identityEmail?: string;
+  companyName?: string;
+  rdvCount?: number;
   pendingScrollRef: MutableRefObject<{ leadId?: string; vendorId?: string; scrollY: number } | null>;
   setChatLead: (l: ChatLead | null) => void;
   setChatVendor: (v: Vendor | null) => void;
@@ -42,13 +47,15 @@ interface Props {
   setActiveView: (v: ActiveView) => void;
   markClientRead: (leadId: string) => void;
   onVendorViewed: (vendorId: string) => void;
-  markSuperAdminRead: () => void;
+  markSuperAdminRead: (superAdminId?: string) => void;
+  chatInitialSuperAdminId?: string | null;
 }
 
 export default function AdminViewRenderer({
-  activeView, chatLead, chatVendor, rdvLead, effectiveAdminId,
+  activeView, chatLead, chatVendor, rdvLead, effectiveAdminId, chatInitialSuperAdminId = null,
   impersonatedAdmin, isSAViewing, docInitialTab,
   unreadClientConversations, unreadVendorConversations,
+  identityName = '', identityEmail = '', companyName = '', rdvCount = 0,
   pendingScrollRef,
   setChatLead, setChatVendor, setRdvLead,
   setChatClientMessageSent, setChatVendorMessageSent, setDocInitialTab,
@@ -78,21 +85,21 @@ export default function AdminViewRenderer({
       {activeView === 'chat-super-admin' && (
         <Suspense fallback={lazyFallback}>
           <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
-            <ChatSuperAdmin adminIdOverride={effectiveAdminId} onSuperAdminViewed={markSuperAdminRead} />
+            <ChatSuperAdmin adminIdOverride={effectiveAdminId} onSuperAdminViewed={markSuperAdminRead} initialSuperAdminId={chatInitialSuperAdminId} />
           </div>
         </Suspense>
       )}
       {activeView !== 'info-admin' && activeView !== 'chat-client' && activeView !== 'chat-vendeur' && activeView !== 'chat-super-admin' && (() => {
         switch (activeView) {
-          case 'vue-ensemble': return <Suspense fallback={lazyFallback}><VueEnsemble onNavigate={handleNavigate} unreadClientConversations={unreadClientConversations} unreadVendorConversations={unreadVendorConversations} /></Suspense>;
+          case 'vue-ensemble': return <Suspense fallback={lazyFallback}><VueEnsemble onNavigate={handleNavigate} unreadClientConversations={unreadClientConversations} unreadVendorConversations={unreadVendorConversations} fullName={identityName} companyName={companyName} email={identityEmail} rdvCount={rdvCount} /></Suspense>;
           case 'site': return <Suspense fallback={lazyFallback}><AdminSite /></Suspense>;
           case 'logo': return <Suspense fallback={lazyFallback}><AdminLogoPage isSAViewing={isSAViewing} /></Suspense>;
           case 'inscription': return <Suspense fallback={lazyFallback}><Inscription /></Suspense>;
           case 'import-leads': return <Suspense fallback={lazyFallback}><ImportLeads onNavigateToCrm={() => handleNavigate('crm')} /></Suspense>;
           case 'ajouter-leads': return <Suspense fallback={lazyFallback}><AjouterLeads /></Suspense>;
-          case 'crm': return <Suspense fallback={lazyFallback}><Crm onConnectAsClient={(client) => { saveConnectReturnContext({ fromRole: 'admin', fromTab: 'crm', leadId: client.id, scrollY: window.scrollY }); onConnectAsClient?.(client); }} onOpenChat={(lead) => { saveChatReturnContext(lead.id, [lead.prenom, lead.nom].filter(Boolean).join(' ') || lead.email); setChatLead(lead); setChatClientMessageSent(false); setActiveView('chat-client'); }} onOpenRdv={(lead) => { setRdvLead(lead); setActiveView('propositions-rdv'); }} /></Suspense>;
+          case 'crm': return <Suspense fallback={lazyFallback}><Crm ownerUserId={effectiveAdminId} onConnectAsClient={(client) => { saveConnectReturnContext({ fromRole: 'admin', fromTab: 'crm', leadId: client.id, scrollY: window.scrollY }); onConnectAsClient?.(client); }} onOpenChat={(lead) => { saveChatReturnContext(lead.id, [lead.prenom, lead.nom].filter(Boolean).join(' ') || lead.email); setChatLead(lead); setChatClientMessageSent(false); setActiveView('chat-client'); }} onOpenRdv={(lead) => { setRdvLead(lead); setActiveView('propositions-rdv'); }} /></Suspense>;
           case 'ajouter-vendeur': return <Suspense fallback={lazyFallback}><AjouterVendeur /></Suspense>;
-          case 'liste-vendeurs': return <Suspense fallback={lazyFallback}><ListeVendeurs onConnectAsVendor={(vendor) => { saveConnectReturnContext({ fromRole: 'admin', fromTab: 'liste-vendeurs', vendorId: vendor.id, scrollY: window.scrollY }); onConnectAsVendor?.(vendor); }} onOpenChat={(vendor) => { setChatVendor(vendor); setChatVendorMessageSent(false); setActiveView('chat-vendeur'); }} /></Suspense>;
+          case 'liste-vendeurs': return <Suspense fallback={lazyFallback}><ListeVendeurs ownerUserId={effectiveAdminId} onConnectAsVendor={(vendor) => { saveConnectReturnContext({ fromRole: 'admin', fromTab: 'liste-vendeurs', vendorId: vendor.id, scrollY: window.scrollY }); onConnectAsVendor?.(vendor); }} onOpenChat={(vendor) => { setChatVendor(vendor); setChatVendorMessageSent(false); setActiveView('chat-vendeur'); }} /></Suspense>;
           case 'agenda': return <Suspense fallback={lazyFallback}><Agenda /></Suspense>;
           case 'agenda-equipe': return <AgendaEquipe />;
           case 'propositions-rdv': return <Suspense fallback={lazyFallback}><PropositionsRdv initialLead={rdvLead} onInitialLeadConsumed={() => setRdvLead(null)} onNavigateToCrm={(leadId?: string) => { if (leadId) pendingScrollRef.current = { leadId, scrollY: 0 }; handleNavigate('crm'); }} /></Suspense>;
@@ -106,7 +113,7 @@ export default function AdminViewRenderer({
           case 'calquer-logo': return <Suspense fallback={lazyFallback}><AdminCalquerLogo /></Suspense>;
           case 'mes-logos-ra': return <Suspense fallback={lazyFallback}><AdminMesLogosRA /></Suspense>;
           case 'tuto': return <div className="p-6"><p className="text-sm" style={{ color: 'inherit' }}>Tuto - Contenu a venir</p></div>;
-          default: return <Suspense fallback={lazyFallback}><VueEnsemble unreadClientConversations={unreadClientConversations} unreadVendorConversations={unreadVendorConversations} /></Suspense>;
+          default: return <Suspense fallback={lazyFallback}><VueEnsemble unreadClientConversations={unreadClientConversations} unreadVendorConversations={unreadVendorConversations} fullName={identityName} companyName={companyName} email={identityEmail} rdvCount={rdvCount} /></Suspense>;
         }
       })()}
     </>

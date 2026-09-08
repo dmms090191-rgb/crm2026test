@@ -44,7 +44,7 @@ function SADashboardInner({ onNavigate, onNavigateToAudit, adminCount = 0, admin
     <div className="p-4 md:p-8 space-y-4 md:space-y-6 max-w-5xl">
       <div>
         <h1 ref={titleVC.ref} className="text-lg md:text-2xl font-bold" style={titleVC.style}>
-          Dashboard Rois Admin
+          Dashboard Talvex Administrateur
         </h1>
         <p ref={subtitleVC.ref} className="text-xs md:text-sm mt-0.5 md:mt-1" style={subtitleVC.style}>
           Vue globale de la plateforme Talvex.

@@ -16,11 +16,13 @@ import CopyButton from '../../../components/CopyButton';
 export type { Vendor } from './vendeurs/vendeurTypes';
 
 interface ListeVendeursProps {
+  /** Id Auth de la Societe effective : proprietaire du reglage des actions. */
+  ownerUserId?: string | null;
   onConnectAsVendor?: (vendor: Vendor) => void;
   onOpenChat?: (vendor: Vendor) => void;
 }
 
-export default function ListeVendeurs({ onConnectAsVendor, onOpenChat }: ListeVendeursProps) {
+export default function ListeVendeurs({ ownerUserId = null, onConnectAsVendor, onOpenChat }: ListeVendeursProps) {
   const tokens = useThemeTokens();
   const { isSimulating } = useSimulation();
   const companyId = useCompanyId();
@@ -242,6 +244,7 @@ export default function ListeVendeurs({ onConnectAsVendor, onOpenChat }: ListeVe
                   onDetail={(v, fromActions) => { if (fromActions) setActionsSourceVendor(v); setSelectedVendor(v); }}
                   onOpenChat={onOpenChat}
                   onConnectAsVendor={onConnectAsVendor}
+                  ownerUserId={ownerUserId}
                   tokens={tokens}
                 />
               ))}
@@ -263,6 +266,7 @@ export default function ListeVendeurs({ onConnectAsVendor, onOpenChat }: ListeVe
         <VendorActionModal
           vendor={actionVendor}
           tokens={tokens}
+          ownerUserId={ownerUserId}
           onClose={() => { setActionVendor(null); setActionsSourceVendor(null); }}
           onDetail={() => { setActionsSourceVendor(actionVendor); setSelectedVendor(actionVendor); setActionVendor(null); }}
           onConnect={() => { onConnectAsVendor?.(actionVendor); setActionVendor(null); setActionsSourceVendor(null); }}

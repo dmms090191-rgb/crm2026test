@@ -34,6 +34,8 @@ interface Props {
   onConnectAsClient?: (client: ImpersonatedClient) => void;
   onOpenChat?: (lead: ChatLead) => void;
   onOpenRdv?: (lead: ChatLead) => void;
+  /** Id Auth de la Societe effective : proprietaire du reglage des actions. */
+  ownerUserId?: string | null;
   selectMode?: boolean;
   workModeEnabled?: boolean;
   isWorkActive?: boolean;
@@ -52,7 +54,7 @@ interface Props {
 const DEFAULT_COLUMN_ORDER = ['hash', 'nom', 'prenom', 'email', 'telephone', 'date_ajout', 'statut', 'actions', 'acces', 'ia', 'vendeur'];
 
 const CrmTableRow = forwardRef<HTMLTableRowElement, Props>(function CrmTableRow(props, ref) {
-  const { lead, index, isSelected, statutDefs, vendors, tokens, timezone, onToggle, onStatutChange, onToggleActif, onToggleAi, onDetail, onConnectAsClient, onOpenChat, onOpenRdv, selectMode, workModeEnabled, isWorkActive, onWorkSelect, onWorkUndo, onWorkRedo, canWorkUndo, canWorkRedo, workHistoryPosition, workHistoryLength, columnOrder, customColumnDefs, customColumnValues } = props;
+  const { lead, index, isSelected, statutDefs, vendors, tokens, timezone, onToggle, onStatutChange, onToggleActif, onToggleAi, onDetail, onConnectAsClient, onOpenChat, onOpenRdv, ownerUserId, selectMode, workModeEnabled, isWorkActive, onWorkSelect, onWorkUndo, onWorkRedo, canWorkUndo, canWorkRedo, workHistoryPosition, workHistoryLength, columnOrder, customColumnDefs, customColumnValues } = props;
   const cols = columnOrder ?? DEFAULT_COLUMN_ORDER;
   const [statutModalOpen, setStatutModalOpen] = useState(false);
   const [actionsOpen, setActionsOpen] = useState(false);
@@ -187,6 +189,7 @@ const CrmTableRow = forwardRef<HTMLTableRowElement, Props>(function CrmTableRow(
                   onConnect={() => onConnectAsClient?.({ id: lead.id, nom, prenom, email })}
                   onChat={() => onOpenChat?.({ id: lead.id, nom, prenom, email, tel })}
                   onRdv={() => onOpenRdv?.({ id: lead.id, nom, prenom, email, tel })}
+                  ownerUserId={ownerUserId}
                 />
               )}
             </td>

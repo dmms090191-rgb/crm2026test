@@ -39,13 +39,15 @@ interface Props {
   onDetail: (lead: ImportedLead, index: number, fromActions?: boolean) => void;
   onOpenChat?: (lead: ChatLead) => void;
   onOpenRdv?: (lead: ChatLead) => void;
+  /** Id Auth de la Societe effective : proprietaire du reglage des actions. */
+  ownerUserId?: string | null;
   onConnectAsClient?: (client: ImpersonatedClient) => void;
   selectMode?: boolean;
   cardRef: (el: HTMLDivElement | null) => void;
 }
 
 export default function CrmMobileLeadCard({
-  lead, index, statutDefs, vendors, timezone, isSelected, workModeEnabled, workModeActiveId,
+  lead, index, statutDefs, vendors, timezone, isSelected, ownerUserId, workModeEnabled, workModeActiveId,
   workHistoryLength, workHistoryPosition, canUndo, canRedo,
   onWorkSelect, onWorkUndo, onWorkRedo, onWorkReset, onToggle, onStatutChange,
   onToggleActif, onToggleAi, onDetail, onOpenChat, onOpenRdv, onConnectAsClient, selectMode, cardRef,
@@ -203,6 +205,7 @@ export default function CrmMobileLeadCard({
             onConnect={() => onConnectAsClient?.({ id: lead.id, nom, prenom, email })}
             onChat={() => onOpenChat?.({ id: lead.id, nom, prenom, email, tel })}
             onRdv={() => onOpenRdv?.({ id: lead.id, nom, prenom, email, tel })}
+            ownerUserId={ownerUserId}
           />
         )}
       </div>

@@ -1,4 +1,4 @@
-import { useEffect, useCallback, type MutableRefObject } from 'react';
+import { useEffect, type MutableRefObject } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { consumeConnectReturnContext } from '../../../lib/connectReturnContext';
 import { importDocumentationCrm } from './adminLazyViews';
@@ -8,6 +8,12 @@ interface Params {
   companyId: string | null;
   setAdminAuthId: (id: string) => void;
   setAdminName: (name: string) => void;
+  setAdminEmail: (email: string) => void;
+  /**
+   * Vrai quand une Societe est VISUALISEE. Le compte JWT ne doit alors jamais
+   * ecraser l'identite affichee : seul son id sert encore, pour les requetes.
+   */
+  isImpersonating: boolean;
   setCompanyName: (name: string) => void;
   setActiveView: (v: ActiveView) => void;
   activeView: ActiveView;
@@ -18,6 +24,8 @@ export function useAdminDashboardEffects({
   companyId,
   setAdminAuthId,
   setAdminName,
+  setAdminEmail,
+  isImpersonating,
   setCompanyName,
   setActiveView,
   activeView,
@@ -55,7 +63,14 @@ export function useAdminDashboardEffects({
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) return;
+      // L'ID du compte connecte reste necessaire (requetes, Realtime).
       setAdminAuthId(user.id);
+      // Mais son IDENTITE ne doit jamais ecraser celle d'une Societe visualisee.
+      // Ce getUser est asynchrone : sans cette garde il gagnait la course contre
+      // l'identite impersonated, et la topbar retombait sur le compte Talvex.
+      if (isImpersonating) return;
+      // Aucune requete supplementaire : l'email vient du getUser deja effectue ici.
+      if (user.email) setAdminEmail(user.email);
       if (user.user_metadata) {
         const { first_name, last_name } = user.user_metadata;
         if (first_name || last_name) {
@@ -63,7 +78,8 @@ export function useAdminDashboardEffects({
         }
       }
     });
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isImpersonating]);
 
   useEffect(() => {
     if (!companyId) return;
@@ -76,9 +92,4 @@ export function useAdminDashboardEffects({
     return () => cancelIdleCallback(id);
   }, []);
 
-  const handleNameChange = useCallback((firstName: string, lastName: string) => {
-    setAdminName([firstName, lastName].filter(Boolean).join(' ') || 'Administrateur');
-  }, []);
-
-  return { handleNameChange };
 }

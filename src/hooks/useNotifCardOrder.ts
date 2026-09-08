@@ -6,8 +6,11 @@ export interface NotifCardOrderData {
   labels: Record<string, string>;
 }
 
-function cacheKey(userId: string | null, companyId: string | null) {
-  return `notif_card_order:${companyId ?? '_'}:${userId ?? '_'}`;
+function cacheKey(concept: string, userId: string | null, companyId: string | null) {
+  // Le panel Societe conserve sa cle historique : aucun ordre deja en cache
+  // n est perdu au premier chargement apres l ajout du parametre.
+  if (concept === 'notif_cards') return `notif_card_order:${companyId ?? '_'}:${userId ?? '_'}`;
+  return `notif_card_order:${concept}:${companyId ?? '_'}:${userId ?? '_'}`;
 }
 
 function loadCache(key: string): NotifCardOrderData | null {
@@ -24,7 +27,7 @@ function saveCache(key: string, data: NotifCardOrderData) {
   try { localStorage.setItem(key, JSON.stringify(data)); } catch {}
 }
 
-async function loadFromDb(userId: string): Promise<NotifCardOrderData | null> {
+async function loadFromDb(userId: string, concept: string): Promise<NotifCardOrderData | null> {
   const { data, error } = await supabase
     .from('user_preferences')
     .select('sidebar_orders')
@@ -33,35 +36,53 @@ async function loadFromDb(userId: string): Promise<NotifCardOrderData | null> {
   if (error || !data) return null;
   const orders = data.sidebar_orders as Record<string, unknown> | null;
   if (!orders) return null;
-  const entry = orders['notif_cards'] as NotifCardOrderData | undefined;
+  const entry = orders[concept] as NotifCardOrderData | undefined;
   if (!entry || !Array.isArray(entry.order)) return null;
   return { order: entry.order, labels: entry.labels ?? {} };
 }
 
-async function saveToDb(userId: string, saveData: NotifCardOrderData) {
+async function saveToDb(userId: string, concept: string, saveData: NotifCardOrderData) {
   const { data: existing } = await supabase
     .from('user_preferences')
     .select('sidebar_orders')
     .eq('user_id', userId)
     .maybeSingle();
   const current = (existing?.sidebar_orders as Record<string, unknown> | null) ?? {};
-  const merged = { ...current, notif_cards: saveData };
+  const merged = { ...current, [concept]: saveData };
   await supabase.from('user_preferences').upsert(
     { user_id: userId, sidebar_orders: merged, updated_at: new Date().toISOString() },
     { onConflict: 'user_id' },
   );
 }
 
+/** Ordre par defaut du panel Societe. Conserve pour ne rien changer chez lui. */
 const DEFAULT_KEYS = [
   'client', 'vendeur', 'agenda', 'propositions', 'rdv',
   'super-admin', 'equipe', 'decalages', 'demandes-decalage',
 ];
 
-export function useNotifCardOrder(userId?: string | null, companyId?: string | null) {
-  const lsKey = cacheKey(userId ?? null, companyId ?? null);
+/**
+ * Ordre et libelles des cartes de notification, par utilisateur.
+ *
+ * Le parametre concept isole le stockage : chaque panel a son propre ordre,
+ * dans sa propre entree de user_preferences.sidebar_orders. Sans argument,
+ * on reste exactement sur la configuration du panel Societe.
+ *
+ * Le masquage ne passe PAS par ici : il vit dans panel_hidden_tabs, ou seul
+ * Talvex peut ecrire (RLS). Les deux notions restent separees, jusque dans
+ * leur support de stockage.
+ */
+export function useNotifCardOrder(
+  userId?: string | null,
+  companyId?: string | null,
+  options?: { concept?: string; defaultKeys?: string[] },
+) {
+  const concept = options?.concept ?? 'notif_cards';
+  const defaults = options?.defaultKeys ?? DEFAULT_KEYS;
+  const lsKey = cacheKey(concept, userId ?? null, companyId ?? null);
   const cached = loadCache(lsKey);
 
-  const [order, setOrder] = useState<string[]>(cached?.order ?? DEFAULT_KEYS);
+  const [order, setOrder] = useState<string[]>(cached?.order ?? defaults);
   const [labels, setLabels] = useState<Record<string, string>>(cached?.labels ?? {});
   const [loaded, setLoaded] = useState(cached !== null);
 
@@ -88,7 +109,7 @@ export function useNotifCardOrder(userId?: string | null, companyId?: string | n
     }
     if (!userId) return;
     let cancelled = false;
-    loadFromDb(userId).then(remote => {
+    loadFromDb(userId, concept).then(remote => {
       if (cancelled) return;
       if (remote && remote.order.length > 0) {
         setOrder(remote.order);
@@ -98,7 +119,7 @@ export function useNotifCardOrder(userId?: string | null, companyId?: string | n
       setLoaded(true);
     });
     return () => { cancelled = true; };
-  }, [lsKey, userId]);
+  }, [lsKey, userId, concept]);
 
   const startReorder = useCallback(() => {
     setDraftOrder([...order]);
@@ -120,11 +141,11 @@ export function useNotifCardOrder(userId?: string | null, companyId?: string | n
     const saveData: NotifCardOrderData = { order: o, labels: l };
     saveCache(lsKey, saveData);
     skipRemoteRef.current = true;
-    if (userId) saveToDb(userId, saveData);
+    if (userId) saveToDb(userId, concept, saveData);
     setReordering(false);
     setDraftOrder([]);
     setDraftLabels({});
-  }, [lsKey, userId]);
+  }, [lsKey, userId, concept]);
 
   const moveDraft = useCallback((from: number, to: number) => {
     setDraftOrder(prev => {
@@ -141,9 +162,9 @@ export function useNotifCardOrder(userId?: string | null, companyId?: string | n
   }, []);
 
   const resetToDefault = useCallback(() => {
-    setDraftOrder([...DEFAULT_KEYS]);
+    setDraftOrder([...defaults]);
     setDraftLabels({});
-  }, []);
+  }, [defaults]);
 
   return {
     order: reordering ? draftOrder : order,

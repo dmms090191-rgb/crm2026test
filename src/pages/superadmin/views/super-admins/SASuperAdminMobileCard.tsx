@@ -1,18 +1,33 @@
 import { MoreHorizontal } from 'lucide-react';
 import type { CompanySuperAdmin } from './superAdminTypes';
+import { getStatutColor } from '../crm-societe/types';
+import type { SAStatut } from '../crm-societe/types';
 import type { ThemeTokens } from '../../../../lib/themeTokensTypes';
 
 interface Props {
   sa: CompanySuperAdmin;
   tokens: ThemeTokens;
   onActions: (sa: CompanySuperAdmin) => void;
+  saStatuts: SAStatut[];
+  statut: string;
+  selectMode?: boolean;
+  isSelected?: boolean;
+  onToggleSelect?: () => void;
 }
 
-export default function SASuperAdminMobileCard({ sa, tokens: t, onActions }: Props) {
+export default function SASuperAdminMobileCard({ sa, tokens: t, onActions, saStatuts, statut, selectMode = false, isSelected = false, onToggleSelect }: Props) {
   return (
     <div className="rounded-xl p-4 space-y-3" style={{ background: t.surface.bg, border: `1px solid ${t.surface.border}` }}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
+          {selectMode && (
+            <input
+              type="checkbox"
+              checked={isSelected}
+              onChange={() => onToggleSelect?.()}
+              className="w-4 h-4 flex-shrink-0 cursor-pointer accent-red-500"
+            />
+          )}
           <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0" style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}>
             {(sa.first_name || '?').charAt(0).toUpperCase()}
           </div>
@@ -32,8 +47,12 @@ export default function SASuperAdminMobileCard({ sa, tokens: t, onActions }: Pro
 
       <div className="grid grid-cols-2 gap-2 text-xs">
         <div>
-          <span className="font-medium" style={{ color: t.text.tertiary }}>Societe</span>
+          <span className="font-medium" style={{ color: t.text.tertiary }}>Groupe</span>
           <p className="truncate" style={{ color: t.text.secondary }}>{sa.company}</p>
+        </div>
+        <div>
+          <span className="font-medium" style={{ color: t.text.tertiary }}>Statut</span>
+          <p className="truncate" style={{ color: getStatutColor(statut, saStatuts).color }}>{statut || '—'}</p>
         </div>
         <div>
           <span className="font-medium" style={{ color: t.text.tertiary }}>Telephone</span>

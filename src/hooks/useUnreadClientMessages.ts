@@ -10,6 +10,8 @@ interface UnreadEntry {
   email: string;
   count: number;
   latestAt: string;
+  /** Contenu du dernier message non lu de CE client. */
+  preview: string;
 }
 
 export function useUnreadClientMessages() {
@@ -23,7 +25,7 @@ export function useUnreadClientMessages() {
     if (!companyId) return;
     const { data: msgs } = await supabase
       .from('client_messages')
-      .select('client_auth_id, created_at')
+      .select('client_auth_id, created_at, content')
       .eq('company_id', companyId)
       .eq('sender', 'client')
       .eq('read', false)
@@ -36,14 +38,18 @@ export function useUnreadClientMessages() {
       return;
     }
 
-    const grouped = new Map<string, { count: number; latestAt: string }>();
+    const grouped = new Map<string, { count: number; latestAt: string; preview: string }>();
     for (const m of msgs) {
       const existing = grouped.get(m.client_auth_id);
       if (!existing) {
-        grouped.set(m.client_auth_id, { count: 1, latestAt: m.created_at });
+        grouped.set(m.client_auth_id, { count: 1, latestAt: m.created_at, preview: m.content ?? '' });
       } else {
         existing.count++;
-        if (m.created_at > existing.latestAt) existing.latestAt = m.created_at;
+        // Le plus recent gagne : l apercu montre bien le DERNIER message.
+        if (m.created_at > existing.latestAt) {
+          existing.latestAt = m.created_at;
+          existing.preview = m.content ?? '';
+        }
       }
     }
 
@@ -69,13 +75,15 @@ export function useUnreadClientMessages() {
           email: lead.email ?? lead.data?.['Email'] ?? lead.data?.['email'] ?? '',
           count: g.count,
           latestAt: g.latestAt,
+          preview: g.preview,
         });
       }
     }
 
     entries.sort((a, b) => b.latestAt.localeCompare(a.latestAt));
     setUnreadEntries(entries);
-    setUnreadCount(entries.reduce((acc, e) => acc + e.count, 0));
+    // Badge = nombre de CONVERSATIONS non lues. Le detail par message reste dans e.count.
+    setUnreadCount(entries.length);
   }, [companyId]);
 
   useEffect(() => {
@@ -97,7 +105,7 @@ export function useUnreadClientMessages() {
     justMarked.current = true;
     const entry = unreadEntries.find(e => e.clientAuthId === clientAuthId);
     setUnreadEntries(prev => prev.filter(e => e.clientAuthId !== clientAuthId));
-    setUnreadCount(prev => Math.max(0, prev - (entry?.count ?? 0)));
+    setUnreadCount(prev => Math.max(0, prev - (entry ? 1 : 0)));
 
     await supabase
       .from('client_messages')

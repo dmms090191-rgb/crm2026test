@@ -1,6 +1,13 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Palette, Pipette, X } from 'lucide-react';
 
+/**
+ * EyeDropper est une API navigateur encore absente de lib.dom.d.ts.
+ * On declare le minimum utilise ici plutot que de caster en any.
+ */
+interface EyeDropperInstance { open(): Promise<{ sRGBHex: string }>; }
+type WindowWithEyeDropper = Window & { EyeDropper?: new () => EyeDropperInstance };
+
 function hsvToHex(h: number, s: number, v: number): string {
   const c = v * s;
   const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
@@ -91,7 +98,7 @@ export default function CalquerLogoBgPicker({ value, onChange, inline }: { value
   const handleEyeDropper = useCallback(async () => {
     if (!('EyeDropper' in window)) return;
     try {
-      const dropper = new (window as any).EyeDropper();
+      const dropper = new (window as WindowWithEyeDropper).EyeDropper!();
       const result = await dropper.open();
       const hex = result.sRGBHex as string;
       setHsv(hexToHsv(hex));

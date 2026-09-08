@@ -8,6 +8,7 @@ export interface AdminNotifEntry {
   email: string;
   count: number;
   latestAt: string;
+  preview: string;
 }
 
 export function useUnreadCSAAdminMessages(csaUserId: string) {
@@ -25,7 +26,7 @@ export function useUnreadCSAAdminMessages(csaUserId: string) {
 
     const { data: msgs } = await supabase
       .from('super_admin_messages')
-      .select('admin_id, created_at')
+      .select('admin_id, created_at, content')
       .eq('super_admin_id', csaUserId)
       .eq('sender_role', 'admin')
       .eq('read', false)
@@ -38,15 +39,15 @@ export function useUnreadCSAAdminMessages(csaUserId: string) {
       return;
     }
 
-    const grouped = new Map<string, { count: number; latestAt: string }>();
+    const grouped = new Map<string, { count: number; latestAt: string; preview: string }>();
     for (const m of msgs) {
       if (!m.admin_id) continue;
       const existing = grouped.get(m.admin_id);
       if (!existing) {
-        grouped.set(m.admin_id, { count: 1, latestAt: m.created_at });
+        grouped.set(m.admin_id, { count: 1, latestAt: m.created_at, preview: m.content ?? '' });
       } else {
         existing.count++;
-        if (m.created_at > existing.latestAt) existing.latestAt = m.created_at;
+        if (m.created_at > existing.latestAt) { existing.latestAt = m.created_at; existing.preview = m.content ?? ''; }
       }
     }
 
@@ -76,12 +77,17 @@ export function useUnreadCSAAdminMessages(csaUserId: string) {
           email: a.email ?? '',
           count: g.count,
           latestAt: g.latestAt,
+          preview: g.preview,
         });
       }
     }
+    // Filet de securite : une conversation dont l'auteur n'a pas ete resolu ici
+    // reste comptee — sinon le badge mentirait. En revanche elle repart SANS
+    // identite : un identifiant technique n'est jamais un libelle. C'est
+    // l'appelant qui nomme la ligne, depuis son annuaire correctement porte.
     for (const [aid, g] of grouped) {
       if (!entries.find(e => e.adminId === aid)) {
-        entries.push({ adminId: aid, firstName: '', lastName: '', email: aid, count: g.count, latestAt: g.latestAt });
+        entries.push({ adminId: aid, firstName: '', lastName: '', email: '', count: g.count, latestAt: g.latestAt, preview: g.preview });
       }
     }
 

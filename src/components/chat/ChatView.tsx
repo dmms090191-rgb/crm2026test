@@ -67,7 +67,8 @@ export default function MessagingPanel({
     try {
       await onSendMessage(text);
       setPendingMessages(prev => prev.filter(m => m.id !== tempId));
-    } catch {
+    } catch (err) {
+      console.error('[chat] envoi echoue', err);
       setPendingMessages(prev => prev.map(m => m.id === tempId ? { ...m, _pending: false, _failed: true } : m));
     } finally {
       setSending(false);
@@ -85,7 +86,8 @@ export default function MessagingPanel({
     try {
       await onSendMessage(msg.content);
       setPendingMessages(prev => prev.filter(m => m.id !== msg.id));
-    } catch {
+    } catch (err) {
+      console.error('[chat] renvoi echoue', err);
       setPendingMessages(prev => prev.map(m => m.id === msg.id ? { ...m, _pending: false, _failed: true } : m));
     }
   }, [onSendMessage]);

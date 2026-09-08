@@ -1,3 +1,4 @@
+import type { SuperAdminNotifEntry } from '../../hooks/useUnreadFromSuperAdmin';
 import { useState, useRef, useEffect } from 'react';
 import { ChevronRight, Menu } from 'lucide-react';
 import { useTimezone } from '../../hooks/useTimezone';
@@ -23,6 +24,7 @@ export interface ClientNotifEntry {
   email: string;
   count: number;
   latestAt: string;
+  preview: string;
 }
 
 export interface VendorNotifEntry {
@@ -32,6 +34,8 @@ export interface VendorNotifEntry {
   email: string;
   count: number;
   latestAt: string;
+  /** Dernier message recu, tel qu il a ete ecrit. */
+  preview: string;
 }
 
 export interface ConfirmedProposalEntry {
@@ -53,8 +57,15 @@ interface TopBarProps {
   unreadVendorCount?: number;
   unreadVendorEntries?: VendorNotifEntry[];
   onVendorEntryClick?: (entry: VendorNotifEntry) => void;
+  superAdminName?: string;
+  /** Ligne secondaire, ex. « Groupe : Willness ». */
+  superAdminSubtitle?: string;
+  superAdminPreview?: string;
+  superAdminAt?: string;
   unreadSuperAdminCount?: number;
-  onSuperAdminClick?: () => void;
+  unreadSuperAdminMessages?: number;
+  onSuperAdminClick?: (superAdminId?: string) => void;
+  superAdminEntries?: SuperAdminNotifEntry[];
   agendaPersoCount?: number;
   agendaPersoEntries?: AgendaNotifEntry[];
   onAgendaPersoEntryClick?: (rdvId: string, type?: 'starting' | 'untreated') => void;
@@ -97,7 +108,7 @@ interface TopBarProps {
   onResetNotifDefault?: () => void;
 }
 
-export default function TopBar({ breadcrumb, onMobileMenuToggle, adminName = 'Administrateur', unreadClientCount = 0, unreadClientEntries = [], onClientEntryClick, unreadVendorCount = 0, unreadVendorEntries = [], onVendorEntryClick, unreadSuperAdminCount = 0, onSuperAdminClick, agendaPersoCount = 0, agendaPersoEntries = [], onAgendaPersoEntryClick, agendaEquipeCount = 0, agendaEquipeEntries = [], onAgendaEquipeEntryClick, proposalsCount = 0, proposalsEntries = [], onProposalEntryClick, confirmedCount = 0, confirmedEntries = [], onConfirmedEntryClick, rescheduleCount = 0, rescheduleEntries = [], onRescheduleEntryClick, rescheduleRequestCount = 0, rescheduleRequestEntries = [], onRescheduleRequestEntryClick, impersonatedAdmin, onBackToSuperAdmin, demoSlot, demoStatus = 'idle', appIconUrl, appName, topbarRef, editorZone3Bg, canHideNotifCards, hiddenNotifCards, hiddenNotifCardsLoaded, onToggleNotifCard, canReorderNotifCards, notifCardOrder, notifCardLabels, notifReordering, onStartNotifReorder, onCancelNotifReorder, onConfirmNotifReorder, onMoveNotifDraft, onRenameNotifDraft, onResetNotifDefault }: TopBarProps) {
+export default function TopBar({ breadcrumb, onMobileMenuToggle, adminName = 'Administrateur', unreadClientCount = 0, unreadClientEntries = [], onClientEntryClick, unreadVendorCount = 0, unreadVendorEntries = [], onVendorEntryClick, superAdminName = '', superAdminSubtitle = '', superAdminPreview = '', superAdminAt = '', unreadSuperAdminCount = 0, unreadSuperAdminMessages = 0, superAdminEntries = [], onSuperAdminClick, agendaPersoCount = 0, agendaPersoEntries = [], onAgendaPersoEntryClick, agendaEquipeCount = 0, agendaEquipeEntries = [], onAgendaEquipeEntryClick, proposalsCount = 0, proposalsEntries = [], onProposalEntryClick, confirmedCount = 0, confirmedEntries = [], onConfirmedEntryClick, rescheduleCount = 0, rescheduleEntries = [], onRescheduleEntryClick, rescheduleRequestCount = 0, rescheduleRequestEntries = [], onRescheduleRequestEntryClick, impersonatedAdmin, onBackToSuperAdmin, demoSlot, demoStatus = 'idle', appIconUrl, appName, topbarRef, editorZone3Bg, canHideNotifCards, hiddenNotifCards, hiddenNotifCardsLoaded, onToggleNotifCard, canReorderNotifCards, notifCardOrder, notifCardLabels, notifReordering, onStartNotifReorder, onCancelNotifReorder, onConfirmNotifReorder, onMoveNotifDraft, onRenameNotifDraft, onResetNotifDefault }: TopBarProps) {
   const { timezone, tzLabel, tzCode, setTimezone } = useTimezone();
   const t = useThemeTokens();
   const [mobileNotifOpen, setMobileNotifOpen] = useState(false);
@@ -144,9 +155,9 @@ export default function TopBar({ breadcrumb, onMobileMenuToggle, adminName = 'Ad
       </div>
 
       <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
-        <AdminMobileBellMenu open={mobileNotifOpen} setOpen={setMobileNotifOpen} category={mobileNotifCategory} setCategory={setMobileNotifCategory} totalNotifCount={totalNotifCount} unreadClientCount={unreadClientCount} unreadClientEntries={unreadClientEntries} onClientEntryClick={onClientEntryClick} unreadVendorCount={unreadVendorCount} unreadVendorEntries={unreadVendorEntries} onVendorEntryClick={onVendorEntryClick} unreadSuperAdminCount={unreadSuperAdminCount} onSuperAdminClick={onSuperAdminClick} agendaPersoCount={agendaPersoCount} agendaPersoEntries={agendaPersoEntries} onAgendaPersoEntryClick={onAgendaPersoEntryClick} agendaEquipeCount={agendaEquipeCount} agendaEquipeEntries={agendaEquipeEntries} onAgendaEquipeEntryClick={onAgendaEquipeEntryClick} proposalsCount={proposalsCount} proposalsEntries={proposalsEntries} onProposalEntryClick={onProposalEntryClick} confirmedCount={confirmedCount} confirmedEntries={confirmedEntries} onConfirmedEntryClick={onConfirmedEntryClick} rescheduleCount={rescheduleCount} rescheduleEntries={rescheduleEntries} onRescheduleEntryClick={onRescheduleEntryClick} rescheduleRequestCount={rescheduleRequestCount} rescheduleRequestEntries={rescheduleRequestEntries} onRescheduleRequestEntryClick={onRescheduleRequestEntryClick} timezone={timezone} tokens={t} containerRef={mobileNotifRef} panelRef={mobileNotifPanelRef} hiddenNotifCards={hiddenNotifCards} notifCardOrder={notifCardOrder} notifCardLabels={notifCardLabels} />
+        <AdminMobileBellMenu open={mobileNotifOpen} setOpen={setMobileNotifOpen} category={mobileNotifCategory} setCategory={setMobileNotifCategory} totalNotifCount={totalNotifCount} unreadClientCount={unreadClientCount} unreadClientEntries={unreadClientEntries} onClientEntryClick={onClientEntryClick} unreadVendorCount={unreadVendorCount} unreadVendorEntries={unreadVendorEntries} onVendorEntryClick={onVendorEntryClick} unreadSuperAdminCount={unreadSuperAdminCount} unreadSuperAdminMessages={unreadSuperAdminMessages} superAdminEntries={superAdminEntries} superAdminName={superAdminName} superAdminSubtitle={superAdminSubtitle} superAdminPreview={superAdminPreview} superAdminAt={superAdminAt} onSuperAdminClick={onSuperAdminClick} agendaPersoCount={agendaPersoCount} agendaPersoEntries={agendaPersoEntries} onAgendaPersoEntryClick={onAgendaPersoEntryClick} agendaEquipeCount={agendaEquipeCount} agendaEquipeEntries={agendaEquipeEntries} onAgendaEquipeEntryClick={onAgendaEquipeEntryClick} proposalsCount={proposalsCount} proposalsEntries={proposalsEntries} onProposalEntryClick={onProposalEntryClick} confirmedCount={confirmedCount} confirmedEntries={confirmedEntries} onConfirmedEntryClick={onConfirmedEntryClick} rescheduleCount={rescheduleCount} rescheduleEntries={rescheduleEntries} onRescheduleEntryClick={onRescheduleEntryClick} rescheduleRequestCount={rescheduleRequestCount} rescheduleRequestEntries={rescheduleRequestEntries} onRescheduleRequestEntryClick={onRescheduleRequestEntryClick} timezone={timezone} tokens={t} containerRef={mobileNotifRef} panelRef={mobileNotifPanelRef} hiddenNotifCards={hiddenNotifCards} notifCardOrder={notifCardOrder} notifCardLabels={notifCardLabels} />
 
-        <AdminNotificationsHub unreadClientCount={unreadClientCount} unreadClientEntries={unreadClientEntries} onClientEntryClick={onClientEntryClick} unreadVendorCount={unreadVendorCount} unreadVendorEntries={unreadVendorEntries} onVendorEntryClick={onVendorEntryClick} unreadSuperAdminCount={unreadSuperAdminCount} onSuperAdminClick={onSuperAdminClick} agendaPersoCount={agendaPersoCount} agendaPersoEntries={agendaPersoEntries} onAgendaPersoEntryClick={onAgendaPersoEntryClick} agendaEquipeCount={agendaEquipeCount} agendaEquipeEntries={agendaEquipeEntries} onAgendaEquipeEntryClick={onAgendaEquipeEntryClick} proposalsCount={proposalsCount} proposalsEntries={proposalsEntries} onProposalEntryClick={onProposalEntryClick} confirmedCount={confirmedCount} confirmedEntries={confirmedEntries} onConfirmedEntryClick={onConfirmedEntryClick} rescheduleCount={rescheduleCount} rescheduleEntries={rescheduleEntries} onRescheduleEntryClick={onRescheduleEntryClick} rescheduleRequestCount={rescheduleRequestCount} rescheduleRequestEntries={rescheduleRequestEntries} onRescheduleRequestEntryClick={onRescheduleRequestEntryClick} tokens={t} canHideNotifCards={canHideNotifCards} hiddenNotifCards={hiddenNotifCards} hiddenNotifCardsLoaded={hiddenNotifCardsLoaded} onToggleNotifCard={onToggleNotifCard} canReorderNotifCards={canReorderNotifCards} notifCardOrder={notifCardOrder} notifCardLabels={notifCardLabels} notifReordering={notifReordering} onStartNotifReorder={onStartNotifReorder} onCancelNotifReorder={onCancelNotifReorder} onConfirmNotifReorder={onConfirmNotifReorder} onMoveNotifDraft={onMoveNotifDraft} onRenameNotifDraft={onRenameNotifDraft} onResetNotifDefault={onResetNotifDefault} />
+        <AdminNotificationsHub unreadClientCount={unreadClientCount} unreadClientEntries={unreadClientEntries} onClientEntryClick={onClientEntryClick} unreadVendorCount={unreadVendorCount} unreadVendorEntries={unreadVendorEntries} onVendorEntryClick={onVendorEntryClick} unreadSuperAdminCount={unreadSuperAdminCount} unreadSuperAdminMessages={unreadSuperAdminMessages} superAdminEntries={superAdminEntries} superAdminName={superAdminName} superAdminSubtitle={superAdminSubtitle} superAdminPreview={superAdminPreview} superAdminAt={superAdminAt} onSuperAdminClick={onSuperAdminClick} agendaPersoCount={agendaPersoCount} agendaPersoEntries={agendaPersoEntries} onAgendaPersoEntryClick={onAgendaPersoEntryClick} agendaEquipeCount={agendaEquipeCount} agendaEquipeEntries={agendaEquipeEntries} onAgendaEquipeEntryClick={onAgendaEquipeEntryClick} proposalsCount={proposalsCount} proposalsEntries={proposalsEntries} onProposalEntryClick={onProposalEntryClick} confirmedCount={confirmedCount} confirmedEntries={confirmedEntries} onConfirmedEntryClick={onConfirmedEntryClick} rescheduleCount={rescheduleCount} rescheduleEntries={rescheduleEntries} onRescheduleEntryClick={onRescheduleEntryClick} rescheduleRequestCount={rescheduleRequestCount} rescheduleRequestEntries={rescheduleRequestEntries} onRescheduleRequestEntryClick={onRescheduleRequestEntryClick} tokens={t} canHideNotifCards={canHideNotifCards} hiddenNotifCards={hiddenNotifCards} hiddenNotifCardsLoaded={hiddenNotifCardsLoaded} onToggleNotifCard={onToggleNotifCard} canReorderNotifCards={canReorderNotifCards} notifCardOrder={notifCardOrder} notifCardLabels={notifCardLabels} notifReordering={notifReordering} onStartNotifReorder={onStartNotifReorder} onCancelNotifReorder={onCancelNotifReorder} onConfirmNotifReorder={onConfirmNotifReorder} onMoveNotifDraft={onMoveNotifDraft} onRenameNotifDraft={onRenameNotifDraft} onResetNotifDefault={onResetNotifDefault} />
 
         <PhoneButton open={phone.open} minimized={phone.minimized} onToggleMinimize={phone.toggleMinimize} onOpen={phone.openPhone} />
 

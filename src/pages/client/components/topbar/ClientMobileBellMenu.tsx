@@ -15,6 +15,10 @@ interface Props {
   totalNotifCount: number;
   unreadMessageCount: number;
   unreadLatestAt?: string | null;
+  /** Nom reel de l expediteur — MEME source que l ecran Support. */
+  unreadSenderName?: string;
+  /** Dernier message recu. */
+  unreadPreview?: string;
   onMessageNotifClick: () => void;
   agendaCount: number;
   agendaEntries: AgendaNotifEntry[];
@@ -30,7 +34,7 @@ interface Props {
 
 export default function ClientMobileBellMenu({
   open, setOpen, category, setCategory, totalNotifCount,
-  unreadMessageCount, unreadLatestAt, onMessageNotifClick,
+  unreadMessageCount, unreadLatestAt, unreadSenderName = '', unreadPreview = '', onMessageNotifClick,
   agendaCount, agendaEntries, onAgendaEntryClick,
   propositionsCount, propositionsEntries, onPropositionEntryClick,
   timezone, tokens: t, containerRef, panelRef: externalPanelRef,
@@ -122,7 +126,7 @@ export default function ClientMobileBellMenu({
                   unreadMessageCount === 0 ? (
                     <ClientDropdownEmpty text="Aucun nouveau message" tokens={t} />
                   ) : (
-                    <NotifRow count={unreadMessageCount} latestAt={unreadLatestAt} tokens={t.dropdown} onClick={() => { onMessageNotifClick(); setOpen(false); setCategory(null); }} />
+                    <NotifRow count={unreadMessageCount} latestAt={unreadLatestAt} senderName={unreadSenderName} preview={unreadPreview} tokens={t.dropdown} onClick={() => { onMessageNotifClick(); setOpen(false); setCategory(null); }} />
                   )
                 )}
                 {category === 'agenda' && (

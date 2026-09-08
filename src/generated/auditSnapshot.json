@@ -1,64 +1,17 @@
 {
-  "generatedAt": "2026-09-04T16:55:11.693Z",
-  "anyCount": 1,
-  "anyOccurrences": [
-    {
-      "file": "src/pages/admin/views/calquer-logo/CalquerLogoBgPicker.tsx",
-      "line": 94,
-      "text": "const dropper = new (window as any).EyeDropper();"
-    }
-  ],
+  "generatedAt": "2026-09-08T17:31:12.459Z",
+  "anyCount": 0,
+  "anyOccurrences": [],
   "unusedImportCount": 0,
   "unusedImports": [],
-  "largeFileCount": 8,
-  "largeFiles": [
-    {
-      "file": "src/pages/admin/views/calquer-logo/calquer-logo-svg-decompose.ts",
-      "lines": 303,
-      "overflow": 3
-    },
-    {
-      "file": "src/pages/vendor/VendorDashboard.tsx",
-      "lines": 304,
-      "overflow": 4
-    },
-    {
-      "file": "src/pages/admin/components/topbar/AdminNotificationsHub.tsx",
-      "lines": 320,
-      "overflow": 20
-    },
-    {
-      "file": "src/pages/superadmin/SuperAdminSidebar.tsx",
-      "lines": 325,
-      "overflow": 25
-    },
-    {
-      "file": "src/pages/admin/views/calquer-logo/CalquerLogo.tsx",
-      "lines": 342,
-      "overflow": 42
-    },
-    {
-      "file": "src/components/layout/SidebarFooterActions.tsx",
-      "lines": 345,
-      "overflow": 45
-    },
-    {
-      "file": "src/pages/company-super-admin/CompanySuperAdminDashboard.tsx",
-      "lines": 473,
-      "overflow": 173
-    },
-    {
-      "file": "src/pages/superadmin/views/site-builder/templates/BarbieWellnessTemplate.tsx",
-      "lines": 503,
-      "overflow": 203
-    }
-  ],
+  "largeFileCount": 0,
+  "largeFiles": [],
   "tscErrorCount": 0,
   "tscErrors": [],
   "eslintErrorCount": 0,
   "eslintWarningCount": 0,
   "eslintIssues": [],
-  "totalFilesAnalyzed": 927,
-  "totalLinesAnalyzed": 127065,
-  "totalOverflowLines": 515
+  "totalFilesAnalyzed": 1006,
+  "totalLinesAnalyzed": 133729,
+  "totalOverflowLines": 0
 }

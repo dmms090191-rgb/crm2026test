@@ -21,9 +21,9 @@ interface EditorPanelsProps {
   setSavedVisible: (v: boolean) => void;
   savedRefreshKey: number;
   setSavedRefreshKey: React.Dispatch<React.SetStateAction<number>>;
-  getPositionFor: (key: string) => { x: number; y: number };
+  getPositionFor: (key: string) => { x: number; y: number } | undefined;
   updatePositionFor: (key: string, x: number, y: number) => void;
-  contenuPos: { x: number; y: number };
+  contenuPos: { x: number; y: number } | null;
   logoZoneRef: RefObject<HTMLDivElement | null>;
   sidebarBodyRef: RefObject<HTMLDivElement | null>;
   topbarRef: RefObject<HTMLElement | null>;

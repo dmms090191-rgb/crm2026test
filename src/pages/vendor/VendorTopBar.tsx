@@ -8,7 +8,8 @@ import TimezoneModal from '../../components/TimezoneSearchDropdown';
 import type { AgendaNotifEntry } from '../../hooks/useAgendaNotifications';
 import { VendorClockButton, VendorProfileDropdown } from './components/topbar';
 import VendorMobileBellMenu from './components/topbar/VendorMobileBellMenu';
-import VendorDesktopNotifPill from './components/topbar/VendorDesktopNotifPill';
+import VendorNotificationsHub from './components/topbar/VendorNotificationsHub';
+import { vendorNotifCards, type VendorNotifData } from './components/topbar/vendorNotifCategories';
 
 export interface VendorClientNotifEntry {
   clientAuthId: string;
@@ -18,6 +19,8 @@ export interface VendorClientNotifEntry {
   email: string;
   count: number;
   latestAt: string;
+  /** Dernier message recu, tel qu il a ete ecrit. */
+  preview: string;
 }
 
 export interface ConfirmedProposalEntry {
@@ -36,6 +39,10 @@ interface VendorTopBarProps {
   onBackToAdmin?: () => void;
   unreadAdminCount?: number;
   unreadAdminLatestAt?: string | null;
+  unreadAdminPreview?: string;
+  /** Identite reelle du responsable. Jamais un UUID. */
+  adminName?: string;
+  adminSubtitle?: string;
   onAdminNotifClick?: () => void;
   unreadClientCount?: number;
   unreadClientEntries?: VendorClientNotifEntry[];
@@ -51,26 +58,45 @@ interface VendorTopBarProps {
   onConfirmedEntryClick?: (proposalId: string) => void;
   demoSlot?: React.ReactNode;
   demoStatus?: 'idle' | 'pending' | 'active';
+
+  // --- Personnalisation du hub Notifications -------------------------------
+  /** Reorganiser : personnalisation d'interface du titulaire du panel. */
+  canReorderNotifCards?: boolean;
+  /** Masquer : decide de ce qui existe. Talvex uniquement. */
+  canHideNotifCards?: boolean;
+  hiddenNotifCards?: Set<string>;
+  onToggleNotifCard?: (key: string) => void;
+  notifCardOrder?: string[];
+  notifCardLabels?: Record<string, string>;
+  notifReordering?: boolean;
+  onStartNotifReorder?: () => void;
+  onCancelNotifReorder?: () => void;
+  onConfirmNotifReorder?: () => void;
+  onMoveNotifDraft?: (from: number, to: number) => void;
+  onRenameNotifDraft?: (key: string, newLabel: string) => void;
+  onResetNotifDefault?: () => void;
 }
 
-export default function VendorTopBar({ breadcrumb, onMobileMenuToggle, vendorName = 'Vendeur', isImpersonating, onBackToAdmin, unreadAdminCount = 0, unreadAdminLatestAt, onAdminNotifClick, unreadClientCount = 0, unreadClientEntries = [], onClientEntryClick, agendaCount = 0, agendaEntries = [], onAgendaEntryClick, proposalsCount = 0, proposalsEntries = [], onProposalEntryClick, confirmedCount = 0, confirmedEntries = [], onConfirmedEntryClick, demoSlot, demoStatus = 'idle' }: VendorTopBarProps) {
+export default function VendorTopBar({
+  breadcrumb, onMobileMenuToggle, vendorName = 'Vendeur',
+  unreadAdminCount = 0, unreadAdminLatestAt, unreadAdminPreview = '',
+  adminName = 'Administrateur', adminSubtitle, onAdminNotifClick,
+  unreadClientCount = 0, unreadClientEntries = [], onClientEntryClick,
+  agendaCount = 0, agendaEntries = [], onAgendaEntryClick,
+  proposalsCount = 0, proposalsEntries = [], onProposalEntryClick,
+  confirmedCount = 0, confirmedEntries = [], onConfirmedEntryClick,
+  canReorderNotifCards, canHideNotifCards, hiddenNotifCards, onToggleNotifCard,
+  notifCardOrder, notifCardLabels, notifReordering,
+  onStartNotifReorder, onCancelNotifReorder, onConfirmNotifReorder,
+  onMoveNotifDraft, onRenameNotifDraft, onResetNotifDefault,
+}: VendorTopBarProps) {
   const { theme, setTheme } = useTheme();
   const tokens = useThemeTokens();
   const { timezone, tzLabel, tzCode, setTimezone } = useTimezone();
   const [tzModalOpen, setTzModalOpen] = useState(false);
-  const [adminDropdownOpen, setAdminDropdownOpen] = useState(false);
-  const [clientDropdownOpen, setClientDropdownOpen] = useState(false);
-  const [agendaDropdownOpen, setAgendaDropdownOpen] = useState(false);
-  const [proposDropdownOpen, setProposDropdownOpen] = useState(false);
-  const [confirmedDropdownOpen, setConfirmedDropdownOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [mobileNotifOpen, setMobileNotifOpen] = useState(false);
   const [mobileNotifCategory, setMobileNotifCategory] = useState<string | null>(null);
-  const adminDropdownRef = useRef<HTMLDivElement>(null);
-  const clientDropdownRef = useRef<HTMLDivElement>(null);
-  const agendaDropdownRef = useRef<HTMLDivElement>(null);
-  const proposDropdownRef = useRef<HTMLDivElement>(null);
-  const confirmedDropdownRef = useRef<HTMLDivElement>(null);
   const profileDropdownRef = useRef<HTMLDivElement>(null);
   const mobileNotifRef = useRef<HTMLDivElement>(null);
   const mobileNotifPanelRef = useRef<HTMLDivElement>(null);
@@ -83,21 +109,6 @@ export default function VendorTopBar({ breadcrumb, onMobileMenuToggle, vendorNam
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (adminDropdownRef.current && !adminDropdownRef.current.contains(e.target as Node)) {
-        setAdminDropdownOpen(false);
-      }
-      if (clientDropdownRef.current && !clientDropdownRef.current.contains(e.target as Node)) {
-        setClientDropdownOpen(false);
-      }
-      if (agendaDropdownRef.current && !agendaDropdownRef.current.contains(e.target as Node)) {
-        setAgendaDropdownOpen(false);
-      }
-      if (proposDropdownRef.current && !proposDropdownRef.current.contains(e.target as Node)) {
-        setProposDropdownOpen(false);
-      }
-      if (confirmedDropdownRef.current && !confirmedDropdownRef.current.contains(e.target as Node)) {
-        setConfirmedDropdownOpen(false);
-      }
       if (profileDropdownRef.current && !profileDropdownRef.current.contains(e.target as Node)) {
         setProfileDropdownOpen(false);
       }
@@ -110,13 +121,22 @@ export default function VendorTopBar({ breadcrumb, onMobileMenuToggle, vendorNam
   }, []);
 
   const clock = getCurrentTime(timezone);
-  const totalNotifCount = unreadAdminCount + unreadClientCount + agendaCount + proposalsCount + confirmedCount;
-  const badgeColors = { iconColor: tokens.topbar.notifIcon, iconHoverColor: tokens.topbar.notifIconHover, labelColor: tokens.topbar.notifLabel, labelHoverColor: tokens.topbar.notifLabelHover, hoverBg: tokens.surface.hover };
 
-  function handleNotifItemClick() {
-    setAdminDropdownOpen(false);
-    onAdminNotifClick?.();
-  }
+  // Source unique des cinq categories : desktop et mobile lisent la meme chose.
+  const notifData: VendorNotifData = {
+    unreadAdminCount, unreadAdminLatestAt, unreadAdminPreview,
+    adminName, adminSubtitle, onAdminNotifClick,
+    unreadClientCount, unreadClientEntries, onClientEntryClick,
+    agendaCount, agendaEntries, onAgendaEntryClick,
+    proposalsCount, proposalsEntries, onProposalEntryClick,
+    confirmedCount, confirmedEntries, onConfirmedEntryClick,
+  };
+  const cards = vendorNotifCards(notifData);
+  // Une categorie masquee ne doit pas gonfler la pastille : elle n'existe pas
+  // pour ce niveau.
+  const totalNotifCount = cards
+    .filter(c => !hiddenNotifCards?.has(c.key))
+    .reduce((sum, c) => sum + c.count, 0);
 
   return (
     <div className="flex-shrink-0">
@@ -150,60 +170,33 @@ export default function VendorTopBar({ breadcrumb, onMobileMenuToggle, vendorNam
           category={mobileNotifCategory}
           setCategory={setMobileNotifCategory}
           totalNotifCount={totalNotifCount}
-          unreadAdminCount={unreadAdminCount}
-          unreadAdminLatestAt={unreadAdminLatestAt}
-          onAdminNotifClick={() => { handleNotifItemClick(); }}
-          unreadClientCount={unreadClientCount}
-          unreadClientEntries={unreadClientEntries}
-          onClientEntryClick={onClientEntryClick}
-          agendaCount={agendaCount}
-          agendaEntries={agendaEntries}
-          onAgendaEntryClick={onAgendaEntryClick}
-          proposalsCount={proposalsCount}
-          proposalsEntries={proposalsEntries}
-          onProposalEntryClick={onProposalEntryClick}
-          confirmedCount={confirmedCount}
-          confirmedEntries={confirmedEntries}
-          onConfirmedEntryClick={onConfirmedEntryClick}
+          cards={cards}
+          cardOrder={notifCardOrder}
+          cardLabels={notifCardLabels}
+          hiddenCards={hiddenNotifCards}
+          data={notifData}
           timezone={timezone}
           tokens={tokens}
           containerRef={mobileNotifRef}
           panelRef={mobileNotifPanelRef}
         />
 
-        <VendorDesktopNotifPill
-          adminDropdownOpen={adminDropdownOpen}
-          setAdminDropdownOpen={setAdminDropdownOpen}
-          clientDropdownOpen={clientDropdownOpen}
-          setClientDropdownOpen={setClientDropdownOpen}
-          agendaDropdownOpen={agendaDropdownOpen}
-          setAgendaDropdownOpen={setAgendaDropdownOpen}
-          proposDropdownOpen={proposDropdownOpen}
-          setProposDropdownOpen={setProposDropdownOpen}
-          confirmedDropdownOpen={confirmedDropdownOpen}
-          setConfirmedDropdownOpen={setConfirmedDropdownOpen}
-          adminDropdownRef={adminDropdownRef}
-          clientDropdownRef={clientDropdownRef}
-          agendaDropdownRef={agendaDropdownRef}
-          proposDropdownRef={proposDropdownRef}
-          confirmedDropdownRef={confirmedDropdownRef}
-          unreadAdminCount={unreadAdminCount}
-          unreadAdminLatestAt={unreadAdminLatestAt}
-          onAdminNotifClick={handleNotifItemClick}
-          unreadClientCount={unreadClientCount}
-          unreadClientEntries={unreadClientEntries}
-          onClientEntryClick={onClientEntryClick}
-          agendaCount={agendaCount}
-          agendaEntries={agendaEntries}
-          onAgendaEntryClick={onAgendaEntryClick}
-          proposalsCount={proposalsCount}
-          proposalsEntries={proposalsEntries}
-          onProposalEntryClick={onProposalEntryClick}
-          confirmedCount={confirmedCount}
-          confirmedEntries={confirmedEntries}
-          onConfirmedEntryClick={onConfirmedEntryClick}
+        <VendorNotificationsHub
+          {...notifData}
           tokens={tokens}
-          badgeColors={badgeColors}
+          canReorderNotifCards={canReorderNotifCards}
+          canHideNotifCards={canHideNotifCards}
+          hiddenNotifCards={hiddenNotifCards}
+          onToggleNotifCard={onToggleNotifCard}
+          notifCardOrder={notifCardOrder}
+          notifCardLabels={notifCardLabels}
+          notifReordering={notifReordering}
+          onStartNotifReorder={onStartNotifReorder}
+          onCancelNotifReorder={onCancelNotifReorder}
+          onConfirmNotifReorder={onConfirmNotifReorder}
+          onMoveNotifDraft={onMoveNotifDraft}
+          onRenameNotifDraft={onRenameNotifDraft}
+          onResetNotifDefault={onResetNotifDefault}
         />
 
         <VendorClockButton tzLabel={tzLabel} tzCode={tzCode} clock={clock} onClick={() => setTzModalOpen(true)} />

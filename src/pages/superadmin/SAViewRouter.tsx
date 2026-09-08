@@ -33,6 +33,7 @@ interface Props {
   handleConnectAsAdmin: (admin: AdminUser) => void;
   handleConnectAsCompanySuperAdmin: (sa: CompanySuperAdmin) => void;
   handleOpenChatAdmin: (admin: AdminUser) => void;
+  handleOpenChatCSA: (sa: CompanySuperAdmin) => void;
   cachedAdmins: AdminUser[];
   adminsRefreshing: boolean;
   adminsError: string;
@@ -57,6 +58,7 @@ export default function SAViewRouter({
   handleConnectAsAdmin,
   handleConnectAsCompanySuperAdmin,
   handleOpenChatAdmin,
+  handleOpenChatCSA,
   cachedAdmins,
   adminsRefreshing,
   adminsError,
@@ -74,7 +76,7 @@ export default function SAViewRouter({
 }: Props) {
   switch (activeView) {
     case 'dashboard': return <SADashboard onNavigate={handleNavigate} onNavigateToAudit={() => { setDocInitialTab('audit-technique'); setDocKey(k => k + 1); setActiveView('documentation-crm'); }} adminCount={cachedAdmins.length} adminsLoading={adminsRefreshing && cachedAdmins.length === 0} />;
-    case 'super-admins': return <SASuperAdmins onConnectAsCompanySuperAdmin={handleConnectAsCompanySuperAdmin} />;
+    case 'super-admins': return <SASuperAdmins onConnectAsCompanySuperAdmin={handleConnectAsCompanySuperAdmin} onOpenChat={handleOpenChatCSA} />;
     case 'admins': return <SAAdmins onConnectAsAdmin={handleConnectAsAdmin} onOpenChat={handleOpenChatAdmin} cachedAdmins={cachedAdmins} refreshing={adminsRefreshing} cachedError={adminsError} onRefresh={fetchAdminsCache} />;
     case 'chat-admin': return null;
     case 'documentation-crm': return <div className="p-3 sm:p-4 md:p-6 flex flex-col h-full min-h-0"><DocumentationCrm key={docKey} initialTab={docInitialTab} onInitialTabConsumed={() => setDocInitialTab(undefined)} /></div>;

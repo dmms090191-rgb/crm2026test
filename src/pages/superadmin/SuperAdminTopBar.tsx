@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ChevronRight, Menu, Clock, MessageSquare, Smartphone, Paintbrush } from 'lucide-react';
+import { ChevronRight, Menu, Clock, Smartphone, Paintbrush } from 'lucide-react';
 import { useTimezone } from '../../hooks/useTimezone';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
 import { getCurrentTime } from '../../lib/timezone';
@@ -11,16 +11,19 @@ import { useEditorModeSafe } from '../../contexts/EditorModeContext';
 import { useVCElement } from '../../components/visualCustomize/useVCElement';
 
 import type { AdminNotifEntry } from '../../hooks/useUnreadSuperAdminMessages';
+import MessageBubblePopover from '../../components/notifications/MessageBubblePopover';
+import { conversationIdentity } from '../../components/notifications/notifIdentity';
+import MessagesBubbleTrigger from '../../components/notifications/MessagesBubbleTrigger';
 
 const viewLabels: Record<string, string> = {
-  dashboard: 'Dashboard RA', 'super-admins': 'Liste Super Admins RA', admins: 'Liste admins RA', 'chat-admin': 'Chat Admin RA',
-  'documentation-crm': 'Documentation CRM RA', system: 'System RA', sauvegarde: 'Sauvegarde & restauration RA',
-  'mon-compte': 'Mon compte RA', 'tests-systeme': 'Tests Systeme RA', 'crm-societe': 'CRM Societe RA',
-  statuts: 'Statuts RA', 'api-ia': 'API IA RA', 'cerveau-ia': 'Cerveau IA SA RA', sites: 'Sites & Domaines RA',
-  'fonctions-talvex': 'Fonctions Talvex RA', 'site-talvex': 'Site RA', application: 'Application RA',
-  logo: 'Logo RA', ameliorations: 'Ameliorations RA', tuto: 'Tuto RA', themes: 'Gestion themes RA', 'editeur-ia': 'Editeur IA RA',
-  'calquer-logo': 'Calquer logo RA',
-  'mes-logos-ra': 'Mes logos RA',
+  dashboard: 'Dashboard', 'super-admins': 'Liste des groupes', admins: 'Liste admins', 'chat-admin': 'Chat Groupes',
+  'documentation-crm': 'Documentation CRM', system: 'Système', sauvegarde: 'Sauvegarde & restauration',
+  'mon-compte': 'Accès & sécurité', 'tests-systeme': 'Tests Système', 'crm-societe': 'CRM Sociétés',
+  statuts: 'Statuts', 'api-ia': 'API IA', 'cerveau-ia': 'Cerveau IA Talvex', sites: 'Sites & Domaines',
+  'fonctions-talvex': 'Fonctions Talvex', 'site-talvex': 'Site', application: 'Application',
+  logo: 'Logo', ameliorations: 'Améliorations', tuto: 'Tuto', themes: 'Gestion des thèmes', 'editeur-ia': 'Éditeur IA',
+  'calquer-logo': 'Calquer logo',
+  'mes-logos-ra': 'Mes logos',
 };
 
 interface SuperAdminTopBarProps {
@@ -88,7 +91,7 @@ export default function SuperAdminTopBar({ activeView, onMobileMenuToggle, unrea
               <Menu className="w-5 h-5" />
             </button>
           )}
-          <span className="text-xs hidden md:inline" style={{ color: vcBreadcrumb.style?.color ?? t.topbar.breadcrumbPrefix }}>ROIS ADMIN</span>
+          <span className="text-xs hidden md:inline" style={{ color: vcBreadcrumb.style?.color ?? t.topbar.breadcrumbPrefix }}>TALVEX ADMINISTRATEUR</span>
           <ChevronRight className="w-3 h-3 hidden md:block" style={{ color: vcBreadcrumb.style?.color ?? t.topbar.border }} />
           <span className="hidden md:inline text-sm font-semibold truncate" style={{ color: vcBreadcrumb.style?.color ?? t.topbar.breadcrumbText }}>
             {viewLabels[activeView] || 'Dashboard'}
@@ -98,24 +101,13 @@ export default function SuperAdminTopBar({ activeView, onMobileMenuToggle, unrea
         <div className="flex items-center gap-1 sm:gap-2 min-w-0">
           {/* Admin messages */}
           <div className="relative flex-shrink-0" ref={msgDropdownRef}>
-            <button
-              ref={vcAdminMsg.ref}
+            <MessagesBubbleTrigger
+              count={unreadAdminMsgCount}
               onClick={() => setMsgDropdownOpen(prev => !prev)}
-              className="relative flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-xl transition-all duration-200"
-              style={{
-                background: unreadAdminMsgCount > 0 ? 'rgba(245,158,11,0.1)' : 'rgba(245,158,11,0.04)',
-                border: `1px solid ${unreadAdminMsgCount > 0 ? 'rgba(245,158,11,0.25)' : 'rgba(245,158,11,0.1)'}`,
-                ...vcAdminMsg.style,
-              }}
-            >
-              <MessageSquare className="w-4 h-4 flex-shrink-0" style={{ color: vcAdminMsg.style?.color ?? (unreadAdminMsgCount > 0 ? '#f59e0b' : t.topbar.breadcrumbPrefix) }} />
-              <span className="text-[11px] font-medium hidden sm:inline" style={{ color: vcAdminMsg.style?.color ?? (unreadAdminMsgCount > 0 ? '#f59e0b' : t.topbar.breadcrumbPrefix) }}>Admin</span>
-              {unreadAdminMsgCount > 0 && (
-                <span className="min-w-[18px] h-[18px] flex items-center justify-center rounded-full text-[10px] font-bold text-white px-1 flex-shrink-0" style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)', boxShadow: '0 0 8px rgba(245,158,11,0.4)' }}>
-                  {unreadAdminMsgCount > 99 ? '99+' : unreadAdminMsgCount}
-                </span>
-              )}
-            </button>
+              mutedColor={t.topbar.breadcrumbPrefix}
+              innerRef={vcAdminMsg.ref}
+              vcStyle={vcAdminMsg.style}
+            />
             {msgDropdownOpen && (
               <AdminMsgDropdown
                 entries={unreadAdminMsgEntries}
@@ -197,41 +189,28 @@ export default function SuperAdminTopBar({ activeView, onMobileMenuToggle, unrea
 }
 
 function AdminMsgDropdown({ entries, onEntryClick, t }: { entries: AdminNotifEntry[]; onEntryClick: (e: AdminNotifEntry) => void; t: ReturnType<typeof useThemeTokens> }) {
-  const dd = t.dropdown;
   return (
-    <div className="fixed right-3 left-3 sm:left-auto sm:absolute sm:right-0 sm:w-72 top-14 sm:top-full sm:mt-2 rounded-xl overflow-hidden z-50"
-      style={{ background: dd.bg, border: `1px solid ${dd.border}`, boxShadow: dd.shadow, backdropFilter: 'blur(16px)' }}>
-      <div className="px-3 py-2" style={{ borderBottom: `1px solid ${dd.border}` }}>
-        <p className="text-xs font-semibold" style={{ color: dd.itemText }}>Messages Admin</p>
-      </div>
-      <div className="max-h-64 overflow-y-auto py-1">
-        {entries.length === 0 ? (
-          <p className="px-3 py-3 text-xs text-center" style={{ color: dd.itemText }}>Aucun message non lu</p>
-        ) : entries.map(entry => {
-          const name = [entry.firstName, entry.lastName].filter(Boolean).join(' ');
-          return (
-            <button key={entry.adminId} onClick={() => onEntryClick(entry)}
-              className="w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors duration-150 hover:opacity-80"
-              style={{ background: 'transparent' }}
-              onMouseEnter={e => { e.currentTarget.style.background = dd.itemBgHover; }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}>
-              <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0"
-                style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}>
-                {(entry.firstName || entry.email || '?').charAt(0).toUpperCase()}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium whitespace-normal break-words" style={{ color: dd.itemText }}>
-                  {name ? `L'admin ${name} vous a envoye un message.` : 'Un admin vous a envoye un message.'}
-                </p>
-                <p className="text-[10px] mt-0.5 truncate" style={{ color: dd.itemTextHover }}>
-                  {entry.count} message{entry.count > 1 ? 's' : ''} non lu{entry.count > 1 ? 's' : ''}
-                </p>
-              </div>
-            </button>
-          );
-        })}
-      </div>
-    </div>
+    <MessageBubblePopover
+      entries={entries.map(e => {
+        // Meme regle que le panel Groupe : responsable en ligne 1, entite en
+        // ligne 2. Le mot de dernier recours suit la nature de l'expediteur.
+        const who = conversationIdentity(
+          { first_name: e.firstName, last_name: e.lastName, company: e.company, email: e.email },
+          {},
+          e.senderKind === 'company_super_admin' ? 'Groupe' : 'Société',
+        );
+        return {
+          id: e.adminId,
+          name: who.name,
+          subtitle: who.subtitle,
+          preview: e.preview,
+          at: e.latestAt,
+          unread: e.count,
+        };
+      })}
+      onEntryClick={id => { const found = entries.find(x => x.adminId === id); if (found) onEntryClick(found); }}
+      tokens={t}
+    />
   );
 }
 

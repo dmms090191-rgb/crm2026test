@@ -1,4 +1,4 @@
-import { Building2, Shield, Mail } from 'lucide-react';
+import { Building2, Mail } from 'lucide-react';
 import type { ImpersonatedCompanySuperAdmin } from '../../App';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
 
@@ -11,16 +11,15 @@ export default function CSAOverview({ impersonated, fullName }: Props) {
   const t = useThemeTokens();
 
   const statsCards = [
-    { icon: Building2, label: 'Societe', value: impersonated.company, color: t.accent.text, bg: t.accent.bg, border: t.accent.border },
-    { icon: Shield, label: 'Role', value: 'SUPER ADMIN', color: t.accent.text, bg: t.accent.bg, border: t.accent.border },
+    { icon: Building2, label: 'Groupe', value: impersonated.company, color: t.accent.text, bg: t.accent.bg, border: t.accent.border },
     { icon: Mail, label: 'Email', value: impersonated.email, color: t.success.text, bg: t.success.bg, border: t.success.border },
   ];
 
   return (
     <div className="p-4 md:p-8 space-y-4 md:space-y-6 max-w-5xl">
       <div>
-        <h2 className="text-lg md:text-2xl font-bold" style={{ color: t.text.primary }}>Dashboard Super Admin</h2>
-        <p className="text-xs md:text-sm mt-0.5 md:mt-1" style={{ color: t.text.tertiary }}>Vue globale de votre societe.</p>
+        <h2 className="text-lg md:text-2xl font-bold" style={{ color: t.text.primary }}>Dashboard Groupe</h2>
+        <p className="text-xs md:text-sm mt-0.5 md:mt-1" style={{ color: t.text.tertiary }}>Vue globale de votre groupe.</p>
       </div>
 
       <div className="rounded-2xl p-5 sm:p-6" style={{
@@ -65,14 +64,13 @@ export default function CSAOverview({ impersonated, fullName }: Props) {
         border: `1px solid ${t.surface.border}`,
       }}>
         <div className="px-5 py-3" style={{ borderBottom: `1px solid ${t.surface.border}` }}>
-          <h3 className="text-sm font-bold" style={{ color: t.text.primary }}>Informations du compte</h3>
+          <h3 className="text-sm font-bold" style={{ color: t.text.primary }}>Informations du groupe</h3>
         </div>
         <div className="divide-y" style={{ borderColor: t.surface.border }}>
           {[
             ['Nom complet', fullName],
-            ['Societe', impersonated.company],
+            ['Groupe', impersonated.company],
             ['Email', impersonated.email],
-            ['Role', 'SUPER ADMIN'],
           ].map(([label, value]) => (
             <div key={label} className="flex items-center justify-between px-5 py-3.5">
               <span className="text-xs font-medium" style={{ color: t.text.tertiary }}>{label}</span>

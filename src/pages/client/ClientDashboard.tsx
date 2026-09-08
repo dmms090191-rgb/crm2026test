@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import ClientSidebar from './ClientSidebar';
 import ClientTopBar from './ClientTopBar';
+import { useClientConseiller } from '../../hooks/useClientConseiller';
 import ClientVueEnsemble from './views/ClientVueEnsemble';
 import ClientMessagerie from './views/ClientMessagerie';
 import ClientAgenda from './views/ClientAgenda';
@@ -58,7 +59,11 @@ export default function ClientDashboard({ onLogout, impersonatedClient, onBackTo
   const [clientName, setClientName] = useState('Client');
   const [clientEmail, setClientEmail] = useState('');
   const [clientAuthId, setClientAuthId] = useState('');
-  const { unreadCount: unreadMsgCount, latestAt: unreadLatestAt, markAsRead: markMsgRead } = useUnreadAdminMessages(clientAuthId);
+  const { unreadCount: unreadMsgCount, latestAt: unreadLatestAt, latestContent: unreadPreview, markAsRead: markMsgRead } = useUnreadAdminMessages(clientAuthId);
+  // MEME identite que l ecran Support : vendeur si le lead en a un, sinon le
+  // responsable de la Societe (companies.admin_first_name / admin_last_name).
+  const { conseiller } = useClientConseiller(clientAuthId || null);
+  const unreadSenderName = conseiller ? [conseiller.firstName, conseiller.lastName].filter(Boolean).join(' ') : '';
   const { notifications: agendaNotifs, count: agendaCount, markAsSeen: markAgendaSeen } = useAgendaNotifications('client', clientEmail || null);
   const { unseenProposals, handleProposalNotifClick, markProposalsSeen } = useClientUnseenProposals(clientEmail);
   const isWellnessClient = useIsWellnessClient(clientEmail);
@@ -173,6 +178,8 @@ export default function ClientDashboard({ onLogout, impersonatedClient, onBackTo
           clientName={clientName}
           unreadMessageCount={unreadMsgCount}
           unreadLatestAt={unreadLatestAt}
+          unreadSenderName={unreadSenderName}
+          unreadPreview={unreadPreview}
           onMessageNotifClick={handleMsgNotifClick}
           agendaCount={agendaCount}
           agendaEntries={agendaNotifs}

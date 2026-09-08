@@ -1,5 +1,7 @@
-import { ClientNotifItem, VendorNotifItem, AgendaNotifItem, AgendaEquipeNotifItem, ProposalNotifItem, ConfirmedProposalItem, DropdownEmpty } from './index';
+import type { SuperAdminNotifEntry } from '../../../../hooks/useUnreadFromSuperAdmin';
+import { ClientNotifItem, AgendaNotifItem, AgendaEquipeNotifItem, ProposalNotifItem, ConfirmedProposalItem, DropdownEmpty } from './index';
 import { RescheduleResponseItem, RescheduleRequestItem, SuperAdminNotifItem } from './NotificationItems';
+import { BubbleRow } from '../../../../components/notifications/MessageBubblePopover';
 import type { NotifCategory } from './AdminNotificationCards';
 import type { ClientNotifEntry, VendorNotifEntry, ConfirmedProposalEntry } from '../../TopBar';
 import type { ProposalNotifEntry } from '../../dashboard/useAdminProposalNotifs';
@@ -33,8 +35,15 @@ interface Props {
   rescheduleRequestCount: number;
   rescheduleRequestEntries: ProposalNotifEntry[];
   onRescheduleRequestEntryClick?: (proposalId: string) => void;
+  superAdminName?: string;
+  /** Ligne secondaire, ex. « Groupe : Willness ». */
+  superAdminSubtitle?: string;
+  superAdminPreview?: string;
+  superAdminAt?: string;
   unreadSuperAdminCount: number;
-  onSuperAdminClick?: () => void;
+  unreadSuperAdminMessages?: number;
+  onSuperAdminClick?: (superAdminId?: string) => void;
+  superAdminEntries?: SuperAdminNotifEntry[];
   tokens: ThemeTokens;
   onClose: () => void;
 }
@@ -53,14 +62,35 @@ export default function AdminNotificationDetail({ category, tokens: t, onClose, 
     case 'vendeur':
       return p.unreadVendorEntries.length === 0
         ? <DropdownEmpty text="Aucun nouveau message" tokens={t} />
+        // Une ligne par COMMERCIAL : lire l un ne touche jamais les autres.
         : <>{p.unreadVendorEntries.map(e => (
-            <VendorNotifItem key={e.vendorId} entry={e} tokens={d} onClick={() => { p.onVendorEntryClick?.(e); onClose(); }} />
+            <BubbleRow
+              key={e.vendorId}
+              name={[e.firstName, e.lastName].filter(Boolean).join(' ') || e.email || 'Commercial'}
+              preview={e.preview}
+              at={e.latestAt}
+              unread={e.count}
+              d={d}
+              onClick={() => { p.onVendorEntryClick?.(e); onClose(); }}
+            />
           ))}</>;
 
+    // Tout ce qui vient du dessus de la Societe : Groupe parent, et le cas
+    // echeant Talvex. Une ligne par CONVERSATION, chacune nommant deja son
+    // expediteur reel — le panel Societe n affiche qu une categorie.
     case 'super-admin':
       return p.unreadSuperAdminCount === 0
-        ? <DropdownEmpty text="Aucun nouveau message du Super Admin" tokens={t} />
-        : <SuperAdminNotifItem count={p.unreadSuperAdminCount} tokens={d} onClick={() => { p.onSuperAdminClick?.(); onClose(); }} />;
+        ? <DropdownEmpty text="Aucun nouveau message de votre Direction" tokens={t} />
+        : (p.superAdminEntries && p.superAdminEntries.length > 0
+            ? <>{p.superAdminEntries.map(e => (
+                <SuperAdminNotifItem key={e.superAdminId} count={e.count} name={e.name}
+                  subtitle={e.subtitle} preview={e.preview} at={e.latestAt} tokens={d}
+                  onClick={() => { p.onSuperAdminClick?.(e.superAdminId); onClose(); }} />
+              ))}</>
+            : <SuperAdminNotifItem count={p.unreadSuperAdminMessages ?? p.unreadSuperAdminCount}
+                name={p.superAdminName ?? ''} subtitle={p.superAdminSubtitle}
+                preview={p.superAdminPreview ?? ''} at={p.superAdminAt ?? ''} tokens={d}
+                onClick={() => { p.onSuperAdminClick?.(); onClose(); }} />);
 
     case 'agenda':
       return p.agendaPersoEntries.length === 0

@@ -61,6 +61,11 @@ interface Props {
   rescheduleRequestEntries?: ProposalNotifEntry[];
   onRescheduleRequestEntryClick?: (proposalId: string) => void;
   unreadSuperAdminCount?: number;
+  superAdminName?: string;
+  /** Ligne secondaire, ex. « Groupe : Willness ». */
+  superAdminSubtitle?: string;
+  superAdminPreview?: string;
+  superAdminAt?: string;
   onSuperAdminClick?: () => void;
   tokens: ThemeTokens;
 }
@@ -84,7 +89,7 @@ export default function AdminDesktopNotifPill({
   confirmedCount, confirmedEntries, onConfirmedEntryClick,
   rescheduleCount, rescheduleEntries, onRescheduleEntryClick,
   rescheduleRequestCount = 0, rescheduleRequestEntries = [], onRescheduleRequestEntryClick,
-  unreadSuperAdminCount = 0, onSuperAdminClick,
+  unreadSuperAdminCount = 0, superAdminName = '', superAdminSubtitle = '', superAdminPreview = '', superAdminAt = '', onSuperAdminClick,
   tokens: t,
 }: Props) {
   const ic = t.topbar.notifIcon;
@@ -94,7 +99,7 @@ export default function AdminDesktopNotifPill({
   const hb = t.surface.hover;
 
   const overflowItems: OverflowItem[] = [
-    { key: 'super-admin', icon: <Shield className="w-4 h-4" />, label: 'Super Admin', count: unreadSuperAdminCount, onClick: () => { onSuperAdminClick?.(); setSuperAdminDropdownOpen(false); } },
+    { key: 'super-admin', icon: <Shield className="w-4 h-4" />, label: 'Chat Direction', count: unreadSuperAdminCount, onClick: () => { onSuperAdminClick?.(); setSuperAdminDropdownOpen(false); } },
     { key: 'equipe', icon: <CalendarDays className="w-4 h-4" />, label: 'Agenda equipe', count: agendaEquipeCount, onClick: () => setEquipeDropdownOpen((p: boolean) => !p) },
     { key: 'decalages', icon: <RefreshCw className="w-4 h-4" />, label: 'Decalages', count: rescheduleCount, onClick: () => setRescheduleDropdownOpen((p: boolean) => !p) },
     { key: 'demandes-decalage', icon: <RefreshCw className="w-4 h-4" />, label: 'Demandes decalage', count: rescheduleRequestCount, onClick: () => setRescheduleReqDropdownOpen((p: boolean) => !p) },
@@ -152,8 +157,8 @@ export default function AdminDesktopNotifPill({
       {/* SECONDARY: visible only on xl+, otherwise in overflow menu */}
       <div className="hidden xl:contents">
         <Dot color={t.topbar.notifDivider} />
-        <NotifDropdownSection dropdownRef={superAdminDropdownRef} open={superAdminDropdownOpen} setOpen={setSuperAdminDropdownOpen} icon={<Shield className="w-[15px] h-[15px]" />} label="Super Admin" count={unreadSuperAdminCount} iconColor={ic} iconHoverColor="#f59e0b" labelColor={lc} labelHoverColor="#f59e0b" hoverBg={hb} headerLabel="Notifications Super Admin" emptyText="Aucun nouveau message du Super Admin." tokens={t}>
-          <SuperAdminNotifItem count={unreadSuperAdminCount} tokens={t.dropdown} onClick={() => { setSuperAdminDropdownOpen(false); onSuperAdminClick?.(); }} />
+        <NotifDropdownSection dropdownRef={superAdminDropdownRef} open={superAdminDropdownOpen} setOpen={setSuperAdminDropdownOpen} icon={<Shield className="w-[15px] h-[15px]" />} label="Chat Direction" count={unreadSuperAdminCount > 0 ? 1 : 0} iconColor={ic} iconHoverColor="#f59e0b" labelColor={lc} labelHoverColor="#f59e0b" hoverBg={hb} headerLabel="Chat Direction" emptyText="Aucun nouveau message de votre Direction." tokens={t}>
+          <SuperAdminNotifItem count={unreadSuperAdminCount} name={superAdminName} subtitle={superAdminSubtitle} preview={superAdminPreview} at={superAdminAt} tokens={t.dropdown} onClick={() => { setSuperAdminDropdownOpen(false); onSuperAdminClick?.(); }} />
         </NotifDropdownSection>
 
         <Dot color={t.topbar.notifDivider} />

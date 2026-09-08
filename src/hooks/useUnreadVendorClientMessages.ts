@@ -9,6 +9,8 @@ export interface VendorClientNotifEntry {
   email: string;
   count: number;
   latestAt: string;
+  /** Dernier message recu, tel qu il a ete ecrit. Jamais une phrase generique. */
+  preview: string;
 }
 
 export function useUnreadVendorClientMessages(vendorDbId: string | null) {
@@ -29,7 +31,7 @@ export function useUnreadVendorClientMessages(vendorDbId: string | null) {
 
     const { data: msgs } = await supabase
       .from('client_messages')
-      .select('client_auth_id, created_at')
+      .select('client_auth_id, created_at, content')
       .eq('sender', 'client')
       .eq('read', false)
       .eq('deleted', false)
@@ -41,14 +43,18 @@ export function useUnreadVendorClientMessages(vendorDbId: string | null) {
       return;
     }
 
-    const grouped = new Map<string, { count: number; latestAt: string }>();
+    const grouped = new Map<string, { count: number; latestAt: string; preview: string }>();
     for (const m of msgs) {
       const existing = grouped.get(m.client_auth_id);
       if (!existing) {
-        grouped.set(m.client_auth_id, { count: 1, latestAt: m.created_at });
+        grouped.set(m.client_auth_id, { count: 1, latestAt: m.created_at, preview: m.content ?? '' });
       } else {
         existing.count++;
-        if (m.created_at > existing.latestAt) existing.latestAt = m.created_at;
+        // Le plus recent gagne : l apercu montre bien le DERNIER message.
+        if (m.created_at > existing.latestAt) {
+          existing.latestAt = m.created_at;
+          existing.preview = m.content ?? '';
+        }
       }
     }
 
@@ -72,13 +78,15 @@ export function useUnreadVendorClientMessages(vendorDbId: string | null) {
           email: lead.email ?? lead.data?.['Email'] ?? lead.data?.['email'] ?? '',
           count: g.count,
           latestAt: g.latestAt,
+          preview: g.preview,
         });
       }
     }
 
     entries.sort((a, b) => b.latestAt.localeCompare(a.latestAt));
     setUnreadEntries(entries);
-    setUnreadCount(entries.reduce((acc, e) => acc + e.count, 0));
+    // Badge = nombre de CONVERSATIONS non lues.
+    setUnreadCount(entries.length);
   }, [vendorDbId]);
 
   useEffect(() => { load(); }, [load]);
@@ -101,7 +109,7 @@ export function useUnreadVendorClientMessages(vendorDbId: string | null) {
     setUnreadEntries(prev => prev.filter(e => e.clientAuthId !== clientAuthId));
     setUnreadCount(prev => {
       const entry = unreadEntries.find(e => e.clientAuthId === clientAuthId);
-      return Math.max(0, prev - (entry?.count ?? 0));
+      return Math.max(0, prev - (entry ? 1 : 0));
     });
 
     await supabase

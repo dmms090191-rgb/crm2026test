@@ -10,15 +10,29 @@ export interface VisuStackEntry {
 }
 
 const ROLE_LABELS: Record<VisuRole, string> = {
-  super_admin: 'Rois Admin',
-  company_super_admin: 'Super Admin',
-  admin: 'Admin',
+  super_admin: 'Talvex Admin',
+  company_super_admin: 'Groupe',
+  admin: 'Société',
   vendor: 'Vendeur',
   client: 'Client',
 };
 
 export function visuRoleLabel(role: VisuRole): string {
   return ROLE_LABELS[role] ?? role;
+}
+
+// Libelles du badge Visu (origine de la pile) uniquement.
+// Volontairement separe de ROLE_LABELS, qui alimente le bouton Retour.
+const BADGE_ROLE_LABELS: Record<VisuRole, string> = {
+  super_admin: 'Talvex',
+  company_super_admin: 'Groupe',
+  admin: 'Société',
+  vendor: 'Vendeur',
+  client: 'Client',
+};
+
+function visuBadgeRoleLabel(role: VisuRole): string {
+  return BADGE_ROLE_LABELS[role] ?? role;
 }
 
 interface VisualizationContextValue {
@@ -70,7 +84,7 @@ export function VisualizationProvider({ children }: ProviderProps) {
   const stack = stackRef.current;
   const isActive = stack.length > 0;
   const originalRole = isActive ? stack[0].role : null;
-  const originalBadgeLabel = originalRole ? `Visu ${visuRoleLabel(originalRole)}` : null;
+  const originalBadgeLabel = originalRole ? `Visu ${visuBadgeRoleLabel(originalRole)}` : null;
   const prevEntry = stack.length >= 2 ? stack[stack.length - 1] : (stack.length === 1 ? stack[0] : null);
   const previousLevelLabel = prevEntry ? `Retour ${visuRoleLabel(prevEntry.role)}` : null;
 

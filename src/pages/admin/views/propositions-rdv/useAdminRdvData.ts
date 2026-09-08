@@ -15,7 +15,14 @@ const emptyForm = () => ({
   proposed_time: '10:00', motif: '', description: '', notes: '',
 });
 
-export function useAdminRdvData(initialLead?: RdvLeadRef | null, onInitialLeadConsumed?: () => void) {
+/** Instantane du formulaire de creation, le temps d aller choisir un contact. */
+export type RdvFormSnapshot = ReturnType<typeof emptyForm>;
+
+export function useAdminRdvData(
+  initialLead?: RdvLeadRef | null,
+  onInitialLeadConsumed?: () => void,
+  restoreForm?: RdvFormSnapshot | null,
+) {
   const { isSimulating } = useSimulation();
   const { timezone, userName } = useTimezone();
   const companyId = useCompanyId();
@@ -56,10 +63,12 @@ export function useAdminRdvData(initialLead?: RdvLeadRef | null, onInitialLeadCo
       const fullName = [initialLead.prenom, initialLead.nom].filter(Boolean).join(' ');
       setPendingLeadName(fullName);
       setPendingLeadId(initialLead.id);
+      // Le contact change, la saisie deja faite est rendue telle quelle.
+      if (restoreForm) setNewForm(restoreForm);
       setShowAdd(true);
       onInitialLeadConsumed?.();
     }
-  }, [initialLead, onInitialLeadConsumed]);
+  }, [initialLead, onInitialLeadConsumed, restoreForm]);
 
   const visibleRdvs = useMemo(() => getVisibleRdvProposals(rdvs), [rdvs]);
   const filtered = visibleRdvs.filter(r => {

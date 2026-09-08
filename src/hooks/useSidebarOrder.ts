@@ -1,7 +1,9 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import type { SidebarEntry, SidebarSection, SidebarSaveData } from '../lib/sidebarOrderTypes';
-import { sectionsToEntries, applyOrder, entriesToSaveData, entryKey } from '../lib/sidebarOrderTypes';
+import { sectionsToEntries, applyOrder, entriesToSaveData, entryKey, splitHiddenEntries, mergeHiddenEntries } from '../lib/sidebarOrderTypes';
+import type { HiddenSlot } from '../lib/sidebarOrderTypes';
 import { supabase } from '../lib/supabase';
+
 
 function scopeKey(role: string, companyId?: string | null): string {
   return companyId ? `${role}_${companyId}` : role;
@@ -55,6 +57,7 @@ async function saveToSupabase(targetUserId: string, scope: string, saveData: Sid
   );
 }
 
+
 interface UseSidebarOrderOptions {
   role: 'super_admin' | 'admin' | 'vendor' | 'company_super_admin';
   sections: SidebarSection[];
@@ -79,7 +82,7 @@ export function useSidebarOrder({ role, sections, userId, companyId, hiddenTabs 
   const [draftLabels, setDraftLabels] = useState<Record<string, string>>({});
   const draftRef = useRef<SidebarEntry[]>([]);
   const draftLabelsRef = useRef<Record<string, string>>({});
-  const hiddenEntriesRef = useRef<SidebarEntry[]>([]);
+  const hiddenEntriesRef = useRef<HiddenSlot[]>([]);
   draftRef.current = draft;
   draftLabelsRef.current = draftLabels;
 
@@ -93,7 +96,8 @@ export function useSidebarOrder({ role, sections, userId, companyId, hiddenTabs 
     defaultEntries.current = sectionsToEntries(sections);
     const saved = loadLocal(localKey);
     labelsRef.current = saved.labels;
-    setEntries(applyOrder(defaultEntries.current, saved));
+    const appliedLocal = applyOrder(defaultEntries.current, saved);
+    setEntries(appliedLocal);
 
     if (skipRemoteLoadRef.current) {
       skipRemoteLoadRef.current = false;
@@ -116,34 +120,9 @@ export function useSidebarOrder({ role, sections, userId, companyId, hiddenTabs 
   hiddenTabsRef.current = hiddenTabs;
 
   const startReorder = useCallback(() => {
-    const ht = hiddenTabsRef.current;
-    if (ht && ht.size > 0) {
-      const hidden: SidebarEntry[] = [];
-      const filtered: SidebarEntry[] = [];
-      for (const e of entries) {
-        if (e.kind === 'item' && ht.has(e.id)) { hidden.push(e); continue; }
-        filtered.push(e);
-      }
-      const cleaned: SidebarEntry[] = [];
-      for (let i = 0; i < filtered.length; i++) {
-        const cur = filtered[i];
-        if (cur.kind === 'section') {
-          const next = filtered[i + 1];
-          if (!next || next.kind === 'section' || next.kind === 'divider') continue;
-        }
-        if (cur.kind === 'divider') {
-          const next = filtered[i + 1];
-          if (!next || next.kind === 'divider') continue;
-        }
-        cleaned.push(cur);
-      }
-      if (cleaned.length > 0 && cleaned[cleaned.length - 1].kind === 'divider') cleaned.pop();
-      hiddenEntriesRef.current = hidden;
-      setDraft(cleaned);
-    } else {
-      hiddenEntriesRef.current = [];
-      setDraft([...entries]);
-    }
+    const { visible, hidden } = splitHiddenEntries(entries, hiddenTabsRef.current);
+    hiddenEntriesRef.current = hidden;
+    setDraft(visible);
     setDraftLabels({ ...labelsRef.current });
     setReordering(true);
   }, [entries]);
@@ -159,7 +138,8 @@ export function useSidebarOrder({ role, sections, userId, companyId, hiddenTabs 
     const currentDraft = draftRef.current;
     const currentLabels = draftLabelsRef.current;
     labelsRef.current = currentLabels;
-    const merged = [...currentDraft, ...hiddenEntriesRef.current];
+    // Les onglets masques reprennent LEUR place, pas la fin de la liste.
+    const merged = mergeHiddenEntries(currentDraft, hiddenEntriesRef.current);
     setEntries(merged);
     const saveData = entriesToSaveData(merged, currentLabels);
     saveLocal(localKey, saveData);
@@ -230,12 +210,18 @@ export function useSidebarOrder({ role, sections, userId, companyId, hiddenTabs 
   }, []);
 
   const addSection = useCallback((title: string) => {
-    setDraft(prev => [...prev, { kind: 'section' as const, title, _originalTitle: title } as SidebarEntry]);
+    setDraft(prev => {
+      const next = [...prev, { kind: 'section' as const, title, _originalTitle: title } as SidebarEntry];
+      return next;
+    });
   }, []);
 
   const addDivider = useCallback(() => {
     const id = `added_${Date.now()}`;
-    setDraft(prev => [...prev, { kind: 'divider' as const, afterSection: id }]);
+    setDraft(prev => {
+      const next = [...prev, { kind: 'divider' as const, afterSection: id }];
+      return next;
+    });
   }, []);
 
   const removeEntry = useCallback((idx: number) => {
@@ -243,7 +229,11 @@ export function useSidebarOrder({ role, sections, userId, companyId, hiddenTabs 
   }, []);
 
   const resetToDefault = useCallback(() => {
-    setDraft(sectionsToEntries(sections));
+    // Meme traitement que startReorder : les onglets masques sont retires du
+    // brouillon et mis de cote, pour etre reintegres par confirmReorder.
+    const { visible, hidden } = splitHiddenEntries(sectionsToEntries(sections), hiddenTabsRef.current);
+    hiddenEntriesRef.current = hidden;
+    setDraft(visible);
     setDraftLabels({});
   }, [sections]);
 

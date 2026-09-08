@@ -27,12 +27,14 @@ import { useVendorColumnConfig } from './crm/useVendorColumnConfig';
 export type { ImpersonatedClient, ChatLead } from './crm/types';
 
 interface CrmProps {
+  /** Id Auth de la Societe effective : proprietaire du reglage des actions. */
+  ownerUserId?: string | null;
   onConnectAsClient?: (client: ImpersonatedClient) => void;
   onOpenChat?: (lead: ChatLead) => void;
   onOpenRdv?: (lead: ChatLead) => void;
 }
 
-export default function Crm({ onConnectAsClient, onOpenChat, onOpenRdv }: CrmProps) {
+export default function Crm({ ownerUserId = null, onConnectAsClient, onOpenChat, onOpenRdv }: CrmProps) {
   const tokens = useThemeTokens();
   const { timezone } = useTimezone();
   const companyId = useCompanyId();
@@ -150,7 +152,7 @@ export default function Crm({ onConnectAsClient, onOpenChat, onOpenRdv }: CrmPro
                         statutDefs={d.statutDefs} vendors={d.vendors} tokens={tokens} timezone={timezone} colSep={colSep}
                         onToggle={d.toggleOne} onStatutChange={d.handleStatut} onToggleActif={d.handleToggleActif} onToggleAi={d.handleToggleAi}
                         onDetail={(l, idx, fromActions) => d.setDetailLead({ lead: l, index: idx, fromActions })}
-                        onConnectAsClient={onConnectAsClient} onOpenChat={onOpenChat} onOpenRdv={onOpenRdv}
+                        onConnectAsClient={onConnectAsClient} onOpenChat={onOpenChat} onOpenRdv={onOpenRdv} ownerUserId={ownerUserId}
                         selectMode={selectMode}
                         workModeEnabled={d.workMode.enabled} isWorkActive={d.workMode.activeId === lead.id}
                         onWorkSelect={d.workMode.select} onWorkUndo={d.workMode.undo} onWorkRedo={d.workMode.redo}
@@ -189,7 +191,7 @@ export default function Crm({ onConnectAsClient, onOpenChat, onOpenRdv }: CrmPro
                     onWorkSelect={d.workMode.select} onWorkUndo={d.workMode.undo} onWorkRedo={d.workMode.redo} onWorkReset={d.workMode.resetHistory}
                     onToggle={d.toggleOne} onStatutChange={d.handleStatut} onToggleActif={d.handleToggleActif} onToggleAi={d.handleToggleAi}
                     onDetail={(l, idx, fromActions) => d.setDetailLead({ lead: l, index: idx, fromActions })}
-                    onOpenChat={onOpenChat} onOpenRdv={onOpenRdv} onConnectAsClient={onConnectAsClient}
+                    onOpenChat={onOpenChat} onOpenRdv={onOpenRdv} onConnectAsClient={onConnectAsClient} ownerUserId={ownerUserId}
                     selectMode={selectMode}
                     cardRef={el => { if (el) d.cardRefsMap.current.set(lead.id, el); else d.cardRefsMap.current.delete(lead.id); }}
                   />
@@ -223,6 +225,7 @@ export default function Crm({ onConnectAsClient, onOpenChat, onOpenRdv }: CrmPro
             onConnect={() => { onConnectAsClient?.({ id: s.id, nom: s.nom, prenom: s.prenom, email: s.email }); setActionLeadModal(null); }}
             onChat={() => { onOpenChat?.(s); setActionLeadModal(null); }}
             onRdv={() => { onOpenRdv?.(s); setActionLeadModal(null); }}
+            ownerUserId={ownerUserId}
           />
         );
       })()}

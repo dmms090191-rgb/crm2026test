@@ -42,15 +42,22 @@ Deno.serve(async (req: Request) => {
     }
 
     const callerRole = caller.app_metadata?.role;
-    if (callerRole !== "super_admin") {
+
+    const { target_user_id, first_name, last_name, company, phone, email, password } =
+      await req.json();
+
+    // Talvex agit sur n importe quel Groupe ; un Groupe uniquement sur
+    // LUI-MEME. Le role et le company_id ne transitent jamais par cette
+    // fonction : un self-service ne peut donc pas elever ses droits.
+    const isSelfService =
+      callerRole === "company_super_admin" && target_user_id === caller.id;
+
+    if (callerRole !== "super_admin" && !isSelfService) {
       return new Response(
         JSON.stringify({ error: "Forbidden: super_admin role required" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-
-    const { target_user_id, first_name, last_name, email, password } =
-      await req.json();
 
     if (!target_user_id) {
       return new Response(
@@ -80,15 +87,35 @@ Deno.serve(async (req: Request) => {
 
     const updates: Record<string, unknown> = {};
 
-    if (first_name !== undefined || last_name !== undefined) {
+    // user_metadata est la SOURCE DE VERITE unique de ces quatre champs :
+    // list-company-super-admins, list-admins-for-super-admin et
+    // resolve-parent-super-admin les relisent tous depuis la. Aucun doublon.
+    if (
+      first_name !== undefined || last_name !== undefined ||
+      company !== undefined || phone !== undefined
+    ) {
       const meta = { ...targetUser.user.user_metadata };
       if (first_name !== undefined) meta.first_name = first_name;
       if (last_name !== undefined) meta.last_name = last_name;
+      if (company !== undefined) meta.company = company;
+      if (phone !== undefined) meta.phone = phone;
       updates.user_metadata = meta;
     }
 
-    if (email) {
-      updates.email = email;
+    if (typeof email === "string" && email.trim()) {
+      const next = email.trim().toLowerCase();
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(next)) {
+        return new Response(
+          JSON.stringify({ error: "Email invalide" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      if (next !== (targetUser.user.email ?? "").toLowerCase()) {
+        updates.email = next;
+        // Sans ceci le nouvel email peut rester non confirme, donc
+        // inutilisable pour se connecter.
+        updates.email_confirm = true;
+      }
     }
 
     if (password) {
