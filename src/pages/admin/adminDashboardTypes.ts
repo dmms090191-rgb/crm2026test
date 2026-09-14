@@ -50,4 +50,5 @@ export type ActiveView =
   | 'tuto'
   | 'editeur-ia'
   | 'calquer-logo'
-  | 'mes-logos-ra';
+  | 'mes-logos-ra'
+  | 'boutique';
