@@ -1,0 +1,1030 @@
+/* ---- AUCUNE REGLE GLOBALE DANS CE FICHIER ----
+   Les quatre regles qui vivaient ici — `*`, `html, body, #root`, `body` et `canvas` — visaient
+   la PAGE. Elles sont parties dans `standalone.css`, importe par le seul `main.jsx`. Montee
+   dans une autre application, la boutique aurait sinon repeint son hote en noir et change sa
+   typographie ; et comme une feuille arrive par un import a effet de bord, le defaut aurait
+   survecu a la fermeture de la boutique jusqu'au rechargement de la page.
+   Tout ce qui suit descend de `.boutique3d`. Le cadre porte donc lui-meme ce que `body`
+   portait : la police, la couleur du texte et le fond. */
+.boutique3d, .boutique3d *, .boutique3d *::before, .boutique3d *::after { box-sizing: border-box; }
+.boutique3d canvas { display: block; touch-action: none; }
+
+/* ---- le cadre de la boutique ----
+   Tout ce qui, plus bas, se pose « sur l'ecran » se pose en realite SUR CE CADRE. En autonome
+   il a exactement la boite de la fenetre — html, body et #root sont deja a 100 % — donc
+   `absolute: inset 0` y calcule la meme chose que l'ancien `fixed: inset 0`, au pixel.
+   Pose dans la colonne d'un tableau de bord, il devient la colonne, et la boutique reste chez
+   elle au lieu de couvrir la barre laterale.
+
+   CE QUE LE MOTEUR EXIGE DE SON HOTE — deux choses, et non une seule :
+     1. que le noeud soit POSITIONNE (`position: relative` ou equivalent), sans quoi les
+        couches en absolu se caleraient sur un ancetre plus haut, par-dessus la barre
+        laterale et l en-tete de l application ;
+     2. qu il ait une HAUTEUR DEFINIE. `.boutique3d` se donne `height: 100%`, et un
+        pourcentage contre un parent de hauteur `auto` se resout a `auto` : la boutique
+        ferait alors 0 px de haut, canvas compris, sans la moindre erreur. En autonome la
+        chaine html / body / #root est deja a 100 %. Chez un hote, c est a lui de la donner
+        — BoutiqueVue3D.tsx pose `min(76vh, 880px)` sur son cadre. */
+.boutique3d {
+  position: relative; width: 100%; height: 100%; overflow: hidden;
+  background: #08070a; color: #f2ece6;
+  font: 13px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+.ui { position: absolute; inset: 0; pointer-events: none; }
+.ui > * { pointer-events: auto; }
+
+/* ---- panneau de gauche : meme cadre pour les categories et pour les reglages ---- */
+.menu {
+  position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+  background: rgba(14,12,14,.72); backdrop-filter: blur(14px);
+  border: 1px solid rgba(255,255,255,.07); border-radius: 14px; padding: 8px;
+  /* Largeur FIXE, jamais dictee par le contenu. Un titre YouTube de soixante caracteres
+     elargissait le panneau jusqu'a le faire deborder de l'ecran d'un telephone : c'est la
+     valeur affichee a droite d'une ligne qui decidait de la mise en page. */
+  width: 272px;
+  /* 220 px reserves en haut : le bouton de mode manuel et le selecteur de vitesse vivent
+     la, et un panneau centre a dix entrees les recouvrait.
+
+     EN POURCENTAGE, ET NON EN vh. Le panneau est centre sur le CADRE (.ui, pose inset:0),
+     mais la reserve se mesurait sur la FENETRE. Les deux coincident en autonome ; dans un
+     tableau de bord ou le cadre fait 547 px dans une fenetre de 720, la reserve valait
+     encore 220 px de fenetre : le panneau remontait a 77 px du haut du cadre et recouvrait
+     le bouton de deplacement, pose a 58 px. En mode guide le bouton gagnait quand meme le
+     survol ; en mode manuel .menu passe en z-index 4 et prenait le clic — on entrait dans
+     le mode manuel sans pouvoir en sortir. Mesure sur le panel reel, pas deduite.
+
+     Un pourcentage ne remplace pas un vh partout : sur une HAUTEUR il se mesure sur la
+     hauteur du conteneur et non sur sa largeur (voir .joystick, qui garde sa largeur en
+     pourcentage et deduit sa hauteur d un rapport 1:1), et il se mesure sur la boite de
+     CONTENU, marge interieure deduite (voir .modale, qui garde donc son 72vh). */
+  max-height: min(78%, calc(100% - 220px)); overflow: auto;
+}
+
+/* ---- tete du panneau : le chevron de repli, et rien d'autre ----
+   Les deux onglets ont quitte le panneau. Le choix de section se fait au selecteur du bas, a
+   la fleche, sur TOUS les gabarits : une seule commande, un seul etat, un seul chemin. */
+.menu-tete {
+  display: flex; align-items: center; justify-content: flex-end; margin-bottom: 4px;
+}
+.menu-contenu { display: flex; flex-direction: column; gap: 4px; animation: panneau .2s ease both; }
+/* Une colonne flex a hauteur fixe COMPRIME ses enfants quand ils ne tiennent pas : les onze
+   lignes de Reglages perdaient 4 px chacune et n'avaient plus la meme allure que les neuf
+   lignes du Magasin. On leur interdit de retrecir, et c'est le conteneur qui defile. */
+.menu-contenu > * { flex: 0 0 auto; }
+@keyframes panneau { from { opacity: 0; transform: translateX(-6px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .menu-contenu { animation: none; } }
+
+.menu button {
+  appearance: none; border: 0; background: transparent; color: #cfc6be;
+  font: inherit; text-align: left; padding: 8px 14px; border-radius: 9px;
+  cursor: pointer; white-space: nowrap; transition: background-color .18s, color .18s;
+}
+.menu button:hover { background: rgba(255,255,255,.06); color: #fff; }
+.menu button[data-actif="true"] { background: #e0447d; color: #fff; }
+
+/* ---- reglages : une ligne par entree, qui OUVRE une modale ----
+   Le contenu ne se deplie plus sous la ligne : le panneau garde donc exactement la meme
+   taille, quel que soit le reglage ouvert. C'est tout l'interet du changement. */
+.menu .reglage-ligne {
+  display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 7px 10px 7px 14px;
+}
+.reglage-nom { color: inherit; flex: 0 0 auto; }
+/* La valeur cede TOUTE la place et se coupe : elle ne doit jamais decider de la largeur.
+   min-width: 0 est indispensable, un enfant de flex refuse sinon de passer sous sa
+   largeur de contenu, et l'ellipse ne se declenche jamais. */
+.reglage-valeur {
+  flex: 1 1 auto; min-width: 0; text-align: right;
+  color: #9a9089; font-size: 11px; letter-spacing: .02em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.reglage-ligne:hover .reglage-valeur { color: #cfc6be; }
+.reglage-chevron { flex: 0 0 auto; color: #6e655d; font-size: 15px; line-height: 1; }
+.reglage-ligne:hover .reglage-chevron { color: #cfc6be; }
+.reglage-bientot {
+  flex: 0 0 auto; color: #6e655d; font-size: 10px; letter-spacing: .09em;
+  text-transform: uppercase;
+  border: 1px solid rgba(255,255,255,.09); border-radius: 999px; padding: 2px 8px;
+}
+.menu .reglage-ligne:disabled { cursor: default; color: #8a8078; }
+.menu .reglage-ligne:disabled:hover { background: transparent; color: #8a8078; }
+/* 40 px au moins : c'est la hauteur tactile minimale, et le selecteur de qualite du panneau
+   est desormais le SEUL endroit ou l'on change de niveau. */
+.modale .reglage-liste button { min-height: 40px; }
+.reglage-liste { display: flex; flex-direction: column; gap: 2px; padding: 2px 0 4px 10px; }
+.modale .reglage-liste button {
+  font-size: 12px; padding: 7px 12px; color: #b3a89f;
+  border-left: 2px solid rgba(255,255,255,.08); border-radius: 0 8px 8px 0;
+}
+.modale .reglage-liste button[data-actif="true"] { background: #e0447d; color: #fff; border-left-color: #e0447d; }
+
+/* ---- musique, dans le panneau Reglages ---- */
+.musique { display: flex; flex-direction: column; gap: 8px; padding: 4px 0 6px 10px;
+           border-left: 2px solid rgba(255,255,255,.08); margin-left: 10px; }
+.musique-transport { display: flex; align-items: center; gap: 10px; }
+.modale .musique-jouer {
+  flex: 0 0 auto; width: 40px; height: 40px; padding: 0; border-radius: 50%;
+  display: grid; place-items: center; font-size: 12px;
+  background: rgba(255,255,255,.07); color: #f2ece6;
+}
+.modale .musique-jouer[data-joue="true"] { background: #e0447d; color: #fff; }
+.musique-etat { color: #9a9089; font-size: 11px; letter-spacing: .02em; }
+.musique-volume { display: flex; align-items: center; gap: 8px; }
+.musique-volume-nom { color: #b3a89f; font-size: 11px; min-width: 44px; }
+.musique-volume-valeur { color: #9a9089; font-size: 11px; min-width: 34px; text-align: right;
+                         font-variant-numeric: tabular-nums; }
+.musique-mode {
+  display: flex; gap: 3px; padding: 3px; border-radius: 999px;
+  background: rgba(255,255,255,.05);
+}
+.modale .musique-mode button {
+  flex: 1 1 0; text-align: center; padding: 8px 10px; font-size: 12px;
+  border-radius: 999px; color: #b3a89f; white-space: nowrap;
+}
+.modale .musique-mode button[data-actif="true"] { background: #e0447d; color: #fff; }
+.musique-mode-note { margin: -2px 0 2px; color: #8a8078; font-size: 10px; line-height: 1.35; max-width: 232px; }
+
+/* transport : precedent, lecture, suivant, boucle */
+.modale .musique-saut, .modale .musique-boucle {
+  flex: 0 0 auto; width: 30px; height: 30px; padding: 0; border-radius: 50%;
+  display: grid; place-items: center; font-size: 11px; color: #b3a89f;
+}
+.modale .musique-boucle[data-on="true"] { background: #e0447d; color: #fff; }
+.musique-encours {
+  margin: -4px 0 0; color: #cfc6be; font-size: 11px; max-width: 232px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* ajout d'un lien */
+.musique-ajout { display: flex; gap: 5px; }
+.musique-ajout input {
+  flex: 1 1 auto; min-width: 0; appearance: none; color: #f2ece6;
+  background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.09);
+  border-radius: 8px; padding: 7px 9px; font: 11px/1.2 inherit;
+}
+.musique-ajout input::placeholder { color: #7c736b; }
+.musique-ajout input:focus { outline: 0; border-color: rgba(224,68,125,.55); }
+.modale .musique-ajout button {
+  flex: 0 0 auto; padding: 7px 11px; font-size: 11px; border-radius: 8px;
+  background: rgba(255,255,255,.08); color: #f2ece6;
+}
+.modale .musique-ajout button:disabled { color: #6e655d; cursor: default; background: rgba(255,255,255,.04); }
+.musique-erreur { margin: -4px 0 0; color: #f2685a; font-size: 10px; max-width: 232px; }
+
+/* onglets Playlist / Favoris */
+.musique-onglets { display: flex; gap: 3px; padding: 3px; border-radius: 999px;
+                   background: rgba(255,255,255,.05); }
+.modale .musique-onglets button {
+  flex: 1 1 0; text-align: center; padding: 6px 8px; font-size: 11px;
+  border-radius: 999px; color: #b3a89f;
+}
+.modale .musique-onglets button[data-actif="true"] { background: rgba(255,255,255,.14); color: #fff; }
+
+/* liste des morceaux */
+.musique-liste { display: flex; flex-direction: column; gap: 2px; max-height: 30vh; overflow: auto; }
+.musique-vide { margin: 4px 2px; color: #7c736b; font-size: 11px; }
+.musique-ligne {
+  display: flex; align-items: center; gap: 6px; padding: 3px 4px; border-radius: 8px;
+}
+.musique-ligne[data-actif="true"] { background: rgba(224,68,125,.16); }
+.modale .musique-ligne-jouer {
+  flex: 0 0 auto; width: 26px; height: 26px; padding: 0; border-radius: 50%;
+  display: grid; place-items: center; font-size: 9px;
+  background: rgba(255,255,255,.07); color: #f2ece6;
+}
+.musique-ligne-titre { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.musique-ligne-nom { color: #e6ddd6; font-size: 12px; overflow: hidden;
+                     text-overflow: ellipsis; white-space: nowrap; max-width: 138px; }
+.musique-ligne-detail { color: #7c736b; font-size: 10px; }
+.modale .musique-favori, .modale .musique-supprimer {
+  flex: 0 0 auto; width: 26px; height: 26px; padding: 0; border-radius: 50%;
+  display: grid; place-items: center; font-size: 12px; color: #6e655d;
+}
+.modale .musique-favori[data-on="true"] { color: #f0c05a; }
+.modale .musique-supprimer:hover { color: #f2685a; }
+
+/* curseurs : meme dessin pour le volume (panneau + petit lecteur) et pour la lumiere */
+.musique-volume input[type="range"], .lecteur-volume, .lumiere-curseur input[type="range"] {
+  -webkit-appearance: none; appearance: none; background: transparent;
+  height: 28px; margin: 0; cursor: pointer; touch-action: none;
+}
+.musique-volume input[type="range"], .lumiere-curseur input[type="range"] { flex: 1 1 auto; min-width: 96px; width: 100%; }
+.musique-volume input[type="range"]::-webkit-slider-runnable-track, .lecteur-volume::-webkit-slider-runnable-track, .lumiere-curseur input[type="range"]::-webkit-slider-runnable-track {
+  height: 3px; border-radius: 999px; background: rgba(255,255,255,.18);
+}
+.musique-volume input[type="range"]::-moz-range-track, .lecteur-volume::-moz-range-track, .lumiere-curseur input[type="range"]::-moz-range-track {
+  height: 3px; border-radius: 999px; background: rgba(255,255,255,.18);
+}
+.musique-volume input[type="range"]::-webkit-slider-thumb, .lecteur-volume::-webkit-slider-thumb, .lumiere-curseur input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; width: 15px; height: 15px; border-radius: 50%;
+  background: #f2ece6; border: 0; margin-top: -6px; box-shadow: 0 1px 6px rgba(0,0,0,.4);
+}
+.musique-volume input[type="range"]::-moz-range-thumb, .lecteur-volume::-moz-range-thumb, .lumiere-curseur input[type="range"]::-moz-range-thumb {
+  width: 15px; height: 15px; border-radius: 50%; background: #f2ece6; border: 0;
+}
+
+/* ---- lecteur discret : bord droit, a mi-hauteur ----
+   Ce bord est le seul libre dans tous les etats. Les deux coins bas sont pris par les manches
+   du mode manuel, le haut droit par les mesures, le bas droit par la barre d'outils, le bas
+   centre par la barre principale et la gauche par le panneau. Le lecteur reste donc en place
+   et atteignable pendant un deplacement manuel.
+   Le cadre YouTube est empile DANS le meme bloc : positionne a part, il finissait par
+   recouvrir la poignee des que le panneau changeait de hauteur. */
+.lecteur-bloc {
+  position: absolute; right: 10px; top: 50%; transform: translateY(-50%); z-index: 4;
+  display: flex; flex-direction: column; align-items: flex-end; gap: 6px;
+}
+.lecteur {
+  display: flex; align-items: center; gap: 6px;
+}
+.lecteur-poignee {
+  position: relative; order: 2; flex: 0 0 auto;
+  width: 44px; height: 44px; border-radius: 50%; cursor: pointer;
+  display: grid; place-items: center; font-size: 15px;
+  background: rgba(8,7,10,.55); backdrop-filter: blur(10px); color: #cfc6be;
+  border: 1px solid rgba(255,255,255,.08);
+  -webkit-tap-highlight-color: transparent;
+  transition: color .18s, background-color .18s, border-color .18s;
+}
+.lecteur-poignee:hover, .lecteur[data-ouvert="true"] .lecteur-poignee { color: #fff; background: rgba(8,7,10,.85); }
+.lecteur[data-joue="true"] .lecteur-poignee { color: #fff; border-color: rgba(224,68,125,.55); }
+.lecteur-pastille {
+  position: absolute; right: 6px; top: 6px; width: 7px; height: 7px; border-radius: 50%;
+  background: transparent; transition: background-color .18s;
+}
+.lecteur-pastille[data-on="true"] { background: #e0447d; }
+.lecteur-panneau {
+  order: 1; display: flex; flex-direction: column; gap: 6px; padding: 8px 10px;
+  background: rgba(14,12,14,.88); backdrop-filter: blur(14px);
+  border: 1px solid rgba(255,255,255,.08); border-radius: 16px;
+  box-shadow: 0 6px 24px rgba(0,0,0,.32);
+}
+.lecteur-rang { display: flex; align-items: center; gap: 6px; }
+.lecteur-jouer {
+  flex: 0 0 auto; width: 34px; height: 34px; border-radius: 50%; cursor: pointer;
+  display: grid; place-items: center; font-size: 11px;
+  background: rgba(255,255,255,.08); color: #f2ece6; border: 0;
+}
+.lecteur-jouer[data-joue="true"] { background: #e0447d; color: #fff; }
+.lecteur-saut, .lecteur-bascule {
+  flex: 0 0 auto; width: 28px; height: 28px; border-radius: 50%; cursor: pointer; border: 0;
+  display: grid; place-items: center; font-size: 10px;
+  background: rgba(255,255,255,.06); color: #b3a89f;
+}
+.lecteur-saut:hover, .lecteur-bascule:hover { color: #fff; background: rgba(255,255,255,.12); }
+.lecteur-bascule[data-on="true"] { background: #e0447d; color: #fff; }
+.lecteur-favori[data-on="true"] { background: transparent; color: #f0c05a; }
+.lecteur-bascule:disabled { color: #57504a; cursor: default; }
+.lecteur-mode { display: flex; gap: 2px; padding: 2px; border-radius: 999px;
+                background: rgba(255,255,255,.06); }
+.lecteur-mode button {
+  appearance: none; border: 0; background: transparent; color: #b3a89f; cursor: pointer;
+  font: 10px/1 system-ui, sans-serif; letter-spacing: .03em;
+  min-height: 24px; padding: 0 9px; border-radius: 999px;
+}
+.lecteur-mode button[data-actif="true"] { background: #e0447d; color: #fff; }
+.lecteur-volume { width: 96px; flex: 1 1 auto; }
+.lecteur-titre {
+  margin: 0; color: #9a9089; font-size: 10px; max-width: 186px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+
+/* ---- hote du lecteur YouTube ----
+   Il reste monte pour ne pas couper la lecture ; sans video chargee il se replie a une taille
+   nulle et ne prend aucune place dans la pile. */
+/* ---- couche video de la grande tele ----
+   Plein ecran, posee AVANT le canvas donc DERRIERE lui, et sourde aux evenements de pointeur.
+   Elle n'est visible qu'a travers le trou perce dans le rendu a l'endroit de la dalle : en
+   « Audio uniquement » le canvas opaque la recouvre entierement, sans qu'on ait a cacher
+   l'iframe — ce qui couperait le decodage chez certains navigateurs. */
+.tele-scene { position: absolute; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+.tele-scene iframe, .ecran-video > div { width: 100%; height: 100%; border: 0; display: block; }
+.etape-entree .lecteur-bloc, .photo .lecteur-bloc { display: none; }
+
+/* ---- retour : pose au-dessus de la barre principale ---- */
+.retour {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  bottom: calc(74px + env(safe-area-inset-bottom, 0px));
+  background: rgba(14,12,14,.78); backdrop-filter: blur(14px); color: #f2ece6;
+  border: 1px solid rgba(255,255,255,.09); border-radius: 999px;
+  padding: 10px 22px; font: inherit; cursor: pointer;
+}
+
+/* ---- coin mesures : bouton discret + panneau repliable ---- */
+.coin-stats {
+  position: absolute; right: 10px; top: 10px;
+  display: flex; flex-direction: column; align-items: flex-end; gap: 6px;
+  max-height: calc(100% - 20px);
+}
+
+/* ---- panneau de mesures ---- */
+.hud {
+  min-width: 178px; overflow: auto;
+  background: rgba(8,7,10,.86); backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,.08); border-radius: 11px;
+  padding: 9px 11px; font: 11px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.hud h4 { margin: 0 0 6px; font-size: 10px; letter-spacing: .09em;
+          text-transform: uppercase; color: #8d8379; font-weight: 600; }
+.hud .l { display: flex; justify-content: space-between; gap: 12px; }
+.hud .l span:last-child { color: #fff; }
+.hud .fps-bon { color: #57d98a !important; }
+.hud .fps-moyen { color: #f0c05a !important; }
+.hud .fps-mauvais { color: #f2685a !important; }
+.hud hr { border: 0; border-top: 1px solid rgba(255,255,255,.08); margin: 7px 0; }
+
+/* ---- entree : bouton central, menu masque tant qu'on n'est pas dans la boutique ---- */
+.entrer {
+  position: absolute; left: 50%; top: 58%; transform: translate(-50%, -50%);
+  background: rgba(224, 68, 125, .92); color: #fff; border: 1px solid rgba(255,255,255,.18);
+  border-radius: 999px; padding: 15px 34px; font: 500 15px/1 system-ui, sans-serif; letter-spacing: .02em;
+  cursor: pointer; box-shadow: 0 8px 30px rgba(224, 68, 125, .35), inset 0 1px 0 rgba(255,255,255,.18);
+  backdrop-filter: blur(8px); animation: respire 2.6s ease-in-out infinite;
+}
+.entrer:hover { background: #e0447d; }
+@keyframes respire { 0%, 100% { transform: translate(-50%, -50%) scale(1); } 50% { transform: translate(-50%, -50%) scale(1.035); } }
+.etape-facade .menu, .etape-entree .menu, .etape-entree .retour { display: none; }
+@media (prefers-reduced-motion: reduce) { .entrer { animation: none; } }
+
+.chargement {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  background: #08070a; color: #6e655d; font-size: 12px; letter-spacing: .08em;
+}
+/* Mode photo : toute l interface disparait, le temps d une image. Cette regle avait perdu
+   son bloc lors du retrait de la barre du bas — la liste de selecteurs avalait alors la regle
+   suivante, et le panneau restait affiche. */
+.photo .menu, .photo .retour, .photo .coin-stats, .photo .deplacement { display: none; }
+
+/* ---- deplacement manuel : bouton et vitesses, sous le selecteur de qualite ---- */
+.deplacement {
+  position: absolute; left: 10px; top: 58px; z-index: 2;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
+}
+/* ---- bouton de deplacement : une pastille ronde a l'icone, sur TOUS les gabarits ----
+   Meme symbole, meme geste : un appui active le deplacement manuel, un second le coupe. */
+.bouton-manuel {
+  width: 44px; height: 44px; min-width: 44px; min-height: 44px;   /* cible tactile confortable */
+  padding: 0; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: rgba(8,7,10,.55); backdrop-filter: blur(10px); color: #cfc6be;
+  border: 1px solid rgba(255,255,255,.08); cursor: pointer;
+  font: 12px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  letter-spacing: .02em; transition: color .18s, background-color .18s, border-color .18s;
+}
+.bouton-manuel:hover { color: #fff; background: rgba(8,7,10,.85); }
+/* Le libelle n'est plus dans le DOM du tout : un texte masque qui basculait « Mode guidé » /
+   « Déplacement manuel » etait le dernier reste de la presentation large ecran. Le nom du
+   bouton vit desormais dans aria-label et dans title, seuls a etre lus. */
+.bouton-manuel-icone { display: grid; place-items: center; }
+/* actif = on se deplace : la pastille s'allume, on voit d'un coup d'oeil dans quel mode on est */
+.bouton-manuel[data-on="true"] { background: #e0447d; color: #fff; border-color: #e0447d; }
+/* En mode manuel, le bouton « Retour a la boutique » n'a plus de sens : la navigation guidee
+   est suspendue. Le panneau de gauche et le bouton Reglages, eux, RESTENT atteignables — c'est
+   la regle que le client tient depuis le debut : on ne doit jamais se retrouver enferme dans un
+   mode sans pouvoir en sortir. */
+.manuel .retour { display: none; }
+
+/* Panneau ouvert PENDANT un deplacement manuel. Sur large ecran il garde sa place habituelle,
+   a gauche a mi-hauteur. Sur telephone il descendrait sur la manche gauche (mesuree a
+   y 652-798 sur un ecran de 384 x 832) : sa hauteur est bornee pour qu'il s'arrete au-dessus.
+   Les mesures viennent d'un releve des boites a l'ecran, pas de l'oeil. Voir la media query
+   telephone pour les valeurs. */
+.menu[data-manuel="true"] { z-index: 4; }
+/* Centre verticalement, le panneau descend de la moitie de sa hauteur sous le milieu de
+   l'ecran : pour rester au-dessus de la bande des manches il doit donc tenir DEUX fois cette
+   bande. Sans cette borne, un telephone large tenu couche posait le bas du panneau sur le
+   disque gauche, qui cessait de repondre. */
+.manuel .menu[data-manuel="true"] {
+  max-height: min(78%, calc(100% - 220px), calc(100% - 2 * var(--bande-manches, 0px) - 28px));
+}
+
+/* ---- mode photo sur ecran tactile ----
+   La barre d'espace n'existe pas sur un telephone : sans cette surface, activer le mode photo
+   faisait disparaitre toute l'interface SANS aucun moyen de la faire revenir. Elle ne peint
+   rien, la photo reste donc entiere. */
+.photo-sortie {
+  position: absolute; inset: 0; z-index: 7;
+  appearance: none; border: 0; padding: 0; background: transparent; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ---- joysticks : fixes en bas, transparents, multitouch, sans bloquer le reste ---- */
+.ui .joysticks { position: absolute; inset: 0; pointer-events: none; }
+.joysticks { --manche-taille: 1; --manche-opacite: 1; }
+.joystick {
+  position: absolute; pointer-events: auto; touch-action: none;
+  bottom: calc(34px + env(safe-area-inset-bottom, 0px));
+  /* la taille suit le reglage du visiteur ; la SURFACE TACTILE suit la taille, ce qui est le
+     but — seule l'opacite, plus bas, ne touche que ce qui est peint */
+  /* Le plafond de 42 % n'est pas decoratif : a 140 % un disque ferait 53 % de la largeur, les
+     deux se recouvriraient au centre et celui de droite volerait les appuis destines a celui
+     de gauche (capture de pointeur). 42 % x 2 plus les deux marges laissent un couloir.
+     Le pourcentage se mesure sur .joysticks, pose inset:0 : c'est la largeur du CADRE et non
+     celle de la fenetre — un cadre etroit chez un hote donne donc des disques a sa taille. */
+  width: min(calc(min(38%, 168px) * var(--manche-taille)), 42%);
+  aspect-ratio: 1;
+  border-radius: 50%; display: grid; place-items: center;
+  background: rgba(10,8,12,calc(.24 * var(--manche-opacite)));
+  border: 1px solid rgba(255,255,255,calc(.16 * var(--manche-opacite)));
+  user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent;
+  transition: border-color .18s, background .18s;
+}
+/* Doigt pose : un peu plus marque, mais TOUJOURS au travers du reglage de transparence.
+   Peint en dur, l'etat tenu ramenait le manche a pleine opacite pendant tout le deplacement,
+   c'est-a-dire exactement quand le visiteur voulait qu'il s'efface. */
+.joystick[data-tenu="true"] {
+  background: rgba(10,8,12,calc(.34 * var(--manche-opacite)));
+  border-color: rgba(255,255,255,calc(.34 * var(--manche-opacite)));
+}
+.joystick-gauche { left: calc(16px + env(safe-area-inset-left, 0px)); }
+.joystick-droit  { right: calc(16px + env(safe-area-inset-right, 0px)); }
+.joystick-pastille {
+  width: 38%; height: 38%; border-radius: 50%; pointer-events: none; will-change: transform;
+  background: rgba(242,236,230,calc(.26 * var(--manche-opacite)));
+  border: 1px solid rgba(255,255,255,calc(.34 * var(--manche-opacite)));
+  box-shadow: 0 2px 10px rgba(0,0,0,calc(.25 * var(--manche-opacite)));
+}
+/* ecran bas (telephone couche) : les manches restent au pouce sans manger la scene */
+@media (max-height: 480px) {
+  .joystick {
+    width: min(calc(min(28%, 128px) * var(--manche-taille)), 42%);
+    bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* ---- telephone : tout se resserre, le panneau ne doit jamais manger la scene ---- */
+@media (max-width: 899px) {
+  /* Modale sur telephone : elle prend la largeur de l'ecran moins de petites marges, et sa
+     hauteur suit le viewport REEL. Rien ne depasse, rien ne defile horizontalement. */
+  .modale-fond {
+    padding: max(12px, env(safe-area-inset-top, 0px)) max(12px, env(safe-area-inset-right, 0px))
+             max(12px, env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px));
+  }
+  .modale { width: 100%; max-height: min(calc(100dvh - 88px), 100%); border-radius: 14px; }
+  .modale-tete { padding: 6px 6px 6px 13px; }
+  .modale-titre { font-size: 11px; letter-spacing: .08em; }
+  .modale-corps { padding: 10px 11px 12px; }
+  .modale button { font-size: 12px; padding: 7px 11px; }
+
+  .coin-stats { right: 8px; top: 8px; max-height: calc(100% - 16px); }
+  .hud { min-width: 150px; max-width: 62vw; font-size: 10px; padding: 7px 9px; }
+  .hud .l { gap: 8px; }
+  .deplacement { left: 8px; top: 54px; }
+  /* ---- selecteur de section : compact, pour laisser la scene visible ----
+     Les zones tactiles restent a 40 px de haut, seule la LARGEUR est reprise : de pres de
+     200 px a environ 140, soit un tiers de la largeur de l'ecran rendu a la boutique. */
+  .ui .barre-section .section-compacte { padding: 2px; gap: 0; }
+  .ui .barre-section .section-fleche { min-width: 36px; min-height: 40px; font-size: 17px; }
+  .ui .barre-section .section-nom {
+    min-width: 62px; min-height: 40px; padding: 0 4px; font-size: 12px;
+  }
+  .menu-tete { margin-bottom: 2px; }
+
+  /* ---- panneau : etroit, et RIGOUREUSEMENT le meme pour Magasin et pour Reglages ----
+     176 px au lieu de 204 : c'est la largeur du plus long libelle, « Interface et controles »,
+     plus sa fleche. Tout le reste de l'ecran revient a la boutique. Le petit lecteur deplie
+     occupe x 212 a 404 sur un ecran de 412 : le panneau s'arrete donc bien avant lui. */
+  .menu {
+    left: 8px; padding: 6px; width: min(176px, calc(100% - 16px));
+    /* c'est le CONTENU qui defile, pas le panneau : l'en-tete et le chevron restent en place */
+    overflow: hidden;
+    /* UNE COLONNE, pour que le contenu puisse RETRECIR quand le panneau est plus court que
+       lui. En bloc, un contenu de hauteur figee depassait simplement du panneau, et
+       `overflow: hidden` le coupait : les dernieres entrees devenaient inatteignables, y
+       compris en faisant defiler, puisque c est la FENETRE du defilement qui etait coupee.
+       Mesure avant correctif, dans un tableau de bord a 360 x 640 : cadre 486 px, panneau
+       borne a 264 px, contenu fige a 310 px, derniere entree a 584-615 alors que le panneau
+       s arrete a 547. */
+    display: flex; flex-direction: column;
+  }
+  /* la tete ne retrecit jamais : le chevron de repli doit rester atteignable */
+  .menu-tete { flex: 0 0 auto; }
+  /* Hauteur FIXE, la meme dans les deux sections. Magasin a neuf lignes, Reglages en a dix :
+     sans cette hauteur commune, passer de l'un a l'autre faisait grandir le panneau et on
+     avait l'impression de changer d'interface. La dixieme ligne se rejoint en defilant. */
+  .menu-contenu {
+    gap: 2px;
+    /* `flex: 0 1 auto` : il prend la hauteur ci-dessous quand elle tient, et retrecit quand
+       le panneau est plus court. Le `min-height` EXPLICITE — et non `auto` — est ce qui l y
+       autorise : un element de flexion refuse par defaut de descendre sous son contenu.
+       Le defilement interne fait le reste, donc toutes les entrees restent atteignables. */
+    flex: 0 1 auto;
+    height: min(316px, calc(100dvh - 330px)); min-height: 148px;
+    overflow-y: auto; overflow-x: hidden;
+    scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.18) transparent;
+  }
+  .menu button { padding: 7px 11px; font-size: 12px; }
+  /* Une ligne de reglage est une ligne de categorie : meme fond, meme padding, meme taille de
+     texte, meme hauteur. Seul le contenu change d'une section a l'autre. */
+  .menu .reglage-ligne { padding: 7px 11px; font-size: 12px; min-height: 0; gap: 8px; }
+  /* Le chevron imposait sa boite de ligne et rendait la ligne de reglage 4 px plus haute que
+     la ligne de categorie : les deux sections n'avaient plus tout a fait la meme allure. */
+  .menu .reglage-chevron { font-size: 12px; line-height: 1.4; align-self: center; }
+  /* Le resume de droite quitte le telephone : il pousse la largeur du panneau a lui seul, et
+     la meme information est lisible dans la modale qu'on ouvre juste apres. */
+  .menu .reglage-valeur { display: none; }
+  .menu .reglage-nom { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .menu .reglage-bientot { display: none; }
+  /* Empilement du bas, du plus bas au plus haut : selecteur compact, retour, outils. Sur un
+     ecran de 384 px le selecteur centre et la barre d'outils alignee a droite se recouvriraient
+     si elles partageaient la meme ligne. */
+  /* 92 px et non 64 : le bouton Reglages occupe 33 a 77 px du bord bas sur un telephone,
+     et les deux se recouvraient sur une quinzaine de pixels. */
+  .retour { bottom: calc(92px + env(safe-area-inset-bottom, 0px)); padding: 9px 18px; font-size: 12px; }
+
+  /* Le selecteur compact remplace les deux boutons : un seul choix visible, deux fleches.
+     Il reste bas et court pour ne pas manger la scene, et respecte la zone sure du telephone. */
+
+  /* Sur telephone la poignee ouvre la MODALE Musique : le panneau lateral ci-dessous ne s'y
+     affiche plus. Les regles restent pour la fenetre etroite d'un large ecran, et parce que le
+     bloc, lui, continue d'exister replie. */
+  .lecteur-bloc { right: calc(8px + env(safe-area-inset-right, 0px)); }
+  .lecteur { flex-direction: column; align-items: flex-end; gap: 6px; }
+  .lecteur-poignee { order: 1; }
+  .lecteur-panneau { order: 2; padding: 6px 10px; gap: 8px; }
+  .lecteur-volume { width: 74px; }
+  .lecteur-titre { max-width: 168px; }
+  .lecteur-mode button { padding: 0 7px; }
+  .musique-volume input[type="range"] { min-width: 78px; }
+
+  /* ---- Musique sur telephone ----
+     C'est ici que la poignee ♪ envoie desormais, et c'est donc la porte principale de la
+     musique sur un telephone. Le contenu est resserre pour tenir d'un seul coup d'oeil : le
+     filet decoratif de gauche disparait, les cibles gardent leurs 30 px minimum, et les
+     largeurs figees heritees du panneau large sont levees pour que rien ne soit coupe. */
+  .modale .musique { gap: 6px; padding: 0 0 2px; border-left: 0; margin-left: 0; }
+  .modale .musique-transport { gap: 7px; }
+  .modale .musique-jouer { width: 36px; height: 36px; }
+  .modale .musique-saut, .modale .musique-boucle { width: 30px; height: 30px; }
+  .modale .musique-etat { font-size: 10px; }
+  .modale .musique-encours { font-size: 11px; max-width: none; }
+  .modale .musique-mode button { padding: 7px 8px; font-size: 11px; }
+  .modale .musique-mode-note { font-size: 9px; max-width: none; }
+  .modale .musique-erreur { max-width: none; }
+  .modale .musique-volume-nom { min-width: 38px; font-size: 10px; }
+  .modale .musique-onglets button { padding: 6px 7px; font-size: 10px; }
+  .modale .musique-ligne { padding: 3px 5px; }
+  .modale .musique-ligne-nom { font-size: 11px; max-width: none; }
+  /* en dvh, et non en vh : la barre d'adresse mobile fausse vh, et la liste debordait alors
+     la modale au lieu de defiler dans son cadre */
+  .modale .musique-liste { max-height: min(30dvh, 216px); }
+
+  /* Mode manuel. Les manches occupent y 652-798 sur 832 px de haut, soit 34 a 180 px du bas.
+     La barre se pose juste au-dessus, avec un pouce de marge, et le panneau au-dessus d'elle.
+     Rien ne descend sous 244 px du bas : c'est la que commence le pouce. */
+  .manuel .menu[data-manuel="true"] {
+    top: auto; transform: none;
+    /* 252 px etait la bande des manches a 100 %. Avec le curseur de taille elle monte a plus
+       de 300 : on prend donc la valeur MESUREE des qu'elle depasse. */
+    bottom: max(calc(252px + env(safe-area-inset-bottom, 0px)), calc(var(--bande-manches, 0px) + 16px));
+    /* en paysage (par exemple 839 x 412) la soustraction deviendrait negative et le panneau
+       se replierait a zero : le plancher garde une hauteur utilisable, le defilement fait le
+       reste (.menu porte overflow: auto). */
+    /* Borne par la fenetre reelle (dvh) ET par le cadre (%) : min() retient la plus petite,
+       le plancher de 150 px reste au-dessus des deux. En autonome le cadre EST la fenetre et
+       les deux termes sont egaux ; dans un tableau de bord, c est le cadre qui decide. */
+    max-height: max(150px, min(calc(100dvh - 184px - var(--bande-manches, 252px)),
+                               calc(100% - 184px - var(--bande-manches, 252px))));
+  }
+}
+
+.hud .gpu { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 899px) {
+  /* Un reglage deplie occupe presque toute la hauteur de l'ecran : la barre d'outils du coin
+     bas droit se retrouverait dessous. Meme regle que pour le selecteur de qualite ci-dessus —
+     une commande s'efface plutot que de se superposer a une autre. Elle revient des qu'on
+     replie. Mesure a l'origine du correctif : 3 257 px2 de recouvrement avec Musique deplie,
+     2 838 px2 avec Lumiere et son reglage fin. */
+
+        .hud .gpu { max-width: 120px; }
+}
+
+/* aide des commandes de bureau, affichee a la place des manches sur un ecran sans tactile */
+/* Au-dessus du bouton Reglages, qui occupe le centre bas de 21 a 65 px du bord : a 18 px
+   cette ligne passait dessous et se faisait couper en son milieu. */
+.aide-manuel {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+  margin: 0; padding: 7px 16px; border-radius: 999px; pointer-events: none;
+  background: rgba(8,7,10,.5); border: 1px solid rgba(255,255,255,.08);
+  color: #b3a89f; font: 11px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: .04em; white-space: nowrap; max-width: 94%; overflow: hidden;
+}
+
+/* ------------------------------------------------------------------ Lumiere */
+/* Meme cadre que la section Musique : filet a gauche, colonne, memes couleurs. */
+.lumiere { display: flex; flex-direction: column; gap: 9px; padding: 4px 0 6px 10px;
+           border-left: 2px solid rgba(255,255,255,.08); margin-left: 10px; }
+
+/* Les ambiances sont l'entree principale : deux colonnes, chaque carte porte son resume,
+   pour qu'on choisisse une intention plutot qu'un chiffre. */
+.lumiere-ambiances { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; max-width: 232px; }
+.modale .lumiere-ambiance {
+  display: flex; flex-direction: column; gap: 2px; text-align: left;
+  padding: 8px 9px; border-radius: 9px; background: rgba(255,255,255,.05);
+  border: 1px solid transparent; white-space: normal;
+}
+.modale .lumiere-ambiance[data-actif="true"] { background: rgba(224,68,125,.16); border-color: rgba(224,68,125,.55); }
+.lumiere-ambiance-nom { color: #f2ece6; font-size: 12px; }
+.lumiere-ambiance-resume { color: #8a8078; font-size: 10px; line-height: 1.3; }
+.modale .lumiere-ambiance[data-actif="true"] .lumiere-ambiance-resume { color: #c0a3ae; }
+
+.lumiere-perso { margin: 0; color: #b3a89f; font-size: 11px; max-width: 232px; }
+.modale .lumiere-lien {
+  padding: 0 0 0 6px; background: none; color: #e0447d; font-size: 11px;
+  text-decoration: underline; text-underline-offset: 2px;
+}
+
+.modale .lumiere-bascule {
+  align-self: flex-start; padding: 5px 0; background: none; color: #b3a89f; font-size: 11px;
+}
+
+.lumiere-curseurs { display: flex; flex-direction: column; gap: 9px; max-width: 232px; }
+.lumiere-curseur { display: flex; flex-direction: column; gap: 3px; }
+.lumiere-curseur-tete { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.lumiere-curseur-nom { color: #cfc6be; font-size: 11px; }
+.lumiere-curseur-valeur { color: #9a9089; font-size: 11px; font-variant-numeric: tabular-nums; }
+.lumiere-curseur-bornes { display: flex; justify-content: space-between; color: #6f665f; font-size: 9px; }
+
+.lumiere-note { margin: 2px 0 0; color: #8a8078; font-size: 10px; line-height: 1.4; max-width: 232px; }
+
+/* ------------------------------------------------------------- Televisions */
+/* Meme cadre que les autres sections du panneau Reglages. */
+.televisions { display: flex; flex-direction: column; gap: 8px; padding: 4px 0 6px 10px;
+               border-left: 2px solid rgba(255,255,255,.08); margin-left: 10px; }
+
+.tv-entete { display: flex; align-items: baseline; justify-content: space-between;
+             gap: 10px; max-width: 248px; }
+.tv-compte { color: #9a9089; font-size: 11px; }
+.tv-groupe { display: flex; gap: 8px; }
+
+.tv-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column;
+            gap: 3px; max-width: 248px; }
+.tv-ligne { display: flex; align-items: center; justify-content: space-between; gap: 10px;
+            padding: 5px 0; }
+.tv-nom { display: flex; flex-direction: column; gap: 1px; min-width: 0; color: #cfc6be;
+          font-size: 12px; }
+.tv-detail { color: #7c736b; font-size: 10px; }
+.tv-ligne[data-on="false"] .tv-nom { color: #857c74; }
+
+/* Un interrupteur, pas une case : l'etat doit se lire sans lire le texte. */
+.modale .tv-bascule {
+  flex: 0 0 auto; display: flex; align-items: center; gap: 7px; white-space: nowrap;
+  padding: 5px 10px 5px 7px; border-radius: 999px; background: rgba(255,255,255,.05);
+  color: #b3a89f; font-size: 11px; min-height: 32px;
+}
+.tv-pastille {
+  width: 9px; height: 9px; border-radius: 50%; background: #5a5058;
+  box-shadow: none; transition: background-color .18s, box-shadow .18s;
+}
+.tv-ligne[data-on="true"] .tv-pastille { background: #e0447d; box-shadow: 0 0 8px rgba(224,68,125,.75); }
+.tv-ligne[data-on="true"] .tv-bascule { color: #f2ece6; background: rgba(224,68,125,.14); }
+.tv-etat { min-width: 52px; }
+
+.tv-avis { margin: 0; max-width: 248px; color: #e0a4bb; font-size: 10px; line-height: 1.4; }
+
+/* ---------------------------------------------- barre de vitesse, temporaire */
+/* Elle n'existe que pendant le reglage a la molette et s'efface toute seule : une commande
+   permanente de plus a l'ecran est exactement ce que ce nettoyage retire. Posee en bas au
+   centre, au-dessus de la barre des sections, la seule bande libre dans tous les etats. */
+.barre-vitesse {
+  position: absolute; left: 50%; transform: translateX(-50%); z-index: 6;
+  bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+  display: flex; align-items: center; gap: 10px;
+  padding: 7px 14px; border-radius: 999px;
+  background: rgba(14,12,14,.72); backdrop-filter: blur(14px);
+  border: 1px solid rgba(255,255,255,.08); box-shadow: 0 6px 24px rgba(0,0,0,.3);
+  animation: apparition .14s ease both; pointer-events: none;
+}
+.barre-vitesse-nom { color: #b3a89f; font-size: 11px; letter-spacing: .04em; }
+.barre-vitesse-jauge {
+  color: #e0447d; font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 13px; letter-spacing: .06em;
+}
+.barre-vitesse-valeur { color: #f2ece6; font-size: 11px; font-variant-numeric: tabular-nums;
+                        min-width: 44px; text-align: right; }
+@keyframes apparition { from { opacity: 0; transform: translate(-50%, 5px); }
+                        to { opacity: 1; transform: translate(-50%, 0); } }
+/* en mode manuel sur telephone la barre des sections est deja remontee : on monte au-dessus */
+@media (max-width: 899px) {
+  .manuel .barre-vitesse { bottom: calc(258px + env(safe-area-inset-bottom, 0px)); }
+}
+
+/* ------------------------------------------- Reglages : Deplacement et Mesures */
+.deplacement-reglage, .mesures-reglage {
+  display: flex; flex-direction: column; gap: 9px; padding: 4px 0 6px 10px;
+  border-left: 2px solid rgba(255,255,255,.08); margin-left: 10px; max-width: 248px;
+}
+.deplacement-reperes { display: flex; gap: 4px; }
+.modale .deplacement-reperes button {
+  flex: 1 1 0; text-align: center; padding: 7px 6px; font-size: 11px;
+  border-radius: 999px; background: rgba(255,255,255,.05); color: #b3a89f;
+}
+.modale .deplacement-reperes button[data-actif="true"] { background: #e0447d; color: #fff; }
+.deplacement-barre {
+  margin: 0; display: flex; justify-content: space-between; gap: 8px;
+  color: #e0447d; font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 12px; letter-spacing: .06em;
+}
+.deplacement-barre span { color: #8a8078; font-family: inherit; font-size: 11px; }
+.deplacement-reglage input[type="range"] { width: 100%; }
+
+
+/* ------------------------------------------- panneau de gauche repliable */
+/* Le repli est une DECISION du visiteur, jamais un effet de bord d'un changement de mode :
+   l'etat vit dans ses preferences, a cote de la taille des manches. */
+.menu { position: absolute; }
+/* Dans la ligne d'onglets, et non plus flottant dans le coin : pose en absolu il se serait
+   assis sur le second onglet. */
+.menu .panneau-replier {
+  flex: 0 0 auto;
+  appearance: none; border: 0; background: rgba(255,255,255,.06); color: #b3a89f;
+  width: 30px; height: 30px; min-height: 30px; border-radius: 50%;
+  display: grid; place-items: center;
+  font-size: 15px; line-height: 1; cursor: pointer; padding: 0;
+  transition: background-color .18s, color .18s;
+}
+.panneau-replier:hover { background: rgba(255,255,255,.12); color: #fff; }
+
+/* Replie, il ne reste qu'un chevron sur le bord gauche, a mi-hauteur : la seule bande libre
+   dans tous les etats, et hors de portee des deux manches. */
+.panneau-ouvrir {
+  position: absolute; left: 0; top: 50%; transform: translateY(-50%); z-index: 5;
+  appearance: none; border: 0; border-left: 0;
+  border-radius: 0 14px 14px 0; cursor: pointer;
+  width: 26px; height: 64px; padding: 0;
+  background: rgba(14,12,14,.72); backdrop-filter: blur(14px); color: #cfc6be;
+  border-top: 1px solid rgba(255,255,255,.07);
+  border-right: 1px solid rgba(255,255,255,.07);
+  border-bottom: 1px solid rgba(255,255,255,.07);
+  font-size: 17px; display: grid; place-items: center;
+  animation: panneau .2s ease both;
+  transition: background-color .18s, color .18s;
+}
+.panneau-ouvrir:hover { background: rgba(20,17,20,.86); color: #fff; }
+
+/* ------------------------------------------- bouton Reglages deplacable */
+/* Il remplace la barre du bas : il n'y a plus d'onglet Magasin, le panneau de gauche EST la
+   navigation du magasin. Sa place est celle que le visiteur lui a donnee. */
+/* Conteneur deplacable. left/top sont poses en ligne par BarreSection.jsx ; les valeurs ici
+   ne servent que le temps du premier rendu, pour qu'il n'apparaisse jamais dans le coin
+   haut gauche. */
+.barre-section {
+  position: absolute; left: 50%; top: 94%; z-index: 6; transform: translate(-50%, -50%);
+  cursor: grab; touch-action: none;
+  -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none;
+}
+.barre-section:active { cursor: grabbing; }
+
+/* « ‹ Magasin › », la SEULE forme, sur tous les gabarits. Les fleches changent de section et
+   le panneau remplace entierement son contenu ; le nom ouvre et ferme le panneau. */
+.section-compacte {
+  display: flex; align-items: center; gap: 2px; padding: 3px;
+  background: rgba(14,12,14,.78); backdrop-filter: blur(14px);
+  border: 1px solid rgba(255,255,255,.1); border-radius: 999px;
+  box-shadow: 0 6px 24px rgba(0,0,0,.3);
+}
+.barre-section .section-fleche {
+  appearance: none; border: 0; background: transparent; color: #cfc6be;
+  min-width: 44px; min-height: 44px; border-radius: 999px; padding: 0;
+  font: 20px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  cursor: pointer; transition: background-color .18s, color .18s;
+}
+.barre-section .section-fleche:hover, .barre-section .section-fleche:active {
+  background: rgba(255,255,255,.08); color: #fff;
+}
+.barre-section .section-nom {
+  appearance: none; border: 0; background: transparent;
+  min-width: 104px; min-height: 44px; padding: 0 6px; border-radius: 999px;
+  text-align: center; color: #f2ece6; cursor: pointer;
+  font: 13px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; letter-spacing: .04em;
+  transition: background-color .18s, color .18s;
+}
+/* Le temoin « panneau ouvert » et le retour de survol peignent le MEME fond, a specificite
+   egale : sans la garde :not(), seul l'ordre du fichier les departagerait, et un simple
+   deplacement de regle effacerait l'etat sous la souris. Le temoin porte une information,
+   le survol n'est qu'un retour de pointeur : c'est le temoin qui gagne, explicitement. */
+.barre-section .section-nom[aria-expanded="true"] { background: rgba(224,68,125,.22); }
+.barre-section .section-nom:not([aria-expanded="true"]):hover { background: rgba(255,255,255,.08); }
+
+/* ------------------------------------------- disposition choisie par le visiteur
+   Un element n'est repositionne QUE si son nom figure dans data-ui : sans cela il garde la
+   mise en page du gabarit, qui suit l'ecran et l'orientation. Figer tout le monde en
+   coordonnees des le premier rendu casserait le responsive de ceux qu'on n'a jamais touches.
+   On passe par des variables CSS pour ne pas avoir a toucher les composants eux-memes. */
+.ui[data-ui~="revoir"] .revoir,
+.ui[data-ui~="deplacement"] .deplacement,
+.ui[data-ui~="lecteur"] .lecteur-bloc {
+  position: absolute; right: auto; bottom: auto;
+  transform-origin: center center;
+}
+.ui[data-ui~="revoir"] .revoir {
+  left: var(--ui-revoir-x); top: var(--ui-revoir-y);
+  transform: translate(-50%, -50%) scale(var(--ui-revoir-t, 1));
+}
+.ui[data-ui~="deplacement"] .deplacement {
+  left: var(--ui-deplacement-x); top: var(--ui-deplacement-y);
+  transform: translate(-50%, -50%) scale(var(--ui-deplacement-t, 1));
+}
+.ui[data-ui~="lecteur"] .lecteur-bloc {
+  left: var(--ui-lecteur-x); top: var(--ui-lecteur-y);
+  transform: translate(-50%, -50%) scale(var(--ui-lecteur-t, 1));
+}
+
+/* ------------------------------------------- editeur de disposition
+   Pendant l'edition, les elements sont rendus INERTES : leurs poignees recoivent les gestes a
+   leur place. C'est ce qui garantit qu'on ne touche jamais a leur logique — elle revient
+   telle quelle en sortant du mode. */
+.ui.edition .revoir, .ui.edition .deplacement, .ui.edition .lecteur-bloc,
+.ui.edition .barre-section, .ui.edition .menu, .ui.edition .panneau-ouvrir {
+  pointer-events: none;
+}
+.ui.edition .menu { opacity: .35; }
+
+.editeur { position: absolute; inset: 0; z-index: 30; pointer-events: none; }
+.editeur > * { pointer-events: auto; }
+
+/* Contour fin : on doit comprendre ce qu'on modifie, pas se faire crier dessus. */
+.editeur-poignee {
+  position: absolute; appearance: none; padding: 0; cursor: grab;
+  background: transparent; border: 1px dashed rgba(255,255,255,.34); border-radius: 12px;
+  touch-action: none; -webkit-tap-highlight-color: transparent;
+}
+.editeur-poignee:hover { border-color: rgba(255,255,255,.6); }
+.editeur-poignee[data-choisi="true"] {
+  border: 1px solid #e0447d; box-shadow: 0 0 0 3px rgba(224,68,125,.20);
+}
+.editeur-poignee:active { cursor: grabbing; }
+
+/* La barre vit EN HAUT. En bas elle recouvrait les poignees du retour a l'entree, du
+   selecteur et du bouton de deplacement — c'est-a-dire exactement les elements qu'on vient
+   personnaliser, qui vivent tous dans le bas de l'ecran. */
+.editeur-barre {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  top: max(10px, env(safe-area-inset-top, 0px));
+  /* Volontairement etroite et centree : le bouton de deplacement vit en haut a GAUCHE, et une
+     barre pleine largeur le recouvrait. Ici elle laisse les deux bords libres. */
+  width: min(292px, calc(100% - 120px));
+  display: flex; flex-direction: column; gap: 8px; padding: 10px 12px;
+  background: rgba(16,14,17,.95); backdrop-filter: blur(18px);
+  border: 1px solid rgba(255,255,255,.1); border-radius: 14px;
+  box-shadow: 0 18px 60px rgba(0,0,0,.5); color: #f2ece6;
+}
+.editeur-cible {
+  margin: 0; font: 500 12px/1.2 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  letter-spacing: .06em; text-transform: uppercase; color: #cfc6be;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.editeur-taille { display: flex; flex-direction: column; gap: 4px; }
+.editeur-taille-tete {
+  display: flex; justify-content: space-between;
+  font-size: 11px; color: #9a9089; letter-spacing: .02em;
+}
+.editeur-taille input[type="range"] { width: 100%; }
+.editeur-taille input[type="range"]:disabled { opacity: .4; }
+.editeur-actions, .editeur-confirme {
+  display: flex; align-items: center; gap: 6px; margin: 0;
+  font-size: 12px; color: #cfc6be;
+}
+.editeur-confirme { flex-wrap: wrap; }
+.editeur .editeur-lien {
+  appearance: none; border: 0; background: rgba(255,255,255,.06); color: #cfc6be;
+  font: inherit; min-height: 40px; padding: 0 12px; border-radius: 9px; cursor: pointer;
+  transition: background-color .18s, color .18s;
+}
+.editeur .editeur-lien:hover { background: rgba(255,255,255,.13); color: #fff; }
+.editeur .editeur-danger { color: #f2685a; }
+.editeur .editeur-valider {
+  appearance: none; border: 0; background: #e0447d; color: #fff; font: inherit;
+  min-height: 40px; padding: 0 18px; border-radius: 9px; cursor: pointer;
+  margin-left: auto; letter-spacing: .04em;
+}
+.editeur .editeur-valider:hover { background: #ea5a8e; }
+
+/* ------------------------------------------- Reglages > Interface : la liste des elements */
+.interface-liste {
+  list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px;
+}
+.interface-liste li {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 7px 10px; border-radius: 8px; background: rgba(255,255,255,.04);
+  font-size: 12px; color: #cfc6be;
+}
+.interface-liste li[data-perso="true"] { border-left: 2px solid #e0447d; }
+.interface-element-etat { color: #7c736b; font-size: 11px; }
+.interface-reglage .interface-personnaliser {
+  appearance: none; border: 0; background: #e0447d; color: #fff; font: inherit;
+  min-height: 44px; border-radius: 10px; cursor: pointer; letter-spacing: .03em;
+  text-align: center;
+}
+.interface-reglage .interface-personnaliser:hover { background: #ea5a8e; }
+
+/* ------------------------------------------- modale d'un reglage
+   Un reglage ne se deplie plus SOUS sa ligne : il s'ouvre au-dessus de la boutique, dans un
+   cadre qui a sa propre taille. Le panneau de gauche garde donc exactement la meme largeur et
+   la meme hauteur, quel que soit le reglage ouvert — c'etait tout le probleme sur telephone,
+   ou Musique et Lumiere faisaient courir le panneau du haut au bas de l'ecran. */
+.modale-fond {
+  position: absolute; inset: 0; z-index: 20;
+  display: grid; place-items: center;
+  padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px))
+           max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  /* voile discret : la boutique doit rester visible derriere, c'est elle le sujet */
+  background: rgba(6,5,8,.42); backdrop-filter: blur(2px);
+  animation: voile .16s ease both;
+}
+@keyframes voile { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .modale-fond { animation: none; } }
+
+.modale {
+  width: min(420px, 100%);
+  /* Bornee par le CADRE (le 100 %) ET par la fenetre reelle (le dvh, qui suit la barre
+     d'adresse du telephone la ou vh ne la suit pas). Les deux sont gardes : min() retient la
+     plus petite, la modale tient donc dans les deux a la fois.
+
+     100 % TOUT SEC, sans rien retrancher. `.modale` est un enfant de grille de `.modale-fond`,
+     qui porte une marge interieure : le pourcentage se resout contre la ZONE DE GRILLE, donc
+     sur une boite qui a deja perdu cette marge. Ecrire calc(100% - 112px) la retranchait une
+     seconde fois et rendait le plafond 32 px plus severe que voulu — jusqu a 46 px sur un
+     telephone ou env(safe-area-inset-bottom) s'ajoute. 100 %, c'est exactement la place
+     disponible : ni plus, ni moins. */
+  max-height: min(72vh, calc(100dvh - 112px), 100%);
+  display: flex; flex-direction: column; overflow: hidden;
+  background: rgba(16,14,17,.95); backdrop-filter: blur(18px);
+  border: 1px solid rgba(255,255,255,.09); border-radius: 16px;
+  box-shadow: 0 18px 60px rgba(0,0,0,.5);
+  color: #f2ece6;
+}
+
+.modale-tete {
+  flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 8px 8px 8px 16px; border-bottom: 1px solid rgba(255,255,255,.07);
+}
+/* Titre volontairement petit : un en-tete epais mange la moitie de la place utile du reglage
+   qu'on vient d'ouvrir, et c'est exactement ce qu'on cherchait a corriger. */
+.modale-titre {
+  margin: 0; font: 500 12px/1.2 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  letter-spacing: .10em; text-transform: uppercase; color: #cfc6be;
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.modale .modale-fermer {
+  flex: 0 0 auto; width: 40px; height: 40px; padding: 0; border-radius: 50%;
+  display: grid; place-items: center; background: rgba(255,255,255,.06); color: #b3a89f;
+  font-size: 14px; line-height: 1;
+}
+.modale .modale-fermer:hover { background: rgba(255,255,255,.13); color: #fff; }
+
+/* SEUL le corps defile : le titre et la croix restent atteignables quoi qu'il arrive. */
+.modale-corps {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden;
+  padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 4px;
+}
+
+/* Meme base de bouton que dans le panneau : les composants de reglage ont quitte `.menu` et
+   perdraient sinon toute leur mise en forme d'un coup. */
+.modale button {
+  appearance: none; border: 0; background: transparent; color: #cfc6be;
+  font: inherit; text-align: left; padding: 8px 14px; border-radius: 9px;
+  cursor: pointer; white-space: nowrap; transition: background-color .18s, color .18s;
+}
+.modale button:hover { background: rgba(255,255,255,.06); color: #fff; }
+.modale button[data-actif="true"] { background: #e0447d; color: #fff; }
+.modale input[type="range"] { width: 100%; }
+
+/* ------------------------------------------- revoir l'entree, en icone */
+.revoir {
+  position: absolute; right: 12px; z-index: 4;
+  /* --bande-manches est la hauteur MESUREE des manches (App.jsx), zero quand il n'y en a pas.
+     Sans ce max(), le bouton se posait dans le disque du manche droit des qu'on passait en
+     deplacement manuel : un pouce qui voulait tourner relancait l'entree de la boutique. */
+  bottom: max(calc(14px + env(safe-area-inset-bottom, 0px)), calc(var(--bande-manches, 0px) + 12px));
+  appearance: none; width: 44px; height: 44px; padding: 0; border-radius: 50%;
+  display: grid; place-items: center; cursor: pointer;
+  background: rgba(14,12,14,.72); backdrop-filter: blur(14px); color: #cfc6be;
+  border: 1px solid rgba(255,255,255,.08);
+  transition: background-color .18s, color .18s;
+}
+.revoir:hover { background: rgba(20,17,20,.86); color: #fff; }
+.photo .revoir, .photo .barre-section, .photo .panneau-ouvrir { display: none; }
+.etape-facade .revoir, .etape-entree .revoir { display: none; }
+
+/* ------------------------------------------- Reglages : interface et vue */
+.interface-reglage, .vue-reglage {
+  display: flex; flex-direction: column; gap: 9px; padding: 4px 0 6px 10px;
+  border-left: 2px solid rgba(255,255,255,.08); margin-left: 10px; max-width: 248px;
+}
+.interface-bouton { display: flex; align-items: center; justify-content: space-between;
+                    gap: 10px; max-width: 248px; }
+.modale .lumiere-lien[disabled] { color: #6f665f; text-decoration: none; cursor: default; }
+
+/* ------------------------------------------- une note, et pas une regle
+   Montee dans une application hote, la boutique subit les regles d ELEMENT de cette hote : un
+   `nav` repositionne par un theme, une pastille de curseur redessinee sans scope. La tentation
+   est de repondre ici, sous `.boutique3d`. C EST UNE ERREUR, et elle a ete mesuree : une
+   contre-regle `.boutique3d .menu` (0,2,0) ecrase aussi `.menu[data-manuel="true"]` (0,2,0),
+   declaree plus haut — le panneau perdait son z-index 4 du mode manuel, dans Johanna autonome,
+   pour se defendre d une feuille absente.
+
+   Les defenses appartiennent donc a l HOTE, dans une feuille a lui, chargee apres celle-ci et
+   ecrite en connaissance des DEUX. Cette feuille-ci ne parle que de la boutique. */

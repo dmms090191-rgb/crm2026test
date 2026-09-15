@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="fr" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Banc d'essai — boutique 3D</title>
+    <style>
+      /* Le banc reproduit la page du tableau de bord ; #root doit donc remplir la fenetre.
+         `opacity` est remise a 1 : index.css la met a 0 en attendant que React pose le theme,
+         ce que fait AppShell — absent ici, puisque le banc ne monte pas l'application. */
+      html, body, #root { height: 100%; margin: 0; }
+      #root { opacity: 1 !important; }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/dev/boutique3d-apercu.tsx"></script>
+  </body>
+</html>

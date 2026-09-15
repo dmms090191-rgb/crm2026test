@@ -1,0 +1,94 @@
+/* DEFENSES DE L'HOTE — ce que la feuille de Talvex prend a la boutique, et qu'on lui rend.
+ *
+ * Elles vivent ICI et pas dans la feuille du moteur, et c'est une lecon payee : ecrite cote
+ * Johanna, une contre-regle `.boutique3d .menu` (0,2,0) ecrasait aussi `.menu[data-manuel="true"]`
+ * (0,2,0), declaree plus haut dans la meme feuille. Le panneau perdait son z-index du mode
+ * manuel — dans Johanna AUTONOME, pour se defendre d'une feuille absente. L'empreinte l'a
+ * attrape. Une defense doit connaitre les DEUX feuilles ; seul l'hote les connait.
+ *
+ * Chaque regle repond a un selecteur REEL de src/index.css, avec son numero de ligne. Aucune
+ * precaution de principe : ce qui n'est pas mesure n'est pas ici.
+ *
+ * Importee par BoutiqueVue3D.tsx APRES la feuille du moteur, donc apres `styles.css`.
+ */
+
+/* ---------------------------------------------------------------------------------------
+ * 1. THEME « GLASS » — index.css:247-255
+ *    `html[data-theme="glass"] nav { position: relative; z-index: 20; backdrop-filter: ... }`
+ *
+ *    Le panneau de la boutique EST un <nav>. Sous ce theme — choisissable d'un clic parmi les
+ *    quinze — il retombait dans le flux en haut du cadre, et son z-index force a 20 le faisait
+ *    passer PAR-DESSUS la couche video, le lecteur, le selecteur et le retour a l'entree.
+ *    Un defaut qui apparait et disparait selon le theme : tres difficile a reproduire.
+ *
+ *    On repose les deux valeurs que la feuille du moteur donne, dans le meme ordre qu'elle :
+ *    la regle de base, puis celle du mode manuel. Sans cette seconde ligne, on recasserait
+ *    exactement ce que l'empreinte avait signale.
+ * ------------------------------------------------------------------------------------- */
+html[data-theme="glass"] .boutique3d .menu {
+  position: absolute;
+  z-index: auto;
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+}
+html[data-theme="glass"] .boutique3d .menu[data-manuel="true"] {
+  z-index: 4;
+}
+
+/* ---------------------------------------------------------------------------------------
+ * 2. PASTILLE DES CURSEURS — index.css:356-377
+ *    `input[type="range"]::-webkit-slider-thumb { width: 14px; border: 2px solid currentColor;
+ *     margin-top: -1px; }` — sans aucun scope, specificite (0,1,1).
+ *
+ *    Elle bat `.lecteur-volume::-webkit-slider-thumb` (0,1,0). La pastille passait a 14 px avec
+ *    un bord de 2 px et un margin-top de -1 px sur une piste de 3 px : decentree. Six curseurs
+ *    de la boutique sont concernes — volume du panneau, volume du petit lecteur, et les quatre
+ *    curseurs de lumiere — dont cinq n'ont aucun dessin propre.
+ *
+ *    On repose le dessin du moteur pour TOUS ses curseurs d'un coup. Les valeurs sont celles de
+ *    styles.css, recopiees a l'identique : 15 px, fond creme, pas de bord, margin-top -6px.
+ * ------------------------------------------------------------------------------------- */
+.boutique3d input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: #f2ece6;
+  border: 0;
+  margin-top: -6px;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, .4);
+}
+.boutique3d input[type="range"]::-moz-range-thumb {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: #f2ece6;
+  border: 0;
+}
+
+/* ---------------------------------------------------------------------------------------
+ * 3. LE CADRE D'ACCUEIL
+ *    `<main>` de Talvex n'est positionne QUE sous le theme glass (index.css:256-259). Ailleurs,
+ *    les couches de la boutique en `position: absolute` se caleraient sur le premier ancetre
+ *    positionne trouve plus haut — c'est-a-dire par-dessus la barre laterale et l'en-tete.
+ *    On ne compte donc jamais sur le theme : le cadre porte sa position lui-meme.
+ * ------------------------------------------------------------------------------------- */
+.boutique3d-cadre {
+  position: relative;
+  overflow: hidden;
+  border-radius: 12px;
+}
+
+/* ---------------------------------------------------------------------------------------
+ * NON TRAITE, ET C'EST UN CHOIX : les barres de defilement.
+ *    index.css:50-72 pose `*` et `*::-webkit-scrollbar` sans scope, donc les six conteneurs
+ *    defilables de la boutique auront les barres fines de Talvex. Cela ne deplace rien, et une
+ *    barre accordee a l'application hote se defend aussi bien que l'inverse. Le signaler coute
+ *    moins cher que de maintenir une contre-regle par propriete.
+ *
+ * NON TRAITE, ET C'EST UN CHOIX : les quinze themes.
+ *    311 fichiers de Talvex lisent leurs couleurs dans `useThemeTokens` ; la boutique ecrit les
+ *    siennes en dur. Elle ne suivra donc pas les themes. Une scene 3D a le droit d'avoir sa
+ *    propre ambiance : c'est un decor, pas un formulaire.
+ * ------------------------------------------------------------------------------------- */

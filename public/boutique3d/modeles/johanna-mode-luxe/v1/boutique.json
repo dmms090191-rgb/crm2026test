@@ -1,0 +1,520 @@
+{
+  "unites": "metres",
+  "convention_gltf": "Y up",
+  "tonemapping_blender": {
+    "view_transform": "AgX",
+    "look": "AgX - Medium High Contrast"
+  },
+  "capteur_mm": 36.0,
+  "vues": {
+    "sacs": {
+      "cible": [
+        -3.218,
+        6.25,
+        2.15
+      ],
+      "distance": 2.4398,
+      "rayon_sujet": 1.482,
+      "focale_blender_mm": 26.0
+    },
+    "robes": {
+      "cible": [
+        -3.218,
+        10.1,
+        2.15
+      ],
+      "distance": 2.4398,
+      "rayon_sujet": 1.482,
+      "focale_blender_mm": 26.0
+    },
+    "bijoux": {
+      "cible": [
+        3.218,
+        2.4,
+        2.15
+      ],
+      "distance": 2.4398,
+      "rayon_sujet": 1.482,
+      "focale_blender_mm": 26.0
+    },
+    "jeans": {
+      "cible": [
+        3.218,
+        6.3,
+        2.15
+      ],
+      "distance": 2.4398,
+      "rayon_sujet": 1.482,
+      "focale_blender_mm": 26.0
+    },
+    "tshirts": {
+      "cible": [
+        3.218,
+        10.1,
+        2.15
+      ],
+      "distance": 2.4398,
+      "rayon_sujet": 1.482,
+      "focale_blender_mm": 26.0
+    },
+    "chaussures": {
+      "cible": [
+        3.218,
+        12.4,
+        2.15
+      ],
+      "distance": 2.4398,
+      "rayon_sujet": 1.482,
+      "focale_blender_mm": 26.0
+    },
+    "looks": {
+      "cible": [
+        0.0,
+        13.918,
+        2.05
+      ],
+      "distance": 3.0907,
+      "rayon_sujet": 2.184,
+      "focale_blender_mm": 26.0
+    },
+    "nouveautes": {
+      "cible": [
+        -3.218,
+        2.4,
+        2.15
+      ],
+      "distance": 2.4398,
+      "rayon_sujet": 1.482,
+      "focale_blender_mm": 26.0
+    },
+    "mur_g": {
+      "cible": [
+        -3.1,
+        6.4,
+        1.95
+      ],
+      "distance": 5.2185,
+      "rayon_sujet": 2.4,
+      "focale_blender_mm": 30.0
+    },
+    "hub": {
+      "cible": [
+        0,
+        9.5,
+        1.05
+      ],
+      "distance": 7.8208,
+      "rayon_sujet": 3.4,
+      "focale_blender_mm": 24.0
+    },
+    "ext": {
+      "cible": [
+        0,
+        0.0,
+        2.05
+      ],
+      "distance": 6.324,
+      "rayon_sujet": 3.4,
+      "focale_blender_mm": 28.0
+    }
+  },
+  "ordre_categories": [
+    "nouveautes",
+    "sacs",
+    "robes",
+    "bijoux",
+    "jeans",
+    "tshirts",
+    "chaussures",
+    "looks"
+  ],
+  "entree": {
+    "duree_s": 4.0,
+    "porte_ouverture_deg": 100.0,
+    "portes_debut_s": 0.2,
+    "portes_duree_s": 1.4,
+    "chemin": [
+      "cam_ext",
+      "wp_ext_1",
+      "wp_porte",
+      "wp_int_1",
+      "cam_hub"
+    ],
+    "pivots": {
+      "gauche": "door_g_pivot",
+      "droite": "door_d_pivot"
+    }
+  },
+  "lightmap": {
+    "K": 0.4,
+    "intensite_web": 7.854,
+    "canal_uv": 1
+  },
+  "collisions": {
+    "rayon_joueur": 0.3,
+    "hauteur_oeil": 1.62,
+    "y_bas": 0.1,
+    "y_haut": 1.8,
+    "limites": {
+      "x": [
+        -3.0,
+        3.0
+      ],
+      "z": [
+        -13.7,
+        -0.45
+      ]
+    },
+    "depart": {
+      "x": 0.0,
+      "z": -1.7,
+      "yaw": 0.0
+    },
+    "obstacles": [
+      {
+        "nom": "deco_lambris",
+        "x": [
+          -2.63,
+          2.63
+        ],
+        "z": [
+          -14.0,
+          -13.94
+        ]
+      },
+      {
+        "nom": "screen_looks",
+        "x": [
+          -1.41,
+          1.41
+        ],
+        "z": [
+          -13.97,
+          -13.91
+        ]
+      },
+      {
+        "nom": "deco_enceinte_g",
+        "x": [
+          -1.91,
+          -1.64
+        ],
+        "z": [
+          -13.9,
+          -13.55
+        ]
+      },
+      {
+        "nom": "deco_enceinte_d",
+        "x": [
+          1.64,
+          1.91
+        ],
+        "z": [
+          -13.9,
+          -13.55
+        ]
+      },
+      {
+        "nom": "plant_fond_d",
+        "x": [
+          2.62,
+          3.08
+        ],
+        "z": [
+          -13.88,
+          -13.42
+        ]
+      },
+      {
+        "nom": "plant_fond_g",
+        "x": [
+          -3.12,
+          -2.58
+        ],
+        "z": [
+          -13.87,
+          -13.33
+        ]
+      },
+      {
+        "nom": "deco_miroir",
+        "x": [
+          -3.3,
+          -3.24
+        ],
+        "z": [
+          -13.69,
+          -12.21
+        ]
+      },
+      {
+        "nom": "furn_chaussures",
+        "x": [
+          2.89,
+          3.26
+        ],
+        "z": [
+          -13.36,
+          -11.44
+        ]
+      },
+      {
+        "nom": "furn_comptoir",
+        "x": [
+          -1.36,
+          1.4
+        ],
+        "z": [
+          -12.86,
+          -12.13
+        ]
+      },
+      {
+        "nom": "deco_lampe",
+        "x": [
+          -2.48,
+          -2.12
+        ],
+        "z": [
+          -12.73,
+          -12.38
+        ]
+      },
+      {
+        "nom": "deco_mannequin_robes",
+        "x": [
+          -2.85,
+          -2.25
+        ],
+        "z": [
+          -12.2,
+          -11.6
+        ]
+      },
+      {
+        "nom": "furn_tabouret",
+        "x": [
+          -0.94,
+          -0.56
+        ],
+        "z": [
+          -11.84,
+          -11.46
+        ]
+      },
+      {
+        "nom": "furn_tabouret",
+        "x": [
+          0.56,
+          0.94
+        ],
+        "z": [
+          -11.84,
+          -11.46
+        ]
+      },
+      {
+        "nom": "screen_robes",
+        "x": [
+          -3.24,
+          -3.21
+        ],
+        "z": [
+          -11.06,
+          -9.14
+        ]
+      },
+      {
+        "nom": "screen_tshirts",
+        "x": [
+          3.21,
+          3.24
+        ],
+        "z": [
+          -11.06,
+          -9.14
+        ]
+      },
+      {
+        "nom": "furn_portant_robes",
+        "x": [
+          -3.25,
+          -2.8
+        ],
+        "z": [
+          -10.78,
+          -9.42
+        ]
+      },
+      {
+        "nom": "furn_portant_tshirts",
+        "x": [
+          2.53,
+          3.25
+        ],
+        "z": [
+          -10.78,
+          -9.42
+        ]
+      },
+      {
+        "nom": "screen_jeans",
+        "x": [
+          3.21,
+          3.24
+        ],
+        "z": [
+          -7.26,
+          -5.34
+        ]
+      },
+      {
+        "nom": "furn_console",
+        "x": [
+          -3.27,
+          -2.8
+        ],
+        "z": [
+          -7.21,
+          -5.29
+        ]
+      },
+      {
+        "nom": "furn_portant_jeans",
+        "x": [
+          2.85,
+          3.23
+        ],
+        "z": [
+          -6.99,
+          -5.61
+        ]
+      },
+      {
+        "nom": "furn_banquette",
+        "x": [
+          -1.0,
+          1.0
+        ],
+        "z": [
+          -6.87,
+          -5.94
+        ]
+      },
+      {
+        "nom": "furn_table",
+        "x": [
+          -0.58,
+          0.58
+        ],
+        "z": [
+          -4.83,
+          -3.67
+        ]
+      },
+      {
+        "nom": "screen_nouveautes",
+        "x": [
+          -3.24,
+          -3.21
+        ],
+        "z": [
+          -3.36,
+          -1.44
+        ]
+      },
+      {
+        "nom": "screen_bijoux",
+        "x": [
+          3.21,
+          3.24
+        ],
+        "z": [
+          -3.36,
+          -1.44
+        ]
+      },
+      {
+        "nom": "furn_portant_nouveautes",
+        "x": [
+          -3.25,
+          -2.59
+        ],
+        "z": [
+          -3.08,
+          -1.72
+        ]
+      },
+      {
+        "nom": "furn_bijoux",
+        "x": [
+          2.62,
+          3.25
+        ],
+        "z": [
+          -2.93,
+          -1.87
+        ]
+      },
+      {
+        "nom": "plant_entree_g",
+        "x": [
+          -3.11,
+          -2.69
+        ],
+        "z": [
+          -0.86,
+          -0.44
+        ]
+      },
+      {
+        "nom": "plant_entree_d",
+        "x": [
+          2.69,
+          3.11
+        ],
+        "z": [
+          -0.86,
+          -0.44
+        ]
+      },
+      {
+        "nom": "deco_vitrine",
+        "x": [
+          -2.88,
+          -1.72
+        ],
+        "z": [
+          -0.7,
+          -0.14
+        ]
+      },
+      {
+        "nom": "deco_vitrine",
+        "x": [
+          1.72,
+          2.88
+        ],
+        "z": [
+          -0.7,
+          -0.14
+        ]
+      }
+    ]
+  },
+  "enceintes": [
+    {
+      "cote": "g",
+      "x": -1.78,
+      "y": 1.43,
+      "z": -13.55
+    },
+    {
+      "cote": "d",
+      "x": 1.78,
+      "y": 1.43,
+      "z": -13.55
+    }
+  ]
+}

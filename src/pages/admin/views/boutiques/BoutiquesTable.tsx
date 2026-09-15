@@ -1,16 +1,22 @@
-import { MoreHorizontal, Store } from 'lucide-react';
+import { Box, MoreHorizontal, Store } from 'lucide-react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 import { templateLabel, formatBoutiqueDate } from './boutiqueTypes';
 import type { Boutique } from './boutiqueTypes';
+import { aUneBoutique3D } from '../../../../boutique3d/modeles';
 
 interface Props {
   boutiques: Boutique[];
   loading: boolean;
+  /**
+   * Ouvre la boutique 3D. Le bouton n'apparait que pour les boutiques dont le `template_key`
+   * correspond a un modele 3D connu : une boutique creee de zero n'a rien a ouvrir.
+   */
+  onOuvrir?: (boutique: Boutique) => void;
 }
 
 const COLUMNS = ['Nom de la boutique', 'Modèle', 'Date de création', 'Statut', 'Actions'];
 
-export default function BoutiquesTable({ boutiques, loading }: Props) {
+export default function BoutiquesTable({ boutiques, loading, onOuvrir }: Props) {
   const t = useThemeTokens();
 
   if (loading) {
@@ -70,12 +76,24 @@ export default function BoutiquesTable({ boutiques, loading }: Props) {
                   </span>
                 </td>
                 <td className="px-5 py-4 whitespace-nowrap">
-                  <button type="button"
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105"
-                    style={{ background: t.surface.secondary, border: `1px solid ${t.surface.border}`, color: t.text.secondary }}>
-                    <MoreHorizontal className="w-3.5 h-3.5" />
-                    Actions
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {onOuvrir && aUneBoutique3D(b.template_key) && (
+                      <button type="button" onClick={() => onOuvrir(b)}
+                        data-testid={`ouvrir-boutique-${b.id}`}
+                        title={`Ouvrir ${b.name} en 3D`}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105"
+                        style={{ background: t.accent.solid, color: t.text.inverse }}>
+                        <Box className="w-3.5 h-3.5" />
+                        Ouvrir la boutique
+                      </button>
+                    )}
+                    <button type="button"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105"
+                      style={{ background: t.surface.secondary, border: `1px solid ${t.surface.border}`, color: t.text.secondary }}>
+                      <MoreHorizontal className="w-3.5 h-3.5" />
+                      Actions
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}

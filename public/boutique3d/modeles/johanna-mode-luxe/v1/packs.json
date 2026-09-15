@@ -1,0 +1,935 @@
+{
+  "version": "9a48b005",
+  "base": {
+    "fichier": "boutique.glb",
+    "octets": 2710000
+  },
+  "niveaux": {
+    "faible": {
+      "octets": 0,
+      "textures": []
+    },
+    "equilibre": {
+      "octets": 2624381,
+      "textures": [
+        {
+          "nom": "diff_tint_056_051_048",
+          "url": "/tex/9a48b005/diff_tint_056_051_048_1024_etc1s.ktx2",
+          "octets": 131401,
+          "largeur": 1024,
+          "hauteur": 1024,
+          "format": "etc1s",
+          "srgb": true,
+          "cibles": [
+            {
+              "materiau": "mat_facade__shell",
+              "slot": "map"
+            }
+          ]
+        },
+        {
+          "nom": "diff_tint_087_079_074",
+          "url": "/tex/9a48b005/diff_tint_087_079_074_1024_etc1s.ktx2",
+          "octets": 162608,
+          "largeur": 1024,
+          "hauteur": 1024,
+          "format": "etc1s",
+          "srgb": true,
+          "cibles": [
+            {
+              "materiau": "mat_mur_platre__shell",
+              "slot": "map"
+            }
+          ]
+        },
+        {
+          "nom": "diff_tint_184_158_133",
+          "url": "/tex/9a48b005/diff_tint_184_158_133_1024_etc1s.ktx2",
+          "octets": 207908,
+          "largeur": 1024,
+          "hauteur": 1024,
+          "format": "etc1s",
+          "srgb": true,
+          "cibles": [
+            {
+              "materiau": "mat_sol_chene__shell",
+              "slot": "map"
+            }
+          ]
+        },
+        {
+          "nom": "lightmap_decor",
+          "url": "/tex/9a48b005/lightmap_decor_1024_uastc.ktx2",
+          "octets": 334431,
+          "largeur": 1024,
+          "hauteur": 1024,
+          "format": "uastc",
+          "srgb": true,
+          "cibles": [
+            {
+              "materiau": "mat_bois_fonce__decor",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_bougie__decor",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_ceramique__decor",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_cuir__decor",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_cuir_creme__decor",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_enceinte_baffle__decor",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_enceinte_corps__decor",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_enceinte_joint__decor",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_enceinte_membrane__decor",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_enceinte_tissu__decor",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_feuille__decor",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_laiton__decor",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_marbre_noir__decor",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_metal_noir__decor",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_miroir__decor",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_robe_blanc__decor",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_robe_gris__decor",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_robe_noir__decor",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_robe_rose__decor",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_tapis__decor",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_tapis_fonce__decor",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_tissu_banquette__decor",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_tissu_fonce__decor",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_tronc__decor",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_velours__decor",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_vet_blanc__decor",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_vet_bordeaux__decor",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_vet_creme__decor",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_vet_denim__decor",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_vet_denim_clair__decor",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_vet_gris__decor",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_vet_noir__decor",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "periwinkle_plant__decor",
+              "slot": "lightMap"
+            }
+          ]
+        },
+        {
+          "nom": "lightmap_shell",
+          "url": "/tex/9a48b005/lightmap_shell_2048_uastc.ktx2",
+          "octets": 803434,
+          "largeur": 2048,
+          "hauteur": 2048,
+          "format": "uastc",
+          "srgb": true,
+          "cibles": [
+            {
+              "materiau": "mat_facade__shell",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_marbre_clair__shell",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_marbre_noir__shell",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_mur_platre__shell",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_plafond__shell",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_sol_chene__shell",
+              "slot": "lightMap"
+            }
+          ]
+        },
+        {
+          "nom": "nor_murs",
+          "url": "/tex/9a48b005/nor_murs_1024_etc1s.ktx2",
+          "octets": 207516,
+          "largeur": 1024,
+          "hauteur": 1024,
+          "format": "etc1s",
+          "srgb": false,
+          "cibles": [
+            {
+              "materiau": "mat_facade__shell",
+              "slot": "normalMap"
+            },
+            {
+              "materiau": "mat_mur_platre__shell",
+              "slot": "normalMap"
+            }
+          ]
+        },
+        {
+          "nom": "nor_sol",
+          "url": "/tex/9a48b005/nor_sol_1024_etc1s.ktx2",
+          "octets": 113795,
+          "largeur": 1024,
+          "hauteur": 1024,
+          "format": "etc1s",
+          "srgb": false,
+          "cibles": [
+            {
+              "materiau": "mat_sol_chene__shell",
+              "slot": "normalMap"
+            }
+          ]
+        },
+        {
+          "nom": "periwinkle_plant_arm_1k",
+          "url": "/tex/9a48b005/periwinkle_plant_arm_1k_1024_etc1s.ktx2",
+          "octets": 3354,
+          "largeur": 1024,
+          "hauteur": 1024,
+          "format": "etc1s",
+          "srgb": false,
+          "cibles": [
+            {
+              "materiau": "periwinkle_plant__decor",
+              "slot": "metalnessMap"
+            },
+            {
+              "materiau": "periwinkle_plant__decor",
+              "slot": "roughnessMap"
+            }
+          ]
+        },
+        {
+          "nom": "periwinkle_plant_diff_1k",
+          "url": "/tex/9a48b005/periwinkle_plant_diff_1k_1024_etc1s.ktx2",
+          "octets": 128084,
+          "largeur": 1024,
+          "hauteur": 1024,
+          "format": "etc1s",
+          "srgb": true,
+          "cibles": [
+            {
+              "materiau": "periwinkle_plant__decor",
+              "slot": "map"
+            }
+          ]
+        },
+        {
+          "nom": "periwinkle_plant_nor_gl_1k",
+          "url": "/tex/9a48b005/periwinkle_plant_nor_gl_1k_1024_etc1s.ktx2",
+          "octets": 184870,
+          "largeur": 1024,
+          "hauteur": 1024,
+          "format": "etc1s",
+          "srgb": false,
+          "cibles": [
+            {
+              "materiau": "periwinkle_plant__decor",
+              "slot": "normalMap"
+            }
+          ]
+        },
+        {
+          "nom": "tex_ecran_bijoux",
+          "url": "/tex/9a48b005/tex_ecran_bijoux_1024_etc1s.ktx2",
+          "octets": 33748,
+          "largeur": 1024,
+          "hauteur": 576,
+          "format": "etc1s",
+          "srgb": true,
+          "cibles": [
+            {
+              "materiau": "mat_ecran_bijoux",
+              "slot": "emissiveMap"
+            }
+          ]
+        },
+        {
+          "nom": "tex_ecran_chaussures",
+          "url": "/tex/9a48b005/tex_ecran_chaussures_1024_etc1s.ktx2",
+          "octets": 36692,
+          "largeur": 1024,
+          "hauteur": 576,
+          "format": "etc1s",
+          "srgb": true,
+          "cibles": [
+            {
+              "materiau": "mat_ecran_chaussures",
+              "slot": "emissiveMap"
+            }
+          ]
+        },
+        {
+          "nom": "tex_ecran_jeans",
+          "url": "/tex/9a48b005/tex_ecran_jeans_1024_etc1s.ktx2",
+          "octets": 37985,
+          "largeur": 1024,
+          "hauteur": 576,
+          "format": "etc1s",
+          "srgb": true,
+          "cibles": [
+            {
+              "materiau": "mat_ecran_jeans",
+              "slot": "emissiveMap"
+            }
+          ]
+        },
+        {
+          "nom": "tex_ecran_looks",
+          "url": "/tex/9a48b005/tex_ecran_looks_1024_etc1s.ktx2",
+          "octets": 37716,
+          "largeur": 1024,
+          "hauteur": 576,
+          "format": "etc1s",
+          "srgb": true,
+          "cibles": [
+            {
+              "materiau": "mat_ecran_looks.001",
+              "slot": "emissiveMap"
+            }
+          ]
+        },
+        {
+          "nom": "tex_ecran_nouveautes",
+          "url": "/tex/9a48b005/tex_ecran_nouveautes_1024_etc1s.ktx2",
+          "octets": 37724,
+          "largeur": 1024,
+          "hauteur": 576,
+          "format": "etc1s",
+          "srgb": true,
+          "cibles": [
+            {
+              "materiau": "mat_ecran_nouveautes",
+              "slot": "emissiveMap"
+            }
+          ]
+        },
+        {
+          "nom": "tex_ecran_robes",
+          "url": "/tex/9a48b005/tex_ecran_robes_1024_etc1s.ktx2",
+          "octets": 35850,
+          "largeur": 1024,
+          "hauteur": 576,
+          "format": "etc1s",
+          "srgb": true,
+          "cibles": [
+            {
+              "materiau": "mat_ecran_robes",
+              "slot": "emissiveMap"
+            }
+          ]
+        },
+        {
+          "nom": "tex_ecran_sacs",
+          "url": "/tex/9a48b005/tex_ecran_sacs_1024_etc1s.ktx2",
+          "octets": 36402,
+          "largeur": 1024,
+          "hauteur": 576,
+          "format": "etc1s",
+          "srgb": true,
+          "cibles": [
+            {
+              "materiau": "mat_ecran_sacs",
+              "slot": "emissiveMap"
+            }
+          ]
+        },
+        {
+          "nom": "tex_ecran_tshirts",
+          "url": "/tex/9a48b005/tex_ecran_tshirts_1024_etc1s.ktx2",
+          "octets": 36280,
+          "largeur": 1024,
+          "hauteur": 576,
+          "format": "etc1s",
+          "srgb": true,
+          "cibles": [
+            {
+              "materiau": "mat_ecran_tshirts",
+              "slot": "emissiveMap"
+            }
+          ]
+        },
+        {
+          "nom": "tex_ecran_vitrine_d",
+          "url": "/tex/9a48b005/tex_ecran_vitrine_d_576_etc1s.ktx2",
+          "octets": 24694,
+          "largeur": 576,
+          "hauteur": 1024,
+          "format": "etc1s",
+          "srgb": true,
+          "cibles": [
+            {
+              "materiau": "mat_ecran_vitrine_d",
+              "slot": "emissiveMap"
+            }
+          ]
+        },
+        {
+          "nom": "tex_ecran_vitrine_g",
+          "url": "/tex/9a48b005/tex_ecran_vitrine_g_576_etc1s.ktx2",
+          "octets": 29889,
+          "largeur": 576,
+          "hauteur": 1024,
+          "format": "etc1s",
+          "srgb": true,
+          "cibles": [
+            {
+              "materiau": "mat_ecran_vitrine_g",
+              "slot": "emissiveMap"
+            }
+          ]
+        }
+      ]
+    },
+    "ultra": {
+      "octets": 4585012,
+      "textures": [
+        {
+          "nom": "diff_tint_056_051_048",
+          "url": "/tex/9a48b005/diff_tint_056_051_048_1024_etc1s.ktx2",
+          "octets": 131401,
+          "largeur": 1024,
+          "hauteur": 1024,
+          "format": "etc1s",
+          "srgb": true,
+          "cibles": [
+            {
+              "materiau": "mat_facade__shell",
+              "slot": "map"
+            }
+          ]
+        },
+        {
+          "nom": "diff_tint_087_079_074",
+          "url": "/tex/9a48b005/diff_tint_087_079_074_1024_etc1s.ktx2",
+          "octets": 162608,
+          "largeur": 1024,
+          "hauteur": 1024,
+          "format": "etc1s",
+          "srgb": true,
+          "cibles": [
+            {
+              "materiau": "mat_mur_platre__shell",
+              "slot": "map"
+            }
+          ]
+        },
+        {
+          "nom": "diff_tint_184_158_133",
+          "url": "/tex/9a48b005/diff_tint_184_158_133_2048_etc1s_q255.ktx2",
+          "octets": 839658,
+          "largeur": 2048,
+          "hauteur": 2048,
+          "format": "etc1s",
+          "srgb": true,
+          "cibles": [
+            {
+              "materiau": "mat_sol_chene__shell",
+              "slot": "map"
+            }
+          ]
+        },
+        {
+          "nom": "lightmap_decor",
+          "url": "/tex/9a48b005/lightmap_decor_2048_uastc.ktx2",
+          "octets": 1032024,
+          "largeur": 2048,
+          "hauteur": 2048,
+          "format": "uastc",
+          "srgb": true,
+          "cibles": [
+            {
+              "materiau": "mat_bois_fonce__decor",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_bougie__decor",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_ceramique__decor",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_cuir__decor",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_cuir_creme__decor",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_enceinte_baffle__decor",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_enceinte_corps__decor",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_enceinte_joint__decor",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_enceinte_membrane__decor",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_enceinte_tissu__decor",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_feuille__decor",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_laiton__decor",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_marbre_noir__decor",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_metal_noir__decor",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_miroir__decor",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_robe_blanc__decor",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_robe_gris__decor",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_robe_noir__decor",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_robe_rose__decor",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_tapis__decor",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_tapis_fonce__decor",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_tissu_banquette__decor",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_tissu_fonce__decor",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_tronc__decor",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_velours__decor",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_vet_blanc__decor",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_vet_bordeaux__decor",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_vet_creme__decor",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_vet_denim__decor",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_vet_denim_clair__decor",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_vet_gris__decor",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_vet_noir__decor",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "periwinkle_plant__decor",
+              "slot": "lightMap"
+            }
+          ]
+        },
+        {
+          "nom": "lightmap_shell",
+          "url": "/tex/9a48b005/lightmap_shell_2048_uastc.ktx2",
+          "octets": 803434,
+          "largeur": 2048,
+          "hauteur": 2048,
+          "format": "uastc",
+          "srgb": true,
+          "cibles": [
+            {
+              "materiau": "mat_facade__shell",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_marbre_clair__shell",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_marbre_noir__shell",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_mur_platre__shell",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_plafond__shell",
+              "slot": "lightMap"
+            },
+            {
+              "materiau": "mat_sol_chene__shell",
+              "slot": "lightMap"
+            }
+          ]
+        },
+        {
+          "nom": "nor_murs",
+          "url": "/tex/9a48b005/nor_murs_1024_etc1s.ktx2",
+          "octets": 207516,
+          "largeur": 1024,
+          "hauteur": 1024,
+          "format": "etc1s",
+          "srgb": false,
+          "cibles": [
+            {
+              "materiau": "mat_facade__shell",
+              "slot": "normalMap"
+            },
+            {
+              "materiau": "mat_mur_platre__shell",
+              "slot": "normalMap"
+            }
+          ]
+        },
+        {
+          "nom": "nor_sol",
+          "url": "/tex/9a48b005/nor_sol_1024_uastc.ktx2",
+          "octets": 745083,
+          "largeur": 1024,
+          "hauteur": 1024,
+          "format": "uastc",
+          "srgb": false,
+          "cibles": [
+            {
+              "materiau": "mat_sol_chene__shell",
+              "slot": "normalMap"
+            }
+          ]
+        },
+        {
+          "nom": "periwinkle_plant_arm_1k",
+          "url": "/tex/9a48b005/periwinkle_plant_arm_1k_1024_etc1s.ktx2",
+          "octets": 3354,
+          "largeur": 1024,
+          "hauteur": 1024,
+          "format": "etc1s",
+          "srgb": false,
+          "cibles": [
+            {
+              "materiau": "periwinkle_plant__decor",
+              "slot": "metalnessMap"
+            },
+            {
+              "materiau": "periwinkle_plant__decor",
+              "slot": "roughnessMap"
+            }
+          ]
+        },
+        {
+          "nom": "periwinkle_plant_diff_1k",
+          "url": "/tex/9a48b005/periwinkle_plant_diff_1k_1024_etc1s.ktx2",
+          "octets": 128084,
+          "largeur": 1024,
+          "hauteur": 1024,
+          "format": "etc1s",
+          "srgb": true,
+          "cibles": [
+            {
+              "materiau": "periwinkle_plant__decor",
+              "slot": "map"
+            }
+          ]
+        },
+        {
+          "nom": "periwinkle_plant_nor_gl_1k",
+          "url": "/tex/9a48b005/periwinkle_plant_nor_gl_1k_1024_etc1s.ktx2",
+          "octets": 184870,
+          "largeur": 1024,
+          "hauteur": 1024,
+          "format": "etc1s",
+          "srgb": false,
+          "cibles": [
+            {
+              "materiau": "periwinkle_plant__decor",
+              "slot": "normalMap"
+            }
+          ]
+        },
+        {
+          "nom": "tex_ecran_bijoux",
+          "url": "/tex/9a48b005/tex_ecran_bijoux_1024_etc1s.ktx2",
+          "octets": 33748,
+          "largeur": 1024,
+          "hauteur": 576,
+          "format": "etc1s",
+          "srgb": true,
+          "cibles": [
+            {
+              "materiau": "mat_ecran_bijoux",
+              "slot": "emissiveMap"
+            }
+          ]
+        },
+        {
+          "nom": "tex_ecran_chaussures",
+          "url": "/tex/9a48b005/tex_ecran_chaussures_1024_etc1s.ktx2",
+          "octets": 36692,
+          "largeur": 1024,
+          "hauteur": 576,
+          "format": "etc1s",
+          "srgb": true,
+          "cibles": [
+            {
+              "materiau": "mat_ecran_chaussures",
+              "slot": "emissiveMap"
+            }
+          ]
+        },
+        {
+          "nom": "tex_ecran_jeans",
+          "url": "/tex/9a48b005/tex_ecran_jeans_1024_etc1s.ktx2",
+          "octets": 37985,
+          "largeur": 1024,
+          "hauteur": 576,
+          "format": "etc1s",
+          "srgb": true,
+          "cibles": [
+            {
+              "materiau": "mat_ecran_jeans",
+              "slot": "emissiveMap"
+            }
+          ]
+        },
+        {
+          "nom": "tex_ecran_looks",
+          "url": "/tex/9a48b005/tex_ecran_looks_1024_etc1s.ktx2",
+          "octets": 37716,
+          "largeur": 1024,
+          "hauteur": 576,
+          "format": "etc1s",
+          "srgb": true,
+          "cibles": [
+            {
+              "materiau": "mat_ecran_looks.001",
+              "slot": "emissiveMap"
+            }
+          ]
+        },
+        {
+          "nom": "tex_ecran_nouveautes",
+          "url": "/tex/9a48b005/tex_ecran_nouveautes_1024_etc1s.ktx2",
+          "octets": 37724,
+          "largeur": 1024,
+          "hauteur": 576,
+          "format": "etc1s",
+          "srgb": true,
+          "cibles": [
+            {
+              "materiau": "mat_ecran_nouveautes",
+              "slot": "emissiveMap"
+            }
+          ]
+        },
+        {
+          "nom": "tex_ecran_robes",
+          "url": "/tex/9a48b005/tex_ecran_robes_1024_etc1s.ktx2",
+          "octets": 35850,
+          "largeur": 1024,
+          "hauteur": 576,
+          "format": "etc1s",
+          "srgb": true,
+          "cibles": [
+            {
+              "materiau": "mat_ecran_robes",
+              "slot": "emissiveMap"
+            }
+          ]
+        },
+        {
+          "nom": "tex_ecran_sacs",
+          "url": "/tex/9a48b005/tex_ecran_sacs_1024_etc1s.ktx2",
+          "octets": 36402,
+          "largeur": 1024,
+          "hauteur": 576,
+          "format": "etc1s",
+          "srgb": true,
+          "cibles": [
+            {
+              "materiau": "mat_ecran_sacs",
+              "slot": "emissiveMap"
+            }
+          ]
+        },
+        {
+          "nom": "tex_ecran_tshirts",
+          "url": "/tex/9a48b005/tex_ecran_tshirts_1024_etc1s.ktx2",
+          "octets": 36280,
+          "largeur": 1024,
+          "hauteur": 576,
+          "format": "etc1s",
+          "srgb": true,
+          "cibles": [
+            {
+              "materiau": "mat_ecran_tshirts",
+              "slot": "emissiveMap"
+            }
+          ]
+        },
+        {
+          "nom": "tex_ecran_vitrine_d",
+          "url": "/tex/9a48b005/tex_ecran_vitrine_d_576_etc1s.ktx2",
+          "octets": 24694,
+          "largeur": 576,
+          "hauteur": 1024,
+          "format": "etc1s",
+          "srgb": true,
+          "cibles": [
+            {
+              "materiau": "mat_ecran_vitrine_d",
+              "slot": "emissiveMap"
+            }
+          ]
+        },
+        {
+          "nom": "tex_ecran_vitrine_g",
+          "url": "/tex/9a48b005/tex_ecran_vitrine_g_576_etc1s.ktx2",
+          "octets": 29889,
+          "largeur": 576,
+          "hauteur": 1024,
+          "format": "etc1s",
+          "srgb": true,
+          "cibles": [
+            {
+              "materiau": "mat_ecran_vitrine_g",
+              "slot": "emissiveMap"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

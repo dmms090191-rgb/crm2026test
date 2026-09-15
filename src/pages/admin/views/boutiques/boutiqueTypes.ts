@@ -13,6 +13,15 @@ export interface Boutique {
   name: string;
   /** Cle du modele d'origine, ou null si la boutique a ete creee de zero. */
   template_key: string | null;
+  /**
+   * Version du modele utilisee par cette boutique. Elle decide du dossier d'assets servi :
+   * /boutique3d/modeles/<template_key>/v<template_version>/
+   *
+   * OPTIONNELLE, et elle doit le rester : la colonne n'existe en base qu'apres la migration
+   * qui l'ajoute, et `select('*')` ne rend que ce qui existe. Une boutique sans version
+   * retombe sur la version livree du modele — c'est le comportement d'avant, a l'identique.
+   */
+  template_version?: number;
   status: string;
   created_at: string;
 }

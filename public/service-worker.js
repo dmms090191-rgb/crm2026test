@@ -29,6 +29,27 @@ self.addEventListener('fetch', function (event) {
   if (url.pathname.startsWith('/auth/')) return;
   if (url.pathname.startsWith('/storage/')) return;
 
+  // Requetes PARTIELLES (en-tete Range) : on ne les intercepte JAMAIS.
+  //
+  // C'est ainsi qu'un <audio> ou une <video> demande un morceau de fichier, et c'est ce qui
+  // permet de se deplacer dans une piste sans la retelecharger. Quand un service worker
+  // repond a leur place — meme en refaisant simplement le fetch — Safari a une histoire connue
+  // de reponses completes servies la ou le lecteur attend un 206 : la lecture se coupe ou le
+  // curseur ne repond plus. Ne pas appeler respondWith rend la requete au navigateur, qui la
+  // traite nativement : c'est strictement plus sur que de la relayer.
+  //
+  // La boutique 3D est le premier module de Talvex a lire des fichiers audio (trois mp3 joues
+  // par un <audio>), mais la regle vaut pour tout media a venir.
+  if (event.request.headers.has('range')) return;
+
+  // Les assets de la boutique 3D ne passent pas non plus par ici. Deux raisons :
+  //   - ils pesent 9,4 Mo et ne gagnent rien a etre relayes ;
+  //   - le repli hors ligne plus bas rend `new Response('', { status: 404 })` pour tout ce qui
+  //     n'est pas une navigation. Un GLB momentanement indisponible ressemblerait alors a un
+  //     fichier introuvable, et le chargeur n'aurait aucun moyen de distinguer une coupure
+  //     reseau d'un asset manquant.
+  if (url.pathname.startsWith('/boutique3d/')) return;
+
   var isNavigation = event.request.mode === 'navigate';
 
   event.respondWith(
