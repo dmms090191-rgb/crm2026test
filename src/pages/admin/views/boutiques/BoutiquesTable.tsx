@@ -3,6 +3,7 @@ import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 import { templateLabel, formatBoutiqueDate } from './boutiqueTypes';
 import type { Boutique } from './boutiqueTypes';
 import { aUneBoutique3D } from '../../../../boutique3d/modeles';
+import CheckBox from '../crm/CheckBox';
 
 interface Props {
   boutiques: Boutique[];
@@ -12,12 +13,23 @@ interface Props {
    * correspond a un modele 3D connu : une boutique creee de zero n'a rien a ouvrir.
    */
   onOuvrir?: (boutique: Boutique) => void;
+  /**
+   * Selection multiple. La colonne de cases n'apparait que si `onBasculer` est fourni :
+   * un tableau rendu sans ces props reste exactement celui d'avant.
+   */
+  selection?: Set<string>;
+  onBasculer?: (id: string) => void;
+  onBasculerTout?: () => void;
 }
 
 const COLUMNS = ['Nom de la boutique', 'Modèle', 'Date de création', 'Statut', 'Actions'];
 
-export default function BoutiquesTable({ boutiques, loading, onOuvrir }: Props) {
+export default function BoutiquesTable({ boutiques, loading, onOuvrir, selection, onBasculer, onBasculerTout }: Props) {
   const t = useThemeTokens();
+  const selectionnable = Boolean(onBasculer);
+  const choisies = selection ?? new Set<string>();
+  const toutCoche = boutiques.length > 0 && choisies.size === boutiques.length;
+  const partiel = choisies.size > 0 && choisies.size < boutiques.length;
 
   if (loading) {
     return (
@@ -47,6 +59,11 @@ export default function BoutiquesTable({ boutiques, loading, onOuvrir }: Props) 
         <table className="w-full">
           <thead>
             <tr style={{ borderBottom: `1px solid ${t.table.headerBorder}`, background: t.table.headerBg }}>
+              {selectionnable && (
+                <th className="px-3 py-3 w-10" data-testid="boutiques-tout-selectionner">
+                  <CheckBox checked={toutCoche} indeterminate={partiel} onChange={() => onBasculerTout?.()} />
+                </th>
+              )}
               {COLUMNS.map(col => (
                 <th key={col}
                   className="px-5 py-3 text-left text-[10px] font-bold tracking-[0.15em] uppercase whitespace-nowrap"
@@ -59,7 +76,15 @@ export default function BoutiquesTable({ boutiques, loading, onOuvrir }: Props) 
           <tbody>
             {boutiques.map(b => (
               <tr key={b.id} data-row-id={b.id} className="group transition-all duration-150"
-                style={{ borderBottom: `1px solid ${t.table.rowBorder}` }}>
+                style={{
+                  borderBottom: `1px solid ${t.table.rowBorder}`,
+                  background: choisies.has(b.id) ? t.accent.bg : undefined,
+                }}>
+                {selectionnable && (
+                  <td className="px-3 py-4 w-10" data-testid={`boutique-case-${b.id}`}>
+                    <CheckBox checked={choisies.has(b.id)} onChange={() => onBasculer?.(b.id)} />
+                  </td>
+                )}
                 <td className="px-5 py-4 text-sm font-semibold whitespace-nowrap" style={{ color: t.table.cellText }}>
                   {b.name}
                 </td>

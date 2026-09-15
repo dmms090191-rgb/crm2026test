@@ -1,9 +1,10 @@
-import { lazy, Suspense, useState } from 'react';
-import { Plus } from 'lucide-react';
+import { lazy, Suspense, useState, useEffect, useCallback } from 'react';
+import { Plus, Trash2 } from 'lucide-react';
 import { useThemeTokens } from '../../../hooks/useThemeTokens';
 import { useBoutiques } from './boutiques/useBoutiques';
 import BoutiquesTable from './boutiques/BoutiquesTable';
 import BoutiqueCreateModal from './boutiques/BoutiqueCreateModal';
+import BoutiqueDeleteModal from './boutiques/BoutiqueDeleteModal';
 import type { Boutique } from './boutiques/boutiqueTypes';
 import BarriereErreur from '../../../boutique3d/BarriereErreur';
 
@@ -30,9 +31,51 @@ const BoutiqueVue3D = lazy(() => import('../../../boutique3d/BoutiqueVue3D'));
  */
 export default function Boutiques() {
   const t = useThemeTokens();
-  const { boutiques, loading, error, create } = useBoutiques();
+  const { boutiques, loading, error, create, supprimer } = useBoutiques();
   const [showCreate, setShowCreate] = useState(false);
   const [ouverte, setOuverte] = useState<Boutique | null>(null);
+
+  const [selection, setSelection] = useState<Set<string>>(new Set());
+  const [confirmation, setConfirmation] = useState(false);
+  const [suppression, setSuppression] = useState(false);
+  const [erreurSuppression, setErreurSuppression] = useState('');
+
+  // La selection ne survit pas a la disparition de ses lignes : apres une suppression ou un
+  // rechargement, un id qui n'est plus dans la liste sortirait le compteur du bouton de la
+  // realite. On ne renvoie un nouvel ensemble que s'il a reellement change, sinon le rendu
+  // boucle.
+  useEffect(() => {
+    setSelection(prev => {
+      if (prev.size === 0) return prev;
+      const vivants = new Set(boutiques.map(b => b.id));
+      const garde = new Set([...prev].filter(id => vivants.has(id)));
+      return garde.size === prev.size ? prev : garde;
+    });
+  }, [boutiques]);
+
+  const basculer = useCallback((id: string) => {
+    setSelection(prev => {
+      const suivant = new Set(prev);
+      if (suivant.has(id)) suivant.delete(id); else suivant.add(id);
+      return suivant;
+    });
+  }, []);
+
+  const basculerTout = useCallback(() => {
+    setSelection(prev => (prev.size === boutiques.length ? new Set() : new Set(boutiques.map(b => b.id))));
+  }, [boutiques]);
+
+  const confirmerSuppression = useCallback(async () => {
+    setSuppression(true);
+    setErreurSuppression('');
+    const res = await supprimer([...selection]);
+    setSuppression(false);
+    if (res.error) { setErreurSuppression(res.error); return; }
+    setSelection(new Set());
+    setConfirmation(false);
+  }, [selection, supprimer]);
+
+  const nomsChoisis = boutiques.filter(b => selection.has(b.id)).map(b => b.name);
 
   // La scene remplace la liste plutot que de s'ajouter en dessous : deux surfaces de cette
   // taille dans la meme page se disputeraient le defilement, et la 3D perdrait sa hauteur.
@@ -69,12 +112,24 @@ export default function Boutiques() {
             Gérez les boutiques de votre société.
           </p>
         </div>
-        <button type="button" onClick={() => setShowCreate(true)}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-all hover:scale-105"
-          style={{ background: t.accent.solid, color: t.text.inverse }}>
-          <Plus className="w-4 h-4" />
-          Ajouter une boutique
-        </button>
+        <div className="flex items-center gap-2">
+          {/* N'apparait qu'a partir d'une boutique cochee : sans selection, rien a supprimer. */}
+          {selection.size > 0 && (
+            <button type="button" onClick={() => { setErreurSuppression(''); setConfirmation(true); }}
+              data-testid="boutiques-supprimer"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-all hover:scale-105"
+              style={{ background: t.danger.bg, border: `1px solid ${t.danger.border}`, color: t.danger.text }}>
+              <Trash2 className="w-4 h-4" />
+              Supprimer ({selection.size})
+            </button>
+          )}
+          <button type="button" onClick={() => setShowCreate(true)}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-all hover:scale-105"
+            style={{ background: t.accent.solid, color: t.text.inverse }}>
+            <Plus className="w-4 h-4" />
+            Ajouter une boutique
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -84,10 +139,27 @@ export default function Boutiques() {
         </p>
       )}
 
-      <BoutiquesTable boutiques={boutiques} loading={loading} onOuvrir={setOuverte} />
+      <BoutiquesTable
+        boutiques={boutiques}
+        loading={loading}
+        onOuvrir={(b) => { setSelection(new Set()); setOuverte(b); }}
+        selection={selection}
+        onBasculer={basculer}
+        onBasculerTout={basculerTout}
+      />
 
       {showCreate && (
         <BoutiqueCreateModal onClose={() => setShowCreate(false)} onCreate={create} />
+      )}
+
+      {confirmation && selection.size > 0 && (
+        <BoutiqueDeleteModal
+          noms={nomsChoisis}
+          suppression={suppression}
+          erreur={erreurSuppression}
+          onAnnuler={() => { if (!suppression) setConfirmation(false); }}
+          onConfirmer={confirmerSuppression}
+        />
       )}
     </div>
   );
