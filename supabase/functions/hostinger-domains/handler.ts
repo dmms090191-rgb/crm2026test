@@ -4,11 +4,17 @@
 // Navigateur -> Talvex (cette fonction) -> Hostinger. Jamais navigateur -> Hostinger.
 // Aucune action ici ne peut acheter, configurer un DNS, modifier un WHOIS ni renouveler.
 // Aucune ecriture metier : seuls les compteurs de quota, la pause globale et le cache technique.
-import { isUuid, parseDomainInput, parseTld } from "./domainInput.ts";
+import { isUuid, parseDomainInput, parseSearchQuery, parseTld } from "./domainInput.ts";
 import { ProviderError, type HostingerClient, type ProviderResponse } from "./hostingerClient.ts";
 import {
   countAvailabilityRows,
   interpretAvailability,
+  interpretBatchAvailability,
+  listSellableTlds,
+  orderSearchTlds,
+  POPULAR_TLDS,
+  type BatchAvailabilityRow,
+  type SellableTld,
   parsePortfolio,
   pickDomainDetails,
   pickYearlyPrices,
@@ -33,6 +39,12 @@ export const LIMITS = {
   catalogTtlSeconds: 3600,
   catalogMissTtlSeconds: 600,
   unauthorizedBackoffSeconds: 120,
+  // Recherche multi-extensions : 1 requete Hostinger par page (toutes les extensions de la page en une fois).
+  // Mesures reelles : 10 extensions pour un nom neuf = 7 a 10 s ; 20 = erreurs 500 plus frequentes.
+  searchPageSize: 10,
+  searchMaxOffset: 2000,
+  searchPageBudgetMs: 30000,
+  sellableCatalogTtlSeconds: 21600,
   lowRemainingThreshold: 2,
   maxBodyBytes: 4096,
 } as const;
@@ -90,7 +102,7 @@ function reply(status: number, body: Json): Response {
 }
 
 const DOMAIN_ROLES = new Set(["super_admin", "company_super_admin", "admin"]);
-const TALVEX_ACTIONS = new Set(["provider_status", "catalog_price", "catalog_items", "portfolio_list", "portfolio_domain"]);
+const TALVEX_ACTIONS = new Set(["provider_status", "catalog_price", "catalog_items", "availability_probe", "portfolio_list", "portfolio_domain"]);
 
 export type UnavailableReason =
   | "provider_not_configured"
@@ -103,10 +115,11 @@ export type UnavailableReason =
 
 type ProviderCall<T> =
   | { ok: true; data: T }
-  | { ok: false; reason: UnavailableReason; retryAfterSeconds: number | null; fields: string[] };
+  /* providerFault : Hostinger a reellement echoue (5xx, reponse illisible, reseau, delai) — pas un refus Talvex. */
+  | { ok: false; reason: UnavailableReason; retryAfterSeconds: number | null; fields: string[]; providerFault: boolean };
 
-const failure = (reason: UnavailableReason, retryAfterSeconds: number | null = null, fields: string[] = []) =>
-  ({ ok: false as const, reason, retryAfterSeconds, fields });
+const failure = (reason: UnavailableReason, retryAfterSeconds: number | null = null, fields: string[] = [], providerFault = false) =>
+  ({ ok: false as const, reason, retryAfterSeconds, fields, providerFault });
 
 async function quietly(task: () => Promise<void>): Promise<void> {
   try {
@@ -171,11 +184,15 @@ async function callProvider<T>(
       case "not_configured":
         return failure("provider_not_configured");
       case "timeout":
-        return failure("timeout");
+        return failure("timeout", null, [], true);
       case "invalid_request":
         return failure("rejected_request", null, error.fields);
       case "not_found":
         return failure("not_found");
+      case "provider_error":
+      case "bad_response":
+      case "network":
+        return failure("provider_unavailable", null, [], true);
       default:
         return failure("provider_unavailable");
     }
@@ -304,6 +321,199 @@ async function catalogPrice(body: Json, caller: Caller, deps: HandlerDeps): Prom
   return reply(200, { ok: true, result: { tld, ...price } });
 }
 
+/* ---------- Recherche multi-extensions ---------- */
+
+function isSellablePayload(value: unknown): value is { tlds: Array<{ tld: string; first_year_cents: number; renewal_cents: number; currency: string }> } {
+  const v = value as { tlds?: unknown };
+  return typeof value === "object" && value !== null && Array.isArray(v.tlds) && v.tlds.length > 0;
+}
+
+type CatalogLoad =
+  | { ok: true; tlds: SellableTld[] }
+  /* refused : refus Talvex (quota, pause, non configure) ; sinon panne ou reponse inutilisable chez Hostinger. */
+  | { ok: false; refused: boolean; reason: UnavailableReason; retryAfterSeconds: number | null };
+
+/* Extensions vendues par le compte (catalogue complet, cache serveur 6 h ; contient des couts : jamais renvoye tel quel). */
+async function sellableCatalog(deps: HandlerDeps, caller: Caller, companyId: string | null): Promise<CatalogLoad> {
+  const key = "catalog:.all";
+  const cached = await deps.cacheGet(key);
+  if (cached && isSellablePayload(cached.payload)) {
+    return { ok: true, tlds: cached.payload.tlds.map((t) => ({ tld: t.tld, firstYearCents: t.first_year_cents, renewalCents: t.renewal_cents, currency: t.currency })) };
+  }
+  const call = await callProvider(deps, caller, companyId, "catalog_all", (client) => client.listDomainCatalogAll());
+  if (!call.ok) {
+    const refused = !call.providerFault && call.reason !== "rejected_request" && call.reason !== "not_found";
+    return { ok: false, refused, reason: call.reason, retryAfterSeconds: call.retryAfterSeconds };
+  }
+  const list = listSellableTlds(call.data);
+  if (!list || list.length === 0) return { ok: false, refused: false, reason: "provider_unavailable", retryAfterSeconds: null };
+  const payload = { tlds: list.map((t) => ({ tld: t.tld, first_year_cents: t.firstYearCents, renewal_cents: t.renewalCents, currency: t.currency })) };
+  await quietly(() => deps.cachePut(key, "catalog", payload, LIMITS.sellableCatalogTtlSeconds));
+  return { ok: true, tlds: list };
+}
+
+/* 422 designant des extensions precises (« tlds.3 ») : indices a retirer pour un unique nouvel essai. */
+function rejectedTldIndexes(fields: string[], count: number): number[] {
+  const indexes = fields.map((f) => /^tlds\.(\d{1,3})$/.exec(f)).filter((m): m is RegExpExecArray => m !== null).map((m) => Number(m[1]));
+  return indexes.length > 0 && indexes.length === fields.length && indexes.every((i) => i < count) ? indexes : [];
+}
+
+type PageCheck =
+  | { ok: true; rows: BatchAvailabilityRow[] }
+  | { ok: false; reason: UnavailableReason; retryAfterSeconds: number | null; invalidDomain: boolean };
+
+/*
+ * Une page d'extensions = 1 requete Hostinger. Constat reel (17/09) : UNE extension capricieuse (ex. .be pour
+ * un nom libre) fait echouer tout le lot en erreur 500. Dans ce cas seulement, la page est coupee en deux
+ * moities verifiees l'une apres l'autre (3 appels au plus, sous plafond de temps) ; ce qui echoue encore
+ * reste « inconnu » sans bloquer le reste. Un refus Talvex (quota, pause) ne rappelle jamais Hostinger.
+ */
+async function checkPage(deps: HandlerDeps, caller: Caller, companyId: string, name: string, tlds: string[]): Promise<PageCheck> {
+  const startedAt = Date.now();
+  const unknownRows = (list: string[]) => interpretBatchAvailability(name, list, null);
+  const merge = (checked: BatchAvailabilityRow[]) => {
+    const byTld = new Map(checked.map((row) => [row.tld, row]));
+    return tlds.map((tld) => byTld.get(tld) ?? unknownRows([tld])[0]);
+  };
+
+  const first = await callProvider(deps, caller, companyId, "search_domains", (client) => client.checkAvailabilityBatch(name, tlds));
+  if (first.ok) return { ok: true, rows: interpretBatchAvailability(name, tlds, first.data) };
+
+  if (first.reason === "rejected_request") {
+    if (first.fields.includes("domain")) return { ok: false, reason: "rejected_request", retryAfterSeconds: null, invalidDomain: true };
+    const rejected = rejectedTldIndexes(first.fields, tlds.length);
+    if (rejected.length > 0 && rejected.length < tlds.length) {
+      const kept = tlds.filter((_, index) => !rejected.includes(index));
+      const retry = await callProvider(deps, caller, companyId, "search_domains_retry", (client) => client.checkAvailabilityBatch(name, kept));
+      if (retry.ok) return { ok: true, rows: merge(interpretBatchAvailability(name, kept, retry.data)) };
+    }
+    return { ok: true, rows: unknownRows(tlds) };
+  }
+
+  if (!first.providerFault) {
+    return { ok: false, reason: first.reason === "not_found" ? "provider_unavailable" : first.reason, retryAfterSeconds: first.retryAfterSeconds, invalidDomain: false };
+  }
+  // Delai deja depasse, ou page d'une seule extension : inutile d'insister.
+  if (first.reason === "timeout" || tlds.length < 2) return { ok: true, rows: unknownRows(tlds) };
+
+  const middle = Math.ceil(tlds.length / 2);
+  const checked: BatchAvailabilityRow[] = [];
+  for (const half of [tlds.slice(0, middle), tlds.slice(middle)]) {
+    if (Date.now() - startedAt > LIMITS.searchPageBudgetMs) break;
+    const call = await callProvider(deps, caller, companyId, "search_domains_split", (client) => client.checkAvailabilityBatch(name, half));
+    if (call.ok) checked.push(...interpretBatchAvailability(name, half, call.data));
+    else if (!call.providerFault) break;
+  }
+  return { ok: true, rows: merge(checked) };
+}
+
+async function searchDomains(body: Json, caller: Caller, authHeader: string, deps: HandlerDeps): Promise<Response> {
+  const companyId = body.company_id;
+  if (!isUuid(companyId)) return reply(400, { ok: false, error: "invalid_request" });
+  const offset = body.offset === undefined ? 0 : body.offset;
+  if (!Number.isSafeInteger(offset) || (offset as number) < 0 || (offset as number) > LIMITS.searchMaxOffset) {
+    return reply(400, { ok: false, error: "invalid_request" });
+  }
+  if (!(await deps.canSearchDomains(authHeader, companyId))) {
+    deps.log({ action: "search_domains", outcome: "forbidden_company" });
+    return reply(403, { ok: false, error: "forbidden" });
+  }
+
+  const isTalvex = caller.role === "super_admin";
+  const empty = { results: [] as Json[], offset, next_offset: null as number | null, total_tlds: null as number | null, retry_after_seconds: null as number | null };
+  const query = parseSearchQuery(body.query);
+  if (!query.ok) {
+    return reply(200, { ok: true, result: { status: "invalid", reason: query.error, name: null, requested_tld: null, requested_tld_offered: null, catalog_status: null, ...empty } });
+  }
+
+  const catalogLoad = await sellableCatalog(deps, caller, companyId);
+  const start = offset as number;
+  // Refus Talvex (quota, pause), ou panne du catalogue sur une page « Voir plus » : rien n'est affirme,
+  // la meme page reste a reessayer. Panne sur la 1re page : repli sur les extensions principales.
+  if (!catalogLoad.ok && (catalogLoad.refused || start > 0)) {
+    return reply(200, { ok: true, result: {
+      status: "unknown", reason: catalogLoad.reason === "not_found" || catalogLoad.reason === "rejected_request" ? "provider_unavailable" : catalogLoad.reason,
+      name: query.name, requested_tld: query.requestedTld, requested_tld_offered: null, catalog_status: "unavailable", total_tlds: null,
+      results: [], offset: start, next_offset: start, retry_after_seconds: catalogLoad.retryAfterSeconds,
+    } });
+  }
+  const catalog = catalogLoad.ok ? catalogLoad.tlds : null;
+  const ordered = catalog ? orderSearchTlds(catalog.map((t) => t.tld), query.requestedTld) : [...POPULAR_TLDS];
+  // Premiere page : extensions principales (+ celle saisie) ; ensuite des pages de taille fixe.
+  const firstPageSize = ordered.findIndex((tld) => !POPULAR_TLDS.includes(tld) && tld !== query.requestedTld);
+  const firstCount = firstPageSize === -1 ? ordered.length : firstPageSize;
+  const pageTlds = !catalog
+    ? (start === 0 ? ordered : [])
+    : start === 0 ? ordered.slice(0, firstCount) : ordered.slice(start, start + LIMITS.searchPageSize);
+  const end = start + pageTlds.length;
+  const nextOffset = catalog && pageTlds.length > 0 && end < ordered.length ? end : null;
+
+  const header = {
+    name: query.name,
+    requested_tld: query.requestedTld,
+    // L'extension saisie n'est jamais presentee comme achetable si le compte ne la vend pas.
+    requested_tld_offered: query.requestedTld ? (catalog ? catalog.some((t) => t.tld === query.requestedTld) : null) : null,
+    catalog_status: catalog ? "ok" : "unavailable",
+    total_tlds: catalog ? ordered.length : null,
+  };
+  if (pageTlds.length === 0) {
+    return reply(200, { ok: true, result: { status: "ok", ...header, results: [], offset: start, next_offset: null, retry_after_seconds: null } });
+  }
+
+  const page = await checkPage(deps, caller, companyId, query.name, pageTlds);
+  if (!page.ok) {
+    if (page.invalidDomain) {
+      return reply(200, { ok: true, result: { status: "invalid", reason: "invalid_domain", ...header, ...empty, offset: start } });
+    }
+    // Refus Talvex (quota, pause) : rien n'est affirme ; next_offset = page courante pour reessayer au meme endroit.
+    return reply(200, { ok: true, result: { status: "unknown", reason: page.reason, ...header, results: [], offset: start, next_offset: start, retry_after_seconds: page.retryAfterSeconds } });
+  }
+
+  const prices = new Map((catalog ?? []).map((t) => [t.tld, t]));
+  const results = page.rows.map((row) => {
+    const item: Json = {
+      domain: row.domain,
+      tld: row.tld,
+      status: row.status,
+      restricted: row.restricted,
+      popular: POPULAR_TLDS.includes(row.tld),
+      client_price: null,
+    };
+    if (isTalvex) {
+      const price = prices.get(row.tld);
+      item.restriction_note = row.restrictionNote;
+      item.provider_price = row.status === "available" && price
+        ? { currency: price.currency, first_year_cents: price.firstYearCents, renewal_cents: price.renewalCents }
+        : null;
+    }
+    return item;
+  });
+
+  // Extension saisie mais non vendue par le compte : ligne explicite « non proposee » en tete de la 1re page
+  // (aucun appel Hostinger pour elle), jamais un faux « indisponible ».
+  if (start === 0 && query.requestedTld && header.requested_tld_offered === false) {
+    results.unshift({
+      domain: `${query.name}.${query.requestedTld}`, tld: query.requestedTld, status: "not_offered",
+      restricted: false, popular: false, client_price: null,
+      ...(isTalvex ? { restriction_note: null, provider_price: null } : {}),
+    });
+  }
+
+  return reply(200, { ok: true, result: { status: "ok", ...header, results, offset: start, next_offset: nextOffset, retry_after_seconds: null } });
+}
+
+/* Diagnostic Talvex : disponibilite groupee sur une liste d'extensions choisie (lecture seule, 25 max). */
+async function availabilityProbe(body: Json, caller: Caller, deps: HandlerDeps): Promise<Response> {
+  const query = parseSearchQuery(body.name);
+  const rawTlds = Array.isArray(body.tlds) ? body.tlds : [];
+  const tlds = rawTlds.map(parseTld);
+  if (!query.ok || tlds.length === 0 || tlds.length > 25 || tlds.some((t) => t === null)) return reply(400, { ok: false, error: "invalid_request" });
+  const list = tlds as string[];
+  const call = await callProvider(deps, caller, null, "availability_probe", (client) => client.checkAvailabilityBatch(query.name, list));
+  if (!call.ok) return reply(200, { ok: true, result: { status: "unknown", reason: call.reason, fields: call.fields, tlds: list } });
+  return reply(200, { ok: true, result: { status: "ok", rows: countAvailabilityRows(call.data), results: interpretBatchAvailability(query.name, list, call.data).map((r) => ({ tld: r.tld, status: r.status })) } });
+}
+
 /* Diagnostic Talvex : articles du catalogue pour une extension + regle de correspondance appliquee. */
 async function catalogItems(body: Json, caller: Caller, deps: HandlerDeps): Promise<Response> {
   const tld = parseTld(body.tld);
@@ -424,12 +634,16 @@ export async function handleRequest(req: Request, deps: HandlerDeps): Promise<Re
     switch (action) {
       case "check_availability":
         return await checkAvailability(body, caller, authHeader, deps);
+      case "search_domains":
+        return await searchDomains(body, caller, authHeader, deps);
       case "provider_status":
         return reply(200, { ok: true, result: { configured: deps.hostinger !== null } });
       case "catalog_price":
         return await catalogPrice(body, caller, deps);
       case "catalog_items":
         return await catalogItems(body, caller, deps);
+      case "availability_probe":
+        return await availabilityProbe(body, caller, deps);
       case "portfolio_list":
         return await portfolioList(caller, deps);
       case "portfolio_domain":

@@ -1,6 +1,6 @@
 // Interpretation des reponses Hostinger (module pur). Tout champ inattendu est ignore ;
 // en cas de doute, le resultat est « inconnu » : jamais de disponibilite ni de prix inventes.
-import { isValidDomainName, normalizeDomainName } from "./domainInput.ts";
+import { isValidDomainName, normalizeDomainName, parseTld } from "./domainInput.ts";
 
 type Obj = Record<string, unknown>;
 const isObj = (v: unknown): v is Obj => typeof v === "object" && v !== null && !Array.isArray(v);
@@ -149,6 +149,82 @@ export function summarizeCatalogItems(data: unknown) {
       })),
     })),
   };
+}
+
+/* ---------- Recherche multi-extensions ---------- */
+
+/* Extensions affichees en premier (si le compte les vend reellement). */
+export const POPULAR_TLDS: readonly string[] = ["com", "fr", "net", "org", "eu", "io"];
+/* Ordre de priorite des extensions suivantes ; toutes les autres viennent ensuite par ordre alphabetique. */
+const SECONDARY_TLDS: readonly string[] = [
+  "co", "info", "shop", "store", "online", "site", "app", "dev", "tech", "pro", "biz", "me", "xyz",
+  "be", "ch", "de", "es", "it", "nl", "pt", "co.uk", "uk", "ca", "us",
+];
+
+export interface SellableTld {
+  tld: string;
+  firstYearCents: number;
+  renewalCents: number;
+  currency: string;
+}
+
+/*
+ * Extensions REELLEMENT vendues par le compte, d'apres GET /api/billing/v1/catalog?category=DOMAIN.
+ * Nommage reel : ".COM Domain" (achat) ; les ".XXX Domain Transfer" sont exclus. Il faut un prix sur 1 an
+ * dans une devise unique ; une extension ambigue (plusieurs articles) est ecartee plutot que devinee.
+ */
+export function listSellableTlds(data: unknown): SellableTld[] | null {
+  if (!Array.isArray(data)) return null;
+  const byTld = new Map<string, SellableTld[]>();
+  for (const item of data) {
+    if (!isObj(item) || typeof item.name !== "string") continue;
+    const match = /^\.([a-z0-9][a-z0-9.-]*[a-z0-9])(?: domain)?$/i.exec(item.name.trim().replace(/\s+/g, " "));
+    if (!match) continue;
+    const tld = parseTld(match[1]);
+    if (!tld) continue;
+    const picked = pickYearlyPrices([item], tld);
+    if (picked.status !== "found" || picked.prices.length !== 1) continue;
+    const p = picked.prices[0];
+    byTld.set(tld, [...(byTld.get(tld) ?? []), { tld, firstYearCents: p.firstYearCents, renewalCents: p.renewalCents, currency: p.currency }]);
+  }
+  const list: SellableTld[] = [];
+  for (const entries of byTld.values()) if (entries.length === 1) list.push(entries[0]);
+  return list;
+}
+
+/*
+ * Ordre de recherche : extension saisie EN PREMIER (si vendue), puis les principales (.com .fr .net .org .eu .io),
+ * les prioritaires, et enfin toutes les autres (alphabetique). Saisir une extension ne restreint jamais la recherche.
+ */
+export function orderSearchTlds(sellable: string[], requestedTld: string | null): string[] {
+  const available = new Set(sellable);
+  const ordered: string[] = [];
+  const push = (tld: string) => {
+    if (available.has(tld) && !ordered.includes(tld)) ordered.push(tld);
+  };
+  if (requestedTld) push(requestedTld);
+  POPULAR_TLDS.forEach(push);
+  SECONDARY_TLDS.forEach(push);
+  [...available].sort().forEach(push);
+  return ordered;
+}
+
+export interface BatchAvailabilityRow {
+  tld: string;
+  domain: string;
+  status: AvailabilityStatus;
+  restricted: boolean;
+  restrictionNote: string | null;
+}
+
+/* Reponse groupee : une ligne par extension demandee ; une extension absente de la reponse reste « inconnue ». */
+export function interpretBatchAvailability(name: string, tlds: string[], data: unknown): BatchAvailabilityRow[] {
+  const rows = Array.isArray(data) ? data : null;
+  return tlds.map((tld) => {
+    const domain = `${name}.${tld}`;
+    const outcome = rows ? interpretAvailability(domain, rows) : { status: "unknown" as const, restricted: false, restrictionNote: null };
+    return { tld, domain, status: outcome.status, restricted: outcome.restricted, restrictionNote: outcome.restrictionNote };
+  });
 }
 
 /* ---------- Portefeuille ---------- */

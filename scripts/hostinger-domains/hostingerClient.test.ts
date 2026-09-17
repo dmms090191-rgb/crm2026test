@@ -166,6 +166,19 @@ test("delai depasse : abandon propre (timeout), erreur reseau distincte", async 
   assert.equal(await codeOf(createHostingerClient({ token: FAKE_TOKEN, fetchImpl: broken }).listPortfolio()), "network");
 });
 
+test("recherche : disponibilite groupee (plusieurs extensions, sans alternatives) et catalogue complet", async () => {
+  const { impl, calls } = fakeFetch(() => json(200, []));
+  const client = createHostingerClient({ token: FAKE_TOKEN, fetchImpl: impl });
+  await client.checkAvailabilityBatch("dior", ["com", "fr", "co.uk"]);
+  await client.listDomainCatalogAll();
+  assert.equal(calls[0].init.method, "POST");
+  assert.deepEqual(JSON.parse(String(calls[0].init.body)), { domain: "dior", tlds: ["com", "fr", "co.uk"], with_alternatives: false });
+  const url = new URL(calls[1].url);
+  assert.equal(calls[1].init.method, "GET");
+  assert.equal(url.pathname, "/api/billing/v1/catalog");
+  assert.deepEqual([...url.searchParams.entries()], [["category", "DOMAIN"]]);
+});
+
 test("en-tetes de quota documentes (RateLimit et X-RateLimit)", () => {
   assert.deepEqual(parseRateInfo(new Headers({ RateLimit: '"api";r=89;t=60' })), { remaining: 89, resetSeconds: 60 });
   assert.deepEqual(parseRateInfo(new Headers({ "X-RateLimit-Remaining": "3", "X-RateLimit-Reset": "12" })), { remaining: 3, resetSeconds: 12 });

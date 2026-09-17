@@ -50,7 +50,7 @@ interface Harness {
 
 function harness(opts: {
   token?: string | null;
-  respond?: (url: string, method: string) => Response | Promise<Response>;
+  respond?: (url: string, method: string, body: string | null) => Response | Promise<Response>;
   quotaAllowed?: boolean;
   quotaRefusal?: string;
   quotaThrowsAt?: number;
@@ -68,7 +68,7 @@ function harness(opts: {
   });
   const fetchImpl = (async (url: string | URL, init?: RequestInit) => {
     hostingerCalls.push({ url: String(url), method: String(init?.method), body: init?.body ? String(init.body) : null });
-    return respond(String(url), String(init?.method));
+    return respond(String(url), String(init?.method), init?.body ? String(init.body) : null);
   }) as typeof fetch;
   const token = opts.token === undefined ? FAKE_TOKEN : opts.token;
 
@@ -450,4 +450,190 @@ test("journaux : jamais le jeton, jamais d'en-tete", async () => {
     assert.ok(!line.includes(FAKE_TOKEN));
     assert.ok(!/authorization|bearer/i.test(line));
   }
+});
+
+/* ---------- Recherche multi-extensions ---------- */
+
+const price1y = (tld: string, p: number, first: number) => ({ id: `hostingerfr-domain-${tld.replace(/\./g, "")}-eur-1y`, name: "x", currency: "EUR", price: p, first_period_price: first, period: 1, period_unit: "year" });
+const catalogItem = (tld: string, p = 1699, first = 999) => ({ id: `hostingerfr-domain-${tld.replace(/\./g, "")}`, name: `.${tld.toUpperCase()} Domain`, category: "DOMAIN", prices: [price1y(tld, p, first)] });
+/* Catalogue reel simplifie : 6 principales + 22 autres ; les transferts et .co.il ne sont pas vendus a l'achat. */
+const OTHER_TLDS = ["co", "info", "shop", "store", "online", "site", "app", "dev", "tech", "pro", "biz", "me", "xyz", "be", "ch", "de", "es", "it", "nl", "pt", "agency", "zone"];
+const FULL_CATALOG = [
+  ...["com", "fr", "net", "org", "eu", "io"].map((tld) => catalogItem(tld)),
+  ...OTHER_TLDS.map((tld) => catalogItem(tld, 2999, 199)),
+  { id: "hostingerfr-domaintransfer-computer", name: ".COMPUTER Domain Transfer", category: "DOMAIN", prices: [{ id: "t", currency: "EUR", price: 2899, first_period_price: 0, period: 0, period_unit: "" }] },
+];
+const TAKEN = new Set(["dior.com", "dior.fr", "dior.net", "dior.org"]);
+
+/* Faux Hostinger : catalogue complet ; disponibilite groupee repondant pour CHAQUE extension demandee. */
+function hostingerFake(opts: { failWhen?: (tlds: string[]) => boolean } = {}) {
+  return (url: string, _method: string, body: string | null) => {
+    if (url.includes("/catalog")) return Response.json(FULL_CATALOG);
+    const request = JSON.parse(body ?? "{}") as { domain: string; tlds: string[] };
+    if (opts.failWhen?.(request.tlds)) return Response.json({ message: "Error" }, { status: 500 });
+    return Response.json(request.tlds.map((tld) => {
+      const domain = `${request.domain}.${tld}`;
+      return { domain, is_available: !TAKEN.has(domain), is_alternative: false, restriction: tld === "eu" || tld === "fr" ? "requires_eu_residence" : null };
+    }));
+  };
+}
+
+const searchReq = (company: string, query: unknown, offset?: number) => ({ action: "search_domains", company_id: company, query, ...(offset === undefined ? {} : { offset }) });
+const availabilityCalls = (h: Harness) => h.hostingerCalls.filter((c) => c.url.endsWith("/api/domains/v1/availability"));
+
+test("recherche : droits identiques a la verification (Commercial, Client, desactive, Societe etrangere, anonyme)", async () => {
+  const h = harness({ respond: hostingerFake() });
+  assert.equal((await call(h, null, searchReq(SOC_A, "dior"))).status, 401);
+  for (const who of ["commercialA", "clientA", "desactive"]) assert.equal((await call(h, who, searchReq(SOC_A, "dior"))).status, 403, who);
+  assert.equal((await call(h, "societeA", searchReq(SOC_B, "dior"))).status, 403);
+  assert.equal((await call(h, "groupeA", searchReq(SOC_B, "dior"))).status, 403);
+  assert.equal(h.hostingerCalls.length, 0);
+});
+
+test("recherche : « dior.com » -> nom « dior », 1re page = 6 principales en UNE requete, sans alternatives", async () => {
+  const h = harness({ respond: hostingerFake() });
+  const r = await call(h, "societeA", searchReq(SOC_A, " HTTPS://www.Dior.com/accueil "));
+  assert.equal(r.status, 200);
+  const x = r.body.result;
+  assert.equal(x.status, "ok");
+  assert.equal(x.name, "dior");
+  assert.equal(x.requested_tld, "com");
+  assert.equal(x.requested_tld_offered, true);
+  assert.equal(x.total_tlds, 28);
+  assert.deepEqual(x.results.map((i: { domain: string; status: string }) => `${i.domain}:${i.status}`),
+    ["dior.com:unavailable", "dior.fr:unavailable", "dior.net:unavailable", "dior.org:unavailable", "dior.eu:available", "dior.io:available"]);
+  assert.equal(x.next_offset, 6);
+  const calls = availabilityCalls(h);
+  assert.equal(calls.length, 1, "une seule requete de disponibilite");
+  assert.deepEqual(JSON.parse(String(calls[0].body)), { domain: "dior", tlds: ["com", "fr", "net", "org", "eu", "io"], with_alternatives: false });
+});
+
+test("recherche Groupe/Societe : jamais de cout Hostinger ni de code de restriction", async () => {
+  const h = harness({ respond: hostingerFake() });
+  const r = await call(h, "groupeA", searchReq(SOC_A, "dior"));
+  for (const row of r.body.result.results) {
+    assert.ok(!("provider_price" in row), row.domain);
+    assert.ok(!("restriction_note" in row), row.domain);
+    assert.equal(row.client_price, null);
+  }
+  assert.ok(!JSON.stringify(r.body).includes("999"), "aucun montant du catalogue");
+});
+
+test("recherche Talvex : cout 1re annee / renouvellement / devise pour les seuls domaines disponibles", async () => {
+  const h = harness({ respond: hostingerFake() });
+  const r = await call(h, "talvex", searchReq(SOC_A, "dior"));
+  const byTld = Object.fromEntries(r.body.result.results.map((i: { tld: string }) => [i.tld, i]));
+  assert.equal(byTld.com.provider_price, null, "indisponible : pas de prix");
+  assert.deepEqual(byTld.io.provider_price, { currency: "EUR", first_year_cents: 999, renewal_cents: 1699 });
+  assert.equal(byTld.eu.restriction_note, "requires_eu_residence");
+});
+
+test("recherche : extension saisie non vendue (.co.il) -> ligne « non proposee » puis les extensions vendues", async () => {
+  const h = harness({ respond: hostingerFake() });
+  const r = await call(h, "societeA", searchReq(SOC_A, "talvexpro.co.il"));
+  assert.equal(r.body.result.requested_tld_offered, false);
+  assert.deepEqual(r.body.result.results.map((i: { domain: string; status: string }) => `${i.domain}:${i.status}`),
+    ["talvexpro.co.il:not_offered", "talvexpro.com:available", "talvexpro.fr:available", "talvexpro.net:available", "talvexpro.org:available", "talvexpro.eu:available", "talvexpro.io:available"]);
+  assert.ok(!r.body.result.results.some((i: { tld: string; status: string }) => i.tld === "co.il" && i.status === "unavailable"), "jamais un faux indisponible");
+  assert.ok(!JSON.parse(String(availabilityCalls(h)[0].body)).tlds.includes("co.il"), "aucune verification Hostinger pour une extension non vendue");
+  assert.equal(r.body.result.next_offset, 6);
+  const more = await call(h, "societeA", searchReq(SOC_A, "talvexpro.co.il", 6));
+  assert.ok(!more.body.result.results.some((i: { status: string }) => i.status === "not_offered"), "ligne non proposee uniquement en 1re page");
+});
+
+test("recherche : l'extension saisie passe EN PREMIER sans restreindre la recherche (.fr, .com, nom seul)", async () => {
+  const h = harness({ respond: hostingerFake() });
+  const tlds = async (query: string) => (await call(h, "societeA", searchReq(SOC_A, query))).body.result.results.map((i: { tld: string }) => i.tld);
+  assert.deepEqual(await tlds("talvexpro.fr"), ["fr", "com", "net", "org", "eu", "io"]);
+  assert.deepEqual(await tlds("talvexpro.com"), ["com", "fr", "net", "org", "eu", "io"]);
+  assert.deepEqual(await tlds("talvexpro"), ["com", "fr", "net", "org", "eu", "io"]);
+  assert.deepEqual(JSON.parse(String(availabilityCalls(h)[0].body)).tlds, ["fr", "com", "net", "org", "eu", "io"]);
+});
+
+test("recherche : extension saisie vendue mais non principale -> en tete de la 1re page", async () => {
+  const h = harness({ respond: hostingerFake() });
+  const r = await call(h, "societeA", searchReq(SOC_A, "dior.shop"));
+  assert.deepEqual(r.body.result.results.map((i: { tld: string }) => i.tld), ["shop", "com", "fr", "net", "org", "eu", "io"]);
+  assert.equal(r.body.result.next_offset, 7);
+});
+
+test("recherche : « Voir plus » par pages de 10, catalogue lu une seule fois (cache)", async () => {
+  const h = harness({ respond: hostingerFake() });
+  const first = await call(h, "societeA", searchReq(SOC_A, "dior"));
+  const second = await call(h, "societeA", searchReq(SOC_A, "dior", first.body.result.next_offset));
+  assert.deepEqual(second.body.result.results.map((i: { tld: string }) => i.tld), OTHER_TLDS.slice(0, 10));
+  assert.equal(second.body.result.next_offset, 16);
+  const third = await call(h, "societeA", searchReq(SOC_A, "dior", 16));
+  assert.equal(third.body.result.results.length, 10);
+  const last = await call(h, "societeA", searchReq(SOC_A, "dior", 26));
+  assert.equal(last.body.result.results.length, 2);
+  assert.equal(last.body.result.next_offset, null);
+  assert.equal(h.hostingerCalls.filter((c) => c.url.includes("/catalog")).length, 1, "catalogue en cache");
+  assert.equal(availabilityCalls(h).length, 4, "une requete par page");
+  for (const c of availabilityCalls(h)) assert.ok(JSON.parse(String(c.body)).tlds.length <= LIMITS.searchPageSize);
+});
+
+test("recherche : erreur 500 d'un lot -> 2 moities (3 appels max), extensions encore en echec « inconnues »", async () => {
+  // Constat reel : .be fait echouer tout le lot pour un nom libre.
+  const h = harness({ respond: hostingerFake({ failWhen: (tlds) => tlds.includes("be") }) });
+  const r = await call(h, "societeA", searchReq(SOC_A, "orvane", 16));
+  assert.equal(r.status, 200);
+  assert.equal(r.body.result.status, "ok");
+  const statuses = Object.fromEntries(r.body.result.results.map((i: { tld: string; status: string }) => [i.tld, i.status]));
+  assert.equal(statuses.be, "unknown");
+  assert.equal(statuses.biz, "unknown", "meme moitie que .be");
+  assert.equal(statuses.de, "available", "autre moitie verifiee");
+  assert.equal(availabilityCalls(h).length, 3);
+  assert.equal(r.body.result.next_offset, 26, "la recherche peut continuer");
+});
+
+test("recherche : refus de quota -> rien d'affirme, meme page a reessayer, aucun appel Hostinger", async () => {
+  const h = harness({ respond: hostingerFake(), quotaAllowed: false, quotaRefusal: "user_limit" });
+  const r = await call(h, "societeA", searchReq(SOC_A, "dior", 6));
+  assert.equal(r.body.result.status, "unknown");
+  assert.equal(r.body.result.reason, "rate_limited");
+  assert.equal(r.body.result.next_offset, 6);
+  assert.deepEqual(r.body.result.results, []);
+  assert.equal(h.hostingerCalls.length, 0);
+});
+
+test("recherche : catalogue indisponible -> seules les principales, sans prix ni « voir plus »", async () => {
+  const fake = hostingerFake();
+  const h = harness({ respond: (url, method, body) => (url.includes("/catalog") ? Response.json({ message: "Error" }, { status: 500 }) : fake(url, method, body)) });
+  const r = await call(h, "talvex", searchReq(SOC_A, "dior"));
+  assert.equal(r.body.result.catalog_status, "unavailable");
+  assert.equal(r.body.result.results.length, 6);
+  assert.equal(r.body.result.next_offset, null);
+  assert.ok(r.body.result.results.every((i: { provider_price: unknown }) => i.provider_price === null));
+
+  const more = await call(h, "talvex", searchReq(SOC_A, "dior", 6));
+  assert.equal(more.body.result.status, "unknown", "page « Voir plus » sans catalogue : rien d'affirme");
+  assert.equal(more.body.result.next_offset, 6, "meme page a reessayer");
+});
+
+test("recherche : saisie invalide, accents, offset hors bornes, jeton absent", async () => {
+  const h = harness({ respond: hostingerFake() });
+  const cases: Array<[unknown, string]> = [["", "invalid_domain"], ["-dior", "invalid_domain"], ["dior.123", "invalid_domain"], ["société", "unsupported_characters"], [42, "invalid_domain"]];
+  for (const [query, reason] of cases) {
+    const r = await call(h, "societeA", searchReq(SOC_A, query));
+    assert.equal(r.body.result.status, "invalid", String(query));
+    assert.equal(r.body.result.reason, reason, String(query));
+  }
+  for (const offset of [-1, 1.5, 999999, "6"]) {
+    assert.equal((await call(h, "societeA", { action: "search_domains", company_id: SOC_A, query: "dior", offset })).status, 400, String(offset));
+  }
+  assert.equal(h.hostingerCalls.length, 0);
+  const none = harness({ token: null });
+  const r = await call(none, "societeA", searchReq(SOC_A, "dior"));
+  assert.equal(r.body.result.status, "unknown");
+  assert.equal(r.body.result.reason, "provider_not_configured");
+  assert.equal(none.hostingerCalls.length, 0);
+});
+
+test("diagnostic de disponibilite groupee : Talvex seul, 25 extensions max", async () => {
+  const h = harness({ respond: hostingerFake() });
+  assert.equal((await call(h, "societeA", { action: "availability_probe", name: "dior", tlds: ["com"] })).status, 403);
+  assert.equal((await call(h, "talvex", { action: "availability_probe", name: "dior", tlds: Array.from({ length: 26 }, () => "com") })).status, 400);
+  const r = await call(h, "talvex", { action: "availability_probe", name: "dior", tlds: ["com", "io"] });
+  assert.deepEqual(r.body.result.results, [{ tld: "com", status: "unavailable" }, { tld: "io", status: "available" }]);
 });

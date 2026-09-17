@@ -45,6 +45,28 @@ export function parseDomainInput(raw: unknown): DomainInput {
   return { ok: true, domain: normalized, sld, tld: rest.join(".") };
 }
 
+export type SearchQuery =
+  | { ok: true; name: string; requestedTld: string | null }
+  | { ok: false; error: DomainInputError };
+
+/*
+ * Recherche multi-extensions : « dior », « dior.com » ou « https://www.dior.com/ » -> nom « dior »
+ * (+ extension demandee si elle est saisie). Le nom seul est ensuite essaye sur plusieurs extensions.
+ */
+export function parseSearchQuery(raw: unknown): SearchQuery {
+  const normalized = normalizeDomainName(raw);
+  if (normalized === null) return { ok: false, error: "invalid_domain" };
+  // deno-lint-ignore no-control-regex
+  if (/[^\x00-\x7f]/.test(normalized)) return { ok: false, error: "unsupported_characters" };
+  const labels = normalized.split(".");
+  const name = labels[0];
+  if (!LABEL_RE.test(name)) return { ok: false, error: "invalid_domain" };
+  if (labels.length === 1) return { ok: true, name, requestedTld: null };
+  const requestedTld = parseTld(labels.slice(1).join("."));
+  if (!requestedTld) return { ok: false, error: "invalid_domain" };
+  return { ok: true, name, requestedTld };
+}
+
 /* Extension seule (catalogue) : "com", ".COM", "co.il". */
 export function parseTld(raw: unknown): string | null {
   if (typeof raw !== "string" || raw.length > 64) return null;

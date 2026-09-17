@@ -2,9 +2,10 @@
 //   node --test scripts/hostinger-domains/*.test.ts
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { normalizeDomainName, parseDomainInput, parseTld } from "../../supabase/functions/hostinger-domains/domainInput.ts";
+import { normalizeDomainName, parseDomainInput, parseSearchQuery, parseTld } from "../../supabase/functions/hostinger-domains/domainInput.ts";
 import {
-  interpretAvailability, parsePortfolio, pickDomainDetails, pickYearlyPrices, reconcilePortfolio, type TalvexDomainRow,
+  interpretAvailability, interpretBatchAvailability, listSellableTlds, orderSearchTlds, parsePortfolio, pickDomainDetails, pickYearlyPrices,
+  reconcilePortfolio, type TalvexDomainRow,
 } from "../../supabase/functions/hostinger-domains/providerData.ts";
 
 test("normalisation identique a la base (schema, www, casse, chemin, point final)", () => {
@@ -171,4 +172,42 @@ test("rapprochement : jamais d'attribution automatique par le nom", () => {
   assert.equal(dupNoId.linked.length, 0);
   assert.deepEqual(dupNoId.conflicts.map((c) => [c.domain, c.reason]), [["absent.com", "multiple_provider_rows"]]);
   assert.deepEqual(dupNoId.unlinked.map((u) => [u.domain, u.providerStatus]), [["double-inconnu.com", "active"]]);
+});
+
+test("recherche : extraction du nom principal", () => {
+  assert.deepEqual(parseSearchQuery("dior"), { ok: true, name: "dior", requestedTld: null });
+  assert.deepEqual(parseSearchQuery("DIOR.com"), { ok: true, name: "dior", requestedTld: "com" });
+  assert.deepEqual(parseSearchQuery("https://www.dior.co.uk/fr"), { ok: true, name: "dior", requestedTld: "co.uk" });
+  assert.deepEqual(parseSearchQuery("ma-boutique.fr."), { ok: true, name: "ma-boutique", requestedTld: "fr" });
+  for (const bad of ["", "-dior", "dior-", "dior.123", "a.b.c.d", "di or", null]) assert.equal(parseSearchQuery(bad).ok, false, String(bad));
+  const accent = parseSearchQuery("société");
+  assert.equal(!accent.ok && accent.error, "unsupported_characters");
+});
+
+test("recherche : extensions vendues d'apres le catalogue REEL (achats seulement, prix 1 an)", () => {
+  const p = (id: string, period: number, unit: string, price: number, first: number) => ({ id, name: "x", currency: "EUR", price, first_period_price: first, period, period_unit: unit });
+  const sellable = listSellableTlds([
+    { id: "hostingerfr-domain-com", name: ".COM Domain", category: "DOMAIN", prices: [p("a", 3, "year", 5097, 3399), p("b", 1, "year", 1699, 999)] },
+    { id: "hostingerfr-domain-comco", name: ".COM.CO Domain", category: "DOMAIN", prices: [p("c", 1, "year", 2499, 1799)] },
+    { id: "hostingerfr-domaintransfer-computer", name: ".COMPUTER Domain Transfer", category: "DOMAIN", prices: [p("d", 0, "", 2899, 0)] },
+    { id: "hostingerfr-domain-shop", name: ".SHOP Domain", category: "DOMAIN", prices: [p("e", 1, "year", 3799, 99)] },
+    { id: "hostingerfr-domain-sansprix", name: ".NOPRICE Domain", category: "DOMAIN", prices: [p("f", 2, "year", 100, 100)] },
+    { id: "x", name: ".DUP Domain", category: "DOMAIN", prices: [p("g", 1, "year", 1, 1)] },
+    { id: "y", name: ".DUP Domain", category: "DOMAIN", prices: [p("h", 1, "year", 2, 2)] },
+    { id: "vps", name: "KVM 2", category: "VPS", prices: [p("i", 1, "year", 1, 1)] },
+  ]);
+  assert.deepEqual(sellable?.map((t) => `${t.tld}:${t.firstYearCents}/${t.renewalCents} ${t.currency}`), ["com:999/1699 EUR", "com.co:1799/2499 EUR", "shop:99/3799 EUR"]);
+  assert.equal(listSellableTlds({ data: [] }), null);
+
+  assert.deepEqual(orderSearchTlds(["zone", "io", "shop", "com", "agency", "fr", "co.uk"], "zone"), ["zone", "com", "fr", "io", "shop", "co.uk", "agency"]);
+  assert.deepEqual(orderSearchTlds(["io", "com", "fr", "net"], "fr"), ["fr", "com", "net", "io"], "extension saisie en premier, principales ensuite");
+  assert.deepEqual(orderSearchTlds(["io", "com", "fr", "net"], null), ["com", "fr", "net", "io"]);
+  assert.deepEqual(orderSearchTlds(["com"], "co.il"), ["com"], "extension non vendue jamais ajoutee");
+
+  const rows = interpretBatchAvailability("dior", ["com", "io", "be"], [
+    { domain: "dior.com", is_available: false, is_alternative: false, restriction: null },
+    { domain: "dior.io", is_available: true, is_alternative: false, restriction: null },
+  ]);
+  assert.deepEqual(rows.map((r) => `${r.tld}:${r.status}`), ["com:unavailable", "io:available", "be:unknown"]);
+  assert.ok(interpretBatchAvailability("dior", ["com"], null).every((r) => r.status === "unknown"));
 });

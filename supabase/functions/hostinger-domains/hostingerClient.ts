@@ -80,7 +80,11 @@ export interface HostingerClientOptions {
 
 export interface HostingerClient {
   checkAvailability(sld: string, tld: string, withAlternatives: boolean): Promise<ProviderResponse<unknown>>;
+  /* Plusieurs extensions en UNE requete (documente : « Multiple TLDs can be checked at once »). */
+  checkAvailabilityBatch(sld: string, tlds: string[]): Promise<ProviderResponse<unknown>>;
   listDomainCatalog(tld: string): Promise<ProviderResponse<unknown>>;
+  /* Tout le catalogue des domaines (category=DOMAIN) : extensions reellement vendues par le compte. */
+  listDomainCatalogAll(): Promise<ProviderResponse<unknown>>;
   listPortfolio(): Promise<ProviderResponse<unknown>>;
   getPortfolioDomain(domain: string): Promise<ProviderResponse<unknown>>;
 }
@@ -199,8 +203,16 @@ export function createHostingerClient(options: HostingerClientOptions): Hostinge
         body: { domain: sld, tlds: [tld], with_alternatives: withAlternatives },
       });
     },
+    checkAvailabilityBatch(sld, tlds) {
+      return request("POST", "/api/domains/v1/availability", {
+        body: { domain: sld, tlds, with_alternatives: false },
+      });
+    },
     listDomainCatalog(tld) {
       return request("GET", "/api/billing/v1/catalog", { query: { category: "DOMAIN", name: `.${tld.toUpperCase()}*` } });
+    },
+    listDomainCatalogAll() {
+      return request("GET", "/api/billing/v1/catalog", { query: { category: "DOMAIN" } });
     },
     listPortfolio() {
       return request("GET", "/api/domains/v1/portfolio");
