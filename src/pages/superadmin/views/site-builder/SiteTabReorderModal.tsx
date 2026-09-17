@@ -11,7 +11,9 @@ export interface SiteTabConfig {
 
 const DEFAULT_ORDER: SiteTab[] = ['domaine', 'templates', 'studio', 'apercu'];
 
+/* Composant masque (onglets fixes depuis l'interface Site) : conserve, non monte. */
 const TAB_META: Record<SiteTab, { label: string; icon: React.ReactNode }> = {
+  'mon-site': { label: 'Mon site', icon: <Globe className="w-4 h-4" /> },
   domaine: { label: 'Domaine', icon: <Globe className="w-4 h-4" /> },
   templates: { label: 'Templates', icon: <LayoutGrid className="w-4 h-4" /> },
   studio: { label: 'Studio Site', icon: <Paintbrush className="w-4 h-4" /> },

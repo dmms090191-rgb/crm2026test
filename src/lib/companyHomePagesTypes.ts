@@ -80,9 +80,10 @@ export type PublicCompanyHomePage = Pick<CompanyHomePage,
   | 'welcome_message' | 'logo_url' | 'main_color' | 'secondary_color'
   | 'hero_image_url' | 'app_icon_url'>;
 
+/* Type reel de l'entreprise : companies.entity_type (jamais company_tier). */
 export interface CompanyHomePageCompany {
   name: string;
-  company_tier: string;
+  entity_type: 'platform' | 'groupe' | 'societe';
   parent_company_id: string | null;
 }
 

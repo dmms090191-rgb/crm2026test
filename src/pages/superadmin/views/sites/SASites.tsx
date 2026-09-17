@@ -1,99 +1,47 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { Globe, Crown, Shield, Users } from 'lucide-react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
+import { supabase } from '../../../../lib/supabase';
 import { getAllHomePages, toggleHomePageActive, type CompanyHomePageWithCompany } from '../../../../lib/companyHomePages';
 import SASiteEditModal from './SASiteEditModal';
 import SADomainsModal from './SADomainsModal';
 import SASitesSection from './SASitesSection';
-
-interface SuperAdminGroup {
-  companyId: string;
-  companyName: string;
-  pages: CompanyHomePageWithCompany[];
-}
-
-function groupPages(pages: CompanyHomePageWithCompany[]) {
-  const platform: CompanyHomePageWithCompany[] = [];
-  const roisAdminDirect: CompanyHomePageWithCompany[] = [];
-  const superAdminMap = new Map<string, SuperAdminGroup>();
-
-  const saCompanyIds = new Set<string>();
-  for (const p of pages) {
-    if (p.companies?.company_tier === 'super_admin' && p.company_id) {
-      saCompanyIds.add(p.company_id);
-    }
-  }
-
-  for (const p of pages) {
-    if (p.site_scope === 'platform') {
-      platform.push(p);
-      continue;
-    }
-
-    const tier = p.companies?.company_tier;
-    const parentId = p.companies?.parent_company_id;
-
-    if (tier === 'rois_admin') {
-      platform.push(p);
-      continue;
-    }
-
-    if (tier === 'super_admin' && p.company_id) {
-      if (!superAdminMap.has(p.company_id)) {
-        superAdminMap.set(p.company_id, {
-          companyId: p.company_id,
-          companyName: p.companies?.name ?? 'Super Admin',
-          pages: [],
-        });
-      }
-      superAdminMap.get(p.company_id)!.pages.unshift(p);
-      continue;
-    }
-
-    if (tier === 'admin' && parentId && saCompanyIds.has(parentId)) {
-      if (!superAdminMap.has(parentId)) {
-        superAdminMap.set(parentId, {
-          companyId: parentId,
-          companyName: 'Super Admin',
-          pages: [],
-        });
-      }
-      superAdminMap.get(parentId)!.pages.push(p);
-      continue;
-    }
-
-    if (tier === 'admin' && !parentId) {
-      roisAdminDirect.push(p);
-      continue;
-    }
-
-    roisAdminDirect.push(p);
-  }
-
-  const superAdminGroups = Array.from(superAdminMap.values()).sort((a, b) =>
-    a.companyName.localeCompare(b.companyName)
-  );
-
-  return { platform, roisAdminDirect, superAdminGroups };
-}
+import { groupSites, missingParentIds } from './sasitesGrouping';
 
 export default function SASites() {
   const t = useThemeTokens();
   const [pages, setPages] = useState<CompanyHomePageWithCompany[]>([]);
+  const [parentNames, setParentNames] = useState<Map<string, string>>(new Map());
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [editPage, setEditPage] = useState<CompanyHomePageWithCompany | null>(null);
   const [domainsPage, setDomainsPage] = useState<CompanyHomePageWithCompany | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    const data = await getAllHomePages();
-    setPages(data);
-    setLoading(false);
+    setLoadError(false);
+    try {
+      const data = await getAllHomePages();
+      // Nom des Groupes parents qui n'ont pas eux-memes de site (type reel : entity_type).
+      const missing = missingParentIds(data);
+      const names = new Map<string, string>();
+      if (missing.length > 0) {
+        const { data: parents } = await supabase.from('companies').select('id, name').in('id', missing);
+        for (const c of parents ?? []) names.set(c.id as string, c.name as string);
+      }
+      setPages(data);
+      setParentNames(names);
+    } catch {
+      // Un echec de chargement ne doit jamais s'afficher comme « aucun site ».
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => { load(); }, [load]);
 
-  const { platform, roisAdminDirect, superAdminGroups } = useMemo(() => groupPages(pages), [pages]);
+  const { platform, independents, groupes } = useMemo(() => groupSites(pages, parentNames), [pages, parentNames]);
 
   const totalCount = pages.length;
 
@@ -135,7 +83,16 @@ export default function SASites() {
         </div>
       </div>
 
-      {totalCount === 0 ? (
+      {loadError ? (
+        <div className="text-center py-16" role="alert">
+          <Globe className="w-10 h-10 mx-auto mb-3" style={{ color: t.text.tertiary }} />
+          <p className="text-sm font-medium" style={{ color: t.text.secondary }}>Les sites n'ont pas pu être chargés.</p>
+          <button onClick={() => { setLoading(true); load(); }} className="mt-4 px-4 min-h-[44px] sm:min-h-[36px] rounded-lg text-sm font-semibold"
+            style={{ background: t.surface.secondary, border: `1px solid ${t.surface.border}`, color: t.text.primary }}>
+            Réessayer
+          </button>
+        </div>
+      ) : totalCount === 0 ? (
         <div className="text-center py-16">
           <Globe className="w-10 h-10 mx-auto mb-3" style={{ color: t.text.tertiary }} />
           <p className="text-sm font-medium" style={{ color: t.text.secondary }}>Aucun site configure.</p>
@@ -144,7 +101,7 @@ export default function SASites() {
       ) : (
         <div className="space-y-6">
           <SASitesSection
-            title="Rois Admin / Plateforme"
+            title="Talvex / Plateforme"
             icon={<Crown className="w-3.5 h-3.5" style={{ color: '#f59e0b' }} />}
             iconBg="rgba(245,158,11,0.1)"
             iconBorder="rgba(245,158,11,0.25)"
@@ -153,18 +110,18 @@ export default function SASites() {
           />
 
           <SASitesSection
-            title="Admins crees par Rois Admin"
+            title="Sociétés indépendantes"
             icon={<Users className="w-3.5 h-3.5" style={{ color: '#0ea5e9' }} />}
             iconBg="rgba(14,165,233,0.1)"
             iconBorder="rgba(14,165,233,0.25)"
-            pages={roisAdminDirect}
+            pages={independents}
             {...shared}
           />
 
-          {superAdminGroups.map(group => (
+          {groupes.map(group => (
             <SASitesSection
               key={group.companyId}
-              title={`Super Admin : ${group.companyName}`}
+              title={`Groupe : ${group.companyName}`}
               icon={<Shield className="w-3.5 h-3.5" style={{ color: '#8b5cf6' }} />}
               iconBg="rgba(139,92,246,0.1)"
               iconBorder="rgba(139,92,246,0.25)"

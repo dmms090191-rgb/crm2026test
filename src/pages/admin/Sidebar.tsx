@@ -52,7 +52,9 @@ const LAYOUT_SECTIONS: LayoutDefaultSection[] = [
     { id: 'vue-ensemble', label: 'Dashboard' },
     { id: 'info-admin', label: 'Accès & sécurité' },
     { id: 'boutique', label: 'Boutique' },
-    { id: 'site', label: 'Site', hidden: true },
+    // Site : module normal, visible par defaut. Talvex Administrateur peut toujours le masquer ;
+    // une configuration deja enregistree garde son propre etat (reconcileLayout).
+    { id: 'site', label: 'Site' },
     { id: 'logo', label: 'Logo', hidden: true },
     { id: 'calquer-logo', label: 'Calquer logo', hidden: true },
     { id: 'application', label: 'Application', hidden: true },

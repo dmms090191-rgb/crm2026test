@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 import ErrorBoundary from './components/ErrorBoundary';
+import SitePreviewEntry, { prepareSitePreviewRealm } from './pages/public/SitePreviewEntry';
 import './lib/pwaPromptCapture';
 import './index.css';
 
@@ -26,7 +27,15 @@ try {
 const IS_PWA = window.matchMedia('(display-mode: standalone)').matches
   || (navigator as unknown as Record<string, boolean>).standalone === true;
 
-if (IS_PWA) {
+// Apercu interne du module Site (iframe). Monte a la place de App : aucune detection de role ;
+// connexion, inscription et ecritures neutralisees dans l'iframe (sitePreviewGuard.ts).
+const IS_SITE_PREVIEW = window.location.pathname === '/site-apercu';
+// Une page affichee dans un cadre (iframe) partage la session de l'onglet : elle ne doit jamais l'effacer.
+const IS_EMBEDDED = window.self !== window.top;
+
+if (IS_SITE_PREVIEW) prepareSitePreviewRealm();
+
+if (IS_PWA && !IS_SITE_PREVIEW && !IS_EMBEDDED) {
   try {
     const ssKeys = Object.keys(sessionStorage);
     for (const key of ssKeys) {
@@ -44,7 +53,7 @@ if ('serviceWorker' in navigator) {
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>
-      <App />
+      {IS_SITE_PREVIEW ? <SitePreviewEntry /> : <App />}
     </ErrorBoundary>
   </StrictMode>
 );

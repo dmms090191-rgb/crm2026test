@@ -1,55 +1,57 @@
-import { Eye, LayoutGrid, Globe, Paintbrush } from 'lucide-react';
+import { Eye, LayoutGrid, Globe, Home } from 'lucide-react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
+import { SITE_TAB_ORDER, type SiteTabId } from '../../../../lib/siteWorkspaceModel';
 
-export type SiteTab = 'domaine' | 'templates' | 'studio' | 'apercu';
+/*
+ * 'studio' reste dans le type : l'ancien Studio Site est MASQUE (plus d'onglet), pas supprime.
+ * Son composant SiteStudioTab.tsx est conserve tel quel.
+ */
+export type SiteTab = SiteTabId | 'studio';
 
-interface TabDef { id: SiteTab; label: string; icon: React.ReactNode }
-
-const TABS: TabDef[] = [
-  { id: 'domaine', label: 'Domaine', icon: <Globe className="w-3.5 h-3.5" /> },
-  { id: 'templates', label: 'Templates', icon: <LayoutGrid className="w-3.5 h-3.5" /> },
-  { id: 'studio', label: 'Studio Site', icon: <Paintbrush className="w-3.5 h-3.5" /> },
-  { id: 'apercu', label: 'Apercu du site', icon: <Eye className="w-3.5 h-3.5" /> },
-];
+const TAB_DEFS: Record<SiteTabId, { label: string; icon: React.ReactNode }> = {
+  'mon-site': { label: 'Mon site', icon: <Home className="w-4 h-4" /> },
+  domaine: { label: 'Domaine', icon: <Globe className="w-4 h-4" /> },
+  templates: { label: 'Templates', icon: <LayoutGrid className="w-4 h-4" /> },
+  apercu: { label: 'Aperçu', icon: <Eye className="w-4 h-4" /> },
+};
 
 interface Props {
-  activeTab: SiteTab;
-  onTabChange: (tab: SiteTab) => void;
-  hideDomainTab?: boolean;
-  customOrder?: SiteTab[];
-  hiddenTabs?: SiteTab[];
+  activeTab: SiteTabId;
+  onTabChange: (tab: SiteTabId) => void;
 }
 
-export default function SiteTabs({ activeTab, onTabChange, hideDomainTab, customOrder, hiddenTabs }: Props) {
+/* Toujours exactement 4 onglets, dans cet ordre (y compris depuis les listes Talvex). */
+export default function SiteTabs({ activeTab, onTabChange }: Props) {
   const t = useThemeTokens();
-
-  const orderedTabs = customOrder
-    ? customOrder.map(id => TABS.find(tab => tab.id === id)).filter(Boolean) as TabDef[]
-    : TABS;
-
-  const visibleTabs = orderedTabs.filter(tab => {
-    if (hideDomainTab && tab.id === 'domaine') return false;
-    if (hiddenTabs?.includes(tab.id)) return false;
-    return true;
-  });
+  const tabs = SITE_TAB_ORDER;
 
   return (
-    <div className="flex gap-1 overflow-x-auto pb-0.5 scrollbar-none -mx-1 px-1">
-      {visibleTabs.map(tab => {
-        const active = activeTab === tab.id;
+    <div
+      role="tablist"
+      aria-label="Sections du site"
+      className="grid gap-1 p-1 rounded-xl w-full"
+      style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))`, background: t.surface.secondary, border: `1px solid ${t.surface.border}` }}
+    >
+      {tabs.map(id => {
+        const active = activeTab === id;
+        const def = TAB_DEFS[id];
         return (
           <button
-            key={tab.id}
-            onClick={() => onTabChange(tab.id)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-[11px] sm:text-xs font-semibold whitespace-nowrap transition-all flex-shrink-0"
+            key={id}
+            role="tab"
+            aria-selected={active}
+            data-testid={`site-tab-${id}`}
+            onClick={() => onTabChange(id)}
+            className="flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-2 min-h-[48px] sm:min-h-[38px] px-1 sm:px-3 rounded-lg text-[11px] sm:text-xs font-semibold transition-all min-w-0"
             style={{
-              background: active ? 'rgba(14,165,233,0.1)' : 'transparent',
-              border: active ? '1px solid rgba(14,165,233,0.25)' : '1px solid transparent',
-              color: active ? '#0ea5e9' : t.text.tertiary,
+              background: active ? t.card.bg : 'transparent',
+              border: active ? '1px solid rgba(14,165,233,0.35)' : '1px solid transparent',
+              boxShadow: active ? '0 1px 8px rgba(14,165,233,0.15)' : 'none',
+              color: active ? '#0ea5e9' : t.text.secondary,
             }}
           >
-            {tab.icon}
-            {tab.label}
+            {def.icon}
+            <span className="truncate max-w-full">{def.label}</span>
           </button>
         );
       })}

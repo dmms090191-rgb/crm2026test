@@ -33,7 +33,7 @@ export default function SiteContextStatusView({ t, title, status, onClose, onBac
       <div className="flex items-center gap-3 px-3 py-2 flex-shrink-0" style={{ borderBottom: `1px solid ${t.surface.border}` }}>
         {onBack && (
           <button onClick={onBack} aria-label="Retour"
-            className="w-9 h-9 sm:w-7 sm:h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+            className="w-11 h-11 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center flex-shrink-0"
             style={{ background: t.surface.secondary, border: `1px solid ${t.surface.border}`, color: t.text.secondary }}>
             <ArrowLeft className="w-3.5 h-3.5" />
           </button>
@@ -44,7 +44,7 @@ export default function SiteContextStatusView({ t, title, status, onClose, onBac
         <span className="text-xs font-bold truncate flex-1 min-w-0" style={{ color: t.heading.primary }}>{title}</span>
         {onClose && (
           <button onClick={onClose} aria-label="Fermer"
-            className="w-9 h-9 sm:w-7 sm:h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+            className="w-11 h-11 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center flex-shrink-0"
             style={{ background: t.modal.closeBtnBg, color: t.modal.closeBtnText }}>
             <X className="w-3.5 h-3.5" />
           </button>
