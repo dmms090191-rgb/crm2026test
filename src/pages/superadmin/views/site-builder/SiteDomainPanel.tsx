@@ -1,32 +1,33 @@
-import { Globe, Search, BadgeCheck, ShoppingBag, RefreshCw, ShieldCheck, Info, CalendarClock } from 'lucide-react';
+import { Globe, ShoppingBag, RefreshCw, ShieldCheck, Info, CalendarClock } from 'lucide-react';
 import type { ThemeTokens } from '../../../../lib/themeTokensTypes';
 import type { CompanyHomePage } from '../../../../lib/companyHomePages';
 import type { SiteDomainRecord } from '../../../../lib/siteDomainTypes';
 import { domainSummary, formatDateFr, publicSiteUrl } from '../../../../lib/siteWorkspaceModel';
-import { BUTTON_BASE, PRIMARY_BUTTON_STYLE, SITE_ACCENT, StatusPill, cardStyle } from './SiteUiParts';
+import { SITE_ACCENT, StatusPill, cardStyle } from './SiteUiParts';
+import SiteDomainSearch from './SiteDomainSearch';
 
 /*
- * DOMAINE (Groupe / Societe) — INTERFACE UNIQUEMENT.
+ * DOMAINE (Groupe / Societe).
  * - Affiche seulement des informations reelles : site_domains (via get_site_domains), sinon
  *   les anciennes colonnes de company_home_pages.
- * - Recherche, disponibilite, prix, achat et renouvellement : backend pas encore branche
- *   (futur compte Hostinger central de Talvex). Rien n'est simule.
+ * - Recherche de disponibilite : branchee sur le serveur Talvex (compte Hostinger central, lecture seule).
+ * - Achat et renouvellement : pas encore disponibles (bouton Acheter desactive). Rien n'est simule.
  */
 interface Props {
   t: ThemeTokens;
   page: CompanyHomePage | null;
   siteDomain: SiteDomainRecord | null;
+  /* Entreprise ciblee par le SiteContext (verifiee a nouveau par le serveur a chaque recherche). */
+  companyId: string;
   actorIsTalvex: boolean;
 }
 
 const UPCOMING = [
-  { icon: <Search className="w-4 h-4" />, text: 'Rechercher le nom de domaine de votre choix' },
-  { icon: <BadgeCheck className="w-4 h-4" />, text: "Voir s'il est disponible et son prix" },
   { icon: <ShoppingBag className="w-4 h-4" />, text: "L'acheter en quelques clics" },
   { icon: <RefreshCw className="w-4 h-4" />, text: 'Suivre son renouvellement' },
 ];
 
-export default function SiteDomainPanel({ t, page, siteDomain, actorIsTalvex }: Props) {
+export default function SiteDomainPanel({ t, page, siteDomain, companyId, actorIsTalvex }: Props) {
   const domain = domainSummary(page, siteDomain);
   const renewal = formatDateFr(domain.renewalDate);
   const talvexAddress = page ? publicSiteUrl({ ...page, custom_domain: null }, window.location.origin) : null;
@@ -68,39 +69,30 @@ export default function SiteDomainPanel({ t, page, siteDomain, actorIsTalvex }: 
       </div>
 
       <div className="rounded-2xl p-4 sm:p-5" style={cardStyle(t)} data-testid="site-domain-upcoming">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-base sm:text-sm font-bold" style={{ color: t.heading.primary }}>Obtenir un nom de domaine</p>
-          <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold"
-            style={{ background: 'rgba(14,165,233,0.10)', border: '1px solid rgba(14,165,233,0.25)', color: SITE_ACCENT }}>
-            Bientôt disponible
-          </span>
-        </div>
+        <p className="text-base sm:text-sm font-bold" style={{ color: t.heading.primary }}>Obtenir un nom de domaine</p>
         <p className="text-sm sm:text-xs mt-1.5 leading-relaxed" style={{ color: t.text.secondary }}>
-          La gestion de votre nom de domaine sera disponible ici. Talvex s'occupe de tout : vous n'avez aucun compte à créer chez un hébergeur.
+          Vérifiez si le nom de votre choix est libre. Talvex s'occupe de tout : vous n'avez aucun compte à créer chez un hébergeur.
         </p>
 
-        <div className="mt-4 flex flex-col sm:flex-row gap-2" aria-disabled="true">
-          <input
-            disabled
-            aria-label="Nom de domaine recherché (bientôt disponible)"
-            placeholder="ex. mon-entreprise.fr"
-            className="w-full min-h-[44px] sm:min-h-[38px] px-3 rounded-xl text-sm sm:text-xs outline-none cursor-not-allowed opacity-70"
-            style={{ background: t.input.bg, border: `1px solid ${t.input.border}`, color: t.input.text }}
-          />
-          <button disabled className={`${BUTTON_BASE} sm:w-auto`} style={PRIMARY_BUTTON_STYLE}>
-            <Search className="w-4 h-4" /> Rechercher
-          </button>
-        </div>
+        <SiteDomainSearch t={t} companyId={companyId} actorIsTalvex={actorIsTalvex} />
 
-        <ul className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
-          {UPCOMING.map(item => (
-            <li key={item.text} className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm sm:text-xs"
-              style={{ background: t.surface.secondary, border: `1px solid ${t.surface.border}`, color: t.text.secondary }}>
-              <span style={{ color: SITE_ACCENT }}>{item.icon}</span>
-              {item.text}
-            </li>
-          ))}
-        </ul>
+        <div className="mt-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold"
+              style={{ background: 'rgba(14,165,233,0.10)', border: '1px solid rgba(14,165,233,0.25)', color: SITE_ACCENT }}>
+              Bientôt disponible
+            </span>
+          </div>
+          <ul className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {UPCOMING.map(item => (
+              <li key={item.text} className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm sm:text-xs"
+                style={{ background: t.surface.secondary, border: `1px solid ${t.surface.border}`, color: t.text.secondary }}>
+                <span style={{ color: SITE_ACCENT }}>{item.icon}</span>
+                {item.text}
+              </li>
+            ))}
+          </ul>
+        </div>
 
         <p className="flex items-center gap-1.5 mt-4 text-sm sm:text-xs" style={{ color: t.text.tertiary }}>
           <ShieldCheck className="w-3.5 h-3.5 flex-shrink-0" /> Votre domaine appartiendra toujours au site de votre entreprise.

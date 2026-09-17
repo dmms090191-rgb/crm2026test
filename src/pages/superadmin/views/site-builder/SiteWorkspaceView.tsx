@@ -64,7 +64,7 @@ export default function SiteWorkspaceView({ ctx, data, title, onClose, onBack }:
     body = isPlatformSite
       // Site officiel Talvex : outils techniques existants, reserves a Talvex Administrateur.
       ? <SiteDomainTab page={data.page} onOpenDomainManager={() => setDomainToolsOpen(true)} ownerType="super_admin" onPageRefresh={() => data.reload()} />
-      : <SiteDomainPanel t={t} page={data.page} siteDomain={data.siteDomain} actorIsTalvex={actorIsTalvex} />;
+      : <SiteDomainPanel t={t} page={data.page} siteDomain={data.siteDomain} companyId={target.companyId!} actorIsTalvex={actorIsTalvex} />;
   } else if (tab === 'templates') {
     body = (
       <SiteTemplateLibrary t={t} entries={data.library} targetName={target.name} actorIsTalvex={actorIsTalvex}
