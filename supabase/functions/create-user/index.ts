@@ -90,7 +90,7 @@ Deno.serve(async (req: Request) => {
 
       const { data: companyData, error: companyError } = await supabaseAdmin
         .from("companies")
-        .insert({ name: company.trim() })
+        .insert({ name: company.trim(), entity_type: "societe" })
         .select("id")
         .single();
 
