@@ -5,8 +5,10 @@ import {
   type CompanyHomePage, type SiteTemplate,
 } from '../../../../lib/companyHomePages';
 import { getAssignedTemplateIds } from '../../../../lib/siteTemplateAssignments';
+import { getSiteDomains } from '../../../../lib/siteDomains';
+import type { SiteDomainRecord } from '../../../../lib/siteDomainTypes';
 import {
-  applyTemplateErrorMessage, buildSectionOverrides, buildTemplateLibrary,
+  applyTemplateErrorMessage, buildSectionOverrides, buildTemplateLibrary, pickPrimaryDomain,
   type PublishedSectionRow, type SitePreviewPayload, type TemplateEntry,
 } from '../../../../lib/siteWorkspaceModel';
 import type { SiteContextState } from '../../../../lib/siteContextModel';
@@ -20,6 +22,8 @@ export interface SiteWorkspaceData {
   loading: boolean;
   loadError: boolean;
   page: CompanyHomePage | null;
+  /* Domaine principal (site_domains, lu via get_site_domains) ; null => anciennes colonnes du site. */
+  siteDomain: SiteDomainRecord | null;
   activeTemplate: SiteTemplate | null;
   library: TemplateEntry[];
   sitePreview: SitePreviewPayload | null;
@@ -36,6 +40,7 @@ export function useSiteWorkspaceData(ctx: SiteContextState): SiteWorkspaceData {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [page, setPage] = useState<CompanyHomePage | null>(null);
+  const [siteDomain, setSiteDomain] = useState<SiteDomainRecord | null>(null);
   const [templates, setTemplates] = useState<SiteTemplate[]>([]);
   const [assignedIds, setAssignedIds] = useState<Set<string>>(new Set());
   const [activeTemplate, setActiveTemplate] = useState<SiteTemplate | null>(null);
@@ -45,10 +50,12 @@ export function useSiteWorkspaceData(ctx: SiteContextState): SiteWorkspaceData {
     if (scope === 'company' && !companyId) return;
     if (!silent) setLoading(true);
     try {
-      const [allTemplates, homePage, assigned] = await Promise.all([
+      const [allTemplates, homePage, assigned, domains] = await Promise.all([
         getAllTemplates(),
         scope === 'platform' ? getPlatformHomePage() : getHomePageByCompanyId(companyId as string),
         scope === 'company' ? getAssignedTemplateIds(companyId as string) : Promise.resolve(new Set<string>()),
+        // Les domaines ne doivent jamais empecher l'affichage du site : en cas d'echec, aucun domaine.
+        scope === 'company' ? getSiteDomains(companyId as string).catch(() => [] as SiteDomainRecord[]) : Promise.resolve([] as SiteDomainRecord[]),
       ]);
       const current = homePage?.active_template_id ? await getTemplateById(homePage.active_template_id) : null;
       let rows: PublishedSectionRow[] = [];
@@ -64,6 +71,7 @@ export function useSiteWorkspaceData(ctx: SiteContextState): SiteWorkspaceData {
       setTemplates(allTemplates);
       setAssignedIds(assigned);
       setPage(homePage);
+      setSiteDomain(pickPrimaryDomain(domains));
       setActiveTemplate(current);
       setPublishedRows(rows);
       setLoadError(false);
@@ -110,5 +118,5 @@ export function useSiteWorkspaceData(ctx: SiteContextState): SiteWorkspaceData {
 
   const reload = useCallback(() => load(true), [load]);
 
-  return { loading, loadError, page, activeTemplate, library, sitePreview, reload, applyTemplateToSite };
+  return { loading, loadError, page, siteDomain, activeTemplate, library, sitePreview, reload, applyTemplateToSite };
 }

@@ -3,6 +3,7 @@ import { ExternalLink, LayoutGrid, Maximize2, Sparkles } from 'lucide-react';
 import type { ThemeTokens } from '../../../../lib/themeTokensTypes';
 import type { CompanyHomePage } from '../../../../lib/companyHomePages';
 import { publicSiteUrl, siteDisplayName, type PreviewDevice, type SitePreviewPayload, type SiteTabId } from '../../../../lib/siteWorkspaceModel';
+import type { SiteDomainRecord } from '../../../../lib/siteDomainTypes';
 import SitePreviewFrame, { PreviewDeviceSwitcher, defaultPreviewDevice } from './SitePreviewFrame';
 import SitePreviewModal from './SitePreviewModal';
 import { BUTTON_BASE, EmptyPanel, PRIMARY_BUTTON_STYLE, secondaryButtonStyle } from './SiteUiParts';
@@ -14,6 +15,7 @@ import { BUTTON_BASE, EmptyPanel, PRIMARY_BUTTON_STYLE, secondaryButtonStyle } f
 interface Props {
   t: ThemeTokens;
   page: CompanyHomePage | null;
+  siteDomain: SiteDomainRecord | null;
   payload: SitePreviewPayload | null;
   targetName: string;
   onTabChange: (tab: SiteTabId) => void;
@@ -24,7 +26,7 @@ function frameHeight(): number {
   return Math.max(420, Math.min(Math.round(window.innerHeight * 0.68), 820));
 }
 
-export default function SiteLivePreviewTab({ t, page, payload, targetName, onTabChange }: Props) {
+export default function SiteLivePreviewTab({ t, page, siteDomain, payload, targetName, onTabChange }: Props) {
   const [device, setDevice] = useState<PreviewDevice>(defaultPreviewDevice);
   const [fullscreen, setFullscreen] = useState(false);
 
@@ -45,7 +47,7 @@ export default function SiteLivePreviewTab({ t, page, payload, targetName, onTab
   }
 
   const name = siteDisplayName(page, targetName);
-  const link = publicSiteUrl(page, window.location.origin);
+  const link = publicSiteUrl(page, window.location.origin, siteDomain);
 
   return (
     <div className="space-y-3" data-testid="site-live-preview">

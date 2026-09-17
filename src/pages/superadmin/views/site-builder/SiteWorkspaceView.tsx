@@ -57,21 +57,21 @@ export default function SiteWorkspaceView({ ctx, data, title, onClose, onBack }:
     );
   } else if (tab === 'mon-site') {
     body = (
-      <SiteOverviewTab t={t} target={target} page={data.page} activeTemplate={data.activeTemplate}
+      <SiteOverviewTab t={t} target={target} page={data.page} siteDomain={data.siteDomain} activeTemplate={data.activeTemplate}
         hasTemplates={data.library.length > 0} onTabChange={changeTab} />
     );
   } else if (tab === 'domaine') {
     body = isPlatformSite
       // Site officiel Talvex : outils techniques existants, reserves a Talvex Administrateur.
       ? <SiteDomainTab page={data.page} onOpenDomainManager={() => setDomainToolsOpen(true)} ownerType="super_admin" onPageRefresh={() => data.reload()} />
-      : <SiteDomainPanel t={t} page={data.page} actorIsTalvex={actorIsTalvex} />;
+      : <SiteDomainPanel t={t} page={data.page} siteDomain={data.siteDomain} actorIsTalvex={actorIsTalvex} />;
   } else if (tab === 'templates') {
     body = (
       <SiteTemplateLibrary t={t} entries={data.library} targetName={target.name} actorIsTalvex={actorIsTalvex}
         isPlatformSite={isPlatformSite} onPreview={setPreviewTemplate} onUse={setApplyCandidate} />
     );
   } else {
-    body = <SiteLivePreviewTab t={t} page={data.page} payload={data.sitePreview} targetName={target.name} onTabChange={changeTab} />;
+    body = <SiteLivePreviewTab t={t} page={data.page} siteDomain={data.siteDomain} payload={data.sitePreview} targetName={target.name} onTabChange={changeTab} />;
   }
 
   const pageWithCompany: CompanyHomePageWithCompany | null = data.page

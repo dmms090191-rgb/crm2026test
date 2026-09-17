@@ -5,6 +5,7 @@ import {
   domainSummary, formatDateFr, publicationStatus, publicSiteUrl, siteDisplayName,
   type SiteTabId,
 } from '../../../../lib/siteWorkspaceModel';
+import type { SiteDomainRecord } from '../../../../lib/siteDomainTypes';
 import { ENTITY_LABELS, type SiteTarget } from '../../../../lib/siteContextModel';
 import {
   BUTTON_BASE, EmptyPanel, InfoTile, PRIMARY_BUTTON_STYLE, SITE_GRADIENT, StatusPill, cardStyle, secondaryButtonStyle,
@@ -15,12 +16,13 @@ interface Props {
   t: ThemeTokens;
   target: SiteTarget;
   page: CompanyHomePage | null;
+  siteDomain: SiteDomainRecord | null;
   activeTemplate: SiteTemplate | null;
   hasTemplates: boolean;
   onTabChange: (tab: SiteTabId) => void;
 }
 
-export default function SiteOverviewTab({ t, target, page, activeTemplate, hasTemplates, onTabChange }: Props) {
+export default function SiteOverviewTab({ t, target, page, siteDomain, activeTemplate, hasTemplates, onTabChange }: Props) {
   const ownerLabel = target.entityType ? `${target.name} · ${ENTITY_LABELS[target.entityType]}` : target.name;
 
   if (!page) {
@@ -41,9 +43,9 @@ export default function SiteOverviewTab({ t, target, page, activeTemplate, hasTe
     );
   }
 
-  const publication = publicationStatus(page);
-  const domain = domainSummary(page);
-  const link = publicSiteUrl(page, window.location.origin);
+  const publication = publicationStatus(page, siteDomain);
+  const domain = domainSummary(page, siteDomain);
+  const link = publicSiteUrl(page, window.location.origin, siteDomain);
   const updated = formatDateFr(page.updated_at);
 
   return (

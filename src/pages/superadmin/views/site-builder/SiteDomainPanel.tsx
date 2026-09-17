@@ -1,18 +1,21 @@
 import { Globe, Search, BadgeCheck, ShoppingBag, RefreshCw, ShieldCheck, Info, CalendarClock } from 'lucide-react';
 import type { ThemeTokens } from '../../../../lib/themeTokensTypes';
 import type { CompanyHomePage } from '../../../../lib/companyHomePages';
+import type { SiteDomainRecord } from '../../../../lib/siteDomainTypes';
 import { domainSummary, formatDateFr, publicSiteUrl } from '../../../../lib/siteWorkspaceModel';
 import { BUTTON_BASE, PRIMARY_BUTTON_STYLE, SITE_ACCENT, StatusPill, cardStyle } from './SiteUiParts';
 
 /*
  * DOMAINE (Groupe / Societe) — INTERFACE UNIQUEMENT.
- * - Affiche seulement des informations reelles (company_home_pages).
+ * - Affiche seulement des informations reelles : site_domains (via get_site_domains), sinon
+ *   les anciennes colonnes de company_home_pages.
  * - Recherche, disponibilite, prix, achat et renouvellement : backend pas encore branche
  *   (futur compte Hostinger central de Talvex). Rien n'est simule.
  */
 interface Props {
   t: ThemeTokens;
   page: CompanyHomePage | null;
+  siteDomain: SiteDomainRecord | null;
   actorIsTalvex: boolean;
 }
 
@@ -23,8 +26,8 @@ const UPCOMING = [
   { icon: <RefreshCw className="w-4 h-4" />, text: 'Suivre son renouvellement' },
 ];
 
-export default function SiteDomainPanel({ t, page, actorIsTalvex }: Props) {
-  const domain = domainSummary(page);
+export default function SiteDomainPanel({ t, page, siteDomain, actorIsTalvex }: Props) {
+  const domain = domainSummary(page, siteDomain);
   const renewal = formatDateFr(domain.renewalDate);
   const talvexAddress = page ? publicSiteUrl({ ...page, custom_domain: null }, window.location.origin) : null;
 
@@ -53,7 +56,7 @@ export default function SiteDomainPanel({ t, page, actorIsTalvex }: Props) {
           <p className="text-sm sm:text-xs leading-relaxed" style={{ color: t.text.secondary }}>{domain.hint}</p>
           {renewal && (
             <p className="flex items-center gap-1.5 text-sm sm:text-xs" style={{ color: t.text.secondary }}>
-              <CalendarClock className="w-3.5 h-3.5" /> Renouvellement le {renewal}
+              <CalendarClock className="w-3.5 h-3.5" /> {domain.renewalDue ? 'Renouvellement à prévoir le' : 'Renouvellement le'} {renewal}
             </p>
           )}
           {!domain.domain && talvexAddress?.url && (

@@ -114,16 +114,15 @@ export async function getHomePageBySlug(slug: string): Promise<PublicCompanyHome
   return data;
 }
 
+/*
+ * Resolution publique d'un domaine : UNIQUEMENT par le serveur (RPC resolve_public_site).
+ * Domaine actif de site_domains, sinon domaine historique verifie ; colonnes publiques uniquement.
+ */
 export async function getHomePageByDomain(domain: string): Promise<PublicCompanyHomePage | null> {
-  const { data, error } = await supabase
-    .from('company_home_pages')
-    .select(PUBLIC_HOME_PAGE_COLUMNS)
-    .eq('custom_domain', domain)
-    .eq('is_active', true)
-    .eq('domain_verified', true)
-    .maybeSingle();
+  const { data, error } = await supabase.rpc('resolve_public_site', { p_host: domain, p_slug: null });
   if (error) throw error;
-  return data;
+  const rows = (data ?? []) as PublicCompanyHomePage[];
+  return rows[0] ?? null;
 }
 
 export async function upsertHomePage(page: CompanyHomePageUpsert): Promise<CompanyHomePage> {
