@@ -3,8 +3,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  appendRows, checkedCount, describeRow, formatMoney, parseSearchResponse, precheckSearchQuery, remainingCount, restrictionLabel,
-  retryText, searchNotice, searchSummary, unknownPage, type SearchRow,
+  appendRows, availableCount, checkedCount, describeRow, formatMoney, parseSearchResponse, precheckSearchQuery, remainingCount, remainingLabel,
+  restrictionLabel, retryText, searchNotice, searchSummary, splitResults, unknownPage, type SearchRow,
 } from '../../src/lib/domainSearchModel.ts';
 
 const ok = (result: Record<string, unknown>) => ({ ok: true, result });
@@ -106,4 +106,41 @@ test('aucun jargon pour Groupe/Societe, format monetaire', () => {
   }
   assert.match(formatMoney(999, 'EUR'), /^9,99\s€$/);
   assert.equal(restrictionLabel('code_inconnu'), 'code_inconnu');
+});
+
+test('prix structure (cartes) : cout Hostinger pour Talvex seulement, jamais pour Groupe/Societe', () => {
+  const priced = row({ domain: 'dior.net', tld: 'net', provider_price: { currency: 'EUR', first_year_cents: 999, renewal_cents: 1699 } });
+  const talvex = describeRow(priced, true).price;
+  assert.equal(talvex?.kind, 'provider');
+  if (talvex?.kind === 'provider') {
+    assert.match(talvex.firstYear, /^9,99\s€$/);
+    assert.match(talvex.renewal, /^16,99\s€ \/ an$/);
+    assert.equal(talvex.currency, 'EUR');
+  }
+  assert.deepEqual(describeRow(priced, false).price, { kind: 'client_pending', text: 'Prix client : bientôt disponible' });
+  assert.doesNotMatch(JSON.stringify(describeRow(priced, false)), /9,99|16,99|EUR|Hostinger/);
+  assert.deepEqual(describeRow(row({ domain: 'dior.xyz', tld: 'xyz', provider_price: null }), true).price, { kind: 'provider_missing', text: 'Coût Hostinger : non disponible' });
+  for (const status of ['unavailable', 'unknown', 'not_offered'] as const) {
+    assert.equal(describeRow(row({ domain: 'dior.com', tld: 'com', status, provider_price: { currency: 'EUR', first_year_cents: 999, renewal_cents: 1699 } }), true).price, null);
+  }
+});
+
+test('repartition d affichage : recommandees puis autres, ordre et lignes inchanges', () => {
+  const rows = [
+    row({ domain: 'dior.co.il', tld: 'co.il', status: 'not_offered', popular: false }),
+    row({ domain: 'dior.shop', tld: 'shop', popular: false }),
+    row({ domain: 'dior.com', tld: 'com', status: 'unavailable' }),
+    row({ domain: 'dior.fr', tld: 'fr' }),
+    row({ domain: 'dior.online', tld: 'online', popular: false }),
+    row({ domain: 'dior.xyz', tld: 'xyz', popular: false, status: 'unknown' }),
+  ];
+  const split = splitResults(rows, 'shop');
+  assert.deepEqual(split.featured.map((r) => r.domain), ['dior.co.il', 'dior.shop', 'dior.com', 'dior.fr']);
+  assert.deepEqual(split.others.map((r) => r.domain), ['dior.online', 'dior.xyz']);
+  assert.deepEqual([...split.featured, ...split.others], rows, 'aucune ligne perdue ni reordonnee');
+  assert.deepEqual(splitResults(rows.slice(2, 4), null), { featured: rows.slice(2, 4), others: [] });
+  assert.deepEqual(splitResults([], null), { featured: [], others: [] });
+  assert.equal(availableCount(rows), 3);
+  assert.equal(remainingLabel(400), '400 restantes');
+  assert.equal(remainingLabel(1), '1 restante');
 });

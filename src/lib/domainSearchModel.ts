@@ -165,12 +165,23 @@ export function retryText(reason: string | null, wait: number | null): string {
   }
 }
 
+/*
+ * Prix structure pour l'affichage en cartes / colonnes, calcule dans la MEME branche que priceLines :
+ * cout Hostinger pour Talvex uniquement, « Prix client : bientot disponible » pour Groupe/Societe.
+ */
+export type PriceView =
+  | { kind: 'provider'; firstYear: string; renewal: string; currency: string }
+  | { kind: 'provider_missing'; text: string }
+  | { kind: 'client_pending'; text: string };
+
 export interface RowView {
   label: string;
   tone: StatusTone;
   /* Conditions d'enregistrement (ex. residence dans l'UE), sans jargon. */
   condition: string | null;
   priceLines: string[];
+  /* null tant que le domaine n'est pas disponible. */
+  price: PriceView | null;
   /* Le futur bouton Acheter n'apparait (desactive) que pour un domaine reellement disponible. */
   showBuyPlaceholder: boolean;
 }
@@ -184,26 +195,47 @@ export function describeRow(row: SearchRow, actorIsTalvex: boolean): RowView {
         : "Conditions d'enregistrement particulières";
     }
     let priceLines: string[];
+    let price: PriceView;
     if (!actorIsTalvex) {
       priceLines = ['Prix client : bientôt disponible'];
+      price = { kind: 'client_pending', text: priceLines[0] };
     } else if (row.provider_price) {
       const p = row.provider_price;
-      priceLines = [
-        `Coût Hostinger 1re année : ${formatMoney(p.first_year_cents, p.currency)}`,
-        `Renouvellement : ${formatMoney(p.renewal_cents, p.currency)} / an · ${p.currency}`,
-      ];
+      const firstYear = formatMoney(p.first_year_cents, p.currency);
+      const renewal = `${formatMoney(p.renewal_cents, p.currency)} / an`;
+      priceLines = [`Coût Hostinger 1re année : ${firstYear}`, `Renouvellement : ${renewal} · ${p.currency}`];
+      price = { kind: 'provider', firstYear, renewal, currency: p.currency };
     } else {
       priceLines = ['Coût Hostinger : non disponible'];
+      price = { kind: 'provider_missing', text: priceLines[0] };
     }
-    return { label: 'Disponible', tone: 'success', condition, priceLines, showBuyPlaceholder: true };
+    return { label: 'Disponible', tone: 'success', condition, priceLines, price, showBuyPlaceholder: true };
   }
   if (row.status === 'not_offered') {
-    return { label: 'Non proposée', tone: 'neutral', condition: `L'extension .${row.tld} n'est pas proposée.`, priceLines: [], showBuyPlaceholder: false };
+    return { label: 'Non proposée', tone: 'neutral', condition: `L'extension .${row.tld} n'est pas proposée.`, priceLines: [], price: null, showBuyPlaceholder: false };
   }
   if (row.status === 'unavailable') {
-    return { label: 'Indisponible', tone: 'neutral', condition: null, priceLines: [], showBuyPlaceholder: false };
+    return { label: 'Indisponible', tone: 'neutral', condition: null, priceLines: [], price: null, showBuyPlaceholder: false };
   }
-  return { label: 'Impossible de vérifier', tone: 'warning', condition: null, priceLines: [], showBuyPlaceholder: false };
+  return { label: 'Impossible de vérifier', tone: 'warning', condition: null, priceLines: [], price: null, showBuyPlaceholder: false };
+}
+
+/*
+ * Repartition d'affichage (aucun effet sur la recherche) : extensions recommandees (ligne « non proposee »,
+ * extension saisie, .com .fr .net .org .eu .io) puis « Autres extensions », dans l'ordre recu du serveur.
+ */
+export function splitResults(rows: SearchRow[], requestedTld: string | null): { featured: SearchRow[]; others: SearchRow[] } {
+  const firstOther = rows.findIndex((row) => !row.popular && row.status !== 'not_offered' && row.tld !== requestedTld);
+  if (firstOther === -1) return { featured: rows, others: [] };
+  return { featured: rows.slice(0, firstOther), others: rows.slice(firstOther) };
+}
+
+export function remainingLabel(count: number): string {
+  return count > 1 ? `${count} restantes` : `${count} restante`;
+}
+
+export function availableCount(rows: SearchRow[]): number {
+  return rows.filter((row) => row.status === 'available').length;
 }
 
 /* Ajoute une page aux resultats deja affiches (sans doublon, ordre conserve). */

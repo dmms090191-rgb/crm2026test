@@ -33,8 +33,8 @@ export default function SiteDomainPanel({ t, page, siteDomain, companyId, actorI
   const talvexAddress = page ? publicSiteUrl({ ...page, custom_domain: null }, window.location.origin) : null;
 
   return (
-    <div className="space-y-3" data-testid="site-domain-panel">
-      <div className="rounded-2xl p-4 sm:p-5" style={cardStyle(t)}>
+    <div className="space-y-5" data-testid="site-domain-panel">
+      <div className="rounded-2xl p-4 sm:p-6" style={cardStyle(t)}>
         <div className="flex items-center gap-3">
           <span className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
             style={{ background: 'rgba(14,165,233,0.10)', color: SITE_ACCENT }}>
@@ -42,7 +42,7 @@ export default function SiteDomainPanel({ t, page, siteDomain, companyId, actorI
           </span>
           <div className="min-w-0">
             <p className="text-[11px] font-bold uppercase tracking-wider" style={{ color: t.text.tertiary }}>Votre domaine</p>
-            <p className="text-lg sm:text-base font-bold break-all" style={{ color: t.heading.primary }}>
+            <p className="text-lg sm:text-base font-bold [overflow-wrap:anywhere]" style={{ color: t.heading.primary }}>
               {domain.domain ?? 'Aucun domaine pour le moment'}
             </p>
           </div>
@@ -68,22 +68,15 @@ export default function SiteDomainPanel({ t, page, siteDomain, companyId, actorI
         </div>
       </div>
 
-      <div className="rounded-2xl p-4 sm:p-5" style={cardStyle(t)} data-testid="site-domain-upcoming">
-        <p className="text-base sm:text-sm font-bold" style={{ color: t.heading.primary }}>Obtenir un nom de domaine</p>
-        <p className="text-sm sm:text-xs mt-1.5 leading-relaxed" style={{ color: t.text.secondary }}>
-          Vérifiez si le nom de votre choix est libre. Talvex s'occupe de tout : vous n'avez aucun compte à créer chez un hébergeur.
-        </p>
+      <SiteDomainSearch t={t} companyId={companyId} actorIsTalvex={actorIsTalvex} />
 
-        <SiteDomainSearch t={t} companyId={companyId} actorIsTalvex={actorIsTalvex} />
-
-        <div className="mt-4">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold"
-              style={{ background: 'rgba(14,165,233,0.10)', border: '1px solid rgba(14,165,233,0.25)', color: SITE_ACCENT }}>
-              Bientôt disponible
-            </span>
-          </div>
-          <ul className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
+      <div className="rounded-2xl px-4 py-4 sm:px-6" style={cardStyle(t)} data-testid="site-domain-upcoming">
+        <div className="flex flex-col lg:flex-row lg:items-center gap-3 lg:gap-6">
+          <span className="self-start lg:self-auto px-2.5 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap"
+            style={{ background: 'rgba(14,165,233,0.10)', border: '1px solid rgba(14,165,233,0.25)', color: SITE_ACCENT }}>
+            Bientôt disponible
+          </span>
+          <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2 flex-1">
             {UPCOMING.map(item => (
               <li key={item.text} className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm sm:text-xs"
                 style={{ background: t.surface.secondary, border: `1px solid ${t.surface.border}`, color: t.text.secondary }}>
@@ -93,8 +86,7 @@ export default function SiteDomainPanel({ t, page, siteDomain, companyId, actorI
             ))}
           </ul>
         </div>
-
-        <p className="flex items-center gap-1.5 mt-4 text-sm sm:text-xs" style={{ color: t.text.tertiary }}>
+        <p className="flex items-center gap-1.5 mt-3 text-sm sm:text-xs" style={{ color: t.text.tertiary }}>
           <ShieldCheck className="w-3.5 h-3.5 flex-shrink-0" /> Votre domaine appartiendra toujours au site de votre entreprise.
         </p>
       </div>

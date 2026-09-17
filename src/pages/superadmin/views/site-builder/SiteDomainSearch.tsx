@@ -1,14 +1,16 @@
-import { Fragment, useEffect, useRef, useState, type FormEvent } from 'react';
-import { ChevronDown, Loader2, Search } from 'lucide-react';
+import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from 'react';
+import { AlertTriangle, ChevronRight, Globe, Info, Loader2, Lock, Search } from 'lucide-react';
 import type { ThemeTokens } from '../../../../lib/themeTokensTypes';
 import { searchDomains } from '../../../../lib/domainSearch';
 import {
-  appendRows, checkedCount, precheckSearchQuery, remainingCount, retryText, searchNotice, searchSummary,
-  type SearchPage, type SearchRow,
+  appendRows, availableCount, checkedCount, precheckSearchQuery, remainingCount, retryText, searchNotice, searchSummary,
+  splitResults, type SearchPage, type SearchRow,
 } from '../../../../lib/domainSearchModel';
 import type { StatusTone } from '../../../../lib/siteWorkspaceModel';
-import { BUTTON_BASE, PRIMARY_BUTTON_STYLE, secondaryButtonStyle, toneStyle } from './SiteUiParts';
-import SiteDomainResultRow from './SiteDomainResultRow';
+import { SITE_ACCENT, SITE_GRADIENT, cardStyle, toneStyle } from './SiteUiParts';
+import { useContainerWidth } from './SiteDomainResultParts';
+import SiteDomainResultCard from './SiteDomainResultCard';
+import { CARD_GRID_STYLE, OtherExtensions, SearchLoading, SectionTitle, countLabel } from './SiteDomainSearchSections';
 
 /*
  * Recherche de nom de domaine multi-extensions (lecture seule) pour l'entreprise ciblee par le SiteContext.
@@ -16,6 +18,7 @@ import SiteDomainResultRow from './SiteDomainResultRow';
  * l'extension saisie en premier (ou « non proposee »), puis .com .fr .net .org .eu .io, puis les autres
  * a la demande (« Voir plus d'extensions », une page a la fois). Saisir une extension ne restreint jamais la recherche.
  * Achat non ouvert : bouton Acheter desactive.
+ * Presentation : 1. recherche, 2. extensions recommandees en cartes, 3. autres extensions en liste compacte.
  */
 interface Props {
   t: ThemeTokens;
@@ -25,7 +28,20 @@ interface Props {
 
 type Loading = 'search' | 'more' | null;
 
+const STEPS = ['Saisissez un nom', 'Cliquez sur Vérifier', 'Choisissez votre extension'];
+const EXAMPLES = ['popolera', 'popolera.com', 'popolera.fr'];
+/* En dessous, « Autres extensions » passe en fiches verticales (jamais de tableau horizontal). */
+const WIDE_LIST_MIN_WIDTH = 800;
+const VERIFY_BUTTON_STYLE: CSSProperties = {
+  background: SITE_GRADIENT,
+  color: '#fff',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.18), 0 1px 2px rgba(0,0,0,0.25), 0 4px 14px rgba(14,165,233,0.18)',
+};
+
 export default function SiteDomainSearch({ t, companyId, actorIsTalvex }: Props) {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const width = useContainerWidth(rootRef);
+  const [focused, setFocused] = useState(false);
   const [query, setQuery] = useState('');
   const [hint, setHint] = useState<string | null>(null);
   const [searched, setSearched] = useState<string | null>(null);
@@ -113,94 +129,146 @@ export default function SiteDomainSearch({ t, companyId, actorIsTalvex }: Props)
 
   const remaining = remainingCount(lastPage, checkedCount(rows));
   const canLoadMore = lastPage?.status === 'ok' && lastPage.next_offset !== null && (remaining ?? 0) > 0;
-  const firstOtherIndex = rows.findIndex(row => !row.popular && row.status !== 'not_offered' && row.tld !== lastPage?.requested_tld);
+  // Affichage seulement : memes lignes, meme ordre, reparties en « recommandees » puis « autres ».
+  const { featured, others } = splitResults(rows, lastPage?.requested_tld ?? null);
+  const wide = width >= WIDE_LIST_MIN_WIDTH;
 
   return (
-    <div className="mt-4 space-y-3" data-testid="site-domain-search">
-      <form onSubmit={onSubmit} className="flex flex-col sm:flex-row gap-2" noValidate>
-        <input
-          value={query}
-          onChange={event => setQuery(event.target.value)}
-          aria-label="Nom recherché"
-          placeholder="ex. monentreprise ou monentreprise.fr"
-          autoComplete="off"
-          autoCapitalize="none"
-          spellCheck={false}
-          inputMode="url"
-          maxLength={253}
-          className="w-full min-h-[44px] sm:min-h-[38px] px-3 rounded-xl text-base sm:text-xs outline-none"
-          style={{ background: t.input.bg, border: `1px solid ${t.input.border}`, color: t.input.text }}
-        />
-        <button type="submit" disabled={loading === 'search'} className={`${BUTTON_BASE} sm:w-auto`} style={PRIMARY_BUTTON_STYLE}>
-          {loading === 'search' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-          {loading === 'search' ? 'Vérification…' : 'Vérifier'}
-        </button>
-      </form>
+    <div ref={rootRef} className="space-y-5" data-testid="site-domain-search">
+      {/* 1. RECHERCHE */}
+      <section className="rounded-2xl p-4 sm:p-6" style={cardStyle(t)} aria-labelledby="site-domain-search-title">
+        <div className="flex items-start gap-3 sm:gap-4">
+          <span className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center flex-shrink-0"
+            style={{ background: 'rgba(14,165,233,0.10)', border: '1px solid rgba(14,165,233,0.18)', color: SITE_ACCENT }}>
+            <Globe className="w-5 h-5" aria-hidden="true" />
+          </span>
+          <div className="min-w-0">
+            <h3 id="site-domain-search-title" className="text-lg sm:text-xl font-semibold tracking-tight" style={{ color: t.heading.primary }}>
+              Obtenir un nom de domaine
+            </h3>
+            <p className="text-sm mt-1 leading-relaxed max-w-2xl" style={{ color: t.text.secondary }}>
+              Vérifiez si le nom de votre choix est libre. Talvex s'occupe de tout : vous n'avez aucun compte à créer chez un hébergeur.
+            </p>
+          </div>
+        </div>
 
-      {hint && <p role="alert" className="text-sm sm:text-xs" style={{ color: t.warning.text }}>{hint}</p>}
+        <ol className="mt-4 sm:mt-5 flex flex-wrap items-center gap-x-2 gap-y-2 text-xs" style={{ color: t.text.tertiary }} aria-label="Étapes">
+          {STEPS.map((step, index) => (
+            <li key={step} className="inline-flex items-center gap-2">
+              <span className="w-5 h-5 rounded-full inline-flex items-center justify-center text-[10px] font-bold tabular-nums"
+                style={{ background: t.surface.secondary, border: `1px solid ${t.surface.border}`, color: t.text.secondary }}>
+                {index + 1}
+              </span>
+              {step}
+              {index < STEPS.length - 1 && <ChevronRight className="w-3.5 h-3.5 opacity-60" aria-hidden="true" />}
+            </li>
+          ))}
+        </ol>
+
+        <form onSubmit={onSubmit} className="relative mt-3 sm:mt-4 flex flex-col gap-2.5" noValidate>
+          <div className="relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-[18px] h-[18px] pointer-events-none transition-colors"
+              style={{ color: focused ? t.text.secondary : t.text.tertiary }} aria-hidden="true" />
+            <input
+              value={query}
+              onChange={event => setQuery(event.target.value)}
+              onFocus={() => setFocused(true)}
+              onBlur={() => setFocused(false)}
+              aria-label="Nom recherché"
+              aria-describedby="site-domain-search-examples"
+              placeholder={width > 0 && width < 480 ? 'ex. monentreprise' : 'ex. monentreprise ou monentreprise.fr'}
+              autoComplete="off"
+              autoCapitalize="none"
+              spellCheck={false}
+              inputMode="url"
+              enterKeyHint="search"
+              maxLength={253}
+              className="w-full h-12 sm:h-14 pl-11 pr-4 sm:pr-40 rounded-xl sm:rounded-2xl text-base sm:text-[15px] outline-none transition-[border-color,box-shadow] duration-150 placeholder:text-[color:var(--dom-placeholder)]"
+              style={{
+                background: t.input.bg,
+                border: `1px solid ${focused ? t.input.borderFocus : t.input.border}`,
+                boxShadow: focused ? `0 0 0 3px ${t.accent.bg}` : 'inset 0 1px 2px rgba(0,0,0,0.10)',
+                color: t.input.text,
+                '--dom-placeholder': t.input.placeholder,
+              } as CSSProperties}
+            />
+          </div>
+          <button type="submit" disabled={loading === 'search'}
+            className="w-full h-12 sm:absolute sm:right-2 sm:top-2 sm:h-10 sm:w-auto sm:min-w-[132px] px-5 rounded-xl inline-flex items-center justify-center gap-2 text-[15px] sm:text-sm font-semibold transition-[filter,transform] duration-150 [@media(hover:hover)]:hover:brightness-110 active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400"
+            style={VERIFY_BUTTON_STYLE}>
+            {loading === 'search' ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> : <Search className="w-4 h-4" aria-hidden="true" />}
+            {loading === 'search' ? 'Vérification…' : 'Vérifier'}
+          </button>
+        </form>
+
+        <p id="site-domain-search-examples" className="mt-3 flex flex-wrap items-center gap-1.5 text-xs" style={{ color: t.text.tertiary }}>
+          <span className="mr-0.5">Avec ou sans extension :</span>
+          {EXAMPLES.map(example => (
+            <span key={example} className="px-1.5 py-0.5 rounded-md font-mono text-[11px]"
+              style={{ background: t.surface.secondary, border: `1px solid ${t.surface.border}`, color: t.text.secondary }}>
+              {example}
+            </span>
+          ))}
+        </p>
+
+        {hint && (
+          <p role="alert" className="mt-3 flex items-center gap-2 text-sm sm:text-xs" style={{ color: t.warning.text }}>
+            <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" aria-hidden="true" />{hint}
+          </p>
+        )}
+      </section>
 
       {/* Annonce courte pour les lecteurs d'ecran (zone toujours presente). */}
       <p role="status" aria-live="polite" className="sr-only">
         {loading ? 'Vérification en cours…' : rows.length > 0 ? searchSummary(rows) : notice?.text ?? ''}
       </p>
 
-      {loading === 'search' && (
-        <div className="space-y-2" data-testid="site-domain-search-loading">
-          <p className="text-sm sm:text-xs" style={{ color: t.text.tertiary }}>
-            Vérification en cours… cela peut prendre une vingtaine de secondes.
-          </p>
-          <div className="rounded-xl overflow-hidden" style={{ border: `1px solid ${t.surface.border}` }} aria-hidden="true">
-            {Array.from({ length: 4 }).map((_, index) => (
-              <div key={index} className="h-12 animate-pulse" style={{ background: index % 2 ? t.surface.secondary : 'transparent' }} />
-            ))}
-          </div>
-        </div>
-      )}
+      {loading === 'search' && <SearchLoading t={t} />}
 
       {notice && loading !== 'search' && (
-        <p className="rounded-lg px-3 py-2 text-sm sm:text-xs" style={toneStyle(t, notice.tone)} data-testid="site-domain-search-notice">
-          {notice.text}
+        <p className="flex items-start gap-2 rounded-xl px-4 py-3 text-sm sm:text-xs" style={toneStyle(t, notice.tone)} data-testid="site-domain-search-notice">
+          <Info className="w-4 h-4 flex-shrink-0 mt-px" aria-hidden="true" />{notice.text}
         </p>
       )}
 
-      {rows.length > 0 && loading !== 'search' && (
-        <div className="rounded-xl overflow-hidden" style={{ background: t.surface.secondary, border: `1px solid ${t.surface.border}` }}
-          data-testid="site-domain-search-results">
-          <div className="px-3 sm:px-4 py-2.5" style={{ borderBottom: `1px solid ${t.surface.border}` }}>
-            <p className="text-sm sm:text-xs font-semibold" style={{ color: t.heading.primary }}>
-              Résultats pour « {lastPage?.name ?? searched} »
-            </p>
+      {(rows.length > 0 || canLoadMore) && loading !== 'search' && (
+        <div className="space-y-6" data-testid="site-domain-search-results">
+          {rows.length > 0 && <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-1.5 px-1">
+            <div className="min-w-0">
+              <h3 className="text-lg sm:text-base font-semibold tracking-tight [overflow-wrap:anywhere]" style={{ color: t.heading.primary }}>
+                Résultats pour « {lastPage?.name ?? searched} »
+              </h3>
+              <p className="text-sm sm:text-xs mt-0.5" style={{ color: t.text.tertiary }}>{searchSummary(rows)}</p>
+            </div>
             {actorIsTalvex && (
-              <p className="text-[11px] mt-0.5" style={{ color: t.text.tertiary }}>
+              <p className="flex items-start gap-1.5 text-[11px] leading-relaxed max-w-md" style={{ color: t.text.tertiary }}>
+                <Lock className="w-3 h-3 flex-shrink-0 mt-0.5" aria-hidden="true" />
                 Coûts Hostinger visibles par Talvex uniquement · tarif standard de l’extension, à reconfirmer à l’achat.
               </p>
             )}
-          </div>
-          <ul>
-            {rows.map((row, index) => (
-              <Fragment key={row.domain}>
-                {index === firstOtherIndex && index > 0 && (
-                  <li className="px-3 sm:px-4 pt-3 pb-1 text-[11px] font-bold uppercase tracking-wider" style={{ color: t.text.tertiary }}>
-                    Autres extensions
-                  </li>
-                )}
-                <SiteDomainResultRow t={t} row={row} actorIsTalvex={actorIsTalvex} divider={index !== 0 && index !== firstOtherIndex} />
-              </Fragment>
-            ))}
-          </ul>
+          </div>}
+
+          {/* 2. EXTENSIONS RECOMMANDEES */}
+          {featured.length > 0 && (
+            <section aria-labelledby="site-domain-featured-title">
+              <SectionTitle t={t} id="site-domain-featured-title" title="Extensions recommandées"
+                meta={checkedCount(featured) > 0 ? `${countLabel(availableCount(featured), 'disponible')} sur ${checkedCount(featured)}` : null} />
+              <ul className="mt-3 grid gap-3" style={CARD_GRID_STYLE}>
+                {featured.map(row => (
+                  <SiteDomainResultCard key={row.domain} t={t} row={row} actorIsTalvex={actorIsTalvex}
+                    requested={row.tld === lastPage?.requested_tld} />
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {/* 3. AUTRES EXTENSIONS */}
+          {(others.length > 0 || canLoadMore) && (
+            <OtherExtensions t={t} others={others} actorIsTalvex={actorIsTalvex} wide={wide} loadingMore={loading === 'more'}
+              total={lastPage?.total_tlds ?? null} checked={checkedCount(rows)} remaining={remaining} moreError={moreError}
+              canLoadMore={canLoadMore} onLoadMore={() => void loadMore()} />
+          )}
         </div>
-      )}
-
-      {moreError && (
-        <p className="rounded-lg px-3 py-2 text-sm sm:text-xs" style={toneStyle(t, 'warning')}>{moreError}</p>
-      )}
-
-      {canLoadMore && loading !== 'search' && (
-        <button type="button" onClick={() => void loadMore()} disabled={loading === 'more'}
-          className={`${BUTTON_BASE} w-full sm:w-auto`} style={secondaryButtonStyle(t)} data-testid="site-domain-search-more">
-          {loading === 'more' ? <Loader2 className="w-4 h-4 animate-spin" /> : <ChevronDown className="w-4 h-4" />}
-          {loading === 'more' ? 'Vérification…' : moreError ? 'Réessayer' : `Voir plus d'extensions (${remaining})`}
-        </button>
       )}
     </div>
   );

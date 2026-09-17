@@ -1,60 +1,93 @@
-import { ShoppingBag } from 'lucide-react';
 import type { ThemeTokens } from '../../../../lib/themeTokensTypes';
 import { describeRow, type SearchRow } from '../../../../lib/domainSearchModel';
-import { PRIMARY_BUTTON_STYLE, StatusPill } from './SiteUiParts';
+import { BuySoonButton, DomainName, DomainStatusBadge } from './SiteDomainResultParts';
 
 /*
- * Une extension verifiee : nom, statut et, si disponible, prix (cout Hostinger pour Talvex,
- * « Prix client : bientot disponible » sinon) + bouton Acheter DESACTIVE (achat non ouvert).
+ * « Autres extensions » : une ligne compacte par extension verifiee.
+ * wide : colonnes alignees DOMAINE / STATUT / 1RE ANNEE / RENOUVELLEMENT / ACTION ;
+ * sinon (mobile, conteneur etroit) : petite fiche verticale, jamais de tableau horizontal.
+ * Prix : cout Hostinger pour Talvex, « Prix client : bientot disponible » sinon. Acheter DESACTIVE.
  */
+export const OTHER_COLUMNS = 'minmax(0,1fr) 128px 100px 132px 196px';
+
 interface Props {
   t: ThemeTokens;
   row: SearchRow;
   actorIsTalvex: boolean;
+  wide: boolean;
   divider: boolean;
 }
 
-export default function SiteDomainResultRow({ t, row, actorIsTalvex, divider }: Props) {
+export default function SiteDomainResultRow({ t, row, actorIsTalvex, wide, divider }: Props) {
   const view = describeRow(row, actorIsTalvex);
   const available = row.status === 'available';
-  const pill = <StatusPill t={t} tone={view.tone} label={view.label} />;
+  const price = view.price;
+  const dash = <span aria-hidden="true" style={{ color: t.text.quaternary }}>—</span>;
+  const name = (
+    <DomainName domain={row.domain} tld={row.tld}
+      color={available ? t.heading.primary : t.text.tertiary} tldColor={available ? t.text.secondary : t.text.tertiary}
+      className={wide ? 'text-sm font-semibold' : 'text-[15px] font-semibold'} />
+  );
+  const condition = view.condition && (
+    <p className="text-[11px] mt-0.5 leading-snug" style={{ color: t.text.tertiary }}>{view.condition}</p>
+  );
+  const rowStyle = { borderTop: divider ? `1px solid ${t.surface.border}` : 'none' };
+
+  if (wide) {
+    return (
+      <li className="grid items-center gap-4 px-5 min-h-[56px] py-2.5 transition-colors duration-150 [@media(hover:hover)]:hover:bg-[color:var(--dom-row-hover)]"
+        style={{ ...rowStyle, gridTemplateColumns: OTHER_COLUMNS }}
+        data-testid="site-domain-result" data-status={row.status}>
+        <div className="min-w-0">{name}{condition}</div>
+        <div><DomainStatusBadge t={t} status={row.status} label={view.label} /></div>
+        {price?.kind === 'provider' ? (
+          <>
+            {/* L'en-tete de colonnes est masque aux lecteurs d'ecran : libelles repris ici. */}
+            <p className="text-sm font-semibold tabular-nums whitespace-nowrap" style={{ color: t.heading.primary }}>
+              <span className="sr-only">Coût Hostinger 1re année : </span>{price.firstYear}
+            </p>
+            <p className="text-xs tabular-nums whitespace-nowrap" style={{ color: t.text.secondary }}>
+              <span className="sr-only">Renouvellement : </span>{price.renewal}
+            </p>
+          </>
+        ) : price ? (
+          <p className="col-span-2 text-xs" style={{ color: t.text.secondary }}>{price.text}</p>
+        ) : actorIsTalvex ? (
+          <>{dash}{dash}</>
+        ) : (
+          <div className="col-span-2">{dash}</div>
+        )}
+        <div>{view.showBuyPlaceholder ? <BuySoonButton t={t} compact /> : dash}</div>
+      </li>
+    );
+  }
 
   return (
-    <li className="px-3 py-3 sm:px-4 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4"
-      style={{ borderTop: divider ? `1px solid ${t.surface.border}` : 'none' }}
-      data-testid="site-domain-result" data-status={row.status}>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center justify-between gap-3">
-          <p className="min-w-0 text-[15px] sm:text-sm font-semibold break-all"
-            style={{ color: available ? t.heading.primary : t.text.secondary }}>
-            {row.domain}
-          </p>
-          <span className="sm:hidden flex-shrink-0">{pill}</span>
+    <li className="px-4 py-3.5" style={rowStyle} data-testid="site-domain-result" data-status={row.status}>
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
+        {name}
+        <DomainStatusBadge t={t} status={row.status} label={view.label} />
+      </div>
+      {condition}
+      {available && (
+        <div className="mt-2.5 space-y-2.5">
+          {price?.kind === 'provider' ? (
+            <dl className="grid grid-cols-2 gap-3">
+              <div className="min-w-0">
+                <dt className="text-[11px]" style={{ color: t.text.tertiary }}>Coût 1re année</dt>
+                <dd className="text-[15px] font-semibold tabular-nums" style={{ color: t.heading.primary }}>{price.firstYear}</dd>
+              </div>
+              <div className="min-w-0">
+                <dt className="text-[11px]" style={{ color: t.text.tertiary }}>Renouvellement</dt>
+                <dd className="text-sm tabular-nums" style={{ color: t.text.secondary }}>{price.renewal}</dd>
+              </div>
+            </dl>
+          ) : price && (
+            <p className="text-sm" style={{ color: t.text.secondary }}>{price.text}</p>
+          )}
+          {view.showBuyPlaceholder && <BuySoonButton t={t} fullWidth />}
         </div>
-        {view.condition && (
-          <p className="text-xs mt-1" style={{ color: t.text.tertiary }}>{view.condition}</p>
-        )}
-        {view.priceLines.map(line => (
-          <p key={line} className="text-xs mt-1" style={{ color: t.text.secondary }}>{line}</p>
-        ))}
-      </div>
-
-      {/* Emplacements de largeur fixe sur ordinateur : statuts et boutons alignes d'une ligne a l'autre. */}
-      <div className="flex items-center gap-3 flex-shrink-0">
-        <span className="hidden sm:flex sm:w-[120px] sm:justify-end">{pill}</span>
-        {view.showBuyPlaceholder ? (
-          <span className="flex items-center gap-2 sm:w-[200px]">
-            <button type="button" disabled aria-disabled="true" title="Bientôt disponible"
-              className="inline-flex items-center gap-1.5 px-3 min-h-[36px] rounded-lg text-xs font-semibold opacity-50 cursor-not-allowed"
-              style={PRIMARY_BUTTON_STYLE} data-testid="site-domain-buy-disabled">
-              <ShoppingBag className="w-3.5 h-3.5" /> Acheter
-            </button>
-            <span className="text-[11px] whitespace-nowrap" style={{ color: t.text.tertiary }}>Bientôt disponible</span>
-          </span>
-        ) : (
-          <span className="hidden sm:block sm:w-[200px]" aria-hidden="true" />
-        )}
-      </div>
+      )}
     </li>
   );
 }
