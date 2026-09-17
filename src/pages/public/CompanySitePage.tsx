@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { LogIn, Loader2, AlertCircle } from 'lucide-react';
 import LoginModal from '../../components/LoginModal';
-import { getHomePageBySlug, getHomePageById, getTemplateById, type CompanyHomePage } from '../../lib/companyHomePages';
+import { getHomePageBySlug, getHomePageById, getPublicTemplateKeyById, type PublicCompanyHomePage } from '../../lib/companyHomePages';
 import { getTemplateComponent, type SectionOverride } from '../superadmin/views/site-builder/templates/templateRegistry';
 import { supabase } from '../../lib/supabase';
 
 interface Props {
-  preloadedPage?: CompanyHomePage | null;
+  preloadedPage?: PublicCompanyHomePage | null;
   slug?: string | null;
   pageId?: string | null;
   domainCompanyId?: string | null;
@@ -22,7 +22,7 @@ interface PublishedSectionRow {
 }
 
 export default function CompanySitePage({ preloadedPage, slug, pageId, domainCompanyId, onLogin: onLoginProp }: Props) {
-  const [page, setPage] = useState<CompanyHomePage | null>(preloadedPage ?? null);
+  const [page, setPage] = useState<PublicCompanyHomePage | null>(preloadedPage ?? null);
   const [templateKey, setTemplateKey] = useState<string | null>(null);
   const [sectionOverrides, setSectionOverrides] = useState<Record<string, SectionOverride> | undefined>();
   const [sectionOrder, setSectionOrder] = useState<string[] | undefined>();
@@ -54,8 +54,8 @@ export default function CompanySitePage({ preloadedPage, slug, pageId, domainCom
         if (!data) { setNotFound(true); return; }
         setPage(data);
         if (data.active_template_id) {
-          const tmpl = await getTemplateById(data.active_template_id);
-          if (tmpl) setTemplateKey(tmpl.template_key);
+          const key = await getPublicTemplateKeyById(data.active_template_id);
+          if (key) setTemplateKey(key);
         }
         if (data.is_published) {
           const { data: rows } = await supabase

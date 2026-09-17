@@ -73,6 +73,13 @@ export interface CompanyHomePage {
 
 export type CompanyHomePageUpsert = Omit<CompanyHomePage, 'id' | 'created_at' | 'updated_at'>;
 
+/* Sous-ensemble lisible en anonyme : voir src/lib/publicSiteColumns.ts */
+export type PublicCompanyHomePage = Pick<CompanyHomePage,
+  | 'id' | 'company_id' | 'site_scope' | 'slug' | 'custom_domain' | 'domain_verified'
+  | 'is_active' | 'is_published' | 'active_template_id' | 'title' | 'subtitle'
+  | 'welcome_message' | 'logo_url' | 'main_color' | 'secondary_color'
+  | 'hero_image_url' | 'app_icon_url'>;
+
 export interface CompanyHomePageCompany {
   name: string;
   company_tier: string;

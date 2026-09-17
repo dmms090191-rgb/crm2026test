@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { decideCreateUser } from "./rolePolicy.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -54,6 +55,21 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    // Liste blanche (role appelant -> role cree) et Societe cible : rolePolicy.ts.
+    // Tout refus intervient AVANT la moindre ecriture (companies ou auth).
+    const decision = decideCreateUser({
+      callerRole,
+      callerCompanyId: caller.app_metadata?.company_id,
+      requestedRole: role,
+      bodyCompanyId,
+    });
+    if (!decision.ok) {
+      return new Response(
+        JSON.stringify({ error: decision.error }),
+        { status: decision.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     if (!email || !password) {
       return new Response(
         JSON.stringify({ error: "Email and password are required" }),
@@ -63,15 +79,8 @@ Deno.serve(async (req: Request) => {
 
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
 
-    // --- Admin creation: new company + company_id in app_metadata ---
-    if (role === "admin") {
-      if (callerRole !== "super_admin") {
-        return new Response(
-          JSON.stringify({ error: "Forbidden: seul super_admin peut creer un admin" }),
-          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
+    // --- Admin creation (super_admin uniquement, garanti par la politique) ---
+    if (decision.kind === "admin_new_company") {
       if (!company || !company.trim()) {
         return new Response(
           JSON.stringify({ error: "Le champ Societe est obligatoire pour creer un admin" }),
@@ -130,8 +139,22 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // --- Vendor / Client / other roles: inherit company_id from caller or body ---
-    const callerCompanyId = caller.app_metadata?.company_id || bodyCompanyId || null;
+    // --- Vendor : Societe de l appelant admin, ou Societe NOMMEE par super_admin (Visu) ---
+    let targetCompanyId = decision.companyId;
+    if (decision.mustVerifyCompany) {
+      const { data: targetCompany, error: tcErr } = await supabaseAdmin
+        .from("companies")
+        .select("id")
+        .eq("id", targetCompanyId)
+        .maybeSingle();
+      if (tcErr || !targetCompany) {
+        return new Response(
+          JSON.stringify({ error: "company_id introuvable" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      targetCompanyId = targetCompany.id;
+    }
 
     const { data, error } = await supabaseAdmin.auth.admin.createUser({
       email,
@@ -140,14 +163,14 @@ Deno.serve(async (req: Request) => {
       user_metadata: {
         first_name,
         last_name,
-        role,
+        role: decision.role,
         pin: password,
         ...(phone ? { phone } : {}),
         ...(company ? { company } : {}),
       },
       app_metadata: {
-        role,
-        ...(callerCompanyId ? { company_id: callerCompanyId } : {}),
+        role: decision.role,
+        company_id: targetCompanyId,
       },
     });
 

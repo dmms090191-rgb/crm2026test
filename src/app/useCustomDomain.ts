@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { getHomePageByDomain, type CompanyHomePage } from '../lib/companyHomePages';
+import { getHomePageByDomain, type PublicCompanyHomePage } from '../lib/companyHomePages';
 
 const KNOWN_PATTERNS = [
   'localhost', '127.0.0.1', '.supabase.co', '.vercel.app',
@@ -21,7 +21,7 @@ function stripWww(hostname: string): string {
 }
 
 export function useCustomDomain() {
-  const [customDomainPage, setCustomDomainPage] = useState<CompanyHomePage | null>(null);
+  const [customDomainPage, setCustomDomainPage] = useState<PublicCompanyHomePage | null>(null);
   const [customDomainNotFound, setCustomDomainNotFound] = useState(false);
   const [checking, setChecking] = useState(false);
   const checkedRef = useRef(false);

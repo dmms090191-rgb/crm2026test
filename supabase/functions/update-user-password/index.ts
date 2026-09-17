@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { decidePasswordChange, type PolicyLead, type PolicyTarget } from "./passwordPolicy.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -46,27 +47,23 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const { auth_user_id, email, password, role, lead_id } = await req.json();
+    let body: Record<string, unknown>;
+    try {
+      const parsed = await req.json();
+      body = parsed && typeof parsed === "object" ? parsed : {};
+    } catch {
+      return new Response(
+        JSON.stringify({ error: "Invalid JSON body" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    const { auth_user_id, email, password, role, lead_id } = body as {
+      auth_user_id?: string; email?: string; password?: string; role?: string; lead_id?: string;
+    };
 
     console.log("[update-user-password] Request:", { callerRole, callerId: caller.id, email, lead_id, hasPassword: !!password });
 
-    if (callerRole === "company_super_admin" && auth_user_id) {
-      const supabaseAdminCheck = createClient(supabaseUrl, serviceRoleKey);
-      const { data: tu } = await supabaseAdminCheck.auth.admin.getUserById(auth_user_id);
-      const targetCid = tu?.user?.app_metadata?.company_id;
-      if (targetCid) {
-        const callerCid = caller.app_metadata?.company_id;
-        const { data: tc } = await supabaseAdminCheck.from("companies").select("parent_company_id").eq("id", targetCid).maybeSingle();
-        if (!tc || tc.parent_company_id !== callerCid) {
-          return new Response(
-            JSON.stringify({ error: "Forbidden: admin not in your scope" }),
-            { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
-        }
-      }
-    }
-
-    if ((!auth_user_id && !email) || !password) {
+    if ((!auth_user_id && !email) || typeof password !== "string" || !password) {
       return new Response(
         JSON.stringify({ error: "auth_user_id or email, and password are required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -81,7 +78,12 @@ Deno.serve(async (req: Request) => {
     }
 
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+    const forbidden = (error: string) => new Response(
+      JSON.stringify({ error }),
+      { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
 
+    let callerVendorId: string | null = null;
     if (callerRole === "vendor") {
       if (!lead_id) {
         return new Response(
@@ -96,64 +98,120 @@ Deno.serve(async (req: Request) => {
         .eq("auth_user_id", caller.id)
         .maybeSingle();
 
-      if (!vendor) {
-        return new Response(
-          JSON.stringify({ error: "Forbidden: vendor record not found" }),
-          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      const { data: lead } = await supabaseAdmin
-        .from("leads")
-        .select("vendor_id")
-        .eq("id", lead_id)
-        .maybeSingle();
-
-      if (!lead || lead.vendor_id !== vendor.id) {
-        console.log("[update-user-password] Ownership check failed:", { vendorId: vendor.id, leadVendorId: lead?.vendor_id });
-        return new Response(
-          JSON.stringify({ error: "Forbidden: this lead is not assigned to you" }),
-          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
+      if (!vendor) return forbidden("Forbidden: vendor record not found");
+      callerVendorId = vendor.id;
     }
 
-    let userId = auth_user_id;
+    // --- Lead eventuel (perimetre des clients) ---
+    let lead: PolicyLead | null = null;
+    if (lead_id) {
+      const { data: leadRow } = await supabaseAdmin
+        .from("leads")
+        .select("company_id, vendor_id, email, data")
+        .eq("id", lead_id)
+        .maybeSingle();
+      if (leadRow) {
+        const dataEmail = (leadRow.data as Record<string, unknown> | null)?.["Email"];
+        lead = { companyId: leadRow.company_id, vendorId: leadRow.vendor_id, emails: [leadRow.email, dataEmail] };
+      }
+    }
+    if (callerRole === "vendor" && (!lead || lead.vendorId !== callerVendorId)) {
+      console.log("[update-user-password] Ownership check failed:", { vendorId: callerVendorId, leadVendorId: lead?.vendorId });
+      return forbidden("Forbidden: this lead is not assigned to you");
+    }
 
-    if (!userId && email) {
+    // --- Compte cible : par identifiant, sinon par email ---
+    let target: PolicyTarget | null = null;
+    if (auth_user_id) {
+      const { data: byId } = await supabaseAdmin.auth.admin.getUserById(auth_user_id);
+      if (!byId?.user) {
+        return new Response(
+          JSON.stringify({ error: "User not found" }),
+          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      target = { id: byId.user.id, role: byId.user.app_metadata?.role, companyId: byId.user.app_metadata?.company_id, email: byId.user.email };
+    } else {
       const { data: usersData } = await supabaseAdmin.auth.admin.listUsers();
       const existing = usersData?.users?.find(
         (u: { email?: string }) => u.email === email
       );
-
       if (existing) {
-        userId = existing.id;
-      } else {
-        const userRole = role || "client";
-        const { data: created, error: createErr } =
-          await supabaseAdmin.auth.admin.createUser({
-            email,
-            password,
-            email_confirm: true,
-            app_metadata: { role: userRole },
-            user_metadata: { role: userRole },
-          });
-
-        if (createErr) {
-          console.error("[update-user-password] Create user error:", createErr.message);
-          return new Response(
-            JSON.stringify({ error: createErr.message }),
-            { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
-        }
-
-        console.log("[update-user-password] Created new user:", created.user.id);
-        return new Response(
-          JSON.stringify({ success: true, created: true, auth_user_id: created.user.id }),
-          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        target = { id: existing.id, role: existing.app_metadata?.role, companyId: existing.app_metadata?.company_id, email: existing.email };
       }
     }
+
+    // --- Parents de Societe, utiles au perimetre d un Groupe ---
+    const parentOf = async (companyId: unknown): Promise<string | null> => {
+      if (typeof companyId !== "string" || !companyId) return null;
+      const { data: c } = await supabaseAdmin.from("companies").select("parent_company_id").eq("id", companyId).maybeSingle();
+      return c?.parent_company_id ?? null;
+    };
+    const isGroup = callerRole === "company_super_admin";
+
+    // --- Email present sur un lead d une AUTRE Societe (prise de compte client inter-Societes) ---
+    // Comparaison exacte et filtre de Societe faits en base (fonction SQL reservee a service_role,
+    // migration 20260917021917_email_on_other_company_leads). Refus par defaut en cas d erreur.
+    const emailOnOtherCompanyLeads = async (rawEmail: unknown, leadCompanyId: unknown): Promise<boolean> => {
+      if (typeof rawEmail !== "string" || !rawEmail.trim()) return true;
+      const { data: isForeign, error: rpcErr } = await supabaseAdmin.rpc("email_on_other_company_leads", {
+        p_email: rawEmail,
+        p_company_id: typeof leadCompanyId === "string" && leadCompanyId ? leadCompanyId : null,
+      });
+      if (rpcErr) return true;
+      return isForeign !== false;
+    };
+    const needsForeignCheck = callerRole !== "super_admin" && lead !== null &&
+      (target === null || target.role === "client");
+    const foreignEmail = needsForeignCheck
+      ? await emailOnOtherCompanyLeads(target ? target.email : email, lead!.companyId)
+      : false;
+
+    const decision = decidePasswordChange({
+      callerId: caller.id,
+      callerRole,
+      callerCompanyId: caller.app_metadata?.company_id,
+      callerVendorId,
+      target,
+      requestedRole: role,
+      requestedEmail: email,
+      lead,
+      targetCompanyParentId: isGroup && target ? await parentOf(target.companyId) : null,
+      leadCompanyParentId: isGroup && lead ? await parentOf(lead.companyId) : null,
+      emailOnOtherCompanyLeads: foreignEmail,
+    });
+
+    if (!decision.ok) {
+      console.log("[update-user-password] Refused:", { callerRole, callerId: caller.id, reason: decision.error });
+      return forbidden(decision.error);
+    }
+
+    if (decision.action === "create_client") {
+      const { data: created, error: createErr } =
+        await supabaseAdmin.auth.admin.createUser({
+          email,
+          password,
+          email_confirm: true,
+          app_metadata: { role: "client" },
+          user_metadata: { role: "client" },
+        });
+
+      if (createErr) {
+        console.error("[update-user-password] Create user error:", createErr.message);
+        return new Response(
+          JSON.stringify({ error: createErr.message }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      console.log("[update-user-password] Created new user:", created.user.id);
+      return new Response(
+        JSON.stringify({ success: true, created: true, auth_user_id: created.user.id }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const userId = target!.id;
 
     // On PRESERVE le reste de user_metadata (prenom, nom, societe, telephone).
     // Toutes les autres fonctions du projet font ce spread ; celle-ci ecrasait

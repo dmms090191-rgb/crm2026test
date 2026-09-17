@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
-export type { SiteTemplate, SiteTemplateConfig, SiteScope, CompanyHomePage, CompanyHomePageUpsert, CompanyHomePageWithCompany } from './companyHomePagesTypes';
-import type { SiteScope, CompanyHomePage, CompanyHomePageUpsert, CompanyHomePageWithCompany, SiteTemplate } from './companyHomePagesTypes';
+import { PUBLIC_HOME_PAGE_COLUMNS, PUBLIC_TEMPLATE_COLUMNS } from './publicSiteColumns';
+export type { SiteTemplate, SiteTemplateConfig, SiteScope, CompanyHomePage, CompanyHomePageUpsert, CompanyHomePageWithCompany, PublicCompanyHomePage } from './companyHomePagesTypes';
+import type { SiteScope, CompanyHomePage, CompanyHomePageUpsert, CompanyHomePageWithCompany, SiteTemplate, PublicCompanyHomePage } from './companyHomePagesTypes';
 
 /* ── Slug helpers ── */
 
@@ -35,6 +36,17 @@ export async function getTemplateById(id: string): Promise<SiteTemplate | null> 
     .maybeSingle();
   if (error) throw error;
   return data;
+}
+
+/* Lecture publique (anon) : seulement la cle du modele. */
+export async function getPublicTemplateKeyById(id: string): Promise<string | null> {
+  const { data, error } = await supabase
+    .from('site_templates')
+    .select(PUBLIC_TEMPLATE_COLUMNS)
+    .eq('id', id)
+    .maybeSingle();
+  if (error) throw error;
+  return data?.template_key ?? null;
 }
 
 export async function getTemplateByKey(templateKey: string): Promise<SiteTemplate | null> {
@@ -79,10 +91,11 @@ export async function getPlatformHomePage(): Promise<CompanyHomePage | null> {
   return data;
 }
 
-export async function getHomePageById(id: string): Promise<CompanyHomePage | null> {
+/* Lectures publiques (anon) : colonnes explicites, jamais select('*'). */
+export async function getHomePageById(id: string): Promise<PublicCompanyHomePage | null> {
   const { data, error } = await supabase
     .from('company_home_pages')
-    .select('*')
+    .select(PUBLIC_HOME_PAGE_COLUMNS)
     .eq('id', id)
     .eq('is_active', true)
     .maybeSingle();
@@ -90,10 +103,10 @@ export async function getHomePageById(id: string): Promise<CompanyHomePage | nul
   return data;
 }
 
-export async function getHomePageBySlug(slug: string): Promise<CompanyHomePage | null> {
+export async function getHomePageBySlug(slug: string): Promise<PublicCompanyHomePage | null> {
   const { data, error } = await supabase
     .from('company_home_pages')
-    .select('*')
+    .select(PUBLIC_HOME_PAGE_COLUMNS)
     .eq('slug', slug)
     .eq('is_active', true)
     .maybeSingle();
@@ -101,10 +114,10 @@ export async function getHomePageBySlug(slug: string): Promise<CompanyHomePage |
   return data;
 }
 
-export async function getHomePageByDomain(domain: string): Promise<CompanyHomePage | null> {
+export async function getHomePageByDomain(domain: string): Promise<PublicCompanyHomePage | null> {
   const { data, error } = await supabase
     .from('company_home_pages')
-    .select('*')
+    .select(PUBLIC_HOME_PAGE_COLUMNS)
     .eq('custom_domain', domain)
     .eq('is_active', true)
     .eq('domain_verified', true)

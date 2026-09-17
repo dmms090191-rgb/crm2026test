@@ -19,6 +19,13 @@ function log(action: string, domain: string | undefined, projectId: string, deta
   console.log(`[manage-domain] action=${action} domain=${domain ?? "?"} project=${projectId} | ${detail}`);
 }
 
+// Etape 0.5 : domaine normalise et valide avant tout usage dans une URL Vercel.
+const DOMAIN_RE = /^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9-]{2,63}$/;
+
+function normalizeDomain(d: unknown): string {
+  return typeof d === "string" ? d.trim().toLowerCase() : "";
+}
+
 async function updatePage(
   supabaseAdmin: ReturnType<typeof createClient>,
   pageId: string,
@@ -182,7 +189,7 @@ Deno.serve(async (req: Request) => {
       return jsonResponse({ error: "Secrets Vercel manquants" }, 500);
     }
 
-    const { action, domain, page_id, domain_provider: reqProvider, domain_type: reqType } =
+    const { action, domain: bodyDomain, page_id, domain_provider: reqProvider, domain_type: reqType } =
       await req.json();
     if (!action || !page_id) {
       return jsonResponse({ error: "Parametres requis: action, page_id" }, 400);
@@ -194,15 +201,42 @@ Deno.serve(async (req: Request) => {
 
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
 
-    if (isAdmin) {
-      const { data: pageCheck } = await supabaseAdmin
-        .from("company_home_pages")
-        .select("company_id")
-        .eq("id", page_id)
-        .maybeSingle();
-      if (!pageCheck || pageCheck.company_id !== callerCompanyId) {
-        return jsonResponse({ error: "Acces refuse: cette page ne vous appartient pas" }, 403);
+    const { data: pageRow, error: pageErr } = await supabaseAdmin
+      .from("company_home_pages")
+      .select("id, company_id, custom_domain")
+      .eq("id", page_id)
+      .maybeSingle();
+    if (pageErr) return jsonResponse({ error: "Lecture de la page impossible" }, 500);
+
+    if (isAdmin && (typeof callerCompanyId !== "string" || !callerCompanyId || !pageRow || pageRow.company_id !== callerCompanyId)) {
+      return jsonResponse({ error: "Acces refuse: cette page ne vous appartient pas" }, 403);
+    }
+
+    // Etape 0.5 : verify / check-config / remove traitent TOUJOURS le domaine enregistre
+    // sur la page (ecrit uniquement par le serveur). Le domaine du body n'est accepte que
+    // s'il est identique : compatibilite avec le front actuel qui envoie page.custom_domain.
+    let domain: string | undefined = undefined;
+    if (action === "verify" || action === "check-config" || action === "remove") {
+      if (!pageRow) return jsonResponse({ error: "Page introuvable" }, 404);
+      const pageDomain = normalizeDomain(pageRow.custom_domain);
+      if (!pageDomain) {
+        return jsonResponse({ error: "Aucun domaine enregistre sur cette page" }, 400);
       }
+      if (bodyDomain != null && bodyDomain !== "" && normalizeDomain(bodyDomain) !== pageDomain) {
+        log(action, pageDomain, vercelProjectId, "Refus: domaine du body different du domaine de la page");
+        return jsonResponse({ error: "Le domaine ne correspond pas a celui enregistre sur la page" }, 409);
+      }
+      if (!DOMAIN_RE.test(pageDomain)) {
+        return jsonResponse({ error: "Format de domaine invalide" }, 400);
+      }
+      domain = pageDomain;
+    } else if (action === "add") {
+      if (!pageRow) return jsonResponse({ error: "Page introuvable" }, 404);
+      const requested = normalizeDomain(bodyDomain);
+      if (requested && !DOMAIN_RE.test(requested)) {
+        return jsonResponse({ error: "Format de domaine invalide" }, 400);
+      }
+      domain = requested || undefined;
     }
 
     const vercelHeaders = {
