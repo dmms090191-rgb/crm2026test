@@ -1,16 +1,17 @@
 import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from 'react';
-import { AlertTriangle, ChevronRight, Globe, Info, Loader2, Lock, Search } from 'lucide-react';
+import { AlertTriangle, ChevronRight, Globe, Info, Loader2, Search } from 'lucide-react';
 import type { ThemeTokens } from '../../../../lib/themeTokensTypes';
 import { searchDomains } from '../../../../lib/domainSearch';
 import {
-  appendRows, availableCount, checkedCount, precheckSearchQuery, remainingCount, retryText, searchNotice, searchSummary,
-  splitResults, type SearchPage, type SearchRow,
+  appendRows, checkedCount, precheckSearchQuery, remainingCount, retryText, searchNotice, searchSummary,
+  type SearchPage, type SearchRow,
 } from '../../../../lib/domainSearchModel';
 import type { StatusTone } from '../../../../lib/siteWorkspaceModel';
 import { SITE_ACCENT, SITE_GRADIENT, cardStyle, toneStyle } from './SiteUiParts';
 import { useContainerWidth } from './SiteDomainResultParts';
-import SiteDomainResultCard from './SiteDomainResultCard';
-import { CARD_GRID_STYLE, OtherExtensions, SearchLoading, SectionTitle, countLabel } from './SiteDomainSearchSections';
+import { SearchLoading } from './SiteDomainSearchSections';
+import SiteDomainResults from './SiteDomainResults';
+import { useDomainExtensionFilter } from './useDomainExtensionFilter';
 
 /*
  * Recherche de nom de domaine multi-extensions (lecture seule) pour l'entreprise ciblee par le SiteContext.
@@ -30,7 +31,7 @@ type Loading = 'search' | 'more' | null;
 
 const STEPS = ['Saisissez un nom', 'Cliquez sur Vérifier', 'Choisissez votre extension'];
 const EXAMPLES = ['popolera', 'popolera.com', 'popolera.fr'];
-/* En dessous, « Autres extensions » passe en fiches verticales (jamais de tableau horizontal). */
+/* Au-dessus : resultats en lignes alignees ; en dessous : cartes et fiches verticales (jamais de tableau horizontal). */
 const WIDE_LIST_MIN_WIDTH = 800;
 const VERIFY_BUTTON_STYLE: CSSProperties = {
   background: SITE_GRADIENT,
@@ -51,6 +52,11 @@ export default function SiteDomainSearch({ t, companyId, actorIsTalvex }: Props)
   const [moreError, setMoreError] = useState<string | null>(null);
   const [loading, setLoading] = useState<Loading>(null);
   const abortRef = useRef<AbortController | null>(null);
+  // Filtre par extension : catalogue serveur + verifications ciblees (les lignes recues rejoignent les resultats).
+  const filter = useDomainExtensionFilter({
+    companyId, searched, rows, ready: lastPage?.status === 'ok' && loading !== 'search',
+    onRows: received => setRows(previous => appendRows(previous, received)),
+  });
 
   const resetResults = () => {
     setRows([]);
@@ -78,6 +84,7 @@ export default function SiteDomainSearch({ t, companyId, actorIsTalvex }: Props)
   };
 
   const runSearch = async (raw: string) => {
+    filter.cancelChecks();
     const pre = precheckSearchQuery(raw);
     if (!pre.ok) {
       setHint(pre.message);
@@ -129,8 +136,6 @@ export default function SiteDomainSearch({ t, companyId, actorIsTalvex }: Props)
 
   const remaining = remainingCount(lastPage, checkedCount(rows));
   const canLoadMore = lastPage?.status === 'ok' && lastPage.next_offset !== null && (remaining ?? 0) > 0;
-  // Affichage seulement : memes lignes, meme ordre, reparties en « recommandees » puis « autres ».
-  const { featured, others } = splitResults(rows, lastPage?.requested_tld ?? null);
   const wide = width >= WIDE_LIST_MIN_WIDTH;
 
   return (
@@ -223,7 +228,7 @@ export default function SiteDomainSearch({ t, companyId, actorIsTalvex }: Props)
         {loading ? 'Vérification en cours…' : rows.length > 0 ? searchSummary(rows) : notice?.text ?? ''}
       </p>
 
-      {loading === 'search' && <SearchLoading t={t} />}
+      {loading === 'search' && <SearchLoading t={t} wide={wide} />}
 
       {notice && loading !== 'search' && (
         <p className="flex items-start gap-2 rounded-xl px-4 py-3 text-sm sm:text-xs" style={toneStyle(t, notice.tone)} data-testid="site-domain-search-notice">
@@ -232,42 +237,10 @@ export default function SiteDomainSearch({ t, companyId, actorIsTalvex }: Props)
       )}
 
       {(rows.length > 0 || canLoadMore) && loading !== 'search' && (
-        <div className="space-y-6" data-testid="site-domain-search-results">
-          {rows.length > 0 && <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-1.5 px-1">
-            <div className="min-w-0">
-              <h3 className="text-lg sm:text-base font-semibold tracking-tight [overflow-wrap:anywhere]" style={{ color: t.heading.primary }}>
-                Résultats pour « {lastPage?.name ?? searched} »
-              </h3>
-              <p className="text-sm sm:text-xs mt-0.5" style={{ color: t.text.tertiary }}>{searchSummary(rows)}</p>
-            </div>
-            {actorIsTalvex && (
-              <p className="flex items-start gap-1.5 text-[11px] leading-relaxed max-w-md" style={{ color: t.text.tertiary }}>
-                <Lock className="w-3 h-3 flex-shrink-0 mt-0.5" aria-hidden="true" />
-                Coûts Hostinger visibles par Talvex uniquement · tarif standard de l’extension, à reconfirmer à l’achat.
-              </p>
-            )}
-          </div>}
-
-          {/* 2. EXTENSIONS RECOMMANDEES */}
-          {featured.length > 0 && (
-            <section aria-labelledby="site-domain-featured-title">
-              <SectionTitle t={t} id="site-domain-featured-title" title="Extensions recommandées"
-                meta={checkedCount(featured) > 0 ? `${countLabel(availableCount(featured), 'disponible')} sur ${checkedCount(featured)}` : null} />
-              <ul className="mt-3 grid gap-3" style={CARD_GRID_STYLE}>
-                {featured.map(row => (
-                  <SiteDomainResultCard key={row.domain} t={t} row={row} actorIsTalvex={actorIsTalvex}
-                    requested={row.tld === lastPage?.requested_tld} />
-                ))}
-              </ul>
-            </section>
-          )}
-
-          {/* 3. AUTRES EXTENSIONS */}
-          {(others.length > 0 || canLoadMore) && (
-            <OtherExtensions t={t} others={others} actorIsTalvex={actorIsTalvex} wide={wide} loadingMore={loading === 'more'}
-              total={lastPage?.total_tlds ?? null} checked={checkedCount(rows)} remaining={remaining} moreError={moreError}
-              canLoadMore={canLoadMore} onLoadMore={() => void loadMore()} />
-          )}
+        <div className="space-y-5" data-testid="site-domain-search-results">
+          <SiteDomainResults t={t} actorIsTalvex={actorIsTalvex} wide={wide} name={lastPage?.name ?? searched ?? ''} rows={rows}
+            requestedTld={lastPage?.requested_tld ?? null} filter={filter}
+            more={{ canLoadMore, remaining, total: lastPage?.total_tlds ?? null, loadingMore: loading === 'more', moreError, onLoadMore: () => void loadMore() }} />
         </div>
       )}
     </div>

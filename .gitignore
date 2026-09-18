@@ -21,3 +21,16 @@ dist-ssr
 *.sln
 *.sw?
 .env
+
+# Environnement local : jamais commite, sauf l'exemple qui documente les variables attendues.
+.env*
+!.env.example
+
+# Deploiement
+.vercel
+
+# Fichiers generes par les outils (tests, build, cache TypeScript) : jamais commites.
+test-results/
+playwright-report/
+tsconfig.*.tsbuildinfo
+vite.config.ts.timestamp-*.mjs

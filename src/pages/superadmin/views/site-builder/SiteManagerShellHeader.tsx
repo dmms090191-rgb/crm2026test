@@ -1,26 +1,22 @@
 import type { ReactNode } from 'react';
 import { Globe, X, ArrowLeft } from 'lucide-react';
 import type { ThemeTokens } from '../../../../lib/themeTokensTypes';
-import type { SiteTabId } from '../../../../lib/siteWorkspaceModel';
-import SiteTabs from './SiteTabs';
 import { SITE_GRADIENT } from './SiteUiParts';
 
 /*
- * En-tete du module Site : titre, rappel de contexte (Visu), puis les 4 onglets.
- * Le bouton « Reorganiser » est masque : les 4 onglets ont un ordre fixe
- * (SiteTabReorderModal.tsx est conserve, non monte).
+ * En-tete du module Site : titre et rappel de contexte (Visu).
+ * Plus d'onglets : le parcours Domaine -> Template -> Site se deduit de l'etat du site.
+ * SiteTabs.tsx et SiteTabReorderModal.tsx sont conserves sur disque, simplement non montes.
  */
 interface Props {
   t: ThemeTokens;
   title: string;
-  activeTab: SiteTabId;
-  onTabChange: (tab: SiteTabId) => void;
   banner?: ReactNode;
   onClose?: () => void;
   onBack?: () => void;
 }
 
-export default function SiteManagerShellHeader({ t, title, activeTab, onTabChange, banner, onClose, onBack }: Props) {
+export default function SiteManagerShellHeader({ t, title, banner, onClose, onBack }: Props) {
   return (
     <div className="flex-shrink-0" style={{ borderBottom: `1px solid ${t.surface.border}` }}>
       <div className="flex items-center gap-3 px-3 pt-3 pb-2">
@@ -44,9 +40,6 @@ export default function SiteManagerShellHeader({ t, title, activeTab, onTabChang
         )}
       </div>
       {banner}
-      <div className="px-3 pb-3 pt-2">
-        <SiteTabs activeTab={activeTab} onTabChange={onTabChange} />
-      </div>
     </div>
   );
 }

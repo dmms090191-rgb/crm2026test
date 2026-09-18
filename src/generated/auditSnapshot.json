@@ -1,17 +1,1355 @@
 {
-  "generatedAt": "2026-09-15T10:48:28.096Z",
+  "generatedAt": "2026-09-18T04:29:59.055Z",
   "anyCount": 0,
   "anyOccurrences": [],
-  "unusedImportCount": 0,
-  "unusedImports": [],
+  "unusedImportCount": 20,
+  "unusedImports": [
+    {
+      "file": "src\\components\\editor\\EditorColorModal.tsx",
+      "line": 3,
+      "name": "ZoneBackground"
+    },
+    {
+      "file": "src\\components\\editor\\EditorSaveThemeModal.tsx",
+      "line": 3,
+      "name": "EditorZone"
+    },
+    {
+      "file": "src\\components\\logo\\LogoAiV4Controls.tsx",
+      "line": 4,
+      "name": "hexToRgb"
+    },
+    {
+      "file": "src\\components\\table\\AddColumnForm.tsx",
+      "line": 1,
+      "name": "X"
+    },
+    {
+      "file": "src\\components\\theme\\GlassImageLibrary.tsx",
+      "line": 2,
+      "name": "Upload"
+    },
+    {
+      "file": "src\\contexts\\EditorModeContext.tsx",
+      "line": 1,
+      "name": "useEffect"
+    },
+    {
+      "file": "src\\pages\\admin\\dashboard\\useAdminNavHandlers.ts",
+      "line": 3,
+      "name": "ImpersonatedClient"
+    },
+    {
+      "file": "src\\pages\\admin\\views\\crm\\CrmWorkModeBar.tsx",
+      "line": 2,
+      "name": "Undo2"
+    },
+    {
+      "file": "src\\pages\\admin\\views\\crm\\CrmWorkModeBar.tsx",
+      "line": 2,
+      "name": "Redo2"
+    },
+    {
+      "file": "src\\pages\\admin\\views\\ListeVendeurs.tsx",
+      "line": 2,
+      "name": "Mail"
+    },
+    {
+      "file": "src\\pages\\admin\\views\\ListeVendeurs.tsx",
+      "line": 2,
+      "name": "Phone"
+    },
+    {
+      "file": "src\\pages\\admin\\views\\propositions-rdv\\useAdminRdvData.ts",
+      "line": 7,
+      "name": "utcToLocal"
+    },
+    {
+      "file": "src\\pages\\client\\views\\ConseillerCard.tsx",
+      "line": 1,
+      "name": "User"
+    },
+    {
+      "file": "src\\pages\\superadmin\\views\\crm-societe\\SACrmProspectsPanel.tsx",
+      "line": 1,
+      "name": "useRef"
+    },
+    {
+      "file": "src\\pages\\superadmin\\views\\SAStatuts.tsx",
+      "line": 5,
+      "name": "FAVORITES_KEY"
+    },
+    {
+      "file": "src\\pages\\superadmin\\views\\site-builder\\studio\\StudioBackgroundPanel.tsx",
+      "line": 5,
+      "name": "hexToHsv"
+    },
+    {
+      "file": "src\\pages\\superadmin\\views\\site-builder\\templates\\renewable\\RenewableSimulator.tsx",
+      "line": 2,
+      "name": "Layers"
+    },
+    {
+      "file": "src\\pages\\superadmin\\views\\site-builder\\templates\\TalvexInteractiveSections.tsx",
+      "line": 1,
+      "name": "CheckCircle2"
+    },
+    {
+      "file": "src\\pages\\superadmin\\views\\sites\\SADomainsLinkedList.tsx",
+      "line": 2,
+      "name": "AlertTriangle"
+    },
+    {
+      "file": "src\\pages\\superadmin\\views\\sites\\SASitesSection.tsx",
+      "line": 2,
+      "name": "Globe"
+    }
+  ],
   "largeFileCount": 0,
   "largeFiles": [],
-  "tscErrorCount": 0,
-  "tscErrors": [],
+  "tscErrorCount": 206,
+  "tscErrors": [
+    {
+      "file": "src\\App.tsx",
+      "line": 195,
+      "code": "TS2322",
+      "message": "Type '\"super_admin\" | \"admin\" | \"vendor\" | \"client\" | \"company_super_admin\"' is not assignable to type 'PanelRole'."
+    },
+    {
+      "file": "src\\App.tsx",
+      "line": 196,
+      "code": "TS2322",
+      "message": "Type '\"super_admin\" | \"admin\" | \"vendor\" | \"client\" | \"company_super_admin\"' is not assignable to type 'UserRole'."
+    },
+    {
+      "file": "src\\app\\AppDashboardRouter.tsx",
+      "line": 107,
+      "code": "TS2322",
+      "message": "Type 'string | null' is not assignable to type 'string | undefined'."
+    },
+    {
+      "file": "src\\app\\AppDashboardRouter.tsx",
+      "line": 107,
+      "code": "TS2322",
+      "message": "Type 'string | null' is not assignable to type 'string | undefined'."
+    },
+    {
+      "file": "src\\app\\AppDashboardRouter.tsx",
+      "line": 113,
+      "code": "TS2322",
+      "message": "Type 'string | null' is not assignable to type 'string | undefined'."
+    },
+    {
+      "file": "src\\app\\AppDashboardRouter.tsx",
+      "line": 124,
+      "code": "TS2322",
+      "message": "Type 'string | null' is not assignable to type 'string | undefined'."
+    },
+    {
+      "file": "src\\app\\AppDashboardRouter.tsx",
+      "line": 124,
+      "code": "TS2322",
+      "message": "Type 'string | null' is not assignable to type 'string | undefined'."
+    },
+    {
+      "file": "src\\app\\AppDashboardRouter.tsx",
+      "line": 135,
+      "code": "TS2322",
+      "message": "Type 'string | null' is not assignable to type 'string | undefined'."
+    },
+    {
+      "file": "src\\app\\AppDashboardRouter.tsx",
+      "line": 148,
+      "code": "TS2322",
+      "message": "Type 'string | null' is not assignable to type 'string | undefined'."
+    },
+    {
+      "file": "src\\app\\AppDashboardRouter.tsx",
+      "line": 148,
+      "code": "TS2322",
+      "message": "Type 'string | null' is not assignable to type 'string | undefined'."
+    },
+    {
+      "file": "src\\app\\AppDashboardRouter.tsx",
+      "line": 163,
+      "code": "TS2322",
+      "message": "Type 'string | null' is not assignable to type 'string | undefined'."
+    },
+    {
+      "file": "src\\app\\AppDashboardRouter.tsx",
+      "line": 173,
+      "code": "TS2322",
+      "message": "Type 'string | null' is not assignable to type 'string | undefined'."
+    },
+    {
+      "file": "src\\app\\AppDashboardRouter.tsx",
+      "line": 180,
+      "code": "TS2322",
+      "message": "Type 'string | null' is not assignable to type 'string | undefined'."
+    },
+    {
+      "file": "src\\app\\AppDashboardRouter.tsx",
+      "line": 187,
+      "code": "TS2322",
+      "message": "Type 'string | null' is not assignable to type 'string | undefined'."
+    },
+    {
+      "file": "src\\app\\AppDashboardRouter.tsx",
+      "line": 187,
+      "code": "TS2322",
+      "message": "Type 'string | null' is not assignable to type 'string | undefined'."
+    },
+    {
+      "file": "src\\components\\editor\\EditorColorModal.tsx",
+      "line": 3,
+      "code": "TS6133",
+      "message": "'ZoneBackground' is declared but its value is never read."
+    },
+    {
+      "file": "src\\components\\editor\\EditorColorModalEmptyStates.tsx",
+      "line": 25,
+      "code": "TS6133",
+      "message": "'pt' is declared but its value is never read."
+    },
+    {
+      "file": "src\\components\\editor\\EditorColorModalTextPickers.tsx",
+      "line": 50,
+      "code": "TS2322",
+      "message": "Type 'RefObject<HTMLInputElement | null>' is not assignable to type 'LegacyRef<HTMLInputElement> | undefined'."
+    },
+    {
+      "file": "src\\components\\editor\\EditorColorModalTextPickers.tsx",
+      "line": 122,
+      "code": "TS2322",
+      "message": "Type 'RefObject<HTMLInputElement | null>' is not assignable to type 'LegacyRef<HTMLInputElement> | undefined'."
+    },
+    {
+      "file": "src\\components\\editor\\EditorFondsContent.tsx",
+      "line": 55,
+      "code": "TS2339",
+      "message": "Property 'primary' does not exist on type '{ secondary: string; border: string; }'."
+    },
+    {
+      "file": "src\\components\\editor\\EditorImagePositionControls.tsx",
+      "line": 38,
+      "code": "TS2339",
+      "message": "Property 'primary' does not exist on type '{ secondary: string; border: string; }'."
+    },
+    {
+      "file": "src\\components\\editor\\EditorImagePositionControls.tsx",
+      "line": 58,
+      "code": "TS2339",
+      "message": "Property 'primary' does not exist on type '{ secondary: string; border: string; }'."
+    },
+    {
+      "file": "src\\components\\editor\\EditorImagePositionControls.tsx",
+      "line": 67,
+      "code": "TS2339",
+      "message": "Property 'primary' does not exist on type '{ secondary: string; border: string; }'."
+    },
+    {
+      "file": "src\\components\\editor\\EditorImagePositionControls.tsx",
+      "line": 126,
+      "code": "TS2339",
+      "message": "Property 'primary' does not exist on type '{ secondary: string; border: string; }'."
+    },
+    {
+      "file": "src\\components\\editor\\EditorImagePositionControls.tsx",
+      "line": 153,
+      "code": "TS2339",
+      "message": "Property 'primary' does not exist on type '{ secondary: string; border: string; }'."
+    },
+    {
+      "file": "src\\components\\editor\\EditorImageZoomAndFit.tsx",
+      "line": 20,
+      "code": "TS2339",
+      "message": "Property 'primary' does not exist on type '{ secondary: string; border: string; }'."
+    },
+    {
+      "file": "src\\components\\editor\\EditorImageZoomAndFit.tsx",
+      "line": 29,
+      "code": "TS2339",
+      "message": "Property 'primary' does not exist on type '{ secondary: string; border: string; }'."
+    },
+    {
+      "file": "src\\components\\editor\\EditorImageZoomAndFit.tsx",
+      "line": 85,
+      "code": "TS2339",
+      "message": "Property 'primary' does not exist on type '{ secondary: string; border: string; }'."
+    },
+    {
+      "file": "src\\components\\editor\\EditorSaveThemeModal.tsx",
+      "line": 3,
+      "code": "TS6133",
+      "message": "'EditorZone' is declared but its value is never read."
+    },
+    {
+      "file": "src\\components\\editor\\GradientColorPanel.tsx",
+      "line": 153,
+      "code": "TS2322",
+      "message": "Type 'RefObject<HTMLInputElement | null>' is not assignable to type 'LegacyRef<HTMLInputElement> | undefined'."
+    },
+    {
+      "file": "src\\components\\editor\\SavedColorSwatchItem.tsx",
+      "line": 57,
+      "code": "TS2353",
+      "message": "Object literal may only specify known properties, and 'ringColor' does not exist in type 'Properties<string | number, string & {}>'."
+    },
+    {
+      "file": "src\\components\\editor\\SolidColorPanel.tsx",
+      "line": 40,
+      "code": "TS2322",
+      "message": "Type 'RefObject<HTMLInputElement | null>' is not assignable to type 'LegacyRef<HTMLInputElement> | undefined'."
+    },
+    {
+      "file": "src\\components\\editor\\useEditorColorModalEffects.ts",
+      "line": 39,
+      "code": "TS2367",
+      "message": "This comparison appears to be unintentional because the types 'EditorTab' and '\"boutons\"' have no overlap."
+    },
+    {
+      "file": "src\\components\\editor\\useEditorColorModalEffects.ts",
+      "line": 40,
+      "code": "TS2367",
+      "message": "This comparison appears to be unintentional because the types 'EditorTab' and '\"cartes\"' have no overlap."
+    },
+    {
+      "file": "src\\components\\editor\\useSavedColorsActions.ts",
+      "line": 38,
+      "code": "TS2367",
+      "message": "This comparison appears to be unintentional because the types 'EditorTab' and '\"boutons\"' have no overlap."
+    },
+    {
+      "file": "src\\components\\logo\\LogoAiCostPanel.tsx",
+      "line": 19,
+      "code": "TS6133",
+      "message": "'textTertiary' is declared but its value is never read."
+    },
+    {
+      "file": "src\\components\\logo\\LogoAiGalleryHeader.tsx",
+      "line": 37,
+      "code": "TS6133",
+      "message": "'checkedIds' is declared but its value is never read."
+    },
+    {
+      "file": "src\\components\\logo\\LogoAiGalleryHeader.tsx",
+      "line": 68,
+      "code": "TS2322",
+      "message": "Type 'RefObject<HTMLButtonElement | null>' is not assignable to type 'LegacyRef<HTMLButtonElement> | undefined'."
+    },
+    {
+      "file": "src\\components\\logo\\LogoAiGalleryHeader.tsx",
+      "line": 75,
+      "code": "TS2322",
+      "message": "Type 'RefObject<HTMLButtonElement | null>' is not assignable to type 'LegacyRef<HTMLButtonElement> | undefined'."
+    },
+    {
+      "file": "src\\components\\logo\\LogoAiGalleryHeader.tsx",
+      "line": 88,
+      "code": "TS2322",
+      "message": "Type 'RefObject<HTMLButtonElement | null>' is not assignable to type 'LegacyRef<HTMLButtonElement> | undefined'."
+    },
+    {
+      "file": "src\\components\\logo\\LogoAiGalleryHeader.tsx",
+      "line": 108,
+      "code": "TS2322",
+      "message": "Type 'RefObject<HTMLButtonElement | null>' is not assignable to type 'LegacyRef<HTMLButtonElement> | undefined'."
+    },
+    {
+      "file": "src\\components\\logo\\LogoAiGalleryHeader.tsx",
+      "line": 123,
+      "code": "TS2322",
+      "message": "Type 'RefObject<HTMLButtonElement | null>' is not assignable to type 'LegacyRef<HTMLButtonElement> | undefined'."
+    },
+    {
+      "file": "src\\components\\logo\\LogoAiGalleryHeader.tsx",
+      "line": 131,
+      "code": "TS2322",
+      "message": "Type 'RefObject<HTMLButtonElement | null>' is not assignable to type 'LegacyRef<HTMLButtonElement> | undefined'."
+    },
+    {
+      "file": "src\\components\\logo\\LogoAiGalleryHeader.tsx",
+      "line": 146,
+      "code": "TS2322",
+      "message": "Type 'RefObject<HTMLButtonElement | null>' is not assignable to type 'LegacyRef<HTMLButtonElement> | undefined'."
+    },
+    {
+      "file": "src\\components\\logo\\LogoAiGalleryHeader.tsx",
+      "line": 170,
+      "code": "TS2322",
+      "message": "Type 'RefObject<HTMLButtonElement | null>' is not assignable to type 'LegacyRef<HTMLButtonElement> | undefined'."
+    },
+    {
+      "file": "src\\components\\logo\\LogoAiGalleryHeader.tsx",
+      "line": 200,
+      "code": "TS2322",
+      "message": "Type 'RefObject<HTMLButtonElement | null>' is not assignable to type 'LegacyRef<HTMLButtonElement> | undefined'."
+    },
+    {
+      "file": "src\\components\\logo\\LogoAiGalleryHeader.tsx",
+      "line": 222,
+      "code": "TS2322",
+      "message": "Type 'RefObject<HTMLButtonElement | null>' is not assignable to type 'LegacyRef<HTMLButtonElement> | undefined'."
+    },
+    {
+      "file": "src\\components\\logo\\LogoAiGalleryHeader.tsx",
+      "line": 255,
+      "code": "TS2322",
+      "message": "Type 'RefObject<HTMLButtonElement | null>' is not assignable to type 'LegacyRef<HTMLButtonElement> | undefined'."
+    },
+    {
+      "file": "src\\components\\logo\\LogoAiOptionsBar.tsx",
+      "line": 45,
+      "code": "TS2322",
+      "message": "Type 'RefObject<HTMLDivElement | null>' is not assignable to type 'LegacyRef<HTMLDivElement> | undefined'."
+    },
+    {
+      "file": "src\\components\\logo\\LogoAiOptionsBar.tsx",
+      "line": 59,
+      "code": "TS2322",
+      "message": "Type 'RefObject<HTMLButtonElement | null>' is not assignable to type 'LegacyRef<HTMLButtonElement> | undefined'."
+    },
+    {
+      "file": "src\\components\\logo\\LogoAiOptionsBar.tsx",
+      "line": 97,
+      "code": "TS2322",
+      "message": "Type 'RefObject<HTMLDivElement | null>' is not assignable to type 'LegacyRef<HTMLDivElement> | undefined'."
+    },
+    {
+      "file": "src\\components\\logo\\LogoAiResultsPreview.tsx",
+      "line": 31,
+      "code": "TS2322",
+      "message": "Type 'RefObject<HTMLDivElement | null>' is not assignable to type 'LegacyRef<HTMLDivElement> | undefined'."
+    },
+    {
+      "file": "src\\components\\logo\\LogoAiTab.tsx",
+      "line": 203,
+      "code": "TS2322",
+      "message": "Type 'RefObject<HTMLDivElement | null>' is not assignable to type 'LegacyRef<HTMLDivElement> | undefined'."
+    },
+    {
+      "file": "src\\components\\logo\\LogoAiV4Controls.tsx",
+      "line": 4,
+      "code": "TS6133",
+      "message": "'hexToRgb' is declared but its value is never read."
+    },
+    {
+      "file": "src\\components\\logo\\LogoAiV4Controls.tsx",
+      "line": 26,
+      "code": "TS6133",
+      "message": "'textSecondary' is declared but its value is never read."
+    },
+    {
+      "file": "src\\components\\logo\\LogoAiV4Controls.tsx",
+      "line": 59,
+      "code": "TS2322",
+      "message": "Type 'RefObject<HTMLDivElement | null>' is not assignable to type 'LegacyRef<HTMLDivElement> | undefined'."
+    },
+    {
+      "file": "src\\components\\logo\\LogoAiV4Controls.tsx",
+      "line": 100,
+      "code": "TS2322",
+      "message": "Type 'RefObject<HTMLDivElement | null>' is not assignable to type 'LegacyRef<HTMLDivElement> | undefined'."
+    },
+    {
+      "file": "src\\components\\logo\\LogoAiV4Controls.tsx",
+      "line": 120,
+      "code": "TS2322",
+      "message": "Type 'RefObject<HTMLDivElement | null>' is not assignable to type 'LegacyRef<HTMLDivElement> | undefined'."
+    },
+    {
+      "file": "src\\components\\logo\\LogoAiV4Controls.tsx",
+      "line": 139,
+      "code": "TS2353",
+      "message": "Object literal may only specify known properties, and 'ringColor' does not exist in type 'Properties<string | number, string & {}>'."
+    },
+    {
+      "file": "src\\components\\logo\\LogoAiV4Controls.tsx",
+      "line": 157,
+      "code": "TS2322",
+      "message": "Type 'RefObject<HTMLDivElement | null>' is not assignable to type 'LegacyRef<HTMLDivElement> | undefined'."
+    },
+    {
+      "file": "src\\components\\logo\\LogoAiV4Controls.tsx",
+      "line": 171,
+      "code": "TS2322",
+      "message": "Type 'RefObject<HTMLDivElement | null>' is not assignable to type 'LegacyRef<HTMLDivElement> | undefined'."
+    },
+    {
+      "file": "src\\components\\logo\\LogoAiV4Controls.tsx",
+      "line": 196,
+      "code": "TS2322",
+      "message": "Type 'RefObject<HTMLDivElement | null>' is not assignable to type 'LegacyRef<HTMLDivElement> | undefined'."
+    },
+    {
+      "file": "src\\components\\SidebarReorderControls.tsx",
+      "line": 36,
+      "code": "TS6133",
+      "message": "'startReorder' is declared but its value is never read."
+    },
+    {
+      "file": "src\\components\\table\\AddColumnForm.tsx",
+      "line": 1,
+      "code": "TS6133",
+      "message": "'X' is declared but its value is never read."
+    },
+    {
+      "file": "src\\components\\table\\AddColumnForm.tsx",
+      "line": 20,
+      "code": "TS6133",
+      "message": "'onToggle' is declared but its value is never read."
+    },
+    {
+      "file": "src\\components\\theme\\GlassImageLibrary.tsx",
+      "line": 2,
+      "code": "TS6133",
+      "message": "'Upload' is declared but its value is never read."
+    },
+    {
+      "file": "src\\components\\theme\\ThemeSelectorModal.tsx",
+      "line": 197,
+      "code": "TS6133",
+      "message": "'clearCustomTheme' is declared but its value is never read."
+    },
+    {
+      "file": "src\\components\\theme\\ThemeSelectorModal.tsx",
+      "line": 261,
+      "code": "TS2345",
+      "message": "Argument of type 'string' is not assignable to parameter of type 'CardTarget'."
+    },
+    {
+      "file": "src\\components\\visualCustomize\\VisualCustomizeContext.tsx",
+      "line": 17,
+      "code": "TS2304",
+      "message": "Cannot find name 'VCActiveSelection'."
+    },
+    {
+      "file": "src\\components\\visualCustomize\\VisualCustomizeContext.tsx",
+      "line": 18,
+      "code": "TS2304",
+      "message": "Cannot find name 'VCRegisteredElement'."
+    },
+    {
+      "file": "src\\contexts\\EditorModeContext.tsx",
+      "line": 1,
+      "code": "TS6133",
+      "message": "'useEffect' is declared but its value is never read."
+    },
+    {
+      "file": "src\\pages\\admin\\AdminDashboard.tsx",
+      "line": 57,
+      "code": "TS6133",
+      "message": "'demoStatus' is declared but its value is never read."
+    },
+    {
+      "file": "src\\pages\\admin\\dashboard\\useAdminNavHandlers.ts",
+      "line": 3,
+      "code": "TS6196",
+      "message": "'ImpersonatedClient' is declared but never used."
+    },
+    {
+      "file": "src\\pages\\admin\\Sidebar.tsx",
+      "line": 167,
+      "code": "TS2322",
+      "message": "Type 'RefObject<HTMLDivElement | null> | undefined' is not assignable to type 'LegacyRef<HTMLDivElement> | undefined'."
+    },
+    {
+      "file": "src\\pages\\admin\\Sidebar.tsx",
+      "line": 172,
+      "code": "TS2322",
+      "message": "Type 'RefObject<HTMLDivElement | null> | undefined' is not assignable to type 'LegacyRef<HTMLDivElement> | undefined'."
+    },
+    {
+      "file": "src\\pages\\admin\\TopBar.tsx",
+      "line": 111,
+      "code": "TS6133",
+      "message": "'demoSlot' is declared but its value is never read."
+    },
+    {
+      "file": "src\\pages\\admin\\TopBar.tsx",
+      "line": 111,
+      "code": "TS6133",
+      "message": "'demoStatus' is declared but its value is never read."
+    },
+    {
+      "file": "src\\pages\\admin\\TopBar.tsx",
+      "line": 136,
+      "code": "TS6133",
+      "message": "'impersonatingAdmin' is declared but its value is never read."
+    },
+    {
+      "file": "src\\pages\\admin\\TopBar.tsx",
+      "line": 137,
+      "code": "TS6133",
+      "message": "'impersonatedAdminName' is declared but its value is never read."
+    },
+    {
+      "file": "src\\pages\\admin\\views\\calquer-logo\\CalquerLogoShapeOverlay.tsx",
+      "line": 132,
+      "code": "TS6133",
+      "message": "'tag' is declared but its value is never read."
+    },
+    {
+      "file": "src\\pages\\admin\\views\\calquer-logo\\CalquerLogoZoneList.tsx",
+      "line": 87,
+      "code": "TS2339",
+      "message": "Property 'tag' does not exist on type 'SvgZone'."
+    },
+    {
+      "file": "src\\pages\\admin\\views\\calquer-logo\\CalquerLogoZoneTools.tsx",
+      "line": 128,
+      "code": "TS2322",
+      "message": "Type '{ id: string; label: string; type: \"group\" | \"shape\"; tag: string; color: string; bbox: { x: number; y: number; w: number; h: number; }; elementIndices: never[]; elementCount: number; }[]' is not assignable to type 'SvgZone[]'."
+    },
+    {
+      "file": "src\\pages\\admin\\views\\cerveau-ia\\AdminCerveauCards.tsx",
+      "line": 77,
+      "code": "TS2740",
+      "message": "Type 'Record<string, any>' is missing the following properties from type 'ThemeTokens': sidebar, topbar, dropdown, main, and 20 more."
+    },
+    {
+      "file": "src\\pages\\admin\\views\\cerveau-ia\\AdminCerveauCards.tsx",
+      "line": 81,
+      "code": "TS2740",
+      "message": "Type 'Record<string, any>' is missing the following properties from type 'ThemeTokens': sidebar, topbar, dropdown, main, and 20 more."
+    },
+    {
+      "file": "src\\pages\\admin\\views\\cerveau-ia\\AdminCerveauCards.tsx",
+      "line": 85,
+      "code": "TS2740",
+      "message": "Type 'Record<string, any>' is missing the following properties from type 'ThemeTokens': sidebar, topbar, dropdown, main, and 20 more."
+    },
+    {
+      "file": "src\\pages\\admin\\views\\cerveau-ia\\AdminCerveauCards.tsx",
+      "line": 89,
+      "code": "TS2740",
+      "message": "Type 'Record<string, any>' is missing the following properties from type 'ThemeTokens': sidebar, topbar, dropdown, main, and 20 more."
+    },
+    {
+      "file": "src\\pages\\admin\\views\\crm\\CrmWorkModeBar.tsx",
+      "line": 2,
+      "code": "TS6133",
+      "message": "'Undo2' is declared but its value is never read."
+    },
+    {
+      "file": "src\\pages\\admin\\views\\crm\\CrmWorkModeBar.tsx",
+      "line": 2,
+      "code": "TS6133",
+      "message": "'Redo2' is declared but its value is never read."
+    },
+    {
+      "file": "src\\pages\\admin\\views\\documentation\\ImportExportPanel.tsx",
+      "line": 36,
+      "code": "TS2345",
+      "message": "Argument of type 'string | null' is not assignable to parameter of type 'string'."
+    },
+    {
+      "file": "src\\pages\\admin\\views\\ListeVendeurs.tsx",
+      "line": 2,
+      "code": "TS6133",
+      "message": "'Mail' is declared but its value is never read."
+    },
+    {
+      "file": "src\\pages\\admin\\views\\ListeVendeurs.tsx",
+      "line": 2,
+      "code": "TS6133",
+      "message": "'Phone' is declared but its value is never read."
+    },
+    {
+      "file": "src\\pages\\admin\\views\\mes-logos\\LogoBgModal.tsx",
+      "line": 47,
+      "code": "TS2339",
+      "message": "Property 'title' does not exist on type '{ bg: string; border: string; shadow: string; }'."
+    },
+    {
+      "file": "src\\pages\\admin\\views\\mes-logos\\LogoBgModal.tsx",
+      "line": 51,
+      "code": "TS2339",
+      "message": "Property 'subtitle' does not exist on type '{ bg: string; border: string; shadow: string; }'."
+    },
+    {
+      "file": "src\\pages\\admin\\views\\mes-logos\\LogoBgModal.tsx",
+      "line": 70,
+      "code": "TS2339",
+      "message": "Property 'primaryBg' does not exist on type '{ toggleBg: string; toggleText: string; toggleBorder: string; }'."
+    },
+    {
+      "file": "src\\pages\\admin\\views\\mes-logos\\LogoBgModal.tsx",
+      "line": 71,
+      "code": "TS2339",
+      "message": "Property 'primaryText' does not exist on type '{ toggleBg: string; toggleText: string; toggleBorder: string; }'."
+    },
+    {
+      "file": "src\\pages\\admin\\views\\mes-logos\\LogoBgModal.tsx",
+      "line": 71,
+      "code": "TS2339",
+      "message": "Property 'subtitle' does not exist on type '{ bg: string; border: string; shadow: string; }'."
+    },
+    {
+      "file": "src\\pages\\admin\\views\\mes-logos\\LogoBgModal.tsx",
+      "line": 82,
+      "code": "TS2339",
+      "message": "Property 'subtitle' does not exist on type '{ bg: string; border: string; shadow: string; }'."
+    },
+    {
+      "file": "src\\pages\\admin\\views\\mes-logos\\LogoBgModal.tsx",
+      "line": 95,
+      "code": "TS2339",
+      "message": "Property 'title' does not exist on type '{ bg: string; border: string; shadow: string; }'."
+    },
+    {
+      "file": "src\\pages\\admin\\views\\mes-logos\\LogoBgModal.tsx",
+      "line": 104,
+      "code": "TS2339",
+      "message": "Property 'subtitle' does not exist on type '{ bg: string; border: string; shadow: string; }'."
+    },
+    {
+      "file": "src\\pages\\admin\\views\\mes-logos\\LogoBgModal.tsx",
+      "line": 109,
+      "code": "TS2339",
+      "message": "Property 'title' does not exist on type '{ bg: string; border: string; shadow: string; }'."
+    },
+    {
+      "file": "src\\pages\\admin\\views\\mes-logos\\LogoBgModal.tsx",
+      "line": 114,
+      "code": "TS2339",
+      "message": "Property 'subtitle' does not exist on type '{ bg: string; border: string; shadow: string; }'."
+    },
+    {
+      "file": "src\\pages\\admin\\views\\mes-logos\\LogoBgModal.tsx",
+      "line": 119,
+      "code": "TS2339",
+      "message": "Property 'title' does not exist on type '{ bg: string; border: string; shadow: string; }'."
+    },
+    {
+      "file": "src\\pages\\admin\\views\\mes-logos\\LogoBgModal.tsx",
+      "line": 131,
+      "code": "TS2339",
+      "message": "Property 'subtitle' does not exist on type '{ bg: string; border: string; shadow: string; }'."
+    },
+    {
+      "file": "src\\pages\\admin\\views\\mes-logos\\LogoBgModal.tsx",
+      "line": 138,
+      "code": "TS2339",
+      "message": "Property 'primaryBg' does not exist on type '{ toggleBg: string; toggleText: string; toggleBorder: string; }'."
+    },
+    {
+      "file": "src\\pages\\admin\\views\\mes-logos\\LogoBgModal.tsx",
+      "line": 138,
+      "code": "TS2339",
+      "message": "Property 'primaryText' does not exist on type '{ toggleBg: string; toggleText: string; toggleBorder: string; }'."
+    },
+    {
+      "file": "src\\pages\\admin\\views\\mes-logos\\LogoLibraryCard.tsx",
+      "line": 45,
+      "code": "TS2339",
+      "message": "Property 'title' does not exist on type '{ bg: string; border: string; shadow: string; }'."
+    },
+    {
+      "file": "src\\pages\\admin\\views\\mes-logos\\LogoLibraryCard.tsx",
+      "line": 48,
+      "code": "TS2339",
+      "message": "Property 'subtitle' does not exist on type '{ bg: string; border: string; shadow: string; }'."
+    },
+    {
+      "file": "src\\pages\\admin\\views\\mes-logos\\LogoLibraryCard.tsx",
+      "line": 57,
+      "code": "TS2339",
+      "message": "Property 'primaryBg' does not exist on type '{ toggleBg: string; toggleText: string; toggleBorder: string; }'."
+    },
+    {
+      "file": "src\\pages\\admin\\views\\mes-logos\\LogoLibraryCard.tsx",
+      "line": 57,
+      "code": "TS2339",
+      "message": "Property 'primaryBg' does not exist on type '{ toggleBg: string; toggleText: string; toggleBorder: string; }'."
+    },
+    {
+      "file": "src\\pages\\admin\\views\\mes-logos\\LogoLibraryCard.tsx",
+      "line": 57,
+      "code": "TS2339",
+      "message": "Property 'primaryBg' does not exist on type '{ toggleBg: string; toggleText: string; toggleBorder: string; }'."
+    },
+    {
+      "file": "src\\pages\\admin\\views\\mes-logos\\LogoLibraryCard.tsx",
+      "line": 69,
+      "code": "TS2339",
+      "message": "Property 'subtitle' does not exist on type '{ bg: string; border: string; shadow: string; }'."
+    },
+    {
+      "file": "src\\pages\\admin\\views\\mes-logos\\MesLogosRA.tsx",
+      "line": 118,
+      "code": "TS2339",
+      "message": "Property 'title' does not exist on type '{ bg: string; border: string; shadow: string; }'."
+    },
+    {
+      "file": "src\\pages\\admin\\views\\mes-logos\\MesLogosRA.tsx",
+      "line": 121,
+      "code": "TS2339",
+      "message": "Property 'subtitle' does not exist on type '{ bg: string; border: string; shadow: string; }'."
+    },
+    {
+      "file": "src\\pages\\admin\\views\\mes-logos\\MesLogosRA.tsx",
+      "line": 129,
+      "code": "TS2339",
+      "message": "Property 'primaryBg' does not exist on type '{ toggleBg: string; toggleText: string; toggleBorder: string; }'."
+    },
+    {
+      "file": "src\\pages\\admin\\views\\mes-logos\\MesLogosRA.tsx",
+      "line": 129,
+      "code": "TS2339",
+      "message": "Property 'primaryText' does not exist on type '{ toggleBg: string; toggleText: string; toggleBorder: string; }'."
+    },
+    {
+      "file": "src\\pages\\admin\\views\\mes-logos\\MesLogosRA.tsx",
+      "line": 146,
+      "code": "TS2339",
+      "message": "Property 'primaryBg' does not exist on type '{ toggleBg: string; toggleText: string; toggleBorder: string; }'."
+    },
+    {
+      "file": "src\\pages\\admin\\views\\mes-logos\\MesLogosRA.tsx",
+      "line": 146,
+      "code": "TS2339",
+      "message": "Property 'primaryBg' does not exist on type '{ toggleBg: string; toggleText: string; toggleBorder: string; }'."
+    },
+    {
+      "file": "src\\pages\\admin\\views\\mes-logos\\MesLogosRA.tsx",
+      "line": 146,
+      "code": "TS2339",
+      "message": "Property 'primaryBg' does not exist on type '{ toggleBg: string; toggleText: string; toggleBorder: string; }'."
+    },
+    {
+      "file": "src\\pages\\admin\\views\\mes-logos\\MesLogosRA.tsx",
+      "line": 153,
+      "code": "TS2339",
+      "message": "Property 'title' does not exist on type '{ bg: string; border: string; shadow: string; }'."
+    },
+    {
+      "file": "src\\pages\\admin\\views\\mes-logos\\MesLogosRA.tsx",
+      "line": 156,
+      "code": "TS2339",
+      "message": "Property 'subtitle' does not exist on type '{ bg: string; border: string; shadow: string; }'."
+    },
+    {
+      "file": "src\\pages\\admin\\views\\mes-logos\\MesLogosRA.tsx",
+      "line": 162,
+      "code": "TS2339",
+      "message": "Property 'primaryBg' does not exist on type '{ toggleBg: string; toggleText: string; toggleBorder: string; }'."
+    },
+    {
+      "file": "src\\pages\\admin\\views\\mes-logos\\MesLogosRA.tsx",
+      "line": 162,
+      "code": "TS2339",
+      "message": "Property 'primaryText' does not exist on type '{ toggleBg: string; toggleText: string; toggleBorder: string; }'."
+    },
+    {
+      "file": "src\\pages\\admin\\views\\mes-logos\\MesLogosRA.tsx",
+      "line": 176,
+      "code": "TS2339",
+      "message": "Property 'primaryBg' does not exist on type '{ toggleBg: string; toggleText: string; toggleBorder: string; }'."
+    },
+    {
+      "file": "src\\pages\\admin\\views\\mes-logos\\MesLogosRA.tsx",
+      "line": 177,
+      "code": "TS2339",
+      "message": "Property 'primaryBg' does not exist on type '{ toggleBg: string; toggleText: string; toggleBorder: string; }'."
+    },
+    {
+      "file": "src\\pages\\admin\\views\\mes-logos\\MesLogosRA.tsx",
+      "line": 179,
+      "code": "TS2339",
+      "message": "Property 'title' does not exist on type '{ bg: string; border: string; shadow: string; }'."
+    },
+    {
+      "file": "src\\pages\\admin\\views\\mes-logos\\MesLogosRA.tsx",
+      "line": 182,
+      "code": "TS2339",
+      "message": "Property 'subtitle' does not exist on type '{ bg: string; border: string; shadow: string; }'."
+    },
+    {
+      "file": "src\\pages\\admin\\views\\mes-logos\\MesLogosRA.tsx",
+      "line": 185,
+      "code": "TS2339",
+      "message": "Property 'primaryBg' does not exist on type '{ toggleBg: string; toggleText: string; toggleBorder: string; }'."
+    },
+    {
+      "file": "src\\pages\\admin\\views\\mes-logos\\MesLogosRA.tsx",
+      "line": 185,
+      "code": "TS2339",
+      "message": "Property 'primaryBg' does not exist on type '{ toggleBg: string; toggleText: string; toggleBorder: string; }'."
+    },
+    {
+      "file": "src\\pages\\admin\\views\\propositions-rdv\\useAdminRdvData.ts",
+      "line": 7,
+      "code": "TS6133",
+      "message": "'utcToLocal' is declared but its value is never read."
+    },
+    {
+      "file": "src\\pages\\admin\\views\\sauvegarde\\parseBackupFile.ts",
+      "line": 37,
+      "code": "TS2322",
+      "message": "Type 'string[]' is not assignable to type '{ table: string; error: string; }[]'."
+    },
+    {
+      "file": "src\\pages\\client\\ClientDashboard.tsx",
+      "line": 55,
+      "code": "TS6133",
+      "message": "'demoStatus' is declared but its value is never read."
+    },
+    {
+      "file": "src\\pages\\client\\ClientSidebar.tsx",
+      "line": 79,
+      "code": "TS6133",
+      "message": "'hideTabsTargetName' is declared but its value is never read."
+    },
+    {
+      "file": "src\\pages\\client\\views\\ConseillerCard.tsx",
+      "line": 1,
+      "code": "TS6133",
+      "message": "'User' is declared but its value is never read."
+    },
+    {
+      "file": "src\\pages\\client\\views\\suivi-corporel\\SuiviCorporelDetailModal.tsx",
+      "line": 112,
+      "code": "TS2339",
+      "message": "Property 'hover' does not exist on type 'ThemeTokens'."
+    },
+    {
+      "file": "src\\pages\\client\\views\\suivi-corporel\\SuiviCorporelDetailModal.tsx",
+      "line": 145,
+      "code": "TS2339",
+      "message": "Property 'hover' does not exist on type 'ThemeTokens'."
+    },
+    {
+      "file": "src\\pages\\client\\views\\suivi-corporel\\SuiviCorporelDetailModal.tsx",
+      "line": 179,
+      "code": "TS2339",
+      "message": "Property 'hover' does not exist on type 'ThemeTokens'."
+    },
+    {
+      "file": "src\\pages\\client\\views\\suivi-corporel\\SuiviCorporelDetailModal.tsx",
+      "line": 199,
+      "code": "TS2339",
+      "message": "Property 'hover' does not exist on type 'ThemeTokens'."
+    },
+    {
+      "file": "src\\pages\\client\\views\\suivi-corporel\\SuiviCorporelList.tsx",
+      "line": 127,
+      "code": "TS2339",
+      "message": "Property 'hover' does not exist on type 'ThemeTokens'."
+    },
+    {
+      "file": "src\\pages\\company-super-admin\\CSASidebar.tsx",
+      "line": 91,
+      "code": "TS2322",
+      "message": "Type 'RefObject<HTMLDivElement | null> | undefined' is not assignable to type 'LegacyRef<HTMLDivElement> | undefined'."
+    },
+    {
+      "file": "src\\pages\\company-super-admin\\CSASidebar.tsx",
+      "line": 95,
+      "code": "TS2322",
+      "message": "Type 'RefObject<HTMLDivElement | null> | undefined' is not assignable to type 'LegacyRef<HTMLDivElement> | undefined'."
+    },
+    {
+      "file": "src\\pages\\company-super-admin\\CSATopBar.tsx",
+      "line": 77,
+      "code": "TS2322",
+      "message": "Type 'RefObject<HTMLElement | null> | undefined' is not assignable to type 'LegacyRef<HTMLElement> | undefined'."
+    },
+    {
+      "file": "src\\pages\\company-super-admin\\CSATopBar.tsx",
+      "line": 85,
+      "code": "TS2551",
+      "message": "Property 'breadcrumbSep' does not exist on type '{ bg: string; border: string; breadcrumbPrefix: string; breadcrumbText: string; notifPillBg: string; notifPillBorder: string; notifIcon: string; notifIconHover: string; notifLabel: string; notifLabelHover: string; ... 7 more ...; chevron: string; }'. Did you mean 'breadcrumbText'?"
+    },
+    {
+      "file": "src\\pages\\superadmin\\SuperAdminDashboard.tsx",
+      "line": 230,
+      "code": "TS2345",
+      "message": "Argument of type 'AdminUser | { id: string; email: string; first_name: string; last_name: string; company: string; phone: string; role: \"admin\" | \"company_super_admin\"; created_at: string; last_sign_in_at: null; access_enabled: true; }' is not assignable to parameter of type 'SetStateAction<AdminUser | null>'."
+    },
+    {
+      "file": "src\\pages\\superadmin\\SuperAdminSidebar.tsx",
+      "line": 155,
+      "code": "TS2322",
+      "message": "Type 'RefObject<HTMLDivElement | null> | undefined' is not assignable to type 'LegacyRef<HTMLDivElement> | undefined'."
+    },
+    {
+      "file": "src\\pages\\superadmin\\SuperAdminSidebar.tsx",
+      "line": 184,
+      "code": "TS2322",
+      "message": "Type 'RefObject<HTMLDivElement | null> | undefined' is not assignable to type 'LegacyRef<HTMLDivElement> | undefined'."
+    },
+    {
+      "file": "src\\pages\\superadmin\\SuperAdminTopBar.tsx",
+      "line": 84,
+      "code": "TS2322",
+      "message": "Type 'RefObject<HTMLDivElement | null>' is not assignable to type 'LegacyRef<HTMLDivElement> | undefined'."
+    },
+    {
+      "file": "src\\pages\\superadmin\\SuperAdminTopBar.tsx",
+      "line": 224,
+      "code": "TS2322",
+      "message": "Type 'RefObject<HTMLButtonElement | null> | undefined' is not assignable to type 'LegacyRef<HTMLButtonElement> | undefined'."
+    },
+    {
+      "file": "src\\pages\\superadmin\\SuperAdminTopBar.tsx",
+      "line": 261,
+      "code": "TS2322",
+      "message": "Type 'RefObject<HTMLButtonElement | null>' is not assignable to type 'LegacyRef<HTMLButtonElement> | undefined'."
+    },
+    {
+      "file": "src\\pages\\superadmin\\useEditorLocateHandler.ts",
+      "line": 30,
+      "code": "TS2339",
+      "message": "Property 'clientHeight' does not exist on type 'DOMRect'."
+    },
+    {
+      "file": "src\\pages\\superadmin\\views\\admins\\AdminAnnouncementForm.tsx",
+      "line": 85,
+      "code": "TS2339",
+      "message": "Property 'main' does not exist on type '{ primary: string; secondary: string; tertiary: string; hover: string; selected: string; overlay: string; border: string; borderLight: string; }'."
+    },
+    {
+      "file": "src\\pages\\superadmin\\views\\admins\\AdminAnnouncementForm.tsx",
+      "line": 99,
+      "code": "TS2339",
+      "message": "Property 'primary' does not exist on type '{ text: string; muted: string; hint: string; }'."
+    },
+    {
+      "file": "src\\pages\\superadmin\\views\\admins\\AdminAnnouncementForm.tsx",
+      "line": 111,
+      "code": "TS2339",
+      "message": "Property 'primary' does not exist on type '{ text: string; muted: string; hint: string; }'."
+    },
+    {
+      "file": "src\\pages\\superadmin\\views\\admins\\AdminAnnouncementForm.tsx",
+      "line": 123,
+      "code": "TS2339",
+      "message": "Property 'primary' does not exist on type '{ text: string; muted: string; hint: string; }'."
+    },
+    {
+      "file": "src\\pages\\superadmin\\views\\admins\\DomainManagementModal.tsx",
+      "line": 40,
+      "code": "TS2345",
+      "message": "Argument of type '{ company_id: string; site_scope: \"company\"; title: string; subtitle: string; welcome_message: string; is_active: false; }' is not assignable to parameter of type 'CompanyHomePageUpsert'."
+    },
+    {
+      "file": "src\\pages\\superadmin\\views\\crm-societe\\SAArgumentaireDesktopFloat.tsx",
+      "line": 153,
+      "code": "TS2339",
+      "message": "Property 'main' does not exist on type '{ primary: string; secondary: string; tertiary: string; hover: string; selected: string; overlay: string; border: string; borderLight: string; }'."
+    },
+    {
+      "file": "src\\pages\\superadmin\\views\\crm-societe\\SACrmProspectsPanel.tsx",
+      "line": 1,
+      "code": "TS6133",
+      "message": "'useRef' is declared but its value is never read."
+    },
+    {
+      "file": "src\\pages\\superadmin\\views\\crm-societe\\SAProspectsTable.tsx",
+      "line": 51,
+      "code": "TS6133",
+      "message": "'onToggleAll' is declared but its value is never read."
+    },
+    {
+      "file": "src\\pages\\superadmin\\views\\dashboard\\SAProjectHealthCard.tsx",
+      "line": 133,
+      "code": "TS2322",
+      "message": "Type 'RefObject<HTMLDivElement | null>' is not assignable to type 'LegacyRef<HTMLDivElement> | undefined'."
+    },
+    {
+      "file": "src\\pages\\superadmin\\views\\dashboard\\SAProjectHealthCard.tsx",
+      "line": 139,
+      "code": "TS2322",
+      "message": "Type 'RefObject<HTMLDivElement | null>' is not assignable to type 'LegacyRef<HTMLDivElement> | undefined'."
+    },
+    {
+      "file": "src\\pages\\superadmin\\views\\dashboard\\SAProjectHealthCard.tsx",
+      "line": 146,
+      "code": "TS2322",
+      "message": "Type 'RefObject<HTMLHeadingElement | null>' is not assignable to type 'LegacyRef<HTMLHeadingElement> | undefined'."
+    },
+    {
+      "file": "src\\pages\\superadmin\\views\\dashboard\\SAProjectHealthCard.tsx",
+      "line": 147,
+      "code": "TS2322",
+      "message": "Type 'RefObject<HTMLParagraphElement | null>' is not assignable to type 'LegacyRef<HTMLParagraphElement> | undefined'."
+    },
+    {
+      "file": "src\\pages\\superadmin\\views\\dashboard\\SAProjectHealthCard.tsx",
+      "line": 152,
+      "code": "TS2322",
+      "message": "Type 'RefObject<HTMLSpanElement | null>' is not assignable to type 'LegacyRef<HTMLSpanElement> | undefined'."
+    },
+    {
+      "file": "src\\pages\\superadmin\\views\\dashboard\\SAProjectHealthCard.tsx",
+      "line": 157,
+      "code": "TS2322",
+      "message": "Type 'RefObject<HTMLDivElement | null>' is not assignable to type 'LegacyRef<HTMLDivElement> | undefined'."
+    },
+    {
+      "file": "src\\pages\\superadmin\\views\\dashboard\\SAProjectHealthCard.tsx",
+      "line": 190,
+      "code": "TS2322",
+      "message": "Type 'RefObject<HTMLSpanElement | null>' is not assignable to type 'LegacyRef<HTMLSpanElement> | undefined'."
+    },
+    {
+      "file": "src\\pages\\superadmin\\views\\dashboard\\SAProjectHealthCard.tsx",
+      "line": 204,
+      "code": "TS2322",
+      "message": "Type 'RefObject<HTMLButtonElement | null>' is not assignable to type 'LegacyRef<HTMLButtonElement> | undefined'."
+    },
+    {
+      "file": "src\\pages\\superadmin\\views\\fonctions-talvex\\FonctionCard.tsx",
+      "line": 33,
+      "code": "TS2339",
+      "message": "Property 'active' does not exist on type '{ primary: string; secondary: string; tertiary: string; hover: string; selected: string; overlay: string; border: string; borderLight: string; }'."
+    },
+    {
+      "file": "src\\pages\\superadmin\\views\\fonctions-talvex\\FonctionCategoryList.tsx",
+      "line": 83,
+      "code": "TS2339",
+      "message": "Property 'active' does not exist on type '{ primary: string; secondary: string; tertiary: string; hover: string; selected: string; overlay: string; border: string; borderLight: string; }'."
+    },
+    {
+      "file": "src\\pages\\superadmin\\views\\fonctions-talvex\\SAFonctionsTalvex.tsx",
+      "line": 198,
+      "code": "TS2339",
+      "message": "Property 'active' does not exist on type '{ primary: string; secondary: string; tertiary: string; hover: string; selected: string; overlay: string; border: string; borderLight: string; }'."
+    },
+    {
+      "file": "src\\pages\\superadmin\\views\\SADashboard.tsx",
+      "line": 46,
+      "code": "TS2322",
+      "message": "Type 'RefObject<HTMLHeadingElement | null>' is not assignable to type 'LegacyRef<HTMLHeadingElement> | undefined'."
+    },
+    {
+      "file": "src\\pages\\superadmin\\views\\SADashboard.tsx",
+      "line": 49,
+      "code": "TS2322",
+      "message": "Type 'RefObject<HTMLParagraphElement | null>' is not assignable to type 'LegacyRef<HTMLParagraphElement> | undefined'."
+    },
+    {
+      "file": "src\\pages\\superadmin\\views\\SADashboard.tsx",
+      "line": 55,
+      "code": "TS2322",
+      "message": "Type 'RefObject<HTMLDivElement | null>' is not assignable to type 'LegacyRef<HTMLDivElement> | undefined'."
+    },
+    {
+      "file": "src\\pages\\superadmin\\views\\SADashboard.tsx",
+      "line": 60,
+      "code": "TS2322",
+      "message": "Type 'RefObject<HTMLDivElement | null>' is not assignable to type 'LegacyRef<HTMLDivElement> | undefined'."
+    },
+    {
+      "file": "src\\pages\\superadmin\\views\\SADashboard.tsx",
+      "line": 70,
+      "code": "TS2322",
+      "message": "Type 'RefObject<HTMLSpanElement | null>' is not assignable to type 'LegacyRef<HTMLSpanElement> | undefined'."
+    },
+    {
+      "file": "src\\pages\\superadmin\\views\\SADashboard.tsx",
+      "line": 83,
+      "code": "TS2322",
+      "message": "Type 'RefObject<HTMLSpanElement | null>' is not assignable to type 'LegacyRef<HTMLSpanElement> | undefined'."
+    },
+    {
+      "file": "src\\pages\\superadmin\\views\\SADashboard.tsx",
+      "line": 92,
+      "code": "TS2322",
+      "message": "Type 'RefObject<HTMLParagraphElement | null>' is not assignable to type 'LegacyRef<HTMLParagraphElement> | undefined'."
+    },
+    {
+      "file": "src\\pages\\superadmin\\views\\SADashboard.tsx",
+      "line": 100,
+      "code": "TS2322",
+      "message": "Type 'RefObject<HTMLButtonElement | null>' is not assignable to type 'LegacyRef<HTMLButtonElement> | undefined'."
+    },
+    {
+      "file": "src\\pages\\superadmin\\views\\SAStatuts.tsx",
+      "line": 5,
+      "code": "TS6133",
+      "message": "'FAVORITES_KEY' is declared but its value is never read."
+    },
+    {
+      "file": "src\\pages\\superadmin\\views\\site-builder\\studio\\overlayElementTypes.ts",
+      "line": 86,
+      "code": "TS2352",
+      "message": "Conversion of type 'OverlayTextConfig' to type 'Record<string, unknown>' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first."
+    },
+    {
+      "file": "src\\pages\\superadmin\\views\\site-builder\\studio\\StudioBackgroundModePanel.tsx",
+      "line": 20,
+      "code": "TS6133",
+      "message": "'isMobile' is declared but its value is never read."
+    },
+    {
+      "file": "src\\pages\\superadmin\\views\\site-builder\\studio\\StudioBackgroundPanel.tsx",
+      "line": 6,
+      "code": "TS6133",
+      "message": "'hexToHsv' is declared but its value is never read."
+    },
+    {
+      "file": "src\\pages\\superadmin\\views\\site-builder\\studio\\StudioElementSettings.tsx",
+      "line": 100,
+      "code": "TS2322",
+      "message": "Type '(partial: Partial<OverlayButtonConfig>) => void' is not assignable to type '(partial: Partial<OverlayElement>) => void'."
+    },
+    {
+      "file": "src\\pages\\superadmin\\views\\site-builder\\studio\\StudioElementSettings.tsx",
+      "line": 163,
+      "code": "TS2322",
+      "message": "Type '(partial: Partial<OverlayTextConfig>) => void' is not assignable to type '(partial: Partial<OverlayElement>) => void'."
+    },
+    {
+      "file": "src\\pages\\superadmin\\views\\site-builder\\studio\\useStudioSections.ts",
+      "line": 6,
+      "code": "TS6133",
+      "message": "'DEFAULT_CANVAS_BG' is declared but its value is never read."
+    },
+    {
+      "file": "src\\pages\\superadmin\\views\\site-builder\\templates\\gold-buying\\GoldBuyingContact.tsx",
+      "line": 98,
+      "code": "TS2353",
+      "message": "Object literal may only specify known properties, and 'focusRingColor' does not exist in type 'Properties<string | number, string & {}>'."
+    },
+    {
+      "file": "src\\pages\\superadmin\\views\\site-builder\\templates\\renewable\\RenewableSimulator.tsx",
+      "line": 2,
+      "code": "TS6133",
+      "message": "'Layers' is declared but its value is never read."
+    },
+    {
+      "file": "src\\pages\\superadmin\\views\\site-builder\\templates\\siteModalTheme.ts",
+      "line": 32,
+      "code": "TS2322",
+      "message": "Type 'LucideIcon' is not assignable to type 'ComponentType<{ className?: string | undefined; strokeWidth?: number | undefined; }>'."
+    },
+    {
+      "file": "src\\pages\\superadmin\\views\\site-builder\\templates\\siteModalTheme.ts",
+      "line": 33,
+      "code": "TS2322",
+      "message": "Type 'LucideIcon' is not assignable to type 'ComponentType<{ className?: string | undefined; strokeWidth?: number | undefined; }>'."
+    },
+    {
+      "file": "src\\pages\\superadmin\\views\\site-builder\\templates\\siteModalTheme.ts",
+      "line": 48,
+      "code": "TS2322",
+      "message": "Type 'LucideIcon' is not assignable to type 'ComponentType<{ className?: string | undefined; strokeWidth?: number | undefined; }>'."
+    },
+    {
+      "file": "src\\pages\\superadmin\\views\\site-builder\\templates\\siteModalTheme.ts",
+      "line": 49,
+      "code": "TS2322",
+      "message": "Type 'LucideIcon' is not assignable to type 'ComponentType<{ className?: string | undefined; strokeWidth?: number | undefined; }>'."
+    },
+    {
+      "file": "src\\pages\\superadmin\\views\\site-builder\\templates\\siteModalTheme.ts",
+      "line": 64,
+      "code": "TS2322",
+      "message": "Type 'LucideIcon' is not assignable to type 'ComponentType<{ className?: string | undefined; strokeWidth?: number | undefined; }>'."
+    },
+    {
+      "file": "src\\pages\\superadmin\\views\\site-builder\\templates\\siteModalTheme.ts",
+      "line": 65,
+      "code": "TS2322",
+      "message": "Type 'LucideIcon' is not assignable to type 'ComponentType<{ className?: string | undefined; strokeWidth?: number | undefined; }>'."
+    },
+    {
+      "file": "src\\pages\\superadmin\\views\\site-builder\\templates\\siteModalTheme.ts",
+      "line": 80,
+      "code": "TS2322",
+      "message": "Type 'LucideIcon' is not assignable to type 'ComponentType<{ className?: string | undefined; strokeWidth?: number | undefined; }>'."
+    },
+    {
+      "file": "src\\pages\\superadmin\\views\\site-builder\\templates\\siteModalTheme.ts",
+      "line": 81,
+      "code": "TS2322",
+      "message": "Type 'LucideIcon' is not assignable to type 'ComponentType<{ className?: string | undefined; strokeWidth?: number | undefined; }>'."
+    },
+    {
+      "file": "src\\pages\\superadmin\\views\\site-builder\\templates\\siteModalTheme.ts",
+      "line": 96,
+      "code": "TS2322",
+      "message": "Type 'LucideIcon' is not assignable to type 'ComponentType<{ className?: string | undefined; strokeWidth?: number | undefined; }>'."
+    },
+    {
+      "file": "src\\pages\\superadmin\\views\\site-builder\\templates\\siteModalTheme.ts",
+      "line": 97,
+      "code": "TS2322",
+      "message": "Type 'LucideIcon' is not assignable to type 'ComponentType<{ className?: string | undefined; strokeWidth?: number | undefined; }>'."
+    },
+    {
+      "file": "src\\pages\\superadmin\\views\\site-builder\\templates\\TalvexInteractiveSections.tsx",
+      "line": 1,
+      "code": "TS6133",
+      "message": "'CheckCircle2' is declared but its value is never read."
+    },
+    {
+      "file": "src\\pages\\superadmin\\views\\site-builder\\templates\\TalvexLoginModal.tsx",
+      "line": 140,
+      "code": "TS2322",
+      "message": "Type '(index: number, e: React.KeyboardEvent<HTMLInputElement>) => void' is not assignable to type '(i: number, e: KeyboardEvent<Element>) => void'."
+    },
+    {
+      "file": "src\\pages\\superadmin\\views\\site-builder\\templates\\TalvexRegisterModal.tsx",
+      "line": 175,
+      "code": "TS2322",
+      "message": "Type '(index: number, e: React.KeyboardEvent<HTMLInputElement>) => void' is not assignable to type '(i: number, e: KeyboardEvent<Element>) => void'."
+    },
+    {
+      "file": "src\\pages\\superadmin\\views\\sites\\SADomainsLinkedList.tsx",
+      "line": 2,
+      "code": "TS6133",
+      "message": "'AlertTriangle' is declared but its value is never read."
+    },
+    {
+      "file": "src\\pages\\superadmin\\views\\sites\\SASitesSection.tsx",
+      "line": 2,
+      "code": "TS6133",
+      "message": "'Globe' is declared but its value is never read."
+    },
+    {
+      "file": "src\\pages\\superadmin\\views\\super-admins\\SASuperAdminMobileCard.tsx",
+      "line": 20,
+      "code": "TS2339",
+      "message": "Property 'bg' does not exist on type '{ primary: string; secondary: string; tertiary: string; hover: string; selected: string; overlay: string; border: string; borderLight: string; }'."
+    },
+    {
+      "file": "src\\pages\\superadmin\\views\\themes\\SAThemes.tsx",
+      "line": 114,
+      "code": "TS2554",
+      "message": "Expected 3-11 arguments, but got 12."
+    },
+    {
+      "file": "src\\pages\\superadmin\\views\\themes\\SAThemes.tsx",
+      "line": 147,
+      "code": "TS2339",
+      "message": "Property 'textPrimary' does not exist on type '{ bg: string; }'."
+    },
+    {
+      "file": "src\\pages\\superadmin\\views\\themes\\SAThemes.tsx",
+      "line": 148,
+      "code": "TS2339",
+      "message": "Property 'textMuted' does not exist on type '{ bg: string; }'."
+    },
+    {
+      "file": "src\\pages\\vendor\\VendorDashboard.tsx",
+      "line": 53,
+      "code": "TS6133",
+      "message": "'demoStatus' is declared but its value is never read."
+    },
+    {
+      "file": "src\\pages\\vendor\\views\\VendorLeads.tsx",
+      "line": 82,
+      "code": "TS2322",
+      "message": "Type '{ key: string; role: string; visible: boolean; }[]' is not assignable to type 'MobileColumnEntry[]'."
+    }
+  ],
   "eslintErrorCount": 0,
   "eslintWarningCount": 0,
   "eslintIssues": [],
-  "totalFilesAnalyzed": 1019,
-  "totalLinesAnalyzed": 134768,
+  "totalFilesAnalyzed": 1065,
+  "totalLinesAnalyzed": 139875,
   "totalOverflowLines": 0
 }

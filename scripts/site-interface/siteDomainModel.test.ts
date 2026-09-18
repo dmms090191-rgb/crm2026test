@@ -51,7 +51,7 @@ test('site_domains prime sur les anciennes colonnes du site', () => {
 
 test('libelles clients : enregistrement puis mise en service', () => {
   const cases: Array<[Partial<SiteDomainRecord>, string, string]> = [
-    [{ registration_status: 'pending', connection_status: 'not_started' }, 'pending', 'Commande en cours'],
+    [{ registration_status: 'pending', connection_status: 'not_started' }, 'pending', 'En cours de préparation'],
     [{ registration_status: 'expired', connection_status: 'active' }, 'attention', 'Expiré'],
     [{ registration_status: 'suspended', connection_status: 'active' }, 'attention', 'Suspendu'],
     [{ registration_status: 'transfer_out', connection_status: 'active' }, 'pending', 'Transfert en cours'],

@@ -131,7 +131,6 @@ export default function SASuperAdminsModals({
           title={`Site de ${siteSa.company || [siteSa.first_name, siteSa.last_name].filter(Boolean).join(' ')}`}
           subtitle={`Gestion du site pour la societe ${siteSa.company || siteSa.email}`}
           companyId={siteSa.company_id}
-          hideDomainTab
           onClose={onCloseSite}
           onBack={onSiteBack}
         />

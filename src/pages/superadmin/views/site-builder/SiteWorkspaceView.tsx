@@ -1,40 +1,42 @@
 import { useState } from 'react';
-import { Check, Loader2, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Check, Loader2, RefreshCw } from 'lucide-react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 import type { CompanyHomePageWithCompany, SiteTemplate } from '../../../../lib/companyHomePages';
-import type { SiteTabId } from '../../../../lib/siteWorkspaceModel';
+import { siteFlowState, resolveStep, type SiteStep } from '../../../../lib/siteFlowModel';
+import { domainSummary } from '../../../../lib/siteWorkspaceModel';
 import type { SiteContextState } from '../../../../lib/siteContextModel';
 import type { SiteWorkspaceData } from './useSiteWorkspaceData';
 import SiteManagerShellHeader from './SiteManagerShellHeader';
 import SiteContextBanner from './SiteContextBanner';
-import SiteOverviewTab from './SiteOverviewTab';
+import SiteConnectDomainStep from './SiteConnectDomainStep';
+import SiteChooseTemplateStep from './SiteChooseTemplateStep';
+import SiteLiveStep from './SiteLiveStep';
 import SiteDomainPanel from './SiteDomainPanel';
 import SiteDomainTab from './SiteDomainTab';
-import SiteTemplateLibrary from './SiteTemplateLibrary';
-import SiteLivePreviewTab from './SiteLivePreviewTab';
 import SitePreviewModal from './SitePreviewModal';
 import SiteApplyTemplateModal from './SiteApplyTemplateModal';
 import SADomainsModal from '../sites/SADomainsModal';
 import { BUTTON_BASE, EmptyPanel, PRIMARY_BUTTON_STYLE, secondaryButtonStyle } from './SiteUiParts';
 
 /*
- * Vue de l'interface Site : MON SITE | DOMAINE | TEMPLATES | APERCU.
- * Composant de presentation : le contexte (verifie par le serveur) et les donnees arrivent en props
- * depuis SiteManagerWorkspace. L'ancien Studio Site est masque (SiteStudioTab.tsx conserve, non monte).
+ * Interface Site : parcours DOMAINE -> TEMPLATE -> SITE.
+ * L'etape s'impose d'elle-meme (pas d'onglets) : sans domaine on connecte le domaine, sans template on
+ * choisit le site, sinon on voit directement le site. Une fois tout configure, revenir dans Site affiche
+ * le site, jamais l'assistant. Les anciens ecrans (onglets, tableau de bord, apercu) restent sur disque,
+ * simplement non montes : aucun moteur technique n'a ete supprime.
+ * Composant de presentation : le contexte (verifie par le serveur) et les donnees arrivent en props.
  */
 export interface SiteWorkspaceViewProps {
   ctx: SiteContextState;
   data: SiteWorkspaceData;
   title: string;
-  hideDomainTab?: boolean;
   onClose?: () => void;
   onBack?: () => void;
 }
 
-/* hideDomainTab (listes Talvex) est volontairement ignore : l'interface a toujours ses 4 onglets. */
 export default function SiteWorkspaceView({ ctx, data, title, onClose, onBack }: SiteWorkspaceViewProps) {
   const t = useThemeTokens();
-  const [tab, setTab] = useState<SiteTabId>('mon-site');
+  const [requested, setRequested] = useState<SiteStep | null>(null);
   const [previewTemplate, setPreviewTemplate] = useState<SiteTemplate | null>(null);
   const [applyCandidate, setApplyCandidate] = useState<SiteTemplate | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -45,7 +47,14 @@ export default function SiteWorkspaceView({ ctx, data, title, onClose, onBack }:
   const actorIsTalvex = ctx.actor?.role === 'super_admin';
   const activeId = data.activeTemplate?.id ?? null;
 
-  const changeTab = (next: SiteTabId) => { setTab(next); setNotice(null); };
+  const flow = siteFlowState({
+    domain: domainSummary(data.page, data.siteDomain).domain,
+    hasTemplate: !!data.page?.active_template_id && data.activeTemplate !== null,
+  });
+  const step = resolveStep(flow, requested);
+  const goTo = (next: SiteStep) => { setRequested(next); setNotice(null); };
+  /* Apres une etape franchie : on relache la navigation manuelle pour suivre l'etape reelle. */
+  const follow = () => setRequested(null);
 
   let body: React.ReactNode;
   if (data.loading) {
@@ -55,39 +64,68 @@ export default function SiteWorkspaceView({ ctx, data, title, onClose, onBack }:
       <EmptyPanel t={t} icon={<RefreshCw className="w-6 h-6" />} title="Le site n'a pas pu être chargé" text="Vérifiez votre connexion puis réessayez."
         action={<button onClick={() => data.reload()} className={`${BUTTON_BASE} w-full sm:w-auto`} style={secondaryButtonStyle(t)}>Réessayer</button>} />
     );
-  } else if (tab === 'mon-site') {
-    body = (
-      <SiteOverviewTab t={t} target={target} page={data.page} siteDomain={data.siteDomain} activeTemplate={data.activeTemplate}
-        hasTemplates={data.library.length > 0} onTabChange={changeTab} />
-    );
-  } else if (tab === 'domaine') {
+  } else if (step === 'domaine') {
     body = isPlatformSite
       // Site officiel Talvex : outils techniques existants, reserves a Talvex Administrateur.
       ? <SiteDomainTab page={data.page} onOpenDomainManager={() => setDomainToolsOpen(true)} ownerType="super_admin" onPageRefresh={() => data.reload()} />
-      : <SiteDomainPanel t={t} page={data.page} siteDomain={data.siteDomain} companyId={target.companyId!} actorIsTalvex={actorIsTalvex} />;
-  } else if (tab === 'templates') {
+      : flow.hasDomain
+        // Domaine deja connecte : l'adresse, changer de domaine, deconnecter.
+        ? (
+          <SiteDomainPanel t={t} page={data.page} siteDomain={data.siteDomain} companyId={target.companyId!}
+            targetName={target.name} actorIsTalvex={actorIsTalvex}
+            onChanged={async notice => { setNotice(notice); follow(); await data.reload(); }} />
+        )
+        : (
+          <SiteConnectDomainStep t={t} companyId={target.companyId!} targetName={target.name}
+            onAttached={async domain => {
+              setNotice(`${domain} est maintenant le domaine de votre site.`);
+              follow();
+              await data.reload();
+            }} />
+        );
+  } else if (step === 'template') {
     body = (
-      <SiteTemplateLibrary t={t} entries={data.library} targetName={target.name} actorIsTalvex={actorIsTalvex}
-        isPlatformSite={isPlatformSite} onPreview={setPreviewTemplate} onUse={setApplyCandidate} />
+      <SiteChooseTemplateStep t={t} entries={data.library} targetName={target.name} actorIsTalvex={actorIsTalvex}
+        isPlatformSite={isPlatformSite} domain={flow.domain} onManageDomain={() => goTo('domaine')}
+        onPreview={setPreviewTemplate} onUse={setApplyCandidate} />
     );
   } else {
-    body = <SiteLivePreviewTab t={t} page={data.page} siteDomain={data.siteDomain} payload={data.sitePreview} targetName={target.name} onTabChange={changeTab} />;
+    body = (
+      <SiteLiveStep t={t} page={data.page!} siteDomain={data.siteDomain} payload={data.sitePreview!} targetName={target.name}
+        domain={flow.domain} onManageDomain={() => goTo('domaine')} onChangeTemplate={() => goTo('template')} />
+    );
   }
 
   const pageWithCompany: CompanyHomePageWithCompany | null = data.page
     ? { ...data.page, companies: { name: target.name, entity_type: target.entityType ?? 'platform', parent_company_id: target.parentCompanyId } }
     : null;
+  const fullBleed = step === 'site' && !data.loading && !data.loadError;
 
   return (
-    <div className="flex flex-col h-full min-h-0 min-w-0" data-testid="site-workspace" data-site-target={target.companyId ?? 'platform'}>
-      <SiteManagerShellHeader
-        t={t} title={title} activeTab={tab} onTabChange={changeTab}
-        banner={<SiteContextBanner t={t} ctx={ctx} />} onClose={onClose} onBack={onBack}
-      />
-      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
-        <div className="p-3 sm:p-4 space-y-3 max-w-6xl mx-auto w-full">
+    <div className="flex flex-col h-full min-h-0 min-w-0" data-testid="site-workspace" data-site-target={target.companyId ?? 'platform'} data-site-step={step}>
+      <SiteManagerShellHeader t={t} title={title} banner={<SiteContextBanner t={t} ctx={ctx} />} onClose={onClose} onBack={onBack} />
+      <div className={`flex-1 min-h-0 overflow-x-hidden ${fullBleed ? 'overflow-hidden' : 'overflow-y-auto'}`}>
+        <div className={fullBleed
+          ? 'p-3 sm:p-4 h-full flex flex-col min-h-0 w-full'
+          : 'p-3 sm:p-4 space-y-3 max-w-5xl mx-auto w-full'}>
+          {/*
+            Un seul controle de sortie, jamais d'impasse :
+            - si on a quitte volontairement l'etape naturelle, on y revient ;
+            - si le site existe deja mais qu'on est ramene au domaine (domaine retire), on peut le rejoindre.
+          */}
+          {(step !== flow.step || (step === 'domaine' && flow.hasTemplate)) && (
+            <button type="button" data-testid="site-back-to-site"
+              onClick={step !== flow.step ? follow : () => goTo('site')}
+              className="inline-flex items-center justify-center gap-1.5 min-h-[44px] sm:min-h-[36px] px-3 rounded-lg text-sm sm:text-xs font-semibold self-start transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400"
+              style={{ background: t.surface.secondary, border: `1px solid ${t.surface.border}`, color: t.text.secondary }}>
+              <ArrowLeft className="w-3.5 h-3.5" aria-hidden="true" />
+              {step !== flow.step
+                ? (flow.step === 'site' ? 'Retour au site' : flow.step === 'template' ? 'Retour au choix du site' : 'Retour au domaine')
+                : 'Voir mon site'}
+            </button>
+          )}
           {notice && (
-            <p role="status" className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm sm:text-xs"
+            <p role="status" className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm sm:text-xs flex-shrink-0"
               style={{ background: t.success.bg, border: `1px solid ${t.success.border}`, color: t.success.text }}>
               <Check className="w-4 h-4 flex-shrink-0" />{notice}
             </p>
@@ -109,7 +147,7 @@ export default function SiteWorkspaceView({ ctx, data, title, onClose, onBack }:
               {previewTemplate.id !== activeId && (
                 <button onClick={() => { setApplyCandidate(previewTemplate); setPreviewTemplate(null); }}
                   className={BUTTON_BASE} style={PRIMARY_BUTTON_STYLE}>
-                  Utiliser ce template
+                  Choisir ce template
                 </button>
               )}
             </div>
@@ -125,7 +163,7 @@ export default function SiteWorkspaceView({ ctx, data, title, onClose, onBack }:
           targetName={target.name}
           onConfirm={data.applyTemplateToSite}
           onClose={() => setApplyCandidate(null)}
-          onDone={() => { setNotice(`Le template « ${applyCandidate.name} » est maintenant utilisé.`); setApplyCandidate(null); }}
+          onDone={() => { setNotice(`Votre site utilise « ${applyCandidate.name} ».`); setApplyCandidate(null); follow(); }}
         />
       )}
 

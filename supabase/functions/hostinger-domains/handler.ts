@@ -5,6 +5,9 @@
 // Aucune action ici ne peut acheter, configurer un DNS, modifier un WHOIS ni renouveler.
 // Aucune ecriture metier : seuls les compteurs de quota, la pause globale et le cache technique.
 import { isUuid, parseDomainInput, parseSearchQuery, parseTld } from "./domainInput.ts";
+import { connectApply, connectPlan, type ConnectDeps, type SiteDomainState } from "./connect.ts";
+import { disconnectApply, disconnectPlan, type ReleaseDeps } from "./disconnect.ts";
+import { switchApply } from "./switchDomain.ts";
 import { ProviderError, type HostingerClient, type ProviderResponse } from "./hostingerClient.ts";
 import {
   countAvailabilityRows,
@@ -17,6 +20,7 @@ import {
   type SellableTld,
   parsePortfolio,
   pickDomainDetails,
+  type ProviderDomain,
   pickYearlyPrices,
   reconcilePortfolio,
   summarizeCatalogItems,
@@ -78,9 +82,41 @@ export interface QuotaDecision {
   retryAfterSeconds: number;
 }
 
+/* Association d'un domaine dans Talvex (jamais calculee ni transmise par le navigateur). */
+export type DomainAttachment = "free" | "mine" | "other" | "unknown";
+
+export interface AttachInput {
+  companyId: string;
+  domain: string;
+  providerDomainId: number | null;
+  expiresAt: string | null;
+  registeredAt: string | null;
+  actorId: string;
+  actorRole: string;
+}
+
 export interface HandlerDeps {
   getCaller(authHeader: string | null): Promise<Caller | null>;
   canSearchDomains(authHeader: string, companyId: string): Promise<boolean>;
+  /* Etat d'un domaine vis-a-vis de l'entreprise ciblee : libre, deja a elle, ou pris ailleurs (sans dire par qui). */
+  domainAttachment(domain: string, companyId: string): Promise<DomainAttachment>;
+  /* Ecriture serveur : cree la ligne site_domains (et le site si besoin) et journalise l'evenement. */
+  attachDomain(input: AttachInput): Promise<"attached" | "taken" | "failed">;
+  /* Raccordement DNS/hebergement : clients et acces base, injectes comme le reste (testables). */
+  getSiteDomain: ConnectDeps["getSiteDomain"];
+  /* Domaine principal actuel de l'entreprise : c'est le SERVEUR qui decide lequel est remplace. */
+  getPrimarySiteDomain(companyId: string): Promise<SiteDomainState | null>;
+  /* Detachement et promotion cote Talvex uniquement (aucune action fournisseur). */
+  releaseSiteDomain: ReleaseDeps["releaseSiteDomain"];
+  promoteSiteDomain: ReleaseDeps["promoteSiteDomain"];
+  setConnection: ConnectDeps["setConnection"];
+  dns: ConnectDeps["dns"];
+  vercel: ConnectDeps["vercel"];
+  probeHttps: ConnectDeps["probeHttps"];
+  /* Diagnostic uniquement : meme projet designe par son nom, pour reperer un identifiant perime. */
+  vercelByName: ConnectDeps["vercel"];
+  /* Verrou d'ecriture DNS : tant qu'il est faux, connect_apply ne peut RIEN ecrire (plan seul autorise). */
+  connectEnabled: boolean;
   /* companyId : entreprise deja verifiee (branche calculee en base) ; null pour les actions Talvex. */
   consumeQuota(userId: string, companyId: string | null, isTalvex: boolean): Promise<QuotaDecision>;
   setBackoff(seconds: number, reason: "rate_limited" | "unauthorized"): Promise<void>;
@@ -102,7 +138,7 @@ function reply(status: number, body: Json): Response {
 }
 
 const DOMAIN_ROLES = new Set(["super_admin", "company_super_admin", "admin"]);
-const TALVEX_ACTIONS = new Set(["provider_status", "catalog_price", "catalog_items", "availability_probe", "portfolio_list", "portfolio_domain"]);
+const TALVEX_ACTIONS = new Set(["provider_status", "catalog_price", "catalog_items", "availability_probe", "portfolio_list", "portfolio_domain", "hosting_status"]);
 
 export type UnavailableReason =
   | "provider_not_configured"
@@ -407,6 +443,47 @@ async function checkPage(deps: HandlerDeps, caller: Caller, companyId: string, n
   return { ok: true, rows: merge(checked) };
 }
 
+/* Raison publique d'un echec de lecture (jamais le detail interne). */
+function publicReason(reason: UnavailableReason): UnavailableReason {
+  return reason === "not_found" || reason === "rejected_request" ? "provider_unavailable" : reason;
+}
+
+/* Ligne de resultat : cout Hostinger et code de restriction UNIQUEMENT pour Talvex. */
+function resultRow(row: BatchAvailabilityRow, prices: Map<string, SellableTld>, isTalvex: boolean): Json {
+  const item: Json = {
+    domain: row.domain,
+    tld: row.tld,
+    status: row.status,
+    restricted: row.restricted,
+    popular: POPULAR_TLDS.includes(row.tld),
+    client_price: null,
+  };
+  if (isTalvex) {
+    const price = prices.get(row.tld);
+    item.restriction_note = row.restrictionNote;
+    item.provider_price = row.status === "available" && price
+      ? { currency: price.currency, first_year_cents: price.firstYearCents, renewal_cents: price.renewalCents }
+      : null;
+  }
+  return item;
+}
+
+/* Extension non vendue par le compte : « non proposee », sans aucun appel Hostinger. */
+function notOfferedRow(name: string, tld: string, isTalvex: boolean): Json {
+  return {
+    domain: `${name}.${tld}`, tld, status: "not_offered", restricted: false, popular: false, client_price: null,
+    ...(isTalvex ? { restriction_note: null, provider_price: null } : {}),
+  };
+}
+
+/* Extensions choisies dans le filtre : 1 a 10 extensions valides, sans doublon ; null si la liste est invalide. */
+function parseSelectedTlds(value: unknown): string[] | null {
+  if (!Array.isArray(value) || value.length === 0 || value.length > LIMITS.searchPageSize) return null;
+  const tlds = value.map(parseTld);
+  if (tlds.some((tld) => tld === null)) return null;
+  return [...new Set(tlds as string[])];
+}
+
 async function searchDomains(body: Json, caller: Caller, authHeader: string, deps: HandlerDeps): Promise<Response> {
   const companyId = body.company_id;
   if (!isUuid(companyId)) return reply(400, { ok: false, error: "invalid_request" });
@@ -414,10 +491,14 @@ async function searchDomains(body: Json, caller: Caller, authHeader: string, dep
   if (!Number.isSafeInteger(offset) || (offset as number) < 0 || (offset as number) > LIMITS.searchMaxOffset) {
     return reply(400, { ok: false, error: "invalid_request" });
   }
+  // Verification ciblee (filtre par extension) : liste explicite, jamais combinee a une pagination.
+  const selected = body.tlds === undefined ? null : parseSelectedTlds(body.tlds);
+  if (body.tlds !== undefined && (selected === null || offset !== 0)) return reply(400, { ok: false, error: "invalid_request" });
   if (!(await deps.canSearchDomains(authHeader, companyId))) {
     deps.log({ action: "search_domains", outcome: "forbidden_company" });
     return reply(403, { ok: false, error: "forbidden" });
   }
+  if (selected) return await searchSelectedTlds(body, caller, companyId, selected, deps);
 
   const isTalvex = caller.role === "super_admin";
   const empty = { results: [] as Json[], offset, next_offset: null as number | null, total_tlds: null as number | null, retry_after_seconds: null as number | null };
@@ -470,36 +551,405 @@ async function searchDomains(body: Json, caller: Caller, authHeader: string, dep
   }
 
   const prices = new Map((catalog ?? []).map((t) => [t.tld, t]));
-  const results = page.rows.map((row) => {
-    const item: Json = {
-      domain: row.domain,
-      tld: row.tld,
-      status: row.status,
-      restricted: row.restricted,
-      popular: POPULAR_TLDS.includes(row.tld),
-      client_price: null,
-    };
-    if (isTalvex) {
-      const price = prices.get(row.tld);
-      item.restriction_note = row.restrictionNote;
-      item.provider_price = row.status === "available" && price
-        ? { currency: price.currency, first_year_cents: price.firstYearCents, renewal_cents: price.renewalCents }
-        : null;
-    }
-    return item;
-  });
+  const results = page.rows.map((row) => resultRow(row, prices, isTalvex));
 
   // Extension saisie mais non vendue par le compte : ligne explicite « non proposee » en tete de la 1re page
   // (aucun appel Hostinger pour elle), jamais un faux « indisponible ».
   if (start === 0 && query.requestedTld && header.requested_tld_offered === false) {
-    results.unshift({
-      domain: `${query.name}.${query.requestedTld}`, tld: query.requestedTld, status: "not_offered",
-      restricted: false, popular: false, client_price: null,
-      ...(isTalvex ? { restriction_note: null, provider_price: null } : {}),
-    });
+    results.unshift(notOfferedRow(query.name, query.requestedTld, isTalvex));
   }
 
   return reply(200, { ok: true, result: { status: "ok", ...header, results, offset: start, next_offset: nextOffset, retry_after_seconds: null } });
+}
+
+/*
+ * Filtre par extension : verifie UNIQUEMENT les extensions choisies (1 a 10) pour le meme nom, avec le meme
+ * mecanisme que les pages (1 requete groupee, coupee en deux sur erreur 500). Une extension absente du
+ * catalogue vendu revient « non proposee » sans appel Hostinger. Aucune pagination modifiee (next_offset null).
+ */
+async function searchSelectedTlds(body: Json, caller: Caller, companyId: string, selected: string[], deps: HandlerDeps): Promise<Response> {
+  const isTalvex = caller.role === "super_admin";
+  const base = { mode: "selected", results: [] as Json[], offset: 0, next_offset: null, retry_after_seconds: null as number | null };
+  const query = parseSearchQuery(body.query);
+  if (!query.ok) {
+    return reply(200, { ok: true, result: { status: "invalid", reason: query.error, name: null, requested_tld: null, requested_tld_offered: null, catalog_status: null, total_tlds: null, ...base } });
+  }
+  const catalogLoad = await sellableCatalog(deps, caller, companyId);
+  if (!catalogLoad.ok) {
+    return reply(200, { ok: true, result: {
+      status: "unknown", reason: publicReason(catalogLoad.reason), name: query.name, requested_tld: query.requestedTld, requested_tld_offered: null,
+      catalog_status: "unavailable", total_tlds: null, ...base, retry_after_seconds: catalogLoad.retryAfterSeconds,
+    } });
+  }
+  const catalog = catalogLoad.tlds;
+  const sold = new Set(catalog.map((t) => t.tld));
+  const header = {
+    name: query.name,
+    requested_tld: query.requestedTld,
+    requested_tld_offered: query.requestedTld ? sold.has(query.requestedTld) : null,
+    catalog_status: "ok",
+    total_tlds: orderSearchTlds([...sold], query.requestedTld).length,
+  };
+  const toCheck = selected.filter((tld) => sold.has(tld));
+  const checked = new Map<string, Json>();
+  if (toCheck.length > 0) {
+    const page = await checkPage(deps, caller, companyId, query.name, toCheck);
+    if (!page.ok) {
+      if (page.invalidDomain) return reply(200, { ok: true, result: { status: "invalid", reason: "invalid_domain", ...header, ...base } });
+      return reply(200, { ok: true, result: { status: "unknown", reason: page.reason, ...header, ...base, retry_after_seconds: page.retryAfterSeconds } });
+    }
+    const prices = new Map(catalog.map((t) => [t.tld, t]));
+    for (const row of page.rows) checked.set(row.tld, resultRow(row, prices, isTalvex));
+  }
+  const results = selected.map((tld) => checked.get(tld) ?? notOfferedRow(query.name, tld, isTalvex));
+  return reply(200, { ok: true, result: { status: "ok", ...header, ...base, results } });
+}
+
+/* ---------- Connecter un domaine deja achete (Groupe / Societe / Talvex) ---------- */
+
+/*
+ * Presence d'un domaine au portefeuille central, lue sur la LISTE (GET /portfolio).
+ * Constat reel du 18/09 : la route de detail (/portfolio/{domain}) echoue pour tous les domaines de ce
+ * compte, alors que la liste repond parfaitement et porte les memes champs. On ne depend donc que d'elle.
+ */
+async function findInPortfolio(deps: HandlerDeps, caller: Caller, companyId: string | null, domain: string, action: string): Promise<
+  | { ok: true; row: ProviderDomain | null }
+  | { ok: false; reason: UnavailableReason; retryAfterSeconds: number | null }
+> {
+  const call = await callProvider(deps, caller, companyId, action, (client) => client.listPortfolio());
+  if (!call.ok) return { ok: false, reason: call.reason, retryAfterSeconds: call.retryAfterSeconds };
+  const parsed = parsePortfolio(call.data);
+  // Reponse illisible : on n'affirme rien plutot que de conclure a tort a une absence.
+  if (!parsed) return { ok: false, reason: "provider_unavailable", retryAfterSeconds: null };
+  return { ok: true, row: parsed.domains.find((item) => item.domain === domain) ?? null };
+}
+
+/* Seul un domaine reellement utilisable peut etre connecte a un site. */
+const CONNECTABLE_PROVIDER_STATUSES = ["active", "pending_setup"];
+
+/*
+ * Verdict sur UN domaine precis, jamais une liste : le navigateur d'un Groupe ou d'une Societe ne recoit
+ * jamais le portefeuille Hostinger central, et n'apprend jamais a quelle autre entite un domaine appartient.
+ */
+async function lookupDomain(body: Json, caller: Caller, authHeader: string, deps: HandlerDeps): Promise<Response> {
+  const companyId = body.company_id;
+  if (!isUuid(companyId)) return reply(400, { ok: false, error: "invalid_request" });
+  if (!(await deps.canSearchDomains(authHeader, companyId))) {
+    deps.log({ action: "lookup_domain", outcome: "forbidden_company" });
+    return reply(403, { ok: false, error: "forbidden" });
+  }
+  const verdict = (status: string, extra: Json = {}) =>
+    reply(200, { ok: true, result: { status, domain: null, expires_at: null, reason: null, retry_after_seconds: null, ...extra } });
+
+  const parsed = parseDomainInput(body.domain);
+  if (!parsed.ok) return verdict("invalid", { reason: parsed.error });
+
+  const attachment = await deps.domainAttachment(parsed.domain, companyId);
+  if (attachment === "unknown") return verdict("unavailable", { domain: parsed.domain, reason: "provider_unavailable" });
+  if (attachment === "other") return verdict("taken", { domain: parsed.domain });
+  if (attachment === "mine") return verdict("already_yours", { domain: parsed.domain });
+
+  const found = await findInPortfolio(deps, caller, companyId, parsed.domain, "lookup_domain");
+  if (!found.ok) {
+    return verdict("unavailable", { domain: parsed.domain, reason: publicReason(found.reason), retry_after_seconds: found.retryAfterSeconds });
+  }
+  // Absent du portefeuille, ou present mais inutilisable (expire, suspendu) : jamais « disponible ».
+  if (!found.row || !CONNECTABLE_PROVIDER_STATUSES.includes(found.row.status ?? "")) return verdict("not_found", { domain: parsed.domain });
+  return verdict("available", { domain: parsed.domain, expires_at: found.row.expiresAt });
+}
+
+/* Associe le domaine a l'entreprise ciblee. Aucune commande, aucun DNS, aucune ecriture chez Hostinger. */
+async function attachDomain(body: Json, caller: Caller, authHeader: string, deps: HandlerDeps): Promise<Response> {
+  const companyId = body.company_id;
+  if (!isUuid(companyId)) return reply(400, { ok: false, error: "invalid_request" });
+  if (!(await deps.canSearchDomains(authHeader, companyId))) {
+    deps.log({ action: "attach_domain", outcome: "forbidden_company" });
+    return reply(403, { ok: false, error: "forbidden" });
+  }
+  const result = (status: string, extra: Json = {}) =>
+    reply(200, { ok: true, result: { status, domain: null, reason: null, retry_after_seconds: null, ...extra } });
+
+  const parsed = parseDomainInput(body.domain);
+  if (!parsed.ok) return result("invalid", { reason: parsed.error });
+
+  const attachment = await deps.domainAttachment(parsed.domain, companyId);
+  if (attachment === "unknown") return result("unavailable", { domain: parsed.domain, reason: "provider_unavailable" });
+  if (attachment === "other") return result("taken", { domain: parsed.domain });
+  // Deja associe a cette entreprise : rien a faire, on ne recree pas de ligne.
+  if (attachment === "mine") return result("attached", { domain: parsed.domain });
+
+  // Le domaine doit reellement etre dans le portefeuille central AU MOMENT de l'association.
+  const found = await findInPortfolio(deps, caller, companyId, parsed.domain, "attach_domain");
+  if (!found.ok) {
+    return result("unavailable", { domain: parsed.domain, reason: publicReason(found.reason), retry_after_seconds: found.retryAfterSeconds });
+  }
+  if (!found.row || !CONNECTABLE_PROVIDER_STATUSES.includes(found.row.status ?? "")) return result("not_found", { domain: parsed.domain });
+
+  const written = await deps.attachDomain({
+    companyId, domain: parsed.domain, providerDomainId: found.row.providerDomainId,
+    expiresAt: found.row.expiresAt, registeredAt: found.row.createdAt, actorId: caller.id, actorRole: caller.role,
+  });
+  deps.log({ action: "attach_domain", outcome: written });
+  if (written === "taken") return result("taken", { domain: parsed.domain });
+  if (written === "failed") return result("unavailable", { domain: parsed.domain, reason: "provider_unavailable" });
+  return result("attached", { domain: parsed.domain });
+}
+
+/*
+ * Prealable commun a TOUTES les actions qui touchent au domaine d'un site (raccorder, changer,
+ * deconnecter) : le budget d'appels est le meme pour tout le monde. Un refus n'est jamais une panne.
+ */
+type QuotaGate = { ok: true } | { ok: false; reason: "rate_limited" | "busy" | "provider_unavailable"; retryAfterSeconds: number | null };
+
+/*
+ * Cout reserve d'avance par une action lourde. Mesure du parcours reel : un raccordement ou un
+ * changement declenche jusqu'a une dizaine d'appels chez le fournisseur (lectures de zone, ecriture,
+ * rattachement, verification, relecture...), une deconnexion environ quatre. Sans cette reserve, une
+ * seule branche pouvait consommer le budget commun et mettre tous les autres locataires en pause.
+ */
+export const HEAVY_ACTION_COST = 4;
+
+async function domainQuotaGate(deps: HandlerDeps, caller: Caller, companyId: string, action: string, cost = 1): Promise<QuotaGate> {
+  for (let unit = 0; unit < Math.max(1, cost); unit++) {
+    let quota: QuotaDecision;
+    try {
+      quota = await deps.consumeQuota(caller.id, companyId, caller.role === "super_admin");
+    } catch {
+      deps.log({ action, outcome: "quota_check_failed" });
+      return { ok: false, reason: "provider_unavailable", retryAfterSeconds: null };
+    }
+    if (!quota.allowed) {
+      deps.log({ action, outcome: `quota_${quota.refusal ?? "refused"}` });
+      return {
+        ok: false,
+        reason: quota.refusal === "user_limit" || quota.refusal === "branch_limit" ? "rate_limited" : "busy",
+        retryAfterSeconds: quota.retryAfterSeconds,
+      };
+    }
+  }
+  return { ok: true };
+}
+
+/*
+ * Raccordement du domaine : « connect_plan » (lecture seule, montre ce qui serait ecrit) et
+ * « connect_apply » (execute, reprenable). Memes droits que le reste : role gestionnaire + entreprise verifiee.
+ */
+async function connectDomain(body: Json, caller: Caller, authHeader: string, deps: HandlerDeps, mode: "plan" | "apply"): Promise<Response> {
+  const action = mode === "plan" ? "connect_plan" : "connect_apply";
+  const companyId = body.company_id;
+  if (!isUuid(companyId)) return reply(400, { ok: false, error: "invalid_request" });
+  if (!(await deps.canSearchDomains(authHeader, companyId))) {
+    deps.log({ action, outcome: "forbidden_company" });
+    return reply(403, { ok: false, error: "forbidden" });
+  }
+  const outcome = (result: Json) => reply(200, { ok: true, result });
+  const parsed = parseDomainInput(body.domain);
+  if (!parsed.ok) return outcome({ status: "unavailable", step: "attach", connection_status: "not_started", reason: parsed.error });
+
+  let state = await deps.getSiteDomain(companyId, parsed.domain);
+  if (!state) {
+    // Plan de verification Talvex avant toute association : lecture seule, et seulement si le domaine
+    // n'appartient a personne d'autre. Une application reelle exige toujours une association prealable.
+    const talvexPreview = mode === "plan" && caller.role === "super_admin";
+    if (!talvexPreview) {
+      return outcome({ status: "unavailable", step: "attach", connection_status: "not_started", reason: "not_attached",
+        message: "Ce domaine n'est pas associe a cette entreprise." });
+    }
+    const attachment = await deps.domainAttachment(parsed.domain, companyId);
+    if (attachment === "other") {
+      return outcome({ status: "blocked", step: "attach", connection_status: "not_started", reason: "taken",
+        message: "Ce domaine est deja utilise par une autre entite." });
+    }
+    state = {
+      id: "00000000-0000-0000-0000-000000000000", companyId, domain: parsed.domain, connectionStatus: "not_started",
+      dnsConfiguredAt: null, vercelAttachedAt: null, verifiedAt: null, activatedAt: null, technicalDetails: {},
+    };
+  }
+
+  if (mode === "apply" && !deps.connectEnabled) {
+    deps.log({ action, outcome: "connect_disabled" });
+    return outcome({
+      status: "blocked", step: "dns", connection_status: state.connectionStatus, reason: "connect_disabled",
+      message: "Le raccordement automatique n'est pas encore active sur ce serveur.",
+    });
+  }
+
+  // Les appels DNS et hebergement comptent dans le meme budget que le reste.
+  const quota = await domainQuotaGate(deps, caller, companyId, action, mode === "apply" ? HEAVY_ACTION_COST : 1);
+  if (!quota.ok) {
+    return outcome({
+      status: "unavailable", step: "dns", connection_status: state.connectionStatus,
+      reason: quota.reason, retry_after_seconds: quota.retryAfterSeconds,
+    });
+  }
+
+  // Le domaine doit reellement etre au portefeuille central : sans cela, aucun plan n'a de sens.
+  const portfolio = await findInPortfolio(deps, caller, companyId, state.domain, action);
+  if (!portfolio.ok) {
+    return outcome({
+      status: "unavailable", step: "attach", connection_status: state.connectionStatus, reason: publicReason(portfolio.reason),
+      message: "L'etat du domaine n'a pas pu etre lu chez le fournisseur.", retry_after_seconds: portfolio.retryAfterSeconds,
+    });
+  }
+  if (!portfolio.row || !CONNECTABLE_PROVIDER_STATUSES.includes(portfolio.row.status ?? "")) {
+    return outcome({
+      status: "blocked", step: "attach", connection_status: state.connectionStatus, reason: "not_in_portfolio",
+      message: "Ce domaine n'est pas utilisable aujourd'hui (absent du portefeuille, expire ou suspendu).",
+    });
+  }
+
+  const result = mode === "plan" ? await connectPlan(deps, state) : await connectApply(deps, state);
+  return outcome(result as unknown as Json);
+}
+
+/*
+ * Les ecritures de detachement et de promotion portent le nom de l'auteur reel de l'action : le
+ * journal doit pouvoir dire QUI a deconnecte un domaine, pas seulement « le serveur ».
+ */
+function withActor(deps: HandlerDeps, caller: Caller): HandlerDeps {
+  return {
+    ...deps,
+    releaseSiteDomain: (input) => deps.releaseSiteDomain({ ...input, actorId: caller.id, actorRole: caller.role }),
+    promoteSiteDomain: (input) => deps.promoteSiteDomain({ ...input, actorId: caller.id, actorRole: caller.role }),
+  };
+}
+
+/*
+ * Deconnexion : « disconnect_plan » (lecture seule) et « disconnect_apply ».
+ * Aucune verification de portefeuille ici : un domaine expire, suspendu ou sorti du compte doit pouvoir
+ * etre detache. Rien n'est supprime chez le fournisseur : le domaine reste la propriete du compte.
+ * Isolation : seul un domaine deja associe A CETTE entreprise peut etre deconnecte ; pour tout autre
+ * domaine la reponse est la meme, sans jamais dire s'il existe ailleurs.
+ */
+async function disconnectDomain(body: Json, caller: Caller, authHeader: string, deps: HandlerDeps, mode: "plan" | "apply"): Promise<Response> {
+  const action = mode === "plan" ? "disconnect_plan" : "disconnect_apply";
+  const companyId = body.company_id;
+  if (!isUuid(companyId)) return reply(400, { ok: false, error: "invalid_request" });
+  if (!(await deps.canSearchDomains(authHeader, companyId))) {
+    deps.log({ action, outcome: "forbidden_company" });
+    return reply(403, { ok: false, error: "forbidden" });
+  }
+  const outcome = (result: Json) => reply(200, { ok: true, result });
+  const parsed = parseDomainInput(body.domain);
+  if (!parsed.ok) {
+    return outcome({ status: "unavailable", step: "read", connection_status: "not_started", reason: parsed.error });
+  }
+
+  const state = await deps.getSiteDomain(companyId, parsed.domain);
+  if (!state) {
+    return outcome({
+      status: "unavailable", step: "read", connection_status: "not_started", reason: "not_attached",
+      message: "Ce domaine n'est pas celui de cette entreprise.",
+    });
+  }
+  if (mode === "apply" && !deps.connectEnabled) {
+    deps.log({ action, outcome: "connect_disabled" });
+    return outcome({
+      status: "blocked", step: "read", connection_status: state.connectionStatus, reason: "connect_disabled",
+      message: "La deconnexion automatique n'est pas encore activee sur ce serveur.",
+    });
+  }
+  const quota = await domainQuotaGate(deps, caller, companyId, action, mode === "apply" ? HEAVY_ACTION_COST : 1);
+  if (!quota.ok) {
+    return outcome({
+      status: "unavailable", step: "read", connection_status: state.connectionStatus,
+      reason: quota.reason, retry_after_seconds: quota.retryAfterSeconds,
+    });
+  }
+
+  const acting = withActor(deps, caller);
+  const result = mode === "plan" ? await disconnectPlan(acting, state) : await disconnectApply(acting, state);
+  return outcome(result as unknown as Json);
+}
+
+/*
+ * Changer de domaine. Le navigateur n'envoie que le NOUVEAU domaine : c'est le serveur qui retrouve
+ * l'ancien (domaine principal de l'entreprise). Le nouveau est verifie au portefeuille, associe, puis
+ * raccorde entierement ; l'ancien ne bouge qu'apres. Relancer reprend ou l'action s'est arretee.
+ */
+async function switchDomainAction(body: Json, caller: Caller, authHeader: string, deps: HandlerDeps): Promise<Response> {
+  const action = "switch_domain";
+  const companyId = body.company_id;
+  if (!isUuid(companyId)) return reply(400, { ok: false, error: "invalid_request" });
+  if (!(await deps.canSearchDomains(authHeader, companyId))) {
+    deps.log({ action, outcome: "forbidden_company" });
+    return reply(403, { ok: false, error: "forbidden" });
+  }
+  const outcome = (result: Json) => reply(200, { ok: true, result });
+  const stop = (status: string, reason: string, message: string, extra: Json = {}) => outcome({
+    status, step: "connect", connection_status: "not_started", domain: null, previous_domain: null,
+    previous_state: null, reason, message, ...extra,
+  });
+
+  const parsed = parseDomainInput(body.domain);
+  if (!parsed.ok) return stop("unavailable", parsed.error, "Entrez le domaine complet, par exemple : johanna.com");
+  if (!deps.connectEnabled) {
+    deps.log({ action, outcome: "connect_disabled" });
+    return stop("blocked", "connect_disabled", "Le changement de domaine n'est pas encore active sur ce serveur.");
+  }
+  const quota = await domainQuotaGate(deps, caller, companyId, action, HEAVY_ACTION_COST);
+  if (!quota.ok) return stop("unavailable", quota.reason, "Reessayez dans un instant.", { retry_after_seconds: quota.retryAfterSeconds });
+
+  const current = await deps.getPrimarySiteDomain(companyId);
+  // Un detachement d'ancien domaine reste-t-il a terminer ? Si oui, on ne court-circuite pas : l'action
+  // doit pouvoir le reprendre, sinon l'ancien domaine resterait attache indefiniment.
+  const pendingRelease = typeof (current?.technicalDetails as { switch_release_domain?: unknown } | undefined)?.switch_release_domain === "string";
+  // Deja l'adresse du site ET reellement active : rien a refaire. Si elle n'est pas active, on ne
+  // pretend pas que tout va bien : on repasse par le raccordement complet, qui est reprenable.
+  if (current && current.domain === parsed.domain && current.connectionStatus === "active" && !pendingRelease) {
+    return outcome({
+      status: "ok", step: "done", connection_status: current.connectionStatus, domain: current.domain,
+      previous_domain: null, previous_state: null, message: "C'est deja l'adresse de votre site.",
+    });
+  }
+
+  // Le nouveau domaine doit etre libre pour cette entreprise : jamais un mot sur qui le detient.
+  const attachment = await deps.domainAttachment(parsed.domain, companyId);
+  if (attachment === "unknown") return stop("unavailable", "provider_unavailable", "Verification impossible pour le moment.");
+  if (attachment === "other") return stop("blocked", "taken", "Ce domaine est deja utilise.");
+
+  let next = await deps.getSiteDomain(companyId, parsed.domain);
+  if (!next) {
+    const found = await findInPortfolio(deps, caller, companyId, parsed.domain, action);
+    if (!found.ok) {
+      return stop("unavailable", publicReason(found.reason), "L'etat du domaine n'a pas pu etre lu. Reessayez dans un instant.",
+        { retry_after_seconds: found.retryAfterSeconds });
+    }
+    if (!found.row || !CONNECTABLE_PROVIDER_STATUSES.includes(found.row.status ?? "")) {
+      return stop("blocked", "not_in_portfolio", "Ce domaine n'est pas utilisable aujourd'hui.");
+    }
+    const written = await deps.attachDomain({
+      companyId, domain: parsed.domain, providerDomainId: found.row.providerDomainId,
+      expiresAt: found.row.expiresAt, registeredAt: found.row.createdAt, actorId: caller.id, actorRole: caller.role,
+    });
+    if (written === "taken") return stop("blocked", "taken", "Ce domaine est deja utilise.");
+    if (written === "failed") return stop("unavailable", "provider_unavailable", "Le domaine n'a pas pu etre prepare. Reessayez dans un instant.");
+    next = await deps.getSiteDomain(companyId, parsed.domain);
+    if (!next) return stop("unavailable", "provider_unavailable", "Le domaine n'a pas pu etre prepare. Reessayez dans un instant.");
+  }
+
+  const result = await switchApply(withActor(deps, caller), { next, current });
+  return outcome(result as unknown as Json);
+}
+
+/*
+ * Liste des extensions pour « Filtrer par extension » : les NOMS des extensions vendues (jamais de cout),
+ * dans l'ordre de la recherche. Meme source que la recherche : le catalogue serveur en cache (6 h),
+ * donc aucun appel Hostinger tant que ce cache est valide ; il suit le catalogue reel a chaque rafraichissement.
+ */
+async function searchExtensions(body: Json, caller: Caller, authHeader: string, deps: HandlerDeps): Promise<Response> {
+  const companyId = body.company_id;
+  if (!isUuid(companyId)) return reply(400, { ok: false, error: "invalid_request" });
+  if (!(await deps.canSearchDomains(authHeader, companyId))) {
+    deps.log({ action: "search_extensions", outcome: "forbidden_company" });
+    return reply(403, { ok: false, error: "forbidden" });
+  }
+  const catalogLoad = await sellableCatalog(deps, caller, companyId);
+  if (!catalogLoad.ok) {
+    return reply(200, { ok: true, result: { status: "unknown", reason: publicReason(catalogLoad.reason), tlds: [], total_tlds: null, retry_after_seconds: catalogLoad.retryAfterSeconds } });
+  }
+  const tlds = orderSearchTlds(catalogLoad.tlds.map((t) => t.tld), null);
+  return reply(200, { ok: true, result: { status: "ok", reason: null, tlds, total_tlds: tlds.length, retry_after_seconds: null } });
 }
 
 /* Diagnostic Talvex : disponibilite groupee sur une liste d'extensions choisie (lecture seule, 25 max). */
@@ -636,6 +1086,48 @@ export async function handleRequest(req: Request, deps: HandlerDeps): Promise<Re
         return await checkAvailability(body, caller, authHeader, deps);
       case "search_domains":
         return await searchDomains(body, caller, authHeader, deps);
+      case "search_extensions":
+        return await searchExtensions(body, caller, authHeader, deps);
+      case "lookup_domain":
+        return await lookupDomain(body, caller, authHeader, deps);
+      case "attach_domain":
+        return await attachDomain(body, caller, authHeader, deps);
+      case "hosting_status": {
+        // Diagnostic Talvex : joignabilite du projet d'hebergement, sans aucun secret dans la reponse.
+        if (!deps.vercel) return reply(200, { ok: true, result: { configured: false, project: null, reason: "not_configured" } });
+        const read = async (client: ConnectDeps["vercel"]) => {
+          if (!client) return { ok: false as const, reason: "not_configured" };
+          try {
+            const project = await client.getProject();
+            const name = typeof project === "object" && project !== null ? (project as { name?: unknown }).name : null;
+            return typeof name === "string" && name !== ""
+              ? { ok: true as const, name }
+              : { ok: false as const, reason: "unnamed" };
+          } catch (error) {
+            return { ok: false as const, reason: error instanceof ProviderError ? error.code : "provider_unavailable" };
+          }
+        };
+        const byId = await read(deps.vercel);
+        const byName = byId.ok ? null : await read(deps.vercelByName);
+        deps.log({ action: "hosting_status", outcome: byId.ok ? "ok" : `id_${byId.reason}` });
+        return reply(200, { ok: true, result: {
+          configured: true,
+          project: byId.ok ? byId.name : null,
+          reason: byId.ok ? null : byId.reason,
+          // Si le projet repond par son nom mais pas par l'identifiant enregistre, celui-ci est perime.
+          by_name: byName === null ? null : byName.ok ? byName.name : `echec:${byName.reason}`,
+        } });
+      }
+      case "connect_plan":
+        return await connectDomain(body, caller, authHeader, deps, "plan");
+      case "connect_apply":
+        return await connectDomain(body, caller, authHeader, deps, "apply");
+      case "switch_domain":
+        return await switchDomainAction(body, caller, authHeader, deps);
+      case "disconnect_plan":
+        return await disconnectDomain(body, caller, authHeader, deps, "plan");
+      case "disconnect_apply":
+        return await disconnectDomain(body, caller, authHeader, deps, "apply");
       case "provider_status":
         return reply(200, { ok: true, result: { configured: deps.hostinger !== null } });
       case "catalog_price":

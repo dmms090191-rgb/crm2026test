@@ -3,12 +3,12 @@ import { describeRow, type SearchRow } from '../../../../lib/domainSearchModel';
 import { BuySoonButton, DomainName, DomainStatusBadge } from './SiteDomainResultParts';
 
 /*
- * « Autres extensions » : une ligne compacte par extension verifiee.
- * wide : colonnes alignees DOMAINE / STATUT / 1RE ANNEE / RENOUVELLEMENT / ACTION ;
+ * Une ligne compacte par extension verifiee (recommandees et autres extensions).
+ * wide (ordinateur) : colonnes alignees DOMAINE / STATUT / 1RE ANNEE / RENOUVELLEMENT / ACTION ;
  * sinon (mobile, conteneur etroit) : petite fiche verticale, jamais de tableau horizontal.
  * Prix : cout Hostinger pour Talvex, « Prix client : bientot disponible » sinon. Acheter DESACTIVE.
  */
-export const OTHER_COLUMNS = 'minmax(0,1fr) 128px 100px 132px 196px';
+export const OTHER_COLUMNS = 'minmax(0,1fr) 128px 112px 136px 196px';
 
 interface Props {
   t: ThemeTokens;
@@ -16,9 +16,11 @@ interface Props {
   actorIsTalvex: boolean;
   wide: boolean;
   divider: boolean;
+  /* Extension saisie dans la recherche (« popolera.fr ») : petite mention a cote du nom. */
+  requested?: boolean;
 }
 
-export default function SiteDomainResultRow({ t, row, actorIsTalvex, wide, divider }: Props) {
+export default function SiteDomainResultRow({ t, row, actorIsTalvex, wide, divider, requested = false }: Props) {
   const view = describeRow(row, actorIsTalvex);
   const available = row.status === 'available';
   const price = view.price;
@@ -38,7 +40,15 @@ export default function SiteDomainResultRow({ t, row, actorIsTalvex, wide, divid
       <li className="grid items-center gap-4 px-5 min-h-[56px] py-2.5 transition-colors duration-150 [@media(hover:hover)]:hover:bg-[color:var(--dom-row-hover)]"
         style={{ ...rowStyle, gridTemplateColumns: OTHER_COLUMNS }}
         data-testid="site-domain-result" data-status={row.status}>
-        <div className="min-w-0">{name}{condition}</div>
+        <div className="min-w-0">
+          {requested ? (
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+              {name}
+              <span className="text-[10px] font-semibold uppercase tracking-wider whitespace-nowrap" style={{ color: t.text.tertiary }}>Extension recherchée</span>
+            </div>
+          ) : name}
+          {condition}
+        </div>
         <div><DomainStatusBadge t={t} status={row.status} label={view.label} /></div>
         {price?.kind === 'provider' ? (
           <>

@@ -11,13 +11,12 @@ import SiteWorkspaceView from './SiteWorkspaceView';
 interface Props {
   ownerType: SiteOwnerType;
   title: string;
-  hideDomainTab?: boolean;
   onClose?: () => void;
   onBack?: () => void;
 }
 
-export default function SiteManagerWorkspace({ title, hideDomainTab, onClose, onBack }: Props) {
+export default function SiteManagerWorkspace({ title, onClose, onBack }: Props) {
   const ctx = useSiteContext();
   const data = useSiteWorkspaceData(ctx);
-  return <SiteWorkspaceView ctx={ctx} data={data} title={title} hideDomainTab={hideDomainTab} onClose={onClose} onBack={onBack} />;
+  return <SiteWorkspaceView ctx={ctx} data={data} title={title} onClose={onClose} onBack={onBack} />;
 }

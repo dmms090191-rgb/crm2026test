@@ -14,7 +14,6 @@ interface Props {
   companyId?: string | null;
   companyName?: string;
   societeId?: string | null;
-  hideDomainTab?: boolean;
   onClose?: () => void;
   onBack?: () => void;
 }
@@ -25,11 +24,11 @@ interface Props {
  * - sinon : site de l'entreprise companyId. Sans companyId, aucun repli sur l'entreprise
  *   du compte connecte : l'ecran l'indique clairement.
  */
-export default function SiteManagerShell({ ownerType, title, companyId, hideDomainTab, onClose, onBack }: Props) {
+export default function SiteManagerShell({ ownerType, title, companyId, onClose, onBack }: Props) {
   const scope = ownerType === 'super_admin' ? 'platform' : 'company';
   return (
     <SiteContextProvider scope={scope} targetCompanyId={scope === 'company' ? companyId ?? null : null}>
-      <SiteManagerGate ownerType={ownerType} title={title} hideDomainTab={hideDomainTab} onClose={onClose} onBack={onBack} />
+      <SiteManagerGate ownerType={ownerType} title={title} onClose={onClose} onBack={onBack} />
     </SiteContextProvider>
   );
 }
@@ -37,16 +36,15 @@ export default function SiteManagerShell({ ownerType, title, companyId, hideDoma
 interface GateProps {
   ownerType: SiteOwnerType;
   title: string;
-  hideDomainTab?: boolean;
   onClose?: () => void;
   onBack?: () => void;
 }
 
-function SiteManagerGate({ ownerType, title, hideDomainTab, onClose, onBack }: GateProps) {
+function SiteManagerGate({ ownerType, title, onClose, onBack }: GateProps) {
   const t = useThemeTokens();
   const ctx = useSiteContext();
   if (ctx.status !== 'ready') {
     return <SiteContextStatusView t={t} title={title} status={ctx.status} onClose={onClose} onBack={onBack} />;
   }
-  return <SiteManagerWorkspace ownerType={ownerType} title={title} hideDomainTab={hideDomainTab} onClose={onClose} onBack={onBack} />;
+  return <SiteManagerWorkspace ownerType={ownerType} title={title} onClose={onClose} onBack={onBack} />;
 }

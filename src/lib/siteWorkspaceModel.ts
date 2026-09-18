@@ -88,7 +88,7 @@ export function summarizeSiteDomain(record: SiteDomainRecord): DomainSummary {
 
   switch (record.registration_status) {
     case 'pending':
-      return { ...base, state: 'pending', label: 'Commande en cours', hint: 'La commande de votre nom de domaine est en cours de traitement.', tone: 'warning' };
+      return { ...base, state: 'pending', label: 'En cours de préparation', hint: 'La préparation de votre nom de domaine est en cours.', tone: 'warning' };
     case 'expired':
       return { ...base, state: 'attention', label: 'Expiré', hint: 'Votre nom de domaine a expiré.', tone: 'danger' };
     case 'suspended':

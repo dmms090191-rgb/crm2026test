@@ -286,6 +286,8 @@ export function pickDomainDetails(data: unknown, expectedDomain: string) {
   return {
     domain: expectedDomain,
     status: str(data.status),
+    /* Identifiant technique du domaine chez le fournisseur (jamais un contact WHOIS). */
+    providerDomainId: typeof data.id === "number" && Number.isSafeInteger(data.id) ? data.id : null,
     registeredAt: str(data.registered_at),
     expiresAt: str(data.expires_at),
     isLocked: typeof data.is_locked === "boolean" ? data.is_locked : null,
