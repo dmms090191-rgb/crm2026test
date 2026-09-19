@@ -27,6 +27,8 @@ interface Props {
   /* Sortie visible quand l'operation n'a pas abouti : jamais d'impasse. */
   onContinue?: () => void;
   continueLabel?: string;
+  /* Libelle du bouton de relance (defaut : « Réessayer »). */
+  retryLabel?: string;
   /*
    * Succes assorti d'un avertissement (ex. ancienne adresse non detachee) : l'ecran ne doit PAS se
    * refermer tout seul, sinon le client ne lit jamais l'avertissement.
@@ -37,7 +39,7 @@ interface Props {
 const FOCUS_RING = 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400';
 const SMALL_BUTTON = `inline-flex items-center justify-center gap-2 min-h-[44px] sm:min-h-[36px] px-3 rounded-lg text-sm sm:text-xs font-semibold ${FOCUS_RING}`;
 
-export default function SiteConnectProgress({ t, title, steps, reassurance, phase, status, tone, text, canRetry, busy, onRetry, onContinue, continueLabel, requireAck }: Props) {
+export default function SiteConnectProgress({ t, title, steps, reassurance, phase, status, tone, text, canRetry, busy, onRetry, onContinue, continueLabel, retryLabel, requireAck }: Props) {
   const liste = steps ?? DOMAIN_STEPS;
   return (
     <div className="mt-5 rounded-2xl p-4 sm:p-5" style={{ border: `1px solid ${t.surface.border}`, background: t.surface.secondary }}
@@ -75,7 +77,7 @@ export default function SiteConnectProgress({ t, title, steps, reassurance, phas
             <button type="button" onClick={onRetry} disabled={busy} className={SMALL_BUTTON}
               style={{ background: t.surface.primary, border: `1px solid ${t.surface.border}`, color: t.text.primary }}
               data-testid="site-connect-retry">
-              {busy ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> : null} Réessayer
+              {busy ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> : null} {retryLabel ?? 'Réessayer'}
             </button>
           )}
           {onContinue && (status !== 'ok' || requireAck === true) && (

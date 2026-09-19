@@ -8,6 +8,7 @@ import { DISCONNECT_CONFIRM, disconnectMessage, type DisconnectResult } from '..
 import { BUTTON_BASE, SITE_ACCENT, SITE_GRADIENT, StatusPill, cardStyle, secondaryButtonStyle, toneStyle } from './SiteUiParts';
 import SiteConnectProgress from './SiteConnectProgress';
 import { useAutoRetry } from './useAutoRetry';
+import { needsSecuring, useSecuringPoll } from './useSecuringPoll';
 
 /*
  * DOMAINE CONNECTE — l'ecran simple demande par David :
@@ -27,6 +28,8 @@ interface Props {
   canResume: boolean;
   /* Rechargement apres une reprise reussie. */
   onResumed: () => void;
+  /* Domaine reste en attente de securisation : verification legere automatique des l'ouverture. */
+  autoCheck: boolean;
 }
 
 const FOCUS_RING = 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400';
@@ -38,13 +41,17 @@ const PRIMARY_ACTION = `mt-5 w-full sm:w-auto inline-flex items-center justify-c
 const PRIMARY_STYLE = { background: SITE_GRADIENT, color: '#fff', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.18), 0 1px 2px rgba(0,0,0,0.25), 0 6px 18px rgba(14,165,233,0.20)' };
 const RESUME_PENDING: ConnectProgress = { status: 'pending', step: 'dns', connectionStatus: 'not_started', reason: null, message: null, retryAfterSeconds: null };
 
-export default function SiteDomainConnected({ t, companyId, summary, onChangeDomain, onDisconnected, canResume, onResumed }: Props) {
+export default function SiteDomainConnected({ t, companyId, summary, onChangeDomain, onDisconnected, canResume, onResumed, autoCheck }: Props) {
   const [confirming, setConfirming] = useState(false);
   const [working, setWorking] = useState(false);
   const [result, setResult] = useState<DisconnectResult | null>(null);
   const [resume, setResume] = useState<{ progress: ConnectProgress; auto: boolean } | null>(null);
   const [resuming, setResuming] = useState(false);
   const autoRetry = useAutoRetry();
+  // Securisation : verification legere automatique (jamais le raccordement complet) ; au succes, rechargement.
+  const securing = useSecuringPoll(companyId, summary.domain ?? null, () => window.setTimeout(() => { securing.stop(); setResume(null); onResumed(); }, 1400));
+  const startSecuring = securing.start;
+  useEffect(() => { if (autoCheck) startSecuring(0); }, [autoCheck, startSecuring]);
   const abortRef = useRef<AbortController | null>(null);
   const confirmRef = useRef<HTMLButtonElement | null>(null);
 
@@ -54,6 +61,7 @@ export default function SiteDomainConnected({ t, companyId, summary, onChangeDom
   const domain = summary.domain ?? '';
 
   const disconnect = async () => {
+    securing.stop();
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
@@ -84,6 +92,7 @@ export default function SiteDomainConnected({ t, companyId, summary, onChangeDom
       if (controller.signal.aborted) return;
       const wait = autoRetryDelay(progress);
       setResume({ progress, auto: wait !== null && autoRetry.schedule(wait, () => void runResume()) });
+      if (needsSecuring(progress)) securing.start();
       if (progress.status === 'ok') window.setTimeout(() => { setResume(null); onResumed(); }, 1400);
     } catch {
       // Remplacee par une action plus recente.
@@ -91,7 +100,7 @@ export default function SiteDomainConnected({ t, companyId, summary, onChangeDom
       if (abortRef.current === controller) setResuming(false);
     }
   };
-  const resumeNow = () => { autoRetry.reset(); void runResume(); };
+  const resumeNow = () => { securing.stop(); autoRetry.reset(); void runResume(); };
 
   const feedback = result ? disconnectMessage(result) : null;
   const resumeMessage = resume ? connectMessage(resume.progress, resume.auto) : null;
@@ -126,14 +135,20 @@ export default function SiteDomainConnected({ t, companyId, summary, onChangeDom
             </a>
           )}
           {/* Mise en service interrompue : on la reprend, au lieu de devoir deconnecter puis reconnecter. */}
-          {canResume && !resume && domain && (
+          {canResume && !resume && !securing.view && domain && (
             <button type="button" onClick={resumeNow} disabled={working || resuming} data-testid="site-domain-resume"
               className={PRIMARY_ACTION} style={PRIMARY_STYLE}>
               {resuming ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> : <RotateCw className="w-4 h-4" aria-hidden="true" />}
               Reprendre la mise en service
             </button>
           )}
-          {resume && resumeMessage && (
+          {securing.view && (
+            <SiteConnectProgress t={t} title={`Mise en service de ${domain}`} phase={securing.view.phase}
+              status={securing.view.status} tone={securing.view.tone} text={securing.view.text} canRetry={securing.view.canRetry}
+              busy={resuming} retryLabel={securing.view.retryLabel ?? undefined}
+              onRetry={securing.view.retry === 'light' ? () => securing.start(0) : resumeNow} />
+          )}
+          {resume && resumeMessage && !securing.view && (
             <SiteConnectProgress t={t} title={`Mise en service de ${domain}`} phase={resume.progress.step}
               status={resume.progress.status} tone={resumeMessage.tone} text={resuming ? null : resumeMessage.text}
               canRetry={resumeMessage.canRetry} busy={resuming} onRetry={resumeNow} />

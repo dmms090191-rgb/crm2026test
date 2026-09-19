@@ -4,6 +4,7 @@ import type { ThemeTokens } from '../../../../lib/themeTokensTypes';
 import type { CompanyHomePage } from '../../../../lib/companyHomePages';
 import type { SiteDomainRecord } from '../../../../lib/siteDomainTypes';
 import { canResumeConnection, domainSummary, formatDateFr } from '../../../../lib/siteWorkspaceModel';
+import { autoCheckOnOpen } from '../../../../lib/siteSecuringModel';
 import { SITE_ACCENT } from './SiteUiParts';
 import SiteDomainConnected from './SiteDomainConnected';
 import SiteConnectDomainStep from './SiteConnectDomainStep';
@@ -61,6 +62,7 @@ export default function SiteDomainPanel({ t, page, siteDomain, companyId, target
         onChangeDomain={() => setChanging(true)}
         onDisconnected={() => onChanged('Le domaine a été déconnecté. Il reste votre propriété et vos e-mails ne sont pas touchés.')}
         canResume={canResumeConnection(siteDomain)}
+        autoCheck={autoCheckOnOpen(siteDomain)}
         onResumed={() => onChanged(`${summary.domain} est maintenant l'adresse de votre site.`)}
       />
 

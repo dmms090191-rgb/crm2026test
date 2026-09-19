@@ -37,6 +37,16 @@ export async function connectDomain(companyId: string, domain: string, signal?: 
   return parseConnectResponse(posted.status, posted.body);
 }
 
+/*
+ * Verification LEGERE de la securisation (connect_check) : jamais d'ecriture DNS, jamais de rattachement,
+ * jamais d'appel Hostinger. Sert a finir l'etape « Securisation » sans relancer tout le raccordement.
+ */
+export async function checkDomainConnection(companyId: string, domain: string, signal?: AbortSignal): Promise<ConnectProgress> {
+  const posted = await postToServer({ action: 'connect_check', company_id: companyId, domain }, signal);
+  if (typeof posted === 'string') return { status: 'unavailable', step: 'https', connectionStatus: 'verifying', reason: posted, message: null, retryAfterSeconds: null };
+  return parseConnectResponse(posted.status, posted.body);
+}
+
 /* Plan de raccordement (LECTURE SEULE) : sert a verifier ce qui serait ecrit avant de l'ecrire. */
 export async function planDomainConnection(companyId: string, domain: string, signal?: AbortSignal): Promise<unknown> {
   const posted = await postToServer({ action: 'connect_plan', company_id: companyId, domain }, signal);

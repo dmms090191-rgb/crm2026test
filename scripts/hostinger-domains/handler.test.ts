@@ -1134,3 +1134,89 @@ test("reconnexion : un refus de budget est entier et ne brule aucune unite", asy
   assert.equal(portfolioCalls(connect).length, 0, "aucun appel fournisseur apres un refus");
   assert.ok(!connect.connectCalls.includes("setConnection"), "aucune ecriture d'etat");
 });
+
+/* ---------- Verification legere de la securisation (connect_check) ---------- */
+
+const VERIFYING: SiteDomainState = {
+  ...NOT_STARTED, connectionStatus: "verifying",
+  dnsConfiguredAt: "2026-09-19T01:03:13Z", vercelAttachedAt: "2026-09-19T01:03:14Z", verifiedAt: "2026-09-19T01:03:14Z",
+};
+const checkReq = (company: string, domain = "johanna.com") => ({ action: "connect_check", company_id: company, domain });
+
+// Harnais pret pour connect_check : Vercel simule, DNS piege (tout appel serait une faute), HTTPS reglable.
+function checkHarness(state: SiteDomainState | null, https = true, quotaAllowed = true) {
+  const h = harness({ respond: portfolioFake(portfolioRow()), connectEnabled: true, siteDomain: state, quotaAllowed });
+  const touched: string[] = [];
+  h.deps.dns = {
+    async getZone() { touched.push("dns.getZone"); throw new Error("interdit"); },
+    async listSnapshots() { touched.push("dns.listSnapshots"); throw new Error("interdit"); },
+    async putZone() { touched.push("dns.putZone"); throw new Error("interdit"); },
+    async deleteRecords() { touched.push("dns.deleteRecords"); throw new Error("interdit"); },
+  };
+  h.deps.vercel = {
+    async getProject() { touched.push("vercel.getProject"); return { name: "crm2026test" }; },
+    async getDomainConfig() { touched.push("vercel.getDomainConfig"); return { misconfigured: false, recommendedIPv4: [{ rank: 1, value: ["216.198.79.1"] }] }; },
+    async getProjectDomain(domain: string) { touched.push("vercel.getProjectDomain"); return { name: domain, verified: true }; },
+    async addProjectDomain() { touched.push("vercel.addProjectDomain"); throw new Error("interdit"); },
+    async verifyProjectDomain(domain: string) { touched.push("vercel.verifyProjectDomain"); return { name: domain, verified: true }; },
+    async removeProjectDomain() { touched.push("vercel.removeProjectDomain"); throw new Error("interdit"); },
+  };
+  h.deps.probeHttps = async () => { touched.push("probeHttps"); return https; };
+  return { h, touched };
+}
+
+test("connect_check : une seule unite, aucun appel Hostinger, aucun DNS, aucun rattachement, et la ligne passe active", async () => {
+  const { h, touched } = checkHarness(VERIFYING);
+  const r = await call(h, "societeA", checkReq(SOC_A));
+  assert.equal(r.status, 200);
+  assert.deepEqual([r.body.result.status, r.body.result.connection_status], ["ok", "active"]);
+  assert.deepEqual(h.quotaCalls.map((q) => q.cost), [1], "exactement 1 unite");
+  assert.equal(h.hostingerCalls.length, 0, "aucune requete vers l'API Hostinger");
+  assert.deepEqual(touched.filter((t) => t.startsWith("dns.") || t === "vercel.addProjectDomain" || t === "vercel.removeProjectDomain"), []);
+  assert.deepEqual(h.attachCalls, [], "aucune association, donc aucune nouvelle ligne");
+  assert.ok(h.connectCalls.includes("setConnection"));
+});
+
+test("connect_check : HTTPS pas encore pret -> attente, 1 unite, rien d'ecrit", async () => {
+  const { h, touched } = checkHarness(VERIFYING, false);
+  const r = await call(h, "societeA", checkReq(SOC_A));
+  assert.deepEqual([r.body.result.status, r.body.result.reason], ["pending", "https_pending"]);
+  assert.deepEqual(h.quotaCalls.map((q) => q.cost), [1]);
+  assert.ok(!h.connectCalls.includes("setConnection"));
+  assert.ok(touched.includes("probeHttps"));
+});
+
+test("connect_check : ligne deja active -> aucune unite, aucun appel exterieur", async () => {
+  const { h, touched } = checkHarness({ ...VERIFYING, connectionStatus: "active" });
+  const r = await call(h, "societeA", checkReq(SOC_A));
+  assert.deepEqual([r.body.result.status, r.body.result.step], ["ok", "done"]);
+  assert.equal(h.quotaCalls.length, 0);
+  assert.deepEqual(touched, []);
+  assert.equal(h.hostingerCalls.length, 0);
+});
+
+test("connect_check : raccordement jamais lance -> « reprise necessaire », sans unite ni appel", async () => {
+  const { h, touched } = checkHarness(NOT_STARTED);
+  const r = await call(h, "societeA", checkReq(SOC_A));
+  assert.deepEqual([r.body.result.status, r.body.result.reason], ["blocked", "resume_required"]);
+  assert.equal(h.quotaCalls.length, 0);
+  assert.deepEqual(touched, []);
+});
+
+test("connect_check : cloisonnement strict (anonyme, Commercial, Client, autre Societe)", async () => {
+  const { h, touched } = checkHarness(VERIFYING);
+  assert.equal((await call(h, null, checkReq(SOC_A))).status, 401);
+  for (const who of ["commercialA", "clientA", "desactive"]) assert.equal((await call(h, who, checkReq(SOC_A))).status, 403, who);
+  assert.equal((await call(h, "societeA", checkReq(SOC_B))).status, 403, "jamais le domaine d'une autre entite");
+  assert.equal((await call(h, "societeA", { ...checkReq(SOC_A), company_id: "pas-un-uuid" })).status, 400);
+  assert.equal(h.quotaCalls.length, 0);
+  assert.deepEqual(touched, []);
+  assert.ok(!h.connectCalls.includes("setConnection"));
+});
+
+test("connect_check : budget momentanement plein -> refus propre, delai annonce, aucun appel", async () => {
+  const { h, touched } = checkHarness(VERIFYING, true, false);
+  const r = await call(h, "societeA", checkReq(SOC_A));
+  assert.deepEqual([r.body.result.status, r.body.result.reason, r.body.result.retry_after_seconds], ["unavailable", "rate_limited", 37]);
+  assert.deepEqual(touched, []);
+});

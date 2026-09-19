@@ -11,6 +11,7 @@ import { DOMAIN_STEPS, SWITCH_STEPS, switchMessage, switchPhase, type UiPhase } 
 import { SITE_ACCENT, SITE_GRADIENT, cardStyle, toneStyle } from './SiteUiParts';
 import SiteConnectProgress from './SiteConnectProgress';
 import SiteConnectResult from './SiteConnectResult';
+import { needsSecuring, useSecuringPoll } from './useSecuringPoll';
 import { useAutoRetry } from './useAutoRetry';
 
 /*
@@ -43,11 +44,7 @@ interface Panel {
 }
 
 const FOCUS_RING = 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400';
-const VERIFY_BUTTON_STYLE: CSSProperties = {
-  background: SITE_GRADIENT,
-  color: '#fff',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.18), 0 1px 2px rgba(0,0,0,0.25), 0 4px 14px rgba(14,165,233,0.18)',
-};
+const VERIFY_BUTTON_STYLE: CSSProperties = { background: SITE_GRADIENT, color: '#fff', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.18), 0 1px 2px rgba(0,0,0,0.25), 0 4px 14px rgba(14,165,233,0.18)' };
 
 export default function SiteConnectDomainStep({ t, companyId, targetName, mode = 'add', currentDomain = null, onAttached, onSettled, onCancel }: Props) {
   const [value, setValue] = useState('');
@@ -62,10 +59,12 @@ export default function SiteConnectDomainStep({ t, companyId, targetName, mode =
   const abortRef = useRef<AbortController | null>(null);
   const isSwitch = mode === 'switch';
   const autoRetry = useAutoRetry();
+  const securing = useSecuringPoll(companyId, lookup?.domain ?? null, () => { const d = lookup?.domain; if (d) window.setTimeout(() => onAttached(d), 1400); });
 
   useEffect(() => () => abortRef.current?.abort(), []);
 
   const start = () => {
+    securing.stop();
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
@@ -133,6 +132,7 @@ export default function SiteConnectDomainStep({ t, companyId, targetName, mode =
     if (outcome.status === 'ok' || outcome.reason === 'connect_disabled') {
       window.setTimeout(() => onAttached(domain), 1400);
     }
+    if (!isSwitch && needsSecuring(outcome)) securing.start();
   };
 
   const choose = async () => {
@@ -274,10 +274,11 @@ export default function SiteConnectDomainStep({ t, companyId, targetName, mode =
           reassurance={isSwitch && currentDomain && panel.status !== 'ok'
             ? `Votre site reste accessible sur ${currentDomain} : l'ancienne adresse n'est retirée qu'à la toute fin.`
             : null}
-          phase={panel.phase} status={panel.status} tone={panel.tone}
-          text={panel.text} canRetry={panel.canRetry} busy={busy} onRetry={() => { autoRetry.reset(); void retry(); }}
-          requireAck={panel.ack === true}
-          onContinue={panel.ack === true ? () => onAttached(lookup.domain!) : isSwitch ? onCancel : () => { autoRetry.cancel(); onSettled?.(); }}
+          phase={(securing.view ?? panel).phase} status={(securing.view ?? panel).status} tone={(securing.view ?? panel).tone}
+          text={(securing.view ?? panel).text} canRetry={(securing.view ?? panel).canRetry} busy={busy}
+          onRetry={securing.view?.retry === 'light' ? () => securing.start(0) : () => { autoRetry.reset(); void retry(); }}
+          requireAck={panel.ack === true} retryLabel={securing.view?.retryLabel ?? undefined}
+          onContinue={securing.view?.polling ? undefined : panel.ack === true ? () => onAttached(lookup.domain!) : isSwitch ? onCancel : () => { autoRetry.cancel(); onSettled?.(); }}
           continueLabel={panel.ack === true ? "J'ai compris" : isSwitch ? 'Revenir à mon domaine' : 'Continuer'} />
       )}
 

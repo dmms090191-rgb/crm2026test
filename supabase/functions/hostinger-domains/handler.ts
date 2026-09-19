@@ -8,6 +8,7 @@ import { isUuid, parseDomainInput, parseSearchQuery, parseTld } from "./domainIn
 import { connectApply, connectPlan, type ConnectDeps, type SiteDomainState } from "./connect.ts";
 import { disconnectApply, disconnectPlan, type ReleaseDeps } from "./disconnect.ts";
 import { switchApply } from "./switchDomain.ts";
+import { connectCheck, isLightCheckable } from "./connectCheck.ts";
 import { ProviderError, type HostingerClient, type ProviderResponse } from "./hostingerClient.ts";
 import {
   countAvailabilityRows,
@@ -828,6 +829,42 @@ function withActor(deps: HandlerDeps, caller: Caller): HandlerDeps {
  * Isolation : seul un domaine deja associe A CETTE entreprise peut etre deconnecte ; pour tout autre
  * domaine la reponse est la meme, sans jamais dire s'il existe ailleurs.
  */
+/*
+ * Verification LEGERE de la securisation (connect_check), appelee automatiquement par l'interface tant
+ * que le domaine est en « verifying ». Memes droits que le raccordement. Jamais Hostinger, jamais d'ecriture
+ * DNS, jamais de rattachement : voir connectCheck.ts. Une unite de quota par verification reelle ; aucune
+ * (et aucun appel exterieur) quand la ligne est deja active ou doit etre reprise par connect_apply.
+ */
+async function checkConnection(body: Json, caller: Caller, authHeader: string, deps: HandlerDeps): Promise<Response> {
+  const action = "connect_check";
+  const companyId = body.company_id;
+  if (!isUuid(companyId)) return reply(400, { ok: false, error: "invalid_request" });
+  if (!(await deps.canSearchDomains(authHeader, companyId))) {
+    deps.log({ action, outcome: "forbidden_company" });
+    return reply(403, { ok: false, error: "forbidden" });
+  }
+  const outcome = (result: Json) => reply(200, { ok: true, result });
+  const parsed = parseDomainInput(body.domain);
+  if (!parsed.ok) return outcome({ status: "unavailable", step: "https", connection_status: "not_started", reason: parsed.error });
+
+  const state = await deps.getSiteDomain(companyId, parsed.domain);
+  if (!state) return outcome({ status: "blocked", step: "attach", connection_status: "not_started", reason: "not_attached" });
+  if (!deps.connectEnabled) {
+    return outcome({ status: "blocked", step: "https", connection_status: state.connectionStatus, reason: "connect_disabled" });
+  }
+  // Deja actif, ou raccordement a reprendre : reponse immediate, sans quota ni appel exterieur.
+  if (!isLightCheckable(state)) return outcome({ ...(await connectCheck(deps, state)) });
+
+  const quota = await domainQuotaGate(deps, caller, companyId, action, 1);
+  if (!quota.ok) {
+    return outcome({
+      status: "unavailable", step: "https", connection_status: state.connectionStatus,
+      reason: quota.reason, retry_after_seconds: quota.retryAfterSeconds,
+    });
+  }
+  return outcome({ ...(await connectCheck(deps, state)) });
+}
+
 async function disconnectDomain(body: Json, caller: Caller, authHeader: string, deps: HandlerDeps, mode: "plan" | "apply"): Promise<Response> {
   const action = mode === "plan" ? "disconnect_plan" : "disconnect_apply";
   const companyId = body.company_id;
@@ -1130,6 +1167,8 @@ export async function handleRequest(req: Request, deps: HandlerDeps): Promise<Re
         return await connectDomain(body, caller, authHeader, deps, "plan");
       case "connect_apply":
         return await connectDomain(body, caller, authHeader, deps, "apply");
+      case "connect_check":
+        return await checkConnection(body, caller, authHeader, deps);
       case "switch_domain":
         return await switchDomainAction(body, caller, authHeader, deps);
       case "disconnect_plan":
