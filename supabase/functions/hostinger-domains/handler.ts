@@ -32,10 +32,11 @@ import {
  * Quota en fenetre glissante de 60 s (public.reserve_domain_provider_call) :
  * Hostinger accepte 90 appels/min pour tout le compte ; Talvex s'arrete a 75 (marge de 15).
  * Groupes et Societes ensemble : 55 au plus, ce qui reserve au moins 20 appels a Talvex.
- * Une branche (Groupe + Societes filles) : 20. Un utilisateur : 10.
+ * Une branche (Groupe + Societes filles) : 20. Un utilisateur : 15 : le parcours legitime le plus
+ * serre, deconnecter puis reconnecter dans la minute, coute 4 + 1 + 1 + 5 = 11 unites.
  */
 export const LIMITS = {
-  userPerMinute: 10,
+  userPerMinute: 15,
   branchPerMinute: 20,
   tenantsPerMinute: 55,
   globalPerMinute: 75,
@@ -118,7 +119,8 @@ export interface HandlerDeps {
   /* Verrou d'ecriture DNS : tant qu'il est faux, connect_apply ne peut RIEN ecrire (plan seul autorise). */
   connectEnabled: boolean;
   /* companyId : entreprise deja verifiee (branche calculee en base) ; null pour les actions Talvex. */
-  consumeQuota(userId: string, companyId: string | null, isTalvex: boolean): Promise<QuotaDecision>;
+  /* Reserve `cost` unites d'un seul coup, ou aucune : un refus ne consomme rien. */
+  consumeQuota(userId: string, companyId: string | null, isTalvex: boolean, cost: number): Promise<QuotaDecision>;
   setBackoff(seconds: number, reason: "rate_limited" | "unauthorized"): Promise<void>;
   cacheGet(key: string): Promise<{ payload: unknown; fetchedAt: string } | null>;
   cachePut(key: string, kind: "availability" | "catalog", payload: unknown, ttlSeconds: number): Promise<void>;
@@ -172,16 +174,20 @@ async function callProvider<T>(
   companyId: string | null,
   action: string,
   run: (client: HostingerClient) => Promise<ProviderResponse<T>>,
+  /* Unite deja comprise dans une reservation lourde (domainQuotaGate) : ne pas la payer deux fois. */
+  prepaid = false,
 ): Promise<ProviderCall<T>> {
   if (!deps.hostinger) return failure("provider_not_configured");
 
-  let quota: QuotaDecision;
-  try {
-    quota = await deps.consumeQuota(caller.id, companyId, caller.role === "super_admin");
-  } catch {
-    // Ferme par defaut : sans quota confirme, aucun appel Hostinger.
-    deps.log({ action, outcome: "quota_check_failed" });
-    return failure("provider_unavailable");
+  let quota: QuotaDecision = { allowed: true, refusal: null, retryAfterSeconds: 0 };
+  if (!prepaid) {
+    try {
+      quota = await deps.consumeQuota(caller.id, companyId, caller.role === "super_admin", 1);
+    } catch {
+      // Ferme par defaut : sans quota confirme, aucun appel Hostinger.
+      deps.log({ action, outcome: "quota_check_failed" });
+      return failure("provider_unavailable");
+    }
   }
   if (!quota.allowed) {
     deps.log({ action, outcome: `quota_${quota.refusal ?? "refused"}` });
@@ -612,11 +618,11 @@ async function searchSelectedTlds(body: Json, caller: Caller, companyId: string,
  * Constat reel du 18/09 : la route de detail (/portfolio/{domain}) echoue pour tous les domaines de ce
  * compte, alors que la liste repond parfaitement et porte les memes champs. On ne depend donc que d'elle.
  */
-async function findInPortfolio(deps: HandlerDeps, caller: Caller, companyId: string | null, domain: string, action: string): Promise<
+async function findInPortfolio(deps: HandlerDeps, caller: Caller, companyId: string | null, domain: string, action: string, prepaid = false): Promise<
   | { ok: true; row: ProviderDomain | null }
   | { ok: false; reason: UnavailableReason; retryAfterSeconds: number | null }
 > {
-  const call = await callProvider(deps, caller, companyId, action, (client) => client.listPortfolio());
+  const call = await callProvider(deps, caller, companyId, action, (client) => client.listPortfolio(), prepaid);
   if (!call.ok) return { ok: false, reason: call.reason, retryAfterSeconds: call.retryAfterSeconds };
   const parsed = parsePortfolio(call.data);
   // Reponse illisible : on n'affirme rien plutot que de conclure a tort a une absence.
@@ -710,22 +716,21 @@ type QuotaGate = { ok: true } | { ok: false; reason: "rate_limited" | "busy" | "
 export const HEAVY_ACTION_COST = 4;
 
 async function domainQuotaGate(deps: HandlerDeps, caller: Caller, companyId: string, action: string, cost = 1): Promise<QuotaGate> {
-  for (let unit = 0; unit < Math.max(1, cost); unit++) {
-    let quota: QuotaDecision;
-    try {
-      quota = await deps.consumeQuota(caller.id, companyId, caller.role === "super_admin");
-    } catch {
-      deps.log({ action, outcome: "quota_check_failed" });
-      return { ok: false, reason: "provider_unavailable", retryAfterSeconds: null };
-    }
-    if (!quota.allowed) {
-      deps.log({ action, outcome: `quota_${quota.refusal ?? "refused"}` });
-      return {
-        ok: false,
-        reason: quota.refusal === "user_limit" || quota.refusal === "branch_limit" ? "rate_limited" : "busy",
-        retryAfterSeconds: quota.retryAfterSeconds,
-      };
-    }
+  // Une seule reservation pour le cout complet : tout ou rien. Un refus ne consomme aucune unite.
+  let quota: QuotaDecision;
+  try {
+    quota = await deps.consumeQuota(caller.id, companyId, caller.role === "super_admin", Math.max(1, cost));
+  } catch {
+    deps.log({ action, outcome: "quota_check_failed" });
+    return { ok: false, reason: "provider_unavailable", retryAfterSeconds: null };
+  }
+  if (!quota.allowed) {
+    deps.log({ action, outcome: `quota_${quota.refusal ?? "refused"}` });
+    return {
+      ok: false,
+      reason: quota.refusal === "user_limit" || quota.refusal === "branch_limit" ? "rate_limited" : "busy",
+      retryAfterSeconds: quota.retryAfterSeconds,
+    };
   }
   return { ok: true };
 }
@@ -774,8 +779,10 @@ async function connectDomain(body: Json, caller: Caller, authHeader: string, dep
     });
   }
 
-  // Les appels DNS et hebergement comptent dans le meme budget que le reste.
-  const quota = await domainQuotaGate(deps, caller, companyId, action, mode === "apply" ? HEAVY_ACTION_COST : 1);
+  // Les appels DNS et hebergement comptent dans le meme budget que le reste. La relecture du portefeuille
+  // ci-dessous est reservee dans le meme coup (+1) : le raccordement a tout son budget ou ne demarre pas,
+  // jamais de refus a mi-parcours apres avoir deja consomme.
+  const quota = await domainQuotaGate(deps, caller, companyId, action, (mode === "apply" ? HEAVY_ACTION_COST : 1) + 1);
   if (!quota.ok) {
     return outcome({
       status: "unavailable", step: "dns", connection_status: state.connectionStatus,
@@ -784,7 +791,7 @@ async function connectDomain(body: Json, caller: Caller, authHeader: string, dep
   }
 
   // Le domaine doit reellement etre au portefeuille central : sans cela, aucun plan n'a de sens.
-  const portfolio = await findInPortfolio(deps, caller, companyId, state.domain, action);
+  const portfolio = await findInPortfolio(deps, caller, companyId, state.domain, action, true);
   if (!portfolio.ok) {
     return outcome({
       status: "unavailable", step: "attach", connection_status: state.connectionStatus, reason: publicReason(portfolio.reason),
@@ -887,7 +894,8 @@ async function switchDomainAction(body: Json, caller: Caller, authHeader: string
     deps.log({ action, outcome: "connect_disabled" });
     return stop("blocked", "connect_disabled", "Le changement de domaine n'est pas encore active sur ce serveur.");
   }
-  const quota = await domainQuotaGate(deps, caller, companyId, action, HEAVY_ACTION_COST);
+  // + 1 : la lecture eventuelle du portefeuille (nouveau domaine pas encore associe) est reservee d'avance.
+  const quota = await domainQuotaGate(deps, caller, companyId, action, HEAVY_ACTION_COST + 1);
   if (!quota.ok) return stop("unavailable", quota.reason, "Reessayez dans un instant.", { retry_after_seconds: quota.retryAfterSeconds });
 
   const current = await deps.getPrimarySiteDomain(companyId);
@@ -910,7 +918,7 @@ async function switchDomainAction(body: Json, caller: Caller, authHeader: string
 
   let next = await deps.getSiteDomain(companyId, parsed.domain);
   if (!next) {
-    const found = await findInPortfolio(deps, caller, companyId, parsed.domain, action);
+    const found = await findInPortfolio(deps, caller, companyId, parsed.domain, action, true);
     if (!found.ok) {
       return stop("unavailable", publicReason(found.reason), "L'etat du domaine n'a pas pu etre lu. Reessayez dans un instant.",
         { retry_after_seconds: found.retryAfterSeconds });

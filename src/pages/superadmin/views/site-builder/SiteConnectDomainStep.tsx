@@ -4,22 +4,19 @@ import type { ThemeTokens } from '../../../../lib/themeTokensTypes';
 import type { StatusTone } from '../../../../lib/siteWorkspaceModel';
 import { attachDomain, connectDomain, lookupDomain, switchDomain } from '../../../../lib/siteDomainConnect';
 import {
-  attachMessage, connectMessage, lookupFeedback, precheckDomainInput,
+  attachMessage, autoRetryDelay, connectMessage, lookupFeedback, precheckDomainInput,
   type DomainLookup,
 } from '../../../../lib/siteFlowModel';
 import { DOMAIN_STEPS, SWITCH_STEPS, switchMessage, switchPhase, type UiPhase } from '../../../../lib/siteDomainManageModel';
 import { SITE_ACCENT, SITE_GRADIENT, cardStyle, toneStyle } from './SiteUiParts';
 import SiteConnectProgress from './SiteConnectProgress';
 import SiteConnectResult from './SiteConnectResult';
+import { useAutoRetry } from './useAutoRetry';
 
 /*
- * CONNECTER SON DOMAINE — et, avec mode="switch", EN CHANGER.
- * Le navigateur pose une question sur UN domaine precis ; le serveur Talvex verifie qu'il est bien dans
- * le portefeuille central et qu'il est libre pour cette entreprise. Le portefeuille complet n'est jamais
- * envoye au navigateur, et rien n'indique jamais a quelle autre entite appartient un domaine deja pris.
- *
- * En mode "switch", une seule action serveur fait tout : preparer le nouveau domaine, le rendre actif,
- * puis seulement apres detacher l'ancien. Tant que le nouveau n'est pas pret, l'ancien continue de servir.
+ * CONNECTER SON DOMAINE — et, avec mode="switch", EN CHANGER. Le serveur verifie UN domaine precis (portefeuille
+ * central, libre pour cette entreprise) : jamais le portefeuille complet, jamais a qui appartient un domaine pris.
+ * En changement, une seule action serveur prepare le nouveau domaine, le rend actif, puis detache l'ancien.
  */
 interface Props {
   t: ThemeTokens;
@@ -29,6 +26,8 @@ interface Props {
   /* Mode "switch" : adresse actuelle, affichee pour rassurer (elle reste en service pendant l'operation). */
   currentDomain?: string | null;
   onAttached: (domain: string) => void;
+  /* Sortie apres un echec (mode ajout) : retour a l'etat reel, JAMAIS avec un message de succes. */
+  onSettled?: () => void;
   onCancel?: () => void;
 }
 
@@ -50,7 +49,7 @@ const VERIFY_BUTTON_STYLE: CSSProperties = {
   boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.18), 0 1px 2px rgba(0,0,0,0.25), 0 4px 14px rgba(14,165,233,0.18)',
 };
 
-export default function SiteConnectDomainStep({ t, companyId, targetName, mode = 'add', currentDomain = null, onAttached, onCancel }: Props) {
+export default function SiteConnectDomainStep({ t, companyId, targetName, mode = 'add', currentDomain = null, onAttached, onSettled, onCancel }: Props) {
   const [value, setValue] = useState('');
   const [focused, setFocused] = useState(false);
   const [hint, setHint] = useState<string | null>(null);
@@ -62,6 +61,7 @@ export default function SiteConnectDomainStep({ t, companyId, targetName, mode =
   const [problem, setProblem] = useState<{ tone: StatusTone; text: string } | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const isSwitch = mode === 'switch';
+  const autoRetry = useAutoRetry();
 
   useEffect(() => () => abortRef.current?.abort(), []);
 
@@ -73,6 +73,7 @@ export default function SiteConnectDomainStep({ t, companyId, targetName, mode =
   };
 
   const check = async (raw: string) => {
+    autoRetry.reset();
     const pre = precheckDomainInput(raw);
     setLookup(null);
     setProblem(null);
@@ -119,7 +120,8 @@ export default function SiteConnectDomainStep({ t, companyId, targetName, mode =
   const runConnect = async (domain: string, controller: AbortController) => {
     const outcome = await connectDomain(companyId, domain, controller.signal);
     if (controller.signal.aborted) return;
-    const message = connectMessage(outcome);
+    const wait = autoRetryDelay(outcome);
+    const message = connectMessage(outcome, wait !== null && autoRetry.schedule(wait, () => void retry()));
     setPanel({
       title: `Raccordement de ${domain}`,
       phase: outcome.step,
@@ -135,6 +137,7 @@ export default function SiteConnectDomainStep({ t, companyId, targetName, mode =
 
   const choose = async () => {
     if (!lookup?.domain) return;
+    autoRetry.reset();
     const domain = lookup.domain;
     const controller = start();
     setBusy(true);
@@ -184,10 +187,8 @@ export default function SiteConnectDomainStep({ t, companyId, targetName, mode =
   };
 
   const feedback = lookup ? lookupFeedback(lookup) : null;
-  /*
-   * Changement interrompu : le nouveau domaine a deja ete associe, donc le serveur repond « deja le
-   * votre ». Sans ce rattrapage, le bouton disparaitrait et le client ne pourrait plus rien reprendre.
-   */
+  // Changement interrompu : le nouveau domaine est deja associe (« deja le votre ») ; sans ce rattrapage,
+  // le bouton disparaitrait et le client ne pourrait plus rien reprendre.
   const resumable = isSwitch && lookup?.status === 'already_yours';
   const canChoose = feedback !== null && (feedback.canChoose || resumable);
 
@@ -274,9 +275,9 @@ export default function SiteConnectDomainStep({ t, companyId, targetName, mode =
             ? `Votre site reste accessible sur ${currentDomain} : l'ancienne adresse n'est retirée qu'à la toute fin.`
             : null}
           phase={panel.phase} status={panel.status} tone={panel.tone}
-          text={panel.text} canRetry={panel.canRetry} busy={busy} onRetry={() => void retry()}
+          text={panel.text} canRetry={panel.canRetry} busy={busy} onRetry={() => { autoRetry.reset(); void retry(); }}
           requireAck={panel.ack === true}
-          onContinue={panel.ack === true ? () => onAttached(lookup.domain!) : isSwitch ? onCancel : () => onAttached(lookup.domain!)}
+          onContinue={panel.ack === true ? () => onAttached(lookup.domain!) : isSwitch ? onCancel : () => { autoRetry.cancel(); onSettled?.(); }}
           continueLabel={panel.ack === true ? "J'ai compris" : isSwitch ? 'Revenir à mon domaine' : 'Continuer'} />
       )}
 

@@ -111,8 +111,22 @@ export function summarizeSiteDomain(record: SiteDomainRecord): DomainSummary {
     case 'disconnected':
       return { ...base, state: 'attention', label: 'Non relié', hint: "Votre nom de domaine n'est pas relié à votre site.", tone: 'danger' };
     default:
-      return { ...base, state: 'pending', label: 'En cours de mise en service', hint: 'La mise en service de votre nom de domaine est en cours.', tone: 'warning' };
+      // Rien ne tourne en arriere-plan : tant que le raccordement n'est pas termine, on ne pretend pas
+      // qu'il est « en cours ». Le client peut le reprendre (canResumeConnection).
+      return { ...base, state: 'pending', label: 'Mise en service à terminer', hint: "La mise en service de votre nom de domaine n'est pas terminée.", tone: 'warning' };
   }
+}
+
+/*
+ * Un domaine associe mais pas encore actif peut reprendre sa mise en service la ou elle s'est arretee
+ * (le raccordement serveur est reprenable). Jamais pour un domaine libere, expire, suspendu ou en transfert.
+ */
+const RESUMABLE_CONNECTIONS = ['not_started', 'dns_configuring', 'verifying', 'dns_failed', 'verification_failed'];
+
+export function canResumeConnection(record: SiteDomainRecord | null | undefined): boolean {
+  if (!record) return false;
+  return (record.registration_status === 'registered' || record.registration_status === 'external')
+    && RESUMABLE_CONNECTIONS.includes(record.connection_status);
 }
 
 /* ---------- Adresse publique ---------- */

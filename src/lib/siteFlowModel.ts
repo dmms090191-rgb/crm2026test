@@ -197,13 +197,15 @@ export interface ConnectProgress {
   connectionStatus: string;
   reason: string | null;
   message: string | null;
+  /* Refus temporaire : delai annonce par le serveur avant de pouvoir reprendre (jamais jete). */
+  retryAfterSeconds: number | null;
 }
 
 const PHASES: ConnectPhase[] = ['attach', 'dns', 'vercel', 'verify', 'https', 'done'];
 const CONNECT_STATUSES = ['ok', 'pending', 'blocked', 'unavailable'];
 
 export function parseConnectResponse(httpStatus: number, body: unknown): ConnectProgress {
-  const fail = (reason: string): ConnectProgress => ({ status: 'unavailable', step: 'dns', connectionStatus: 'not_started', reason, message: null });
+  const fail = (reason: string): ConnectProgress => ({ status: 'unavailable', step: 'dns', connectionStatus: 'not_started', reason, message: null, retryAfterSeconds: null });
   if (httpStatus === 401) return fail('unauthenticated');
   if (httpStatus === 403) return fail('forbidden');
   const r = (body as { ok?: unknown; result?: Record<string, unknown> } | null)?.result;
@@ -215,7 +217,14 @@ export function parseConnectResponse(httpStatus: number, body: unknown): Connect
     connectionStatus: typeof r.connection_status === 'string' ? r.connection_status : 'not_started',
     reason: typeof r.reason === 'string' ? r.reason : null,
     message: typeof r.message === 'string' ? r.message : null,
+    retryAfterSeconds: Number.isSafeInteger(r.retry_after_seconds) && (r.retry_after_seconds as number) > 0 ? (r.retry_after_seconds as number) : null,
   };
+}
+
+/* Refus temporaire qui se reprend tout seul : delai court et annonce par le serveur, sinon null. */
+export function autoRetryDelay(progress: ConnectProgress): number | null {
+  const temporary = progress.status === 'unavailable' && (progress.reason === 'rate_limited' || progress.reason === 'busy');
+  return temporary && progress.retryAfterSeconds !== null && progress.retryAfterSeconds <= 90 ? progress.retryAfterSeconds : null;
 }
 
 /* Etapes montrees au client pendant le raccordement, sans aucun jargon technique. */
@@ -253,7 +262,7 @@ const CONNECT_BLOCKED: Record<string, string> = {
   not_attached: "Ce domaine n'est pas celui de votre site.",
 };
 
-export function connectMessage(progress: ConnectProgress): { tone: StatusTone; text: string; canRetry: boolean } {
+export function connectMessage(progress: ConnectProgress, autoRetrying = false): { tone: StatusTone; text: string; canRetry: boolean } {
   if (progress.status === 'ok' && progress.step === 'done') {
     return { tone: 'success', text: 'Domaine connecté : votre site est en ligne à cette adresse.', canRetry: false };
   }
@@ -267,6 +276,12 @@ export function connectMessage(progress: ConnectProgress): { tone: StatusTone; t
   if (progress.status === 'blocked') {
     const text = (progress.reason && CONNECT_BLOCKED[progress.reason]) ?? "La mise en service de ce domaine demande une vérification de l'équipe Talvex.";
     return { tone: 'warning', text, canRetry: false };
+  }
+  // Refus temporaire : on dit quand, et, si une reprise est programmee, qu'elle se fera toute seule.
+  if (autoRetryDelay(progress) !== null) {
+    return autoRetrying
+      ? { tone: 'neutral', text: `Trop d'opérations en peu de temps : reprise automatique dans ${progress.retryAfterSeconds} s.`, canRetry: false }
+      : { tone: 'warning', text: `Trop d'opérations en peu de temps. Réessayez dans ${progress.retryAfterSeconds} s.`, canRetry: true };
   }
   // Une session expiree ou un droit manquant se disent tels quels ; tout le reste reste volontairement generique.
   const text = progress.reason === 'unauthenticated' || progress.reason === 'forbidden'

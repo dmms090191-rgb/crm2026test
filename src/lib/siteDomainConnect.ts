@@ -33,7 +33,7 @@ export async function attachDomain(companyId: string, domain: string, signal?: A
  */
 export async function connectDomain(companyId: string, domain: string, signal?: AbortSignal): Promise<ConnectProgress> {
   const posted = await postToServer({ action: 'connect_apply', company_id: companyId, domain }, signal);
-  if (typeof posted === 'string') return { status: 'unavailable', step: 'dns', connectionStatus: 'not_started', reason: posted, message: null };
+  if (typeof posted === 'string') return { status: 'unavailable', step: 'dns', connectionStatus: 'not_started', reason: posted, message: null, retryAfterSeconds: null };
   return parseConnectResponse(posted.status, posted.body);
 }
 

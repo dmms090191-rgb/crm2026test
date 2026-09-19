@@ -48,7 +48,7 @@ interface Harness {
   writes: string[];
   logs: string[];
   cache: Map<string, unknown>;
-  quotaCalls: Array<{ userId: string; companyId: string | null; isTalvex: boolean }>;
+  quotaCalls: Array<{ userId: string; companyId: string | null; isTalvex: boolean; cost: number }>;
 }
 
 function harness(opts: {
@@ -66,6 +66,8 @@ function harness(opts: {
   siteDomain?: SiteDomainState | null;
   /* Domaine principal actuel (RPC get_primary_site_domain_for_connect, simulee). */
   primaryDomain?: SiteDomainState | null;
+  /* Budget partage entre plusieurs harnais : reservation tout ou rien, comme la vraie fonction SQL. */
+  quotaLedger?: { used: number; limit: number };
 } = {}): Harness {
   const quotaCalls: Harness["quotaCalls"] = [];
   const attachCalls: Harness["attachCalls"] = [];
@@ -136,10 +138,17 @@ function harness(opts: {
       const who = authHeader.replace("Bearer ", "");
       return (ALLOWED[who] ?? []).includes(companyId);
     },
-    async consumeQuota(userId, companyId, isTalvex) {
-      quotaCalls.push({ userId, companyId, isTalvex });
+    async consumeQuota(userId, companyId, isTalvex, cost) {
+      quotaCalls.push({ userId, companyId, isTalvex, cost });
       if (opts.quotaThrowsAt === quotaCalls.length) throw new Error("quota_check_failed");
       writes.push("quota");
+      if (opts.quotaLedger) {
+        // Tout ou rien : un refus ne consomme aucune unite.
+        const units = cost ?? 1; // l'ancien code n'envoyait pas de cout : une unite par appel
+        if (opts.quotaLedger.used + units > opts.quotaLedger.limit) return { allowed: false, refusal: "user_limit", retryAfterSeconds: 37 };
+        opts.quotaLedger.used += units;
+        return { allowed: true, refusal: null, retryAfterSeconds: 0 };
+      }
       return opts.quotaAllowed === false
         ? { allowed: false, refusal: opts.quotaRefusal ?? "user_limit", retryAfterSeconds: 37 }
         : { allowed: true, refusal: null, retryAfterSeconds: 0 };
@@ -334,8 +343,8 @@ test("quota : entreprise verifiee transmise pour la branche ; actions Talvex com
   await call(h, "groupeA", search(SOC_A, "mon-entreprise.com"));
   await call(h, "talvex", { action: "portfolio_list" });
   assert.deepEqual(h.quotaCalls, [
-    { userId: CALLERS.groupeA.id, companyId: SOC_A, isTalvex: false },
-    { userId: CALLERS.talvex.id, companyId: null, isTalvex: true },
+    { userId: CALLERS.groupeA.id, companyId: SOC_A, isTalvex: false, cost: 1 },
+    { userId: CALLERS.talvex.id, companyId: null, isTalvex: true, cost: 1 },
   ]);
 });
 
@@ -1065,7 +1074,8 @@ test("budget partage : une action lourde reserve d'avance ce qu'elle va reelleme
   for (const cas of lourdes) {
     const h = harness({ connectEnabled: true, siteDomain: cas.siteDomain, attachment: "free" });
     await call(h, "societeA", { action: cas.action, company_id: SOC_A, domain: ATTACHED.domain });
-    assert.ok(h.quotaCalls.length >= 4, `${cas.action} doit reserver plusieurs unites (recu ${h.quotaCalls.length})`);
+    assert.equal(h.quotaCalls.length, 1, `${cas.action} reserve en une seule fois`);
+    assert.ok(h.quotaCalls[0].cost >= 4, `${cas.action} doit reserver plusieurs unites (recu ${h.quotaCalls[0].cost})`);
   }
 
   // Un simple plan (lecture seule) ne coute qu'une unite.
@@ -1078,6 +1088,49 @@ test("budget epuise : l'action lourde s'arrete des la premiere unite refusee", a
   const h = harness({ connectEnabled: true, siteDomain: ATTACHED, quotaAllowed: false, quotaRefusal: "user_limit" });
   const r = await call(h, "societeA", { action: "disconnect_apply", company_id: SOC_A, domain: ATTACHED.domain });
   assert.deepEqual([r.body.result.status, r.body.result.reason], ["unavailable", "rate_limited"]);
-  assert.equal(h.quotaCalls.length, 1, "inutile de consommer le reste du budget");
+  assert.equal(h.quotaCalls.length, 1, "une seule demande de reservation, refusee en bloc");
   assert.ok(!h.connectCalls.includes("releaseSiteDomain"));
+});
+
+/* ---------- Reconnexion immediate apres deconnexion (bug du 18/09/2026) ---------- */
+
+// Etat reel constate : domaine associe, raccordement jamais demarre.
+const NOT_STARTED: SiteDomainState = {
+  id: "44444444-4444-4444-8444-444444444444", companyId: SOC_A, domain: "johanna.com", connectionStatus: "not_started",
+  dnsConfiguredAt: null, vercelAttachedAt: null, verifiedAt: null, activatedAt: null, technicalDetails: {},
+};
+
+// Le parcours exact de David, avec le MEME utilisateur et un budget partage : deconnecter, Verifier,
+// Choisir ce domaine, puis raccorder, le tout dans la meme minute.
+async function reconnectInSameMinute(limit: number) {
+  const ledger = { used: 0, limit };
+  await call(harness({ connectEnabled: true, siteDomain: ATTACHED, quotaLedger: ledger }), "societeA",
+    { action: "disconnect_apply", company_id: SOC_A, domain: ATTACHED.domain });
+  const afterDisconnect = ledger.used;
+  await call(harness({ respond: portfolioFake(portfolioRow()), quotaLedger: ledger }), "societeA", lookupReq(SOC_A, "johanna.com"));
+  await call(harness({ respond: portfolioFake(portfolioRow()), quotaLedger: ledger }), "societeA", attachReq(SOC_A, "johanna.com"));
+  const beforeConnect = ledger.used;
+  const connect = harness({ respond: portfolioFake(portfolioRow()), connectEnabled: true, siteDomain: NOT_STARTED, quotaLedger: ledger });
+  const r = await call(connect, "societeA", { action: "connect_apply", company_id: SOC_A, domain: "johanna.com" });
+  return { ledger, afterDisconnect, beforeConnect, connect, result: r.body.result };
+}
+
+test("reconnexion immediate : deconnecter puis reconnecter dans la minute n'est plus refuse", async () => {
+  assert.equal(LIMITS.userPerMinute, 15);
+  const { ledger, afterDisconnect, beforeConnect, connect, result } = await reconnectInSameMinute(LIMITS.userPerMinute);
+  assert.deepEqual([afterDisconnect, beforeConnect], [4, 6], "deconnexion 4, verification 1, association 1");
+  assert.notEqual(result.reason, "rate_limited", "le raccordement n'est plus bloque a la preparation");
+  // Le raccordement reserve tout d'un coup (4 + relecture du portefeuille), et la relecture ne repaie pas.
+  assert.deepEqual(connect.quotaCalls.map((q) => q.cost), [5]);
+  assert.equal(portfolioCalls(connect).length, 1, "le portefeuille a bien ete relu, sans unite supplementaire");
+  assert.equal(ledger.used, 11);
+});
+
+test("reconnexion : un refus de budget est entier et ne brule aucune unite", async () => {
+  // Avec l'ancien budget (10), 6 + 5 depasse : refus EN BLOC, rien consomme, rien appele, rien ecrit.
+  const { ledger, connect, result } = await reconnectInSameMinute(10);
+  assert.deepEqual([result.status, result.reason, result.retry_after_seconds], ["unavailable", "rate_limited", 37]);
+  assert.equal(ledger.used, 6, "aucune unite brulee par la tentative refusee");
+  assert.equal(portfolioCalls(connect).length, 0, "aucun appel fournisseur apres un refus");
+  assert.ok(!connect.connectCalls.includes("setConnection"), "aucune ecriture d'etat");
 });

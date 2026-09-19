@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  domainSummary, pickPrimaryDomain, publicationStatus, publicSiteUrl, summarizeSiteDomain,
+  canResumeConnection, domainSummary, pickPrimaryDomain, publicationStatus, publicSiteUrl, summarizeSiteDomain,
 } from '../../src/lib/siteWorkspaceModel.ts';
 import type { CompanyHomePage } from '../../src/lib/companyHomePagesTypes.ts';
 import type { SiteDomainRecord } from '../../src/lib/siteDomainTypes.ts';
@@ -57,9 +57,9 @@ test('libelles clients : enregistrement puis mise en service', () => {
     [{ registration_status: 'transfer_out', connection_status: 'active' }, 'pending', 'Transfert en cours'],
     [{ registration_status: 'registered', connection_status: 'active' }, 'active', 'Actif'],
     [{ registration_status: 'external', provider: 'external', connection_status: 'active' }, 'active', 'Actif'],
-    [{ connection_status: 'not_started' }, 'pending', 'En cours de mise en service'],
-    [{ connection_status: 'dns_configuring' }, 'pending', 'En cours de mise en service'],
-    [{ connection_status: 'verifying' }, 'pending', 'En cours de mise en service'],
+    [{ connection_status: 'not_started' }, 'pending', 'Mise en service à terminer'],
+    [{ connection_status: 'dns_configuring' }, 'pending', 'Mise en service à terminer'],
+    [{ connection_status: 'verifying' }, 'pending', 'Mise en service à terminer'],
     [{ connection_status: 'dns_failed' }, 'attention', 'Non relié'],
     [{ connection_status: 'verification_failed' }, 'attention', 'Non relié'],
     [{ connection_status: 'disconnected' }, 'attention', 'Non relié'],
@@ -110,4 +110,22 @@ test('adresse publique et statut : seul un domaine actif remplace l adresse Talv
   assert.equal(publicationStatus(noSlug, record()).label, 'Publié');
   assert.equal(publicationStatus(noSlug, record({ connection_status: 'verifying' })).label, 'Brouillon');
   assert.equal(publicationStatus(noSlug, null).label, 'Brouillon');
+});
+
+test('mise en service interrompue : statut honnete, et reprise proposee seulement quand elle a un sens', () => {
+  // Etat reel de barbiewellness.com apres les deux tentatives : associe, raccordement jamais demarre.
+  const bloque = record({ registration_status: 'registered', connection_status: 'not_started', verified_at: null, activated_at: null });
+  const s = summarizeSiteDomain(bloque);
+  assert.equal(s.label, 'Mise en service à terminer');
+  assert.doesNotMatch(s.label + s.hint, /en cours/i, 'rien ne tourne en arriere-plan : ne pas le pretendre');
+  assert.equal(canResumeConnection(bloque), true);
+  for (const connection_status of ['dns_configuring', 'verifying', 'dns_failed', 'verification_failed'] as const) {
+    assert.equal(canResumeConnection(record({ connection_status })), true, connection_status);
+  }
+  // Rien a reprendre : actif, libere, expire, en transfert, ou aucun domaine.
+  assert.equal(canResumeConnection(record({ connection_status: 'active' })), false);
+  assert.equal(canResumeConnection(record({ registration_status: 'released', connection_status: 'disconnected' })), false);
+  assert.equal(canResumeConnection(record({ registration_status: 'expired', connection_status: 'not_started' })), false);
+  assert.equal(canResumeConnection(record({ registration_status: 'transfer_out', connection_status: 'verifying' })), false);
+  assert.equal(canResumeConnection(null), false);
 });

@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  attachMessage, connectMessage, connectStepState, lookupFeedback, parseAttachResponse, parseConnectResponse,
+  attachMessage, autoRetryDelay, connectMessage, connectStepState, lookupFeedback, parseAttachResponse, parseConnectResponse,
   parseLookupResponse, precheckDomainInput, reachableSteps, resolveStep, siteFlowState,
 } from '../../src/lib/siteFlowModel.ts';
 
@@ -106,4 +106,29 @@ test('raccordement : avancement lisible, jamais « connecte » sans confirmation
   assert.equal(parseConnectResponse(500, null).status, 'unavailable');
   assert.equal(parseConnectResponse(200, ok({ status: 'n importe quoi' })).status, 'unavailable');
   assert.equal(parseConnectResponse(403, null).reason, 'forbidden');
+});
+
+/* ---------- Reconnexion : refus temporaire du serveur (bug du 18/09/2026) ---------- */
+
+const refusTemporaire = { ok: true, result: { status: 'unavailable', step: 'attach', connection_status: 'not_started', reason: 'rate_limited', retry_after_seconds: 37 } };
+
+test('raccordement refuse temporairement : le delai annonce par le serveur est conserve', () => {
+  const p = parseConnectResponse(200, refusTemporaire);
+  assert.equal(p.retryAfterSeconds, 37, 'avant le correctif, ce delai etait jete');
+  assert.equal(autoRetryDelay(p), 37);
+  // Delai absent, trop long, ou autre raison : pas de reprise automatique.
+  assert.equal(autoRetryDelay(parseConnectResponse(200, { ok: true, result: { ...refusTemporaire.result, retry_after_seconds: 3600 } })), null);
+  assert.equal(autoRetryDelay(parseConnectResponse(200, { ok: true, result: { ...refusTemporaire.result, reason: 'provider_unavailable' } })), null);
+  assert.equal(autoRetryDelay(parseConnectResponse(200, { ok: true, result: { status: 'ok', step: 'done' } })), null);
+});
+
+test('raccordement refuse temporairement : jamais un « Réessayez » dans le vide', () => {
+  const p = parseConnectResponse(200, refusTemporaire);
+  const auto = connectMessage(p, true);
+  assert.match(auto.text, /reprise automatique dans 37 s/i);
+  assert.equal(auto.canRetry, false, 'la reprise se fait seule : pas de bouton qui ferait double emploi');
+  const manuel = connectMessage(p, false);
+  assert.match(manuel.text, /Réessayez dans 37 s/);
+  assert.equal(manuel.canRetry, true);
+  assert.doesNotMatch(auto.text + manuel.text, /quota|Hostinger|Vercel|DNS/i, 'aucun jargon pour le client');
 });

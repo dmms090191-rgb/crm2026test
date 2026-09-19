@@ -196,7 +196,8 @@ Deno.serve((req: Request) => {
     // Ecriture DNS possible seulement si David a pose explicitement ce secret (defaut : aucune ecriture).
     connectEnabled: (Deno.env.get("DOMAIN_CONNECT_ENABLED")?.trim() ?? "") === "true",
 
-    async consumeQuota(userId, companyId, isTalvex) {
+    // Surcharge a 8 parametres (migration 20260919003302) : p_cost unites reservees d'un coup, ou aucune.
+    async consumeQuota(userId, companyId, isTalvex, cost) {
       const { data, error } = await admin.rpc("reserve_domain_provider_call", {
         p_user_id: userId,
         p_company_id: companyId,
@@ -205,6 +206,7 @@ Deno.serve((req: Request) => {
         p_branch_limit: LIMITS.branchPerMinute,
         p_tenants_limit: LIMITS.tenantsPerMinute,
         p_global_limit: LIMITS.globalPerMinute,
+        p_cost: cost,
       });
       if (error) throw new Error("quota_check_failed");
       const row = Array.isArray(data) ? data[0] : data;

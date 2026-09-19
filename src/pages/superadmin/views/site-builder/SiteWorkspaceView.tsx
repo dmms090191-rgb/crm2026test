@@ -81,7 +81,9 @@ export default function SiteWorkspaceView({ ctx, data, title, onClose, onBack }:
               setNotice(`${domain} est maintenant le domaine de votre site.`);
               follow();
               await data.reload();
-            }} />
+            }}
+            // Apres un echec : on relit l'etat reel, sans aucun message de succes.
+            onSettled={async () => { setNotice(null); follow(); await data.reload(); }} />
         );
   } else if (step === 'template') {
     body = (
