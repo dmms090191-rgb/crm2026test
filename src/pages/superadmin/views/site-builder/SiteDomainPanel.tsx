@@ -8,6 +8,7 @@ import { autoCheckOnOpen } from '../../../../lib/siteSecuringModel';
 import { SITE_ACCENT } from './SiteUiParts';
 import SiteDomainConnected from './SiteDomainConnected';
 import SiteConnectDomainStep from './SiteConnectDomainStep';
+import SiteDomainList from './SiteDomainList';
 
 /*
  * DOMAINE (Groupe / Societe) quand un domaine est deja connecte.
@@ -72,6 +73,9 @@ export default function SiteDomainPanel({ t, page, siteDomain, companyId, target
           {summary.renewalDue ? 'Renouvellement à prévoir le' : 'Renouvellement le'} {renewal}
         </p>
       )}
+
+      {/* Mes domaines enregistres : le domaine du panneau y reste toujours, protege, avec le meme etat. */}
+      <SiteDomainList t={t} companyId={companyId} current={summary} refreshKey={`${summary.domain ?? ''}|${summary.state}`} />
 
       {actorIsTalvex && (
         <div className="flex items-start gap-2.5 rounded-2xl px-4 py-3" data-testid="site-domain-talvex-note"

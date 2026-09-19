@@ -13,6 +13,7 @@ import SiteChooseTemplateStep from './SiteChooseTemplateStep';
 import SiteLiveStep from './SiteLiveStep';
 import SiteDomainPanel from './SiteDomainPanel';
 import SiteDomainTab from './SiteDomainTab';
+import SiteDomainList from './SiteDomainList';
 import SitePreviewModal from './SitePreviewModal';
 import SiteApplyTemplateModal from './SiteApplyTemplateModal';
 import SADomainsModal from '../sites/SADomainsModal';
@@ -76,14 +77,19 @@ export default function SiteWorkspaceView({ ctx, data, title, onClose, onBack }:
             onChanged={async notice => { setNotice(notice); follow(); await data.reload(); }} />
         )
         : (
-          <SiteConnectDomainStep t={t} companyId={target.companyId!} targetName={target.name}
-            onAttached={async domain => {
-              setNotice(`${domain} est maintenant le domaine de votre site.`);
-              follow();
-              await data.reload();
-            }}
-            // Apres un echec : on relit l'etat reel, sans aucun message de succes.
-            onSettled={async () => { setNotice(null); follow(); await data.reload(); }} />
+          <div className="space-y-5">
+            <SiteConnectDomainStep t={t} companyId={target.companyId!} targetName={target.name}
+              onAttached={async domain => {
+                setNotice(`${domain} est maintenant le domaine de votre site.`);
+                follow();
+                await data.reload();
+              }}
+              // Apres un echec : on relit l'etat reel, sans aucun message de succes.
+              onSettled={async () => { setNotice(null); follow(); await data.reload(); }} />
+            {/* Aucun domaine connecte : les domaines deja enregistres restent consultables et copiables.
+                La liste est relue a chaque retour sur cette vue (remontage) ; le serveur refuse de masquer un domaine en service. */}
+            <SiteDomainList t={t} companyId={target.companyId!} />
+          </div>
         );
   } else if (step === 'template') {
     body = (
