@@ -32,7 +32,8 @@ interface SuperAdminSidebarProps {
   badgeCounts?: Record<string, number>;
 }
 
-const LAYOUT_SECTIONS: LayoutDefaultSection[] = [
+/* Compartiments et onglets par defaut. EXPORTES : la navigation mobile part de la meme base. */
+export const LAYOUT_SECTIONS: LayoutDefaultSection[] = [
   { title: 'Principal', items: [
     { id: 'dashboard', label: 'Dashboard' },
     { id: 'mon-compte', label: 'Accès & sécurité' },
@@ -69,7 +70,11 @@ const LAYOUT_SECTIONS: LayoutDefaultSection[] = [
   ] },
 ];
 
-const ICONS: Record<string, React.ReactNode> = {
+/*
+ * Icones des onglets, par id. EXPORTEES : le mini arc mobile lit exactement la meme carte, pour
+ * que le telephone montre les memes icones que le bureau — une seule source, jamais deux.
+ */
+export const ICONS: Record<string, React.ReactNode> = {
   'dashboard': <LayoutDashboard className="w-4 h-4" />,
   'mon-compte': <UserCircle className="w-4 h-4" />,
   'logo': <ImageIcon className="w-4 h-4" />,

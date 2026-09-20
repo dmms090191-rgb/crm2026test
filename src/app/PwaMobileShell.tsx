@@ -1,4 +1,9 @@
 import { useState, useEffect, useCallback, Suspense } from 'react';
+import { useTalixy } from '../talixy/useTalixy';
+import { useTalixyMobileNav, useNavStep } from '../talixy/useTalixyMobileNav';
+import TalixyMiniArc from '../talixy/TalixyMiniArc';
+import { ICONS as SA_ICONS, LAYOUT_SECTIONS as SA_SECTIONS } from '../pages/superadmin/SuperAdminSidebar';
+import { PROTECTED_TAB_IDS } from '../pages/superadmin/useSAHiddenTabs';
 import { LogOut } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAppIcon } from '../hooks/useAppIcon';
@@ -6,6 +11,7 @@ import { useThemeTokens } from '../hooks/useThemeTokens';
 import {
   type UserRole, getTabsForRole, getMoreTabs, PwaSpinner,
   SADashboard, SAAdmins, SAchatAdmin, SACrmSociete, SAStatuts, SAApiIa, SACerveauIA,
+  SASuperAdmins, SAMonCompte, SASystem, SADocumentationCrm,
   AdminVueEnsemble, AdminCrm, AdminChatClient, AdminChatVendeur, AdminChatSuperAdmin, AdminAgenda, AdminPropositionsRdv, AdminStatuts,
   VendorVueEnsemble, VendorLeads, VendorChatAdmin, VendorChatClient, VendorAgenda, VendorPropositionsRdv,
   ClientVueEnsemble, ClientMessagerie, ClientAgenda, ClientPropositionsRdv,
@@ -23,6 +29,21 @@ export default function PwaMobileShell({ role, onLogout }: Props) {
   const tabs = getTabsForRole(role);
   const moreTabs = getMoreTabs(role);
   const [activeTab, setActiveTab] = useState(tabs[0]?.key ?? 'vue-ensemble');
+
+  /*
+   * TALIXY MOBILE — une seule source de verite pour la navigation.
+   *
+   * La barre du bas de cette coquille etait une liste ECRITE EN DUR (Accueil, Admins, Messages,
+   * Societes, Plus) qui ignorait les masquages, les renommages et la reorganisation du bureau.
+   * Sous Talixy et pour Talvex Administrateur uniquement, elle cede la place au mini double arc,
+   * alimente par layout.visible — exactement la liste de la barre laterale du bureau.
+   * Les autres roles et les autres themes gardent leur barre d'onglets, inchangee.
+   */
+  const talixy = useTalixy();
+  const arcMobile = talixy.active && role === 'super_admin';
+  const navTalixy = useTalixyMobileNav(SA_SECTIONS, PROTECTED_TAB_IDS, activeTab);
+  const allerVers = useCallback((id: string) => { setActiveTab(id); setShowMore(false); }, []);
+  const pasTalixy = useNavStep(navTalixy, allerVers);
   const [showMore, setShowMore] = useState(false);
 
   const [userName, setUserName] = useState('');
@@ -55,6 +76,10 @@ export default function PwaMobileShell({ role, onLogout }: Props) {
   }, []);
 
   const activeLabel = (() => {
+    if (arcMobile) {
+      const t = navTalixy.items.find(i => i.id === activeTab);
+      if (t) return t.label;
+    }
     const all = [...tabs, ...moreTabs];
     return all.find(tab => tab.key === activeTab)?.label ?? 'Accueil';
   })();
@@ -73,6 +98,10 @@ export default function PwaMobileShell({ role, onLogout }: Props) {
         case 'statuts': return <SAStatuts />;
         case 'api-ia': return <SAApiIa />;
         case 'cerveau-ia': return <SACerveauIA />;
+        case 'super-admins': return <SASuperAdmins />;
+        case 'mon-compte': return <SAMonCompte />;
+        case 'system': return <SASystem />;
+        case 'documentation-crm': return <SADocumentationCrm />;
         default: return <SADashboard />;
       }
     }
@@ -135,7 +164,7 @@ export default function PwaMobileShell({ role, onLogout }: Props) {
         </button>
       </header>
 
-      <main className={`flex-1 min-h-0 ${isChat ? 'overflow-hidden' : 'overflow-y-auto'}`}>
+      <main data-tx-mobile-body={arcMobile ? "" : undefined} className={`flex-1 min-h-0 ${isChat ? 'overflow-hidden' : 'overflow-y-auto'}`}>
         <Suspense fallback={<PwaSpinner />}>
           {renderView()}
         </Suspense>
@@ -180,6 +209,20 @@ export default function PwaMobileShell({ role, onLogout }: Props) {
         </div>
       )}
 
+      {/*
+        Sous Talixy et pour Talvex Administrateur, la barre codee en dur cede la place au mini
+        double arc, alimente par la VRAIE navigation. Partout ailleurs, rien ne change.
+      */}
+      {arcMobile ? (
+        <TalixyMiniArc
+          items={navTalixy.items}
+          activeIndex={navTalixy.activeIndex}
+          compartiment={navTalixy.compartiment}
+          icons={SA_ICONS}
+          onSelect={allerVers}
+          onStep={pasTalixy}
+        />
+      ) : (
       <nav
         className="flex-shrink-0 flex items-stretch safe-area-bottom"
         style={{ background: t.sidebar.bg, borderTop: `1px solid ${t.surface.border}` }}
@@ -207,6 +250,7 @@ export default function PwaMobileShell({ role, onLogout }: Props) {
           );
         })}
       </nav>
+      )}
     </div>
   );
 }

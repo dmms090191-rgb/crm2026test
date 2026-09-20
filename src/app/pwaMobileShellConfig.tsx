@@ -68,6 +68,16 @@ export const SAStatuts = lazy(() => import('../pages/superadmin/views/SAStatuts'
 export const SAApiIa = lazy(() => import('../pages/superadmin/views/SAApiIa'));
 export const SACerveauIA = lazy(() => import('../pages/superadmin/views/cerveau-ia/SACerveauIA'));
 
+/*
+ * Onglets reels de Talvex Administrateur que la coquille mobile ne savait pas rendre : elle
+ * retombait sur le Dashboard, donc choisir « Systeme » affichait le Dashboard. Depuis que la
+ * navigation vient de layout.visible, tous les onglets visibles doivent avoir leur vue.
+ */
+export const SASuperAdmins = lazy(() => import('../pages/superadmin/views/super-admins/SASuperAdmins'));
+export const SAMonCompte = lazy(() => import('../pages/superadmin/views/SAMonCompte'));
+export const SASystem = lazy(() => import('../pages/admin/views/SystemPage'));
+export const SADocumentationCrm = lazy(() => import('../pages/admin/views/DocumentationCrm'));
+
 export const AdminVueEnsemble = lazy(() => import('../pages/admin/views/VueEnsemble'));
 export const AdminCrm = lazy(() => import('../pages/admin/views/Crm'));
 export const AdminChatClient = lazy(() => import('../pages/admin/views/ChatClient'));

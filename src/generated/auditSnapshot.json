@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-20T11:36:50.938Z",
+  "generatedAt": "2026-09-20T13:33:53.497Z",
   "anyCount": 0,
   "anyOccurrences": [],
   "unusedImportCount": 20,
@@ -113,11 +113,6 @@
       "overflow": 1
     },
     {
-      "file": "src\\pages\\superadmin\\SuperAdminDashboard.tsx",
-      "lines": 308,
-      "overflow": 8
-    },
-    {
       "file": "src\\pages\\admin\\views\\system\\SystemView.tsx",
       "lines": 314,
       "overflow": 14
@@ -126,6 +121,11 @@
       "file": "src\\pages\\superadmin\\views\\SAMonCompte.tsx",
       "lines": 325,
       "overflow": 25
+    },
+    {
+      "file": "src\\pages\\superadmin\\SuperAdminDashboard.tsx",
+      "lines": 337,
+      "overflow": 37
     },
     {
       "file": "src\\pages\\superadmin\\views\\mon-compte\\SAMonComptePasswordSection.tsx",
@@ -1380,7 +1380,7 @@
   "eslintErrorCount": 0,
   "eslintWarningCount": 0,
   "eslintIssues": [],
-  "totalFilesAnalyzed": 1101,
-  "totalLinesAnalyzed": 144620,
-  "totalOverflowLines": 198
+  "totalFilesAnalyzed": 1104,
+  "totalLinesAnalyzed": 144994,
+  "totalOverflowLines": 227
 }

@@ -14,6 +14,12 @@ import { useEditorLocateHandler } from './useEditorLocateHandler';
 import GlassBackgroundLayer from '../../components/theme/GlassBackgroundLayer';
 import TalixyShellChrome from '../../talixy/TalixyShellChrome';
 import { useTalixy } from '../../talixy/useTalixy';
+import { useMediaQuery } from '../../talixy/useArcMetrics';
+import { TALIXY_ARC_QUERY } from '../../talixy/useTalixySidebar';
+import { useTalixyMobileNav, useNavStep } from '../../talixy/useTalixyMobileNav';
+import TalixyMiniArc from '../../talixy/TalixyMiniArc';
+import { ICONS as SA_ICONS, LAYOUT_SECTIONS as SA_SECTIONS } from './SuperAdminSidebar';
+import { PROTECTED_TAB_IDS } from './useSAHiddenTabs';
 import { EditorModeProvider, useEditorMode, resolveZoneEffective } from '../../contexts/EditorModeContext';
 import EditorSaveThemeModal from '../../components/editor/EditorSaveThemeModal';
 import SuperAdminEditorPanels from './SuperAdminEditorPanels';
@@ -52,6 +58,7 @@ export default function SuperAdminDashboard(props: SuperAdminDashboardProps) {
 function SuperAdminDashboardInner({ onLogout, onConnectAsAdmin, onConnectAsCompanySuperAdmin }: SuperAdminDashboardProps) {
   const t = useThemeTokens();
   const talixy = useTalixy();
+
   const [activeView, setActiveView] = useState<SAView>('dashboard');
   const [docInitialTab, setDocInitialTab] = useState<string | undefined>(undefined);
   const [docKey, setDocKey] = useState(0);
@@ -170,6 +177,18 @@ function SuperAdminDashboardInner({ onLogout, onConnectAsAdmin, onConnectAsCompa
   }, [activeView]);
 
   const handleNavigate = (view: SAView) => { setActiveView(view); };
+  /*
+   * TALIXY MOBILE. Sous 768 px le grand arc vertical n est plus rendu et la barre laterale devient
+   * un tiroir hors ecran : le mini double arc prend le relais, fixe en bas. Il lit la MEME
+   * navigation que le bureau (layout.visible), donc masquages, renommages et reorganisation le
+   * suivent sans un mot de code en plus. Meme seuil que le CSS, via la media query partagee.
+   */
+  const largeEcran = useMediaQuery(TALIXY_ARC_QUERY);
+  const arcMobile = talixy.active && !largeEcran;
+  const navMobile = useTalixyMobileNav(SA_SECTIONS, PROTECTED_TAB_IDS, activeView);
+  const allerMobile = useCallback((id: string) => { handleNavigate(id as SAView); setMobileOpen(false); }, [handleNavigate]);
+  const pasMobile = useNavStep(navMobile, allerMobile);
+
   const handleConnectAsAdmin = (admin: AdminUser) => { saveConnectReturnContext({ fromRole: 'super_admin', fromTab: 'admins', adminId: admin.id, scrollY: window.scrollY }); onConnectAsAdmin?.(admin); };
   const handleConnectAsCompanySuperAdmin = (sa: CompanySuperAdmin) => { onConnectAsCompanySuperAdmin?.(sa); };
   const handleOpenChatAdmin = useCallback((admin: AdminUser) => { setChatAdmin(admin); setActiveView('chat-admin'); }, []);
@@ -222,6 +241,16 @@ function SuperAdminDashboardInner({ onLogout, onConnectAsAdmin, onConnectAsCompa
       )}
       <GlassBackgroundLayer />
       <TalixyShellChrome />
+      {arcMobile && (
+        <TalixyMiniArc
+          items={navMobile.items}
+          activeIndex={navMobile.activeIndex}
+          compartiment={navMobile.compartiment}
+          icons={SA_ICONS}
+          onSelect={allerMobile}
+          onStep={pasMobile}
+        />
+      )}
       {mobileOpen && <div className="fixed inset-0 z-40 md:hidden" style={{ background: t.modal.overlayBg }} onClick={() => setMobileOpen(false)} />}
 
       <div className={`fixed inset-y-0 left-0 z-50 md:hidden transition-transform duration-300 ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}>
@@ -232,7 +261,7 @@ function SuperAdminDashboardInner({ onLogout, onConnectAsAdmin, onConnectAsCompa
         <SuperAdminSidebar activeView={activeView} onNavigate={handleNavigate} collapsed={sidebarCollapsed} onCollapse={() => setSidebarCollapsed(prev => !prev)} onLogout={onLogout} editorZone1Bg={zone1Bg} editorZone2Bg={zone2Bg} logoZoneRef={logoZoneRef} sidebarBodyRef={sidebarBodyRef} badgeCounts={sidebarBadgeCounts} />
       </div>
 
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative z-[1]">
+      <div data-tx-mobile-body={arcMobile ? "" : undefined} className="flex-1 flex flex-col min-w-0 overflow-hidden relative z-[1]">
         <SuperAdminTopBar activeView={activeView} onMobileMenuToggle={() => setMobileOpen(prev => !prev)} unreadAdminMsgCount={unreadAdminMsgCount} unreadAdminMsgEntries={unreadAdminMsgEntries} onAdminMsgEntryClick={(entry) => { markAdminMsgRead(entry.adminId); setChatAdmin(cachedAdmins.find(a => a.id === entry.adminId) ?? { id: entry.adminId, email: entry.email, first_name: entry.firstName, last_name: entry.lastName, company: entry.company, phone: '', role: entry.senderKind, created_at: '', last_sign_in_at: null, access_enabled: true }); setActiveView('chat-admin'); }} saFirstName={saFirstName} saLastName={saLastName} appIconUrl={saAppIconUrl} appName={saAppName || 'Talvex'} topbarRef={topbarZoneRef} editorZone3Bg={zone3Bg} />
 
         {showChoice && (

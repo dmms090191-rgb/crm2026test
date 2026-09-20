@@ -2226,3 +2226,214 @@ html[data-theme="talixy"] [data-tx-phone-veil] {
 html[data-theme="talixy"] [data-tx-fs] [data-tx-phone-head] {
   cursor: default;
 }
+
+/* ---------- MOBILE : le mini double arc, et la recomposition du Dashboard. ---------- */
+
+/*
+ * Sous 768 px le grand arc vertical n'est plus rendu (useTalixySidebar). Le mini double arc le
+ * remplace, fixe en bas. Tout ce bloc est scope a Talixy : aucun autre theme ne le voit.
+ */
+
+html[data-theme="talixy"] [data-tx-miniarc] {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 60;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  font-family: 'Urbanist', system-ui, sans-serif;
+  background: linear-gradient(180deg, rgba(232,238,247,0) 0%, rgba(232,238,247,0.72) 34%, rgba(226,233,243,0.92) 100%);
+  -webkit-backdrop-filter: blur(18px) saturate(1.12);
+  backdrop-filter: blur(18px) saturate(1.12);
+  pointer-events: auto;
+}
+html[data-theme="talixy"] [data-tx-miniarc-courbe] {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+}
+html[data-theme="talixy"] [data-tx-miniarc-courbe] path {
+  stroke: rgba(255,255,255,0.92);
+}
+html[data-theme="talixy"] [data-tx-miniarc-courbe] path + path {
+  stroke: rgba(255,255,255,0.60);
+}
+html[data-theme="talixy"] [data-tx-miniarc-slots] {
+  position: relative;
+}
+
+/* Un onglet : cible large au doigt, disque de verre, icone fine — comme sur le bureau. */
+/*
+ * La position est posee en transform (pas en left/top) : c est la seule facon d obtenir une vraie
+ * rotation de roue, animee par le compositeur. Quand l actif change, chaque onglet glisse d un
+ * cran le long de la courbe ; celui qui reboucle le fait a opacite nulle, donc invisible.
+ */
+html[data-theme="talixy"] [data-tx-miniarc-tab] {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 52px;
+  height: 52px;
+  transition: transform 420ms var(--tx-ease-out), opacity 300ms var(--tx-ease-out);
+  will-change: transform;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+}
+html[data-theme="talixy"] [data-tx-miniarc-icon] {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  color: var(--tx-ink-soft);
+  background: linear-gradient(180deg, rgba(255,255,255,0.80) 0%, rgba(255,255,255,0.42) 100%);
+  border: 1px solid rgba(255,255,255,0.85);
+  box-shadow: 0 8px 22px rgba(30,40,60,0.16), inset 0 1px 0 rgba(255,255,255,0.9);
+  transition: transform var(--tx-ring-ms) var(--tx-ease-out), background var(--tx-ring-ms) var(--tx-ease-out);
+}
+html[data-theme="talixy"] [data-tx-miniarc-tab] svg {
+  width: 17px;
+  height: 17px;
+  stroke-width: 1.4;
+}
+/* L'actif : plus clair et plus grand, jamais de lueur diffuse — meme regle que le bureau. */
+html[data-theme="talixy"] [data-tx-miniarc-tab][data-tx-active] [data-tx-miniarc-icon] {
+  transform: scale(1.3);
+  color: var(--tx-ink-deep);
+  background: linear-gradient(180deg, var(--tx-pure) 0%, rgba(244,250,255,0.9) 100%);
+  border-color: var(--tx-pure);
+  box-shadow: 0 10px 26px rgba(30,40,60,0.2), inset 0 1px 0 var(--tx-pure);
+}
+html[data-theme="talixy"] [data-tx-miniarc-tab][data-tx-active] svg {
+  stroke-width: 1.5;
+}
+
+/* Fleches : memes disques de verre, posees aux deux bords. */
+html[data-theme="talixy"] [data-tx-miniarc-prev],
+html[data-theme="talixy"] [data-tx-miniarc-next] {
+  position: absolute;
+  bottom: calc(22px + env(safe-area-inset-bottom, 0px));
+  width: 46px;
+  height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.72);
+  background: rgba(255,255,255,0.42);
+  color: var(--tx-ink-muted);
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(30,40,60,0.12);
+}
+html[data-theme="talixy"] [data-tx-miniarc-prev] { left: 14px; }
+html[data-theme="talixy"] [data-tx-miniarc-next] { right: 14px; }
+html[data-theme="talixy"] [data-tx-miniarc-prev] svg,
+html[data-theme="talixy"] [data-tx-miniarc-next] svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: 1.5;
+}
+html[data-theme="talixy"] [data-tx-miniarc-prev]:disabled,
+html[data-theme="talixy"] [data-tx-miniarc-next]:disabled {
+  opacity: 0.3;
+}
+
+/* Arc interieur : le compartiment actif, seul, en fondu. */
+html[data-theme="talixy"] [data-tx-miniarc-compartiment] {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(30px + env(safe-area-inset-bottom, 0px));
+  font-size: 10.5px;
+  font-weight: 400;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--tx-ink-muted);
+  white-space: nowrap;
+  transition: opacity 180ms var(--tx-ease-out);
+  pointer-events: none;
+}
+
+/* ---------- Mobile : la coquille et le Dashboard ---------- */
+
+@media (max-width: 767px) {
+  /*
+   * Decor flottant : le slogan, l'horloge et l'accroche sont poses en coordonnees absolues,
+   * calibrees pour un grand ecran. Sur un telephone ils se chevauchent et sortent du cadre.
+   */
+  html[data-theme="talixy"] .tx-chrome { display: none; }
+
+  /* Le contenu reprend la gouttiere reservee a un arc qui n'est plus rendu, et laisse la place au mini arc. */
+  /*
+   * RESERVE BASSE, pour TOUS les onglets. Elle est posee sur le conteneur de contenu de la
+   * coquille, pas sur chaque page : un onglet qui n a pas encore ete recompose en profite quand
+   * meme, et aucun contenu ne passe derriere le mini arc. La valeur n est pas inventee : c est la
+   * hauteur MESUREE de l arc, publiee en --tx-miniarc-h par le composant lui-meme.
+   */
+  html[data-theme="talixy"] [data-tx-mobile-body] {
+    padding-bottom: calc(var(--tx-miniarc-h, 174px) + 12px + env(safe-area-inset-bottom, 0px));
+    scroll-padding-bottom: calc(var(--tx-miniarc-h, 174px) + 12px);
+    box-sizing: border-box;
+  }
+
+  /* La page, elle, garde sa propre respiration au-dessus de cette reserve. */
+  html[data-theme="talixy"] .tx-dash {
+    padding: 0 16px 28px 16px !important;
+  }
+  html[data-theme="talixy"] .tx-page {
+    padding: 22px 16px 28px 16px !important;
+  }
+
+  /* Une seule colonne, et plus aucune largeur minimale qui bloque. */
+  html[data-theme="talixy"] .tx-dash-cols {
+    flex-direction: column;
+    gap: 18px;
+    margin-top: 26px;
+  }
+  html[data-theme="talixy"] .tx-groupes-col,
+  html[data-theme="talixy"] [data-tx-health] {
+    min-width: 0 !important;
+    width: 100% !important;
+    flex: 0 0 auto !important;
+  }
+
+  /* Typographie fluide : ces tailles etaient en px fixes, calibrees sur la maquette 1672 px. */
+  html[data-theme="talixy"] .tx-hero-overline {
+    font-size: clamp(10px, 3vw, 13px);
+    letter-spacing: 0.34em;
+  }
+  html[data-theme="talixy"] .tx-hero-title {
+    font-size: clamp(30px, 8.6vw, 44px);
+    margin-top: 18px;
+    line-height: 1.12;
+  }
+  html[data-theme="talixy"] .tx-hero-subtitle {
+    font-size: clamp(12.5px, 3.6vw, 15px);
+    letter-spacing: 0.08em;
+  }
+  html[data-theme="talixy"] .tx-section-title {
+    font-size: clamp(21px, 6vw, 28px);
+    margin-left: 2px;
+  }
+  html[data-theme="talixy"] .tx-count-value {
+    font-size: clamp(46px, 14vw, 66px);
+  }
+  html[data-theme="talixy"] .tx-count-card {
+    padding: 22px 20px;
+  }
+
+  /* Rien ne doit deborder lateralement, jamais. */
+  html[data-theme="talixy"] .tx-dash,
+  html[data-theme="talixy"] .tx-dash-cols,
+  html[data-theme="talixy"] .tx-page {
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
+}
