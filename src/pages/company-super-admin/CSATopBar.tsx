@@ -9,6 +9,7 @@ import type { CSAView } from './CSASidebar';
 import CSAProfileMenu from './CSAProfileMenu';
 import MessageBubblePopover, { type BubbleEntry } from '../../components/notifications/MessageBubblePopover';
 import MessagesBubbleTrigger from '../../components/notifications/MessagesBubbleTrigger';
+import { useTalixy } from '../../talixy/useTalixy';
 
 interface Props {
   activeView: CSAView;
@@ -39,6 +40,7 @@ const VIEW_TITLES: Record<CSAView, string> = {
 export default function CSATopBar({ activeView, csaUserId, companyId, companyName, firstName, lastName, onMobileMenu, topbarRef, editorZone3Bg, unreadAdminMsgCount = 0, unreadAdminMsgEntries = [], onAdminMsgEntryClick }: Props) {
   const t = useThemeTokens();
   const editor = useEditorModeSafe();
+  const tx = useTalixy();
   const tzStorageKey = `csa_timezone_${csaUserId}`;
   const [timezone, setTimezoneState] = useState(() => localStorage.getItem(tzStorageKey) || getUserTimezone('company_super_admin', csaUserId));
   const [clock, setClock] = useState(() => getCurrentTime(timezone));
@@ -88,7 +90,12 @@ export default function CSATopBar({ activeView, csaUserId, companyId, companyNam
         </div>
 
         <div className="flex items-center gap-1 sm:gap-2 min-w-0">
-          {editor && (
+          {/*
+            Talixy est un theme a part entiere, avec son propre systeme de design : l'editeur de
+            fonds n'a plus rien a y regler. On CONDITIONNE seulement son affichage — le bouton,
+            l'editeur et toute sa logique restent intacts, et rien ne change pour les autres themes.
+          */}
+          {editor && !tx.active && (
             <EditorButton editorOpen={editor.editorOpen} onToggle={editor.editorOpen ? editor.closeEditor : editor.openEditor} />
           )}
 

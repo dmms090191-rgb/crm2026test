@@ -12,6 +12,7 @@ interface Props {
 export default function StatutsList({ statuts, loading, onDelete, tokens, protectedNames = [] }: Props) {
   return (
     <div
+      data-tx-statuts-list
       className="rounded-2xl p-6"
       style={{
         background: tokens.card.bg,

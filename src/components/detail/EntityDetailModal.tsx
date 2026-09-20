@@ -68,6 +68,7 @@ export default function EntityDetailModal({
       }}
     >
       <div
+        data-tx-detail
         className="w-full max-w-md rounded-2xl overflow-hidden"
         style={{ background: tokens.modal.bg, border: `1px solid ${tokens.modal.border}`, boxShadow: tokens.modal.shadow }}
       >
@@ -87,7 +88,7 @@ export default function EntityDetailModal({
           </button>
         </div>
 
-        <div className="flex px-6 pt-4 gap-1" style={{ borderBottom: `1px solid ${tokens.surface.border}` }}>
+        <div data-tx-detail-tabs className="flex px-6 pt-4 gap-1" style={{ borderBottom: `1px solid ${tokens.surface.border}` }}>
           {tabs.map(t => (
             <button
               key={t.id}

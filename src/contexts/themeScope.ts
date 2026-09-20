@@ -18,7 +18,7 @@ export interface ThemeSliceData {
 const VALID_THEMES: Theme[] = [
   'dark', 'light', 'graphite', 'beige', 'rose', 'emerald', 'luxury',
   'pink', 'red', 'orange', 'yellow', 'highlevel_light', 'highlevel_dark',
-  'highlevel_emerald', 'glass',
+  'highlevel_emerald', 'glass', 'talixy',
 ];
 
 export function isValidTheme(v: unknown): v is Theme {

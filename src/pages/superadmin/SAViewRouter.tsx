@@ -1,5 +1,6 @@
-import { lazy } from 'react';
+import { lazy, useEffect } from 'react';
 import type { SAView } from './SuperAdminSidebar';
+import { useTalixy } from '../../talixy/useTalixy';
 import { SimulationProvider } from '../../contexts/SimulationContext';
 import type { AdminUser } from './views/SAAdmins';
 import type { CompanySuperAdmin } from './views/super-admins/superAdminTypes';
@@ -74,6 +75,16 @@ export default function SAViewRouter({
   handleAppIconSelected,
   handleChangeAppIcon,
 }: Props) {
+  const talixy = useTalixy();
+  // Vues lourdes prechargees des que le tableau de bord respire : plus de gel du halo au premier clic.
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      void import('../admin/views/SystemPage');
+      void import('../admin/views/DocumentationCrm');
+    }, 1600);
+    return () => window.clearTimeout(t);
+  }, []);
+  const view = (() => {
   switch (activeView) {
     case 'dashboard': return <SADashboard onNavigate={handleNavigate} onNavigateToAudit={() => { setDocInitialTab('audit-technique'); setDocKey(k => k + 1); setActiveView('documentation-crm'); }} adminCount={cachedAdmins.length} adminsLoading={adminsRefreshing && cachedAdmins.length === 0} />;
     case 'super-admins': return <SASuperAdmins onConnectAsCompanySuperAdmin={handleConnectAsCompanySuperAdmin} onOpenChat={handleOpenChatCSA} />;
@@ -101,4 +112,9 @@ export default function SAViewRouter({
     case 'tuto': return <div className="p-4 sm:p-6"><p className="text-sm" style={{ color: 'inherit' }}>Tuto - Contenu a venir</p></div>;
     default: return <SADashboard onNavigate={handleNavigate} adminCount={cachedAdmins.length} adminsLoading={adminsRefreshing && cachedAdmins.length === 0} />;
   }
+  })();
+  // Talixy : entree en fondu (opacite seule) a chaque changement d'onglet — aucun saut, aucun flash.
+  if (!talixy.active) return view;
+  return <div key={activeView} className="tx-anim tx-view-in" style={{ height: '100%' }}>{view}</div>;
 }
+

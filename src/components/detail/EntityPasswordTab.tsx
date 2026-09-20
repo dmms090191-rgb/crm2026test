@@ -146,6 +146,7 @@ export default function EntityPasswordTab({ adminId, currentPin, onUpdate }: Pro
         ))}
       </div>
       <button
+        data-tx-primary
         onClick={handleSave}
         disabled={saving || !pinFull}
         className="px-4 py-2 rounded-lg text-xs font-semibold transition-all disabled:opacity-50"

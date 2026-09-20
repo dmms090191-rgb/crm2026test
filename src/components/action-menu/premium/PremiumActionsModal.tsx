@@ -48,6 +48,9 @@ interface Props {
   };
 }
 
+const TON_VALIDER = '#34d399';
+const TON_ANNULER = '#f87171';
+
 /**
  * Modale « Actions societe » du panel Groupe.
  *
@@ -76,6 +79,7 @@ export default function PremiumActionsModal({ title, identity, sectionLabel = 'G
       style={{ backgroundColor: m.overlayBg, backdropFilter: 'blur(10px)' }}
     >
       <div
+        data-tx-actions
         className="rounded-2xl w-full max-w-[400px] relative overflow-hidden"
         style={{
           background: m.bg,
@@ -106,6 +110,7 @@ export default function PremiumActionsModal({ title, identity, sectionLabel = 'G
         <div className="px-5 py-4 space-y-4 max-h-[70vh] overflow-y-auto">
           {/* IDENTITE — carte, lisible en deux secondes */}
           <div
+            data-tx-actions-id
             className="flex items-center gap-3 rounded-xl px-3.5 py-3"
             style={{
               background: `linear-gradient(140deg, ${t.surface.secondary}, ${t.surface.secondary}80)`,
@@ -114,6 +119,7 @@ export default function PremiumActionsModal({ title, identity, sectionLabel = 'G
             }}
           >
             <span
+              data-tx-actions-avatar
               className="w-10 h-10 rounded-xl flex items-center justify-center text-[15px] font-bold text-white flex-shrink-0"
               style={{
                 background: `linear-gradient(140deg, ${t.accent.text}, ${t.accent.text}b3)`,
@@ -146,19 +152,19 @@ export default function PremiumActionsModal({ title, identity, sectionLabel = 'G
           {/* SECTION — le controle vit dans le titre : present, mais secondaire */}
           <div className="space-y-2.5">
             <div className="flex items-center gap-2.5">
-              <span className="text-[9px] font-bold tracking-[0.18em] uppercase flex-shrink-0" style={{ color: t.text.quaternary }}>
+              <span data-tx-actions-section className="text-[9px] font-bold tracking-[0.18em] uppercase flex-shrink-0" style={{ color: t.text.quaternary }}>
                 {sectionLabel}
               </span>
-              <span className="h-px flex-1" style={{ background: t.surface.borderLight }} />
+              <span data-tx-actions-rule className="h-px flex-1" style={{ background: t.surface.borderLight }} />
               {reorder.active || hiding ? (
                 <span className="flex items-center gap-1.5 flex-shrink-0">
                   <Pill
                     onClick={hiding ? visibility!.onConfirm : reorder.onConfirm}
-                    tone="#34d399" icon={<Check className="w-3 h-3" />} label="Valider"
+                    tone={TON_VALIDER} icon={<Check className="w-3 h-3" />} label="Valider"
                   />
                   <Pill
                     onClick={hiding ? visibility!.onCancel : reorder.onCancel}
-                    tone="#f87171" icon={<X className="w-3 h-3" />} label="Annuler"
+                    tone={TON_ANNULER} icon={<X className="w-3 h-3" />} label="Annuler"
                   />
                 </span>
               ) : (
@@ -184,6 +190,7 @@ export default function PremiumActionsModal({ title, identity, sectionLabel = 'G
                   Masquer retire le bouton pour cette société. Le code reste intact.
                 </p>
                 <button
+                  data-tx-pill="neutre"
                   onClick={visibility!.onOpenHiddenList}
                   className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold flex-shrink-0 transition-all active:scale-[0.97]"
                   style={{ background: `${t.accent.text}14`, border: `1px solid ${t.accent.text}2e`, color: t.accent.text }}
@@ -237,8 +244,11 @@ export default function PremiumActionsModal({ title, identity, sectionLabel = 'G
 
 /** Petite pastille de commande : visible, jamais un CTA principal. */
 function Pill({ onClick, tone, icon, label }: { onClick: () => void; tone: string; icon: React.ReactNode; label: string }) {
+  // Talixy rhabille ces pastilles : le ton d origine suffit a dire laquelle est laquelle.
+  const txPill = tone === TON_VALIDER ? "ok" : tone === TON_ANNULER ? "ko" : "neutre";
   return (
     <button
+      data-tx-pill={txPill}
       onClick={onClick}
       className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold flex-shrink-0 transition-all active:scale-[0.97]"
       style={{ background: `${tone}14`, border: `1px solid ${tone}2e`, color: tone }}

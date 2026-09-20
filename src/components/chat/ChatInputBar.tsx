@@ -48,7 +48,7 @@ export default function ChatInputBar({ input, setInput, onSend, sending, onSendM
   const hasText = input.trim().length > 0;
 
   return (
-    <div className="px-2 md:px-4 py-2 md:py-3 flex-shrink-0" style={{ borderTop: `1px solid ${tokens.chat.border}` }}>
+    <div data-tx-chatinput className="px-2 md:px-4 py-2 md:py-3 flex-shrink-0" style={{ borderTop: `1px solid ${tokens.chat.border}` }}>
       <div className="flex items-center gap-1.5 md:gap-2">
         {!recording && (
           <button

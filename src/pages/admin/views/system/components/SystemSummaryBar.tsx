@@ -18,6 +18,7 @@ export default function SystemSummaryBar({ items, statuses, tokens }: Props) {
 
   return (
     <div
+      data-tx-sys-summary
       className="rounded-xl p-3 sm:p-4"
       style={{ background: tokens.surface.secondary, border: `1px solid ${tokens.surface.border}` }}
     >

@@ -1,0 +1,962 @@
+/*
+ * TALIXY — feuille de style du theme signature. Reference absolue : la maquette gris bleute
+ * (image 3, 1672x941), mesuree pixel par pixel ; les valeurs ci-dessous en proviennent.
+ *
+ * Regles de cette feuille :
+ *   - tout est limite a html[data-theme="talixy"] : sans Talixy actif, rien ne change nulle part
+ *     (et depuis le garde-fou E0, cet attribut n'est JAMAIS pose sur la landing publique) ;
+ *   - aucun selecteur d'element global (nav, aside, header, main, body) ;
+ *   - classes Talixy prefixees .tx-, animations prefixees tx- ;
+ *   - on n'anime que transform et opacity ;
+ *   - valeurs recopiees de src/talixy/talixyPaletteClair.ts et src/talixy/talixyConfig.ts,
+ *     un test (scripts/talixy) verifie qu'elles sont identiques.
+ */
+
+/* Urbanist (variable 100-900, latin) : la police mesuree la plus proche de la maquette
+   (largeur/capitale 18,57 vs 18,26 mesure ; graisse 300 = fut/capitale 0,079 vs 0,08-0,095). */
+@font-face {
+  font-family: 'Urbanist';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/fonts/urbanist-latin.woff2') format('woff2');
+}
+
+html[data-theme="talixy"] {
+  background: #AEB8C7;
+  color: #1F2937;
+  font-family: 'Urbanist', 'Segoe UI', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+
+  /* Palette « gris bleute » mesuree sur la maquette */
+  --tx-edge: #737C8C;
+  --tx-dusk: #8C95A4;
+  --tx-mist: #AEB8C7;
+  --tx-plume: #C5CEDB;
+  --tx-card: #D6DDE8;
+  --tx-veil: #E1E8F2;
+  --tx-horizon: #E8EEF7;
+  --tx-floor: #EDF3F8;
+  --tx-white: #F7F9FC;
+  --tx-pure: #FFFFFF;
+  --tx-ink-deep: #141C27;
+  --tx-ink: #1F2937;
+  --tx-ink-soft: #3A444C;
+  --tx-ink-muted: #616A7A;
+  --tx-ink-faint: #8A93A3;
+  --tx-lumen: #F5FBFF;
+  --tx-lumen-soft: #D8DFEA;
+  --tx-lumen-muted: #B9C2D0;
+  --tx-ice: #DCEBFF;
+  --tx-steel: #33567A;
+  --tx-steel-deep: #24425E;
+  --tx-danger: #A83149;
+  --tx-success: #136A4A;
+  --tx-warning: #7A5600;
+
+  /* Mouvement : rapide au depart, freinage propre */
+  --tx-ease-out: cubic-bezier(.22,1,.36,1);
+  --tx-nav-ms: 280ms;
+  --tx-ring-delay-ms: 70ms;
+  --tx-ring-ms: 160ms;
+  --tx-hover-ms: 180ms;
+  --tx-modal-in-ms: 260ms;
+  --tx-modal-out-ms: 160ms;
+  --tx-view-enter-ms: 280ms;
+  /* Multiplicateur de duree : 1 sur ordinateur, plus court sur mobile */
+  --tx-motion-scale: 1;
+
+  /* Arc — tailles VISUELLES (la zone cliquable, elle, occupe toute la case : 56-75 px) */
+  --tx-disc: 44px;
+  --tx-disc-active: 1.36;
+  --tx-disc-cx: 22px;
+}
+
+@media (max-width: 767px) {
+  html[data-theme="talixy"] {
+    --tx-motion-scale: 0.72;
+  }
+}
+
+html[data-theme="talixy"] input::placeholder,
+html[data-theme="talixy"] textarea::placeholder {
+  color: #616A7A;
+  opacity: 1;
+}
+
+/* Mouvement reduit : tout element anime par Talixy porte .tx-anim et perd ici ses animations. */
+@media (prefers-reduced-motion: reduce) {
+  html[data-theme="talixy"] .tx-anim {
+    animation: none !important;
+    transition-duration: 1ms !important;
+    transition-delay: 0ms !important;
+  }
+}
+
+/* ---------- Coquille « une seule scene » : plus aucun rectangle, aucun trait. ---------- */
+
+html[data-theme="talixy"] [data-tx-scene],
+html[data-theme="talixy"] [data-tx-planet-host] {
+  background: transparent !important;
+  border: 0 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+html[data-theme="talixy"] [data-tx-topbar] {
+  background: transparent !important;
+  border: 0 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+/* Pilules de la barre du haut : verre blanc discret, plus aucune couleur d'accent criarde. */
+html[data-theme="talixy"] [data-tx-topbar] button {
+  background: rgba(255,255,255,0.12) !important;
+  border-color: rgba(255,255,255,0.35) !important;
+  color: var(--tx-ink-soft) !important;
+  box-shadow: none !important;
+}
+html[data-theme="talixy"] [data-tx-topbar] button:hover {
+  background: rgba(255,255,255,0.22) !important;
+}
+
+/* ---------- Fond de la maquette (TalixyBackdrop) : peint une fois, aucune animation de fond. ---------- */
+
+html[data-theme="talixy"] .tx-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(92% 60% at 53% 64%, var(--tx-horizon) 0%, rgba(232,238,247,0.55) 34%, rgba(232,238,247,0) 64%),
+    linear-gradient(180deg, #8E97A7 0%, #A5AEBF 28%, var(--tx-mist) 46%, var(--tx-plume) 62%, #B4BDCC 80%, #8F98A9 100%);
+}
+/* Sol : bande lumineuse sous l'horizon + deux reflets verticaux (x ~51 % large, x ~84 % etroit). */
+html[data-theme="talixy"] .tx-backdrop-floor {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(46% 22% at 51% 71%, rgba(243,248,253,0.8) 0%, rgba(243,248,253,0) 70%),
+    radial-gradient(3.2% 26% at 51.2% 82%, rgba(250,253,255,0.55) 0%, rgba(250,253,255,0) 78%),
+    radial-gradient(1.6% 18% at 84.2% 76%, rgba(250,253,255,0.6) 0%, rgba(250,253,255,0) 80%),
+    linear-gradient(180deg, rgba(237,243,248,0) 58%, rgba(237,243,248,0.5) 68%, rgba(237,243,248,0.18) 84%, rgba(237,243,248,0) 100%);
+}
+/* Vignettage : coins et bords assombris (#737C8C mesure), la lumiere reste au centre. */
+html[data-theme="talixy"] .tx-backdrop-vignette {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(58% 92% at 0% 46%, rgba(63,72,90,0.34) 0%, rgba(63,72,90,0) 66%),
+    radial-gradient(115% 140% at 50% 52%, rgba(75,84,102,0) 52%, rgba(75,84,102,0.30) 82%, rgba(63,72,90,0.52) 100%);
+}
+
+/* Petites lumieres flottantes : peu nombreuses, lentes, certaines nettes, d'autres floues. */
+html[data-theme="talixy"] .tx-backdrop-lights {
+  position: absolute;
+  inset: 0;
+}
+html[data-theme="talixy"] .tx-light {
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(circle at 42% 38%, var(--tx-pure) 0%, rgba(225,235,255,0.9) 45%, rgba(225,235,255,0) 100%);
+  box-shadow: 0 0 10px 2px rgba(225,235,255,0.45);
+  animation: tx-drift-a 18s ease-in-out infinite alternate;
+}
+html[data-theme="talixy"] .tx-light[data-soft="true"] {
+  filter: blur(2px);
+  opacity: 0.7;
+}
+/* Trois trajets lents mais VISIBLES : certaines montent, d'autres descendent, d'autres derivent. */
+html[data-theme="talixy"] .tx-light-1 { animation-name: tx-drift-b; }
+html[data-theme="talixy"] .tx-light-2 { animation-name: tx-drift-c; }
+@keyframes tx-drift-a { /* monte en derivant a droite */
+  0% { transform: translate3d(0, 0, 0) scale(0.92); opacity: 0.3; }
+  30% { opacity: 0.95; }
+  60% { transform: translate3d(26px, -44px, 0) scale(1.12); opacity: 0.6; }
+  100% { transform: translate3d(44px, -78px, 0) scale(0.96); opacity: 0.9; }
+}
+@keyframes tx-drift-b { /* descend doucement vers la gauche */
+  0% { transform: translate3d(0, 0, 0) scale(1.05); opacity: 0.85; }
+  40% { transform: translate3d(-24px, 30px, 0) scale(0.9); opacity: 0.35; }
+  75% { opacity: 0.9; }
+  100% { transform: translate3d(-46px, 62px, 0) scale(1.1); opacity: 0.5; }
+}
+@keyframes tx-drift-c { /* derive laterale, presque horizontale */
+  0% { transform: translate3d(0, 0, 0) scale(0.95); opacity: 0.4; }
+  35% { transform: translate3d(30px, -10px, 0) scale(1.14); opacity: 0.95; }
+  70% { transform: translate3d(56px, 6px, 0) scale(0.92); opacity: 0.45; }
+  100% { transform: translate3d(76px, -6px, 0) scale(1.06); opacity: 0.85; }
+}
+
+/* ---------- La fine ligne d'arc (TalixyArcLine) : 2 px + lueur, estompee aux extremites. ---------- */
+
+html[data-theme="talixy"] .tx-arcline-layer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+  -webkit-mask: linear-gradient(180deg, transparent 2%, #000 20%, #000 80%, transparent 98%);
+  mask: linear-gradient(180deg, transparent 2%, #000 20%, #000 80%, transparent 98%);
+}
+html[data-theme="talixy"] .tx-arcline {
+  position: absolute;
+  left: calc(var(--tx-hub-x, 0px) - var(--tx-line-r, 0px));
+  top: calc(var(--tx-hub-y, 0px) - var(--tx-line-r, 0px));
+  width: calc(var(--tx-line-r, 0px) * 2);
+  height: calc(var(--tx-line-r, 0px) * 2);
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.85);
+  box-shadow: 0 0 7px rgba(255,255,255,0.55), inset 0 0 7px rgba(255,255,255,0.35);
+}
+
+/* ---------- Separateurs de compartiment : nom a gauche, trait elastique, point sur l'arc. ---------- */
+
+/*
+ * Le nom NE tourne PAS avec l'arc : il reste sur une ligne horizontale, a gauche. Seuls le point
+ * (pose sur la ligne d'arc), la longueur du trait de liaison et celle des tirets interieurs
+ * s'adaptent a la position reelle des onglets — geometrie calculee dans TalixyArc, jamais en dur.
+ * Toute la couche est inerte : elle ne doit bloquer aucun clic.
+ */
+html[data-theme="talixy"] .tx-arc-sep {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+html[data-theme="talixy"] .tx-arc-sep-name {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  white-space: nowrap;
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+  color: var(--tx-ink-soft);
+}
+/* Trait continu : il ne devient jamais pointille avant l'arc. */
+html[data-theme="talixy"] .tx-arc-sep-line {
+  position: absolute;
+  top: 50%;
+  height: 1px;
+  transform: translateY(-50%);
+  background: linear-gradient(90deg, rgba(255,255,255,0.30) 0%, rgba(255,255,255,0.85) 70%, rgba(255,255,255,0.95) 100%);
+}
+/* Point lumineux, pose pile sur le cercle de la ligne d'arc. */
+html[data-theme="talixy"] .tx-arc-sep-dot {
+  position: absolute;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  margin: -3.5px 0 0 -3.5px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, var(--tx-pure) 0%, rgba(235,243,255,0.95) 55%, rgba(235,243,255,0) 100%);
+  box-shadow: 0 0 9px 2px rgba(235,243,255,0.8);
+}
+/* Prolongement A L'INTERIEUR de l'arc : petits traits, longueur reglee sur les libelles reels. */
+html[data-theme="talixy"] .tx-arc-sep-dash {
+  position: absolute;
+  top: 50%;
+  height: 1px;
+  transform: translateY(-50%);
+  background-image: linear-gradient(90deg, rgba(255,255,255,0.7) 0 5px, rgba(255,255,255,0) 5px 10px);
+  background-size: 10px 1px;
+  background-repeat: repeat-x;
+}
+
+/* ---------- Arc de navigation (mode fixe, maquette) ---------- */
+
+html[data-theme="talixy"] .tx-arc-slot {
+  display: flex;
+  align-items: center;
+  backface-visibility: hidden;
+}
+/* HITBOX : le visuel retrecit, pas la facilite de clic — la ligne et son bouton remplissent
+   toute la case (hauteur d'un cran : 75 px, 56 px en compact). */
+html[data-theme="talixy"] .tx-arc-slot > div {
+  height: 100%;
+}
+html[data-theme="talixy"] .tx-arc-slot [data-sidebar-item] {
+  height: 100%;
+  align-items: center;
+}
+
+/* Repere de foyer de l'ancienne roue : jamais montre en mode fixe. */
+html[data-theme="talixy"] .tx-arc-focus { display: none; }
+
+/*
+ * Maquette : l'arc FLOTTE dans la scene, sans boite — les libelles des extremites (qui derivent vers
+ * la droite avec la courbe) ne sont jamais coupes par le bord de la colonne. Les elements hors
+ * fenetre restent invisibles par leur opacite, pas par un decoupage.
+ */
+html[data-theme="talixy"] [data-tx-scene] .tx-arc[data-mode="fixed"] {
+  overflow: visible !important;
+}
+
+/*
+ * Marqueur de l'actif : il GLISSE le long de l'arc (meme rotation que les cases).
+ * Il NE PEINT PLUS RIEN. Decision de David : aucune lueur diffuse autour de l'onglet actif.
+ * L'actif se lit par son disque plus clair, son liseret fin, son icone nette, son libelle plus
+ * present et son petit point — jamais par un bloom qui deborde. La couche est conservee telle
+ * quelle (meme element, meme rotation, meme duree) pour ne rien changer a l'animation de l'arc.
+ */
+html[data-theme="talixy"] .tx-arc-halo { display: block; z-index: 0; }
+
+/* Ligne d'onglet : rien derriere (pas de pilule), juste le disque et le libelle. */
+html[data-theme="talixy"] .tx-arc-slot > div {
+  background: transparent !important;
+  box-shadow: none !important;
+  margin-bottom: 0;
+}
+html[data-theme="talixy"] .tx-arc-slot [data-sidebar-item] {
+  gap: 12px;
+}
+/* Libelles des onglets : fins, compacts, proches de la maquette (l'actif ne « gonfle » presque pas). */
+html[data-theme="talixy"] .tx-arc-slot [data-sidebar-item] > span.truncate {
+  font-size: 12.5px;
+  font-weight: 340;
+  letter-spacing: 0.02em;
+  color: var(--tx-lumen);
+  text-shadow: 0 1px 6px rgba(20,28,39,0.18);
+  transform-origin: 0 50%;
+  transition: transform var(--tx-ring-ms) var(--tx-ease-out), color var(--tx-ring-ms) var(--tx-ease-out);
+}
+html[data-theme="talixy"] .tx-arc-slot[data-active="true"] [data-sidebar-item] > span.truncate {
+  color: var(--tx-pure);
+  font-weight: 460;
+  transform: scale(1.04);
+  text-shadow: 0 1px 10px rgba(20,28,39,0.25);
+}
+/*
+ * Aucun point apres le libelle de l onglet actif (decision de David). L actif se lit par son
+ * disque, son icone et son texte plus present — rien d autre. Les points des compartiments, eux,
+ * restent : ils sont poses sur la COURBE de l arc par .tx-arc-sep-dot et n ont aucun rapport.
+ */
+
+/* Disque : blanc translucide, liseret clair, ombre douce (mesures : Ø 50, actif x1,4). */
+html[data-theme="talixy"] .tx-arc-slot [data-sb-icon] {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--tx-disc);
+  height: var(--tx-disc);
+  flex-shrink: 0;
+  border-radius: 50%;
+  color: var(--tx-ink-soft);
+  background: linear-gradient(180deg, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0.42) 100%);
+  border: 1px solid rgba(255,255,255,0.85);
+  box-shadow: 0 8px 22px rgba(30,40,60,0.16), inset 0 1px 0 rgba(255,255,255,0.9);
+  transform-origin: 50% 50%;
+  transition: transform var(--tx-ring-ms) var(--tx-ease-out), box-shadow var(--tx-ring-ms) var(--tx-ease-out);
+}
+html[data-theme="talixy"] .tx-arc-slot [data-sb-icon] > svg {
+  width: 15px;
+  height: 15px;
+  stroke-width: 1.4;
+}
+html[data-theme="talixy"] .tx-arc-slot[data-active="true"] [data-sb-icon] > svg {
+  /* le disque actif est mis a l'echelle x1,36 : 12,7 px x 1,36 = ~17 px VISUELS (cible de David) */
+  width: 12.7px;
+  height: 12.7px;
+}
+/*
+ * Harmonisation optique, icone par icone : les glyphes Lucide n'ont pas tous la meme masse
+ * visuelle (l'engrenage est dense, le bouclier est leger, l'ecran et la bulle sont larges).
+ * Ajustements individuels pour un seul et meme set premium.
+ */
+html[data-theme="talixy"] .tx-arc-slot [data-sidebar-item="statuts"] [data-sb-icon] > svg {
+  transform: scale(0.93); /* engrenage dense */
+}
+html[data-theme="talixy"] .tx-arc-slot [data-sidebar-item="super-admins"] [data-sb-icon] > svg {
+  transform: scale(1.05); /* bouclier leger */
+}
+html[data-theme="talixy"] .tx-arc-slot [data-sidebar-item="system"] [data-sb-icon] > svg {
+  transform: scale(0.96) translateY(-0.5px); /* ecran large */
+}
+html[data-theme="talixy"] .tx-arc-slot [data-sidebar-item="chat-admin"] [data-sb-icon] > svg {
+  transform: scale(0.97) translateY(0.5px); /* bulle large */
+}
+html[data-theme="talixy"] .tx-arc-slot [data-sidebar-item="mon-compte"] [data-sb-icon] > svg {
+  transform: scale(1.02);
+}
+html[data-theme="talixy"] .tx-arc-slot[data-active="true"] [data-sb-icon] {
+  transform: scale(var(--tx-disc-active));
+  transition-delay: var(--tx-ring-delay-ms);
+  color: var(--tx-ink-deep);
+  background: linear-gradient(180deg, var(--tx-pure) 0%, rgba(244,250,255,0.9) 100%);
+  border-color: var(--tx-pure);
+  /* Profondeur et liseret interieur seulement : plus de « 0 0 24px » blanc autour du disque. */
+  box-shadow: 0 10px 26px rgba(30,40,60,0.2), inset 0 1px 0 var(--tx-pure);
+}
+
+/*
+ * Le palier compact ne fige PLUS le diametre du disque : il etait a 38 px sous 1024 px et a 44 px
+ * au-dessus, donc un saut net a 1024. Le disque est desormais publie en --tx-disc par la roue,
+ * et il suit la courbe fluide. Les retouches de libelle et d'icone ci-dessous restent, elles ne
+ * s'appliquent plus que si la classe est posee (mode reduit).
+ */
+html[data-theme="talixy"] .tx-arc.tx-size-compact .tx-arc-slot [data-sidebar-item] {
+  gap: 12px;
+}
+html[data-theme="talixy"] .tx-arc.tx-size-compact .tx-arc-slot [data-sidebar-item] > span.truncate {
+  font-size: 12px;
+}
+html[data-theme="talixy"] .tx-arc.tx-size-compact .tx-arc-slot [data-sb-icon] > svg {
+  width: 13.5px;
+  height: 13.5px;
+}
+html[data-theme="talixy"] .tx-arc.tx-size-compact .tx-arc-slot[data-active="true"] [data-sb-icon] > svg {
+  width: 11.4px;
+  height: 11.4px;
+}
+/* Clavier : focus toujours visible. */
+html[data-theme="talixy"] .tx-arc-slot [data-sidebar-item]:focus-visible {
+  outline: 2px solid var(--tx-steel);
+  outline-offset: 4px;
+  border-radius: 999px;
+}
+
+/* Ancienne roue (mode 'wheel') : titres de compartiment et separateurs, habillage neutre clair. */
+html[data-theme="talixy"] .tx-arc-section {
+  margin: 0;
+  padding-left: 64px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--tx-lumen-muted);
+}
+html[data-theme="talixy"] .tx-arc-divider {
+  display: block;
+  width: 40%;
+  height: 1px;
+  margin-left: 64px;
+  background: rgba(255,255,255,0.25);
+}
+
+/* Zone du logo : posee dans l'espace, alignee a gauche, la petite accroche depasse dessous. */
+html[data-theme="talixy"] [data-tx-logozone] {
+  overflow: visible !important;
+  justify-content: flex-start !important;
+}
+
+/*
+ * Pied de la sidebar en scene Talixy : dock d'icones rondes flottantes (aucun cadre, aucun rectangle),
+ * pose au-dessus de l'horloge. Les fonctions restent toutes la (Reorganiser, Reduire, Deconnexion),
+ * en icone avec info-bulle. Le bloc Visu, lui, n'est jamais reduit (regle produit).
+ */
+html[data-theme="talixy"] [data-tx-scene] [data-tx-foot] {
+  border-color: transparent !important;
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+html[data-theme="talixy"] [data-tx-scene] [data-tx-foot] > div {
+  flex-direction: row !important;
+  justify-content: flex-start;
+  gap: 10px !important;
+  padding: 0 0 46px 34px;
+}
+html[data-theme="talixy"] [data-tx-scene] [data-tx-foot] button {
+  width: 40px;
+  height: 40px;
+  padding: 0 !important;
+  flex: 0 0 40px;
+  justify-content: center;
+  border-radius: 50% !important;
+  color: var(--tx-ink-soft) !important;
+  background: linear-gradient(180deg, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.35) 100%) !important;
+  border: 1px solid rgba(255,255,255,0.8) !important;
+  box-shadow: 0 6px 16px rgba(30,40,60,0.14) !important;
+}
+html[data-theme="talixy"] [data-tx-scene] [data-tx-foot] button:hover {
+  background: rgba(255,255,255,0.85) !important;
+}
+html[data-theme="talixy"] [data-tx-scene] [data-tx-foot] button > span:last-child {
+  display: none; /* libelle en info-bulle seulement : aucun bloc de texte dans la scene */
+}
+html[data-theme="talixy"] [data-tx-scene] [data-tx-foot] button > span:first-child {
+  width: auto;
+  background: transparent !important;
+}
+
+/* ---------- Hero central (TalixyHero) : sur-titre, grand titre fin, sous-titre, 3 cartes. ---------- */
+
+html[data-theme="talixy"] .tx-hero {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  /* Maquette : sur-titre a y=249, hero centre a x=900 (entre l'apex de l'arc et le bord droit),
+     soit un decalage de 146 px vers la gauche du centre de la zone de contenu (padding-right 17.5vw). */
+  padding: clamp(90px, 19.6vh, 185px) 24px 64px 24px;
+  padding-right: calc(24px + 17.5vw);
+}
+html[data-theme="talixy"] .tx-hero-overline {
+  font-size: 15px;
+  font-weight: 400;
+  letter-spacing: 0.5em;
+  text-indent: 0.5em;
+  text-transform: uppercase;
+  color: var(--tx-ink-soft);
+}
+html[data-theme="talixy"] .tx-hero-title {
+  margin-top: 36px;
+  font-size: 53px;
+  font-weight: 300;
+  line-height: 1.1;
+  letter-spacing: 0.002em;
+  color: var(--tx-ink-deep);
+}
+html[data-theme="talixy"] .tx-hero-subtitle {
+  margin-top: 18px;
+  font-size: 17px;
+  font-weight: 300;
+  letter-spacing: 0.15em;
+  color: var(--tx-ink-muted);
+}
+html[data-theme="talixy"] .tx-hero-cards {
+  display: flex;
+  gap: 18px;
+  margin-top: 63px;
+  transform: translateX(-20px);
+  flex-wrap: wrap;
+  justify-content: center;
+}
+html[data-theme="talixy"] .tx-hero-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 252px;
+  min-height: 106px;
+  padding: 16px 18px;
+  border-radius: 15px;
+  text-align: left;
+  background: rgba(255,255,255,0.16);
+  border: 1px solid rgba(255,255,255,0.45);
+  box-shadow: 0 15px 50px rgba(30,40,60,0.08), inset 0 1px 0 rgba(255,255,255,0.55);
+  cursor: pointer;
+  transition: transform var(--tx-hover-ms) var(--tx-ease-out), background var(--tx-hover-ms) var(--tx-ease-out), box-shadow var(--tx-hover-ms) var(--tx-ease-out);
+}
+html[data-theme="talixy"] .tx-hero-card:hover {
+  transform: translateY(-3px) scale(1.015);
+  background: rgba(255,255,255,0.26);
+  box-shadow: 0 20px 60px rgba(30,40,60,0.12), 0 0 24px rgba(225,235,255,0.45), inset 0 1px 0 rgba(255,255,255,0.7);
+}
+html[data-theme="talixy"] .tx-hero-card:focus-visible {
+  outline: 2px solid var(--tx-steel);
+  outline-offset: 3px;
+}
+html[data-theme="talixy"] .tx-hero-card-icon svg,
+html[data-theme="talixy"] .tx-count-icon svg,
+html[data-theme="talixy"] [data-tx-scene] [data-tx-foot] button svg {
+  stroke-width: 1.5;
+}
+html[data-theme="talixy"] .tx-hero-card-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 50px;
+  height: 50px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  color: var(--tx-ink-soft);
+  background: linear-gradient(180deg, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.45) 100%);
+  border: 1px solid rgba(255,255,255,0.9);
+  box-shadow: 0 6px 16px rgba(30,40,60,0.12);
+}
+html[data-theme="talixy"] .tx-hero-card-label {
+  flex: 1;
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.35;
+  color: var(--tx-ink-deep);
+}
+html[data-theme="talixy"] .tx-hero-card-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 27px;
+  height: 27px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  color: var(--tx-ink-soft);
+  background: rgba(255,255,255,0.55);
+  border: 1px solid rgba(255,255,255,0.8);
+}
+/* Entree du contenu : opacite + legere montee, echelonnee, jamais sur un conteneur de vues. */
+html[data-theme="talixy"] .tx-rise {
+  animation: tx-rise calc(var(--tx-view-enter-ms) * var(--tx-motion-scale)) var(--tx-ease-out) backwards;
+}
+@keyframes tx-rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ---------- Habillage flottant de la coquille (TalixyShellChrome) ---------- */
+
+html[data-theme="talixy"] .tx-chrome {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+html[data-theme="talixy"] .tx-slogan {
+  position: absolute;
+  top: 128px;
+  right: 66px;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 300;
+  letter-spacing: 0.45em;
+  line-height: 21px;
+  text-transform: uppercase;
+  color: var(--tx-lumen);
+  text-shadow: 0 1px 8px rgba(20,28,39,0.2);
+}
+html[data-theme="talixy"] .tx-slogan-line {
+  margin-top: 18px;
+  width: 128px;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(255,255,255,0.9), rgba(255,255,255,0));
+  box-shadow: 0 0 6px rgba(255,255,255,0.6);
+  position: relative;
+}
+html[data-theme="talixy"] .tx-slogan-line::before {
+  content: '';
+  position: absolute;
+  left: 22px;
+  top: -2.5px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--tx-pure);
+  box-shadow: 0 0 8px 2px rgba(255,255,255,0.8);
+}
+html[data-theme="talixy"] .tx-clock {
+  position: absolute;
+  left: 58px;
+  bottom: 30px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--tx-lumen);
+  text-shadow: 0 1px 6px rgba(20,28,39,0.25);
+}
+html[data-theme="talixy"] .tx-clock::before {
+  content: '';
+  width: 26px;
+  height: 1px;
+  background: rgba(255,255,255,0.6);
+}
+html[data-theme="talixy"] .tx-clock-sep {
+  width: 1px;
+  height: 14px;
+  background: rgba(255,255,255,0.45);
+}
+html[data-theme="talixy"] .tx-clock-date {
+  font-weight: 300;
+  color: var(--tx-lumen-soft);
+}
+html[data-theme="talixy"] .tx-baseline {
+  position: absolute;
+  right: 70px;
+  bottom: 44px;
+  max-width: 180px;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 300;
+  line-height: 21px;
+  color: var(--tx-lumen-soft);
+  text-shadow: 0 1px 6px rgba(20,28,39,0.25);
+}
+
+/* Logo : le vrai fichier Talvex, sans case ni panneau derriere. */
+html[data-theme="talixy"] .tx-logo {
+  position: relative;
+  display: block;
+  overflow: visible;
+}
+html[data-theme="talixy"] .tx-logo img {
+  position: absolute;
+  max-width: none;
+  filter: drop-shadow(0 2px 10px rgba(20,28,39,0.28));
+}
+html[data-theme="talixy"] .tx-logo-tagline {
+  position: absolute;
+  left: 2px;
+  bottom: -18px;
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 300;
+  letter-spacing: 0.14em;
+  color: var(--tx-lumen-soft);
+}
+
+/* ---------- Dashboard Talixy (composition validee) : Sante du projet, titre Groupes, compteur. ---------- */
+
+html[data-theme="talixy"] .tx-dash {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* Meme centre optique que le hero (decale a gauche du centre de la zone de contenu). */
+  padding: 0 calc(24px + 17.5vw) 140px 24px;
+}
+html[data-theme="talixy"] .tx-dash .tx-hero {
+  padding-left: 0;
+  padding-right: 0;
+  /* Tout le dashboard tient dans le premier ecran : hero resserre. */
+  padding-top: clamp(44px, 10vh, 96px);
+  padding-bottom: 0;
+}
+
+/* Deux colonnes sous le hero : Sante du projet (~66 %) a gauche, Groupes (~34 %) a droite. */
+html[data-theme="talixy"] .tx-dash-cols {
+  display: flex;
+  align-items: stretch;
+  gap: 22px;
+  width: min(1120px, 100%);
+  margin-top: 42px;
+}
+html[data-theme="talixy"] .tx-groupes-col {
+  flex: 1 1 34%;
+  min-width: 250px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Sante du projet : la vraie carte, posee dans le decor — translucide, fine, compacte. */
+html[data-theme="talixy"] [data-tx-health] {
+  flex: 1 1 66%;
+  min-width: 0;
+}
+html[data-theme="talixy"] [data-tx-health] > div {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: rgba(255,255,255,0.16) !important;
+  border: 1px solid rgba(255,255,255,0.45) !important;
+  border-radius: 18px !important;
+  box-shadow: 0 15px 50px rgba(30,40,60,0.08), inset 0 1px 0 rgba(255,255,255,0.55) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+/* Version compacte (CSS seulement : le composant reste identique pour les autres themes). */
+html[data-theme="talixy"] [data-tx-health] > div > div:first-child {
+  padding: 18px 22px 14px !important;
+  flex: 1;
+}
+html[data-theme="talixy"] [data-tx-health] > div > div:first-child > div:first-child {
+  margin-bottom: 12px !important;
+}
+html[data-theme="talixy"] [data-tx-health] > div > div:nth-child(2) {
+  background: rgba(255,255,255,0.35) !important; /* fine ligne interieure adoucie */
+}
+html[data-theme="talixy"] [data-tx-health] > div > div:last-child {
+  padding: 8px 22px !important;
+}
+/* Lignes de sections rapprochees, pastilles et barres inchangees. */
+html[data-theme="talixy"] [data-tx-health] [class*="min-w-0"][class*="flex-col"] {
+  gap: 5px !important;
+}
+html[data-theme="talixy"] [data-tx-health] [class*="min-w-0"][class*="flex-col"] > div {
+  padding-top: 5px !important;
+  padding-bottom: 5px !important;
+  background: rgba(255,255,255,0.4) !important;
+}
+/* Bloc du score : proportions compactes, memes vraies valeurs. */
+html[data-theme="talixy"] [data-tx-health] > div > div:first-child > div:nth-child(2) > div:first-child {
+  padding: 14px 22px !important;
+  background: rgba(255,255,255,0.5) !important;
+  border-color: rgba(255,255,255,0.7) !important;
+}
+
+/* Titre de section « Groupes » : meme famille et meme finesse que le grand titre. */
+html[data-theme="talixy"] .tx-section-title {
+  margin: 0 0 14px 6px;
+  font-size: 30px;
+  font-weight: 300;
+  line-height: 1.1;
+  letter-spacing: 0.01em;
+  color: var(--tx-ink-deep);
+}
+
+/* Compteur Groupes : carte translucide tres legere, grand chiffre fin, beaucoup d'air. */
+html[data-theme="talixy"] .tx-count-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  gap: 18px;
+  min-width: 0;
+  padding: 28px 24px;
+  border-radius: 18px;
+  background: rgba(255,255,255,0.16);
+  border: 1px solid rgba(255,255,255,0.45);
+  box-shadow: 0 15px 50px rgba(30,40,60,0.08), inset 0 1px 0 rgba(255,255,255,0.55);
+}
+html[data-theme="talixy"] .tx-count-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  color: var(--tx-ink-soft);
+  background: linear-gradient(180deg, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.45) 100%);
+  border: 1px solid rgba(255,255,255,0.9);
+  box-shadow: 0 6px 16px rgba(30,40,60,0.12);
+}
+html[data-theme="talixy"] .tx-count-value {
+  font-size: 76px;
+  font-weight: 250;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  font-variant-numeric: tabular-nums;
+  color: var(--tx-ink-deep);
+}
+html[data-theme="talixy"] .tx-count-caption {
+  font-size: 14px;
+  font-weight: 300;
+  letter-spacing: 0.05em;
+  color: var(--tx-ink-muted);
+}
+
+/* ---------- Boutons du haut : design de la reference (cercles de verre, capsule horloge, profil). ---------- */
+
+/* Cercles Ø 44 : Messages, Mobile, Editeur (les vrais boutons, libelle en info-bulle/pastille conserves). */
+html[data-theme="talixy"] [data-tx-topbar] div[class*="sm:gap-2"] {
+  gap: 10px !important;
+}
+html[data-theme="talixy"] [data-tx-topbar] button:not([data-tx-menu] *):not(:has(span[class*="font-mono"])):not(:has(div[class*="rounded-full"])) {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  padding: 0 !important;
+  justify-content: center;
+  gap: 0 !important;
+  border-radius: 50% !important;
+  background-color: rgba(130,145,168,0.18) !important;
+  background-image: linear-gradient(180deg, rgba(255,255,255,0.18), rgba(255,255,255,0.08)) !important;
+  border: 1px solid rgba(255,255,255,0.35) !important;
+  box-shadow: 0 4px 14px rgba(45,55,75,0.10) !important;
+}
+html[data-theme="talixy"] [data-tx-topbar] button:not([data-tx-menu] *):not(:has(span[class*="font-mono"])):not(:has(div[class*="rounded-full"])) span[class*="sm:inline"] {
+  display: none !important;
+}
+html[data-theme="talixy"] [data-tx-topbar] button:not([data-tx-menu] *):not(:has(span[class*="font-mono"])):not(:has(div[class*="rounded-full"])) svg {
+  width: 15px;
+  height: 15px;
+  stroke-width: 1.4;
+  color: #495468 !important; /* gris fonce legerement bleute, jamais noir */
+}
+/* Pastille de notification : petit point teal pose sur le cercle (comme l'image), sans chiffre. */
+html[data-theme="talixy"] [data-tx-topbar] button span[class*="min-w-[18px]"] {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  min-width: 9px !important;
+  width: 9px;
+  height: 9px !important;
+  padding: 0 !important;
+  font-size: 0 !important;
+  background: #4CC9A4 !important;
+  box-shadow: 0 0 6px rgba(76,201,164,0.8), inset 0 1px 0 rgba(255,255,255,0.5) !important;
+}
+/* Capsule horloge : icone + heure seulement. */
+html[data-theme="talixy"] [data-tx-topbar] button:has(span[class*="font-mono"]) {
+  height: 40px;
+  padding: 0 14px !important;
+  border-radius: 20px !important;
+  background-color: rgba(130,145,168,0.18) !important;
+  background-image: linear-gradient(180deg, rgba(255,255,255,0.18), rgba(255,255,255,0.08)) !important;
+  border: 1px solid rgba(255,255,255,0.35) !important;
+  box-shadow: 0 4px 14px rgba(45,55,75,0.10) !important;
+}
+html[data-theme="talixy"] [data-tx-topbar] button:has(span[class*="font-mono"]) span[class*="lg:block"],
+html[data-theme="talixy"] [data-tx-topbar] button:has(span[class*="font-mono"]) span[class*="lg:hidden"] {
+  display: none !important;
+}
+html[data-theme="talixy"] [data-tx-topbar] button:has(span[class*="font-mono"]) span[class*="font-mono"] {
+  font-family: 'Urbanist', 'Segoe UI', system-ui, sans-serif !important;
+  font-size: 13px !important;
+  font-weight: 500;
+  color: #3D4A61 !important;
+}
+html[data-theme="talixy"] [data-tx-topbar] button:has(span[class*="font-mono"]) svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 1.4;
+  color: #495468 !important;
+}
+/* Profil : disque blanc plein avec initiales, nom semi-gras + role, chevron. */
+/* Profil : pas de capsule autour — avatar clair, nom fin, role tres discret, chevron leger. */
+html[data-theme="talixy"] [data-tx-topbar] button:has(div[class*="rounded-full"]) {
+  height: 44px;
+  border-radius: 22px !important;
+  background: transparent !important;
+  background-image: none !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+html[data-theme="talixy"] [data-tx-topbar] button div[class*="rounded-full"] {
+  width: 40px !important;
+  height: 40px !important;
+  font-size: 12px !important;
+  background: #F4F7FB !important;
+  color: var(--tx-steel) !important;
+  box-shadow: 0 4px 12px rgba(45,55,75,0.16) !important;
+}
+html[data-theme="talixy"] [data-tx-topbar] button p[class*="font-semibold"] {
+  font-size: 13.5px !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.01em;
+}
+html[data-theme="talixy"] [data-tx-topbar] button p[class*="uppercase"] {
+  font-size: 8.5px !important;
+  letter-spacing: 0.14em !important;
+  opacity: 0.9;
+}
+html[data-theme="talixy"] [data-tx-topbar] button svg[class*="xl:block"]:last-child {
+  width: 13px;
+  height: 13px;
+}
+html[data-theme="talixy"] [data-tx-topbar] button div[class*="xl:block"] {
+  display: block !important;
+}
+html[data-theme="talixy"] [data-tx-topbar] button svg[class*="xl:block"] {
+  display: block !important;
+  color: var(--tx-lumen-soft) !important;
+}
+
+
+/* ---------- Changement d'onglet : entree en fondu des vues (opacite seule), spinner harmonise. ---------- */
+
+html[data-theme="talixy"] .tx-view-in {
+  animation: tx-view-in calc(var(--tx-view-enter-ms) * var(--tx-motion-scale)) var(--tx-ease-out) both;
+}
+@keyframes tx-view-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+/* Spinner de chargement : blanc doux, visible seulement apres 140 ms (les vues deja chargees ne flashent jamais). */
+html[data-theme="talixy"] .animate-spin {
+  border-color: rgba(255,255,255,0.8) !important;
+  border-top-color: transparent !important;
+}
+html[data-theme="talixy"] div[class*="h-64"]:has(> .animate-spin) {
+  animation: tx-view-in 200ms var(--tx-ease-out) both;
+  animation-delay: 140ms;
+}

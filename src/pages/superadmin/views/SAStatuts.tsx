@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Plus, Pipette, Star } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { useThemeTokens } from '../../../hooks/useThemeTokens';
+import { useTalixy } from '../../../talixy/useTalixy';
 import { Statut, PRESET_COLORS, MAX_FAVORITES, FAVORITES_KEY, colorWithAlpha } from '../../admin/views/statuts/colorUtils';
 import StatutsList from '../../admin/views/statuts/StatutsList';
 
@@ -10,6 +11,7 @@ const SA_PROTECTED_STATUTS = ['Nouveau'];
 
 export default function SAStatuts() {
   const tokens = useThemeTokens();
+  const tx = useTalixy();
   const [statuts, setStatuts] = useState<Statut[]>([]);
   const [loading, setLoading] = useState(true);
   const [nom, setNom] = useState('');
@@ -63,17 +65,30 @@ export default function SAStatuts() {
     setStatuts(prev => prev.filter(s => s.id !== id));
   };
 
+  /*
+   * TALIXY — ici la structure du DOM est la MEME dans tous les themes : seule la coquille change
+   * (en-tete centre, colonnes, surface de verre). On conditionne donc les classes plutot que de
+   * dupliquer le formulaire : hors Talixy, les valeurs sont exactement celles d'origine.
+   */
   return (
-    <div className="p-4 md:p-6 space-y-6">
-      <div>
-        <h2 className="text-xl font-bold" style={{ color: tokens.text.primary }}>Statuts</h2>
-        <p className="text-xs mt-0.5" style={{ color: tokens.label.hint }}>Gerez les statuts pour CRM Societe / Societes prospects</p>
-      </div>
+    <div className={tx.active ? 'tx-page' : 'p-4 md:p-6 space-y-6'} data-tx-statuts={tx.active ? 'true' : undefined}>
+      {tx.active ? (
+        <header className="tx-page-head">
+          <p className="tx-page-eyebrow">Gestion</p>
+          <h1 className="tx-page-title">Gestion des statuts</h1>
+          <p className="tx-page-subtitle">Les statuts utilisés par CRM Sociétés et les sociétés prospects.</p>
+        </header>
+      ) : (
+        <div>
+          <h2 className="text-xl font-bold" style={{ color: tokens.text.primary }}>Statuts</h2>
+          <p className="text-xs mt-0.5" style={{ color: tokens.label.hint }}>Gerez les statuts pour CRM Societe / Societes prospects</p>
+        </div>
+      )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className={tx.active ? 'tx-cols' : 'grid grid-cols-1 lg:grid-cols-2 gap-6'}>
         <div
-          className="rounded-2xl p-6 space-y-5"
-          style={{ background: tokens.card.bg, border: `1px solid ${tokens.card.border}` }}
+          className={tx.active ? 'tx-surface tx-stack' : 'rounded-2xl p-6 space-y-5'}
+          style={tx.active ? undefined : { background: tokens.card.bg, border: `1px solid ${tokens.card.border}` }}
         >
           <h3 className="text-sm font-bold" style={{ color: tokens.text.primary }}>Creer un statut</h3>
 

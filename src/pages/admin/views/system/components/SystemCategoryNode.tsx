@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { Check, X, ChevronRight, ChevronDown } from 'lucide-react';
 import type { useThemeTokens } from '../../../../../hooks/useThemeTokens';
 import type { SystemTreeNode, SystemStatus } from '../types';
@@ -16,8 +15,11 @@ export interface CategoryNodeProps {
   childCatName: string;
   renamingCatId: string | null;
   renameDraft: string;
-  confirmDeleteCatId: string | null;
-  confirmDeleteId: string | null;
+  /** Message de blocage a afficher sous l en-tete de CETTE categorie, s il y en a un. */
+  blockedCatId: string | null;
+  blockedMessage: string | null;
+  renamingItemId: string | null;
+  itemRenameDraft: string;
   tokens: ReturnType<typeof useThemeTokens>;
   statuses: SystemStatus[];
   addingItemToCat: string | null;
@@ -30,9 +32,8 @@ export interface CategoryNodeProps {
   onRenameDraftChange: (v: string) => void;
   onConfirmRename: (id: string) => void;
   onCancelRename: () => void;
-  onConfirmDeleteCat: (id: string | null) => void;
-  onDeleteCat: (id: string) => Promise<{ blocked?: boolean; message?: string }>;
-  onCancelDeleteCat: () => void;
+  /** Demande la suppression de la categorie : verifie la regle, puis bloque ou fait confirmer. */
+  onAskDeleteCat: (id: string, name: string) => void;
   onMoveCatUp: (id: string) => void;
   onMoveCatDown: (id: string) => void;
   onSetAddingItem: (catId: string) => void;
@@ -40,9 +41,11 @@ export interface CategoryNodeProps {
   onCreateItem: (catId: string) => void;
   onCancelAddItem: () => void;
   onSetItemStatus: (itemId: string, statusId: string | null) => void;
-  onDeleteItem: (id: string) => void;
-  onConfirmDeleteItem: (id: string | null) => void;
-  onCancelDeleteItem: () => void;
+  onAskDeleteItem: (id: string, title: string) => void;
+  onStartItemRename: (id: string, title: string) => void;
+  onItemRenameDraftChange: (v: string) => void;
+  onConfirmItemRename: (id: string) => void;
+  onCancelItemRename: () => void;
   onMoveItemUp: (id: string) => void;
   onMoveItemDown: (id: string) => void;
   colorPickerCatId: string | null;
@@ -58,7 +61,7 @@ export default function SystemCategoryNode(props: CategoryNodeProps) {
   const isAddingChild = props.addingChildOf === cat.id;
   const isAddingItem = props.addingItemToCat === cat.id;
   const totalItems = countAllItems(node);
-  const [blockMsg, setBlockMsg] = useState<string | null>(null);
+  const blockMsg = props.blockedCatId === cat.id ? props.blockedMessage : null;
 
   const styles = getDepthStyles(depth, tokens, cat.color);
 
@@ -129,13 +132,7 @@ export default function SystemCategoryNode(props: CategoryNodeProps) {
                 onAddChild={() => props.onSetAddingChildOf(cat.id)}
                 onAddItem={() => props.onSetAddingItem(cat.id)}
                 onRename={() => props.onStartRename(cat.id, cat.name)}
-                onDelete={async () => {
-                  const result = await props.onDeleteCat(cat.id);
-                  if (result.blocked) {
-                    setBlockMsg(result.message || 'Suppression impossible.');
-                    setTimeout(() => setBlockMsg(null), 3500);
-                  }
-                }}
+                onDelete={() => props.onAskDeleteCat(cat.id, cat.name)}
                 onOpenColorPicker={() => props.onOpenColorPicker(props.colorPickerCatId === cat.id ? null : cat.id)}
                 onMoveUp={() => props.onMoveCatUp(cat.id)}
                 onMoveDown={() => props.onMoveCatDown(cat.id)}
@@ -146,7 +143,7 @@ export default function SystemCategoryNode(props: CategoryNodeProps) {
       </div>
 
       {blockMsg && (
-        <div className="px-3 py-2 text-xs font-medium" style={{ background: tokens.danger.bg, color: tokens.danger.text, borderTop: `1px solid ${tokens.danger.border}` }}>
+        <div data-tx-bloque className="px-3 py-2 text-xs font-medium" style={{ background: tokens.danger.bg, color: tokens.danger.text, borderTop: `1px solid ${tokens.danger.border}` }}>
           {blockMsg}
         </div>
       )}
@@ -210,11 +207,14 @@ export default function SystemCategoryNode(props: CategoryNodeProps) {
                   total={node.items.length}
                   tokens={tokens}
                   statuses={statuses}
-                  confirmDeleteId={props.confirmDeleteId}
+                  renamingItemId={props.renamingItemId}
+                  renameDraft={props.itemRenameDraft}
                   onSetStatus={props.onSetItemStatus}
-                  onDelete={() => props.onDeleteItem(item.id)}
-                  onConfirmDelete={() => props.onConfirmDeleteItem(item.id)}
-                  onCancelDelete={props.onCancelDeleteItem}
+                  onAskDelete={() => props.onAskDeleteItem(item.id, item.title)}
+                  onStartRename={() => props.onStartItemRename(item.id, item.title)}
+                  onRenameDraftChange={props.onItemRenameDraftChange}
+                  onConfirmRename={() => props.onConfirmItemRename(item.id)}
+                  onCancelRename={props.onCancelItemRename}
                   onMoveUp={() => props.onMoveItemUp(item.id)}
                   onMoveDown={() => props.onMoveItemDown(item.id)}
                 />

@@ -57,7 +57,7 @@ export default function ListFilters({
   const inputStyle = { background: t.input.bg, border: `1px solid ${t.input.border}`, color: t.input.text };
 
   return (
-    <div className="mb-3 sm:mb-4 space-y-2">
+    <div data-tx-filters className="mb-3 sm:mb-4 space-y-2">
       <div className="flex items-center gap-2 flex-wrap">
         <div className="flex items-center gap-2 flex-1 min-w-[180px] px-3 py-2 rounded-xl" style={inputStyle}>
           <Search className="w-4 h-4 flex-shrink-0" style={{ color: t.text.quaternary }} />

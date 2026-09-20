@@ -72,3 +72,35 @@ export function countAllItems(node: SystemTreeNode): number {
   return count;
 }
 
+
+export interface DeletionCheck {
+  ok: boolean;
+  /** Message precis, affiche tel quel. Absent quand la suppression est permise. */
+  message?: string;
+}
+
+/**
+ * Regle de suppression d'un parent : il ne part que VIDE.
+ *
+ * On ne compte que ses enfants DIRECTS, et c'est volontaire : ce sont exactement les lignes que la
+ * base effacerait en cascade (FK ON DELETE CASCADE sur parent_id et category_id) si ce garde-fou
+ * sautait. Compter les petits-enfants donnerait un message juste mais une protection fausse.
+ *
+ * Module pur, sans import : testable avec node --test.
+ */
+export function checkCategoryDeletable(
+  categories: readonly SystemCategory[],
+  items: readonly SystemItem[],
+  id: string,
+): DeletionCheck {
+  const sousGroupes = categories.filter((c) => c.parent_id === id).length;
+  const notes = items.filter((i) => i.category_id === id).length;
+  if (sousGroupes === 0 && notes === 0) return { ok: true };
+
+  const cat = categories.find((c) => c.id === id);
+  const sujet = cat?.parent_id ? 'Ce sous-groupe' : 'Cette catégorie';
+  const morceaux: string[] = [];
+  if (sousGroupes > 0) morceaux.push(`${sousGroupes} sous-groupe${sousGroupes > 1 ? 's' : ''}`);
+  if (notes > 0) morceaux.push(`${notes} note${notes > 1 ? 's' : ''}`);
+  return { ok: false, message: `${sujet} contient encore ${morceaux.join(' et ')}.` };
+}

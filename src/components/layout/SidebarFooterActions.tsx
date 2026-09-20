@@ -26,6 +26,7 @@ export default function SidebarFooterActions({
     <div className="flex-shrink-0 px-2 pb-2.5 pt-1.5">
       {/* System actions card */}
       <div
+        data-tx-foot
         className={`rounded-xl ${collapsed ? 'px-1 py-1.5' : 'px-1.5 py-1.5'}`}
         style={{
           background: `linear-gradient(180deg, ${t.sidebar.bg}00 0%, ${t.sidebar.divider}18 100%)`,

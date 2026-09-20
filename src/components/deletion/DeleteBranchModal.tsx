@@ -87,9 +87,9 @@ export default function DeleteBranchModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-3 sm:p-4"
+    <div data-tx-veil className="fixed inset-0 z-[200] flex items-center justify-center p-3 sm:p-4"
       style={{ background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)' }}>
-      <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl"
+      <div data-tx-delete className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl"
         style={{ background: t.modal.bg, border: `1px solid ${t.modal.border}` }}>
 
         <div className="flex items-start gap-3 p-5" style={{ borderBottom: `1px solid ${t.modal.border}` }}>
@@ -157,7 +157,7 @@ export default function DeleteBranchModal({
                 style={{ background: t.surface.hover, color: t.text.secondary }}>
                 Annuler
               </button>
-              <button onClick={() => run(false)} disabled={!canRun}
+              <button data-tx-danger onClick={() => run(false)} disabled={!canRun}
                 className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-xs font-bold text-white transition-all disabled:opacity-40"
                 style={{ background: canRun ? 'linear-gradient(135deg, #ef4444, #dc2626)' : 'rgba(239,68,68,0.3)' }}>
                 {running && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
@@ -228,7 +228,7 @@ export default function DeleteBranchModal({
                 Fermer
               </button>
               {!allOk && (
-                <button onClick={() => run(true)} disabled={running}
+                <button data-tx-warn onClick={() => run(true)} disabled={running}
                   className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-xs font-bold text-white disabled:opacity-40"
                   style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}>
                   {running && <Loader2 className="w-3.5 h-3.5 animate-spin" />}

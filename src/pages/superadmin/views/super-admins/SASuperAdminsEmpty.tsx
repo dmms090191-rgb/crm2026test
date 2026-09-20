@@ -4,7 +4,7 @@ import type { ThemeTokens } from '../../../../lib/themeTokensTypes';
 /** Etat « aucun groupe en base ». */
 export function SASuperAdminsEmpty({ tokens: t, onCreate }: { tokens: ThemeTokens; onCreate: () => void }) {
   return (
-    <div className="flex-1 flex items-center justify-center">
+    <div data-tx-empty className="flex-1 flex items-center justify-center">
       <div className="text-center space-y-4 max-w-sm">
         <div className="w-16 h-16 mx-auto rounded-2xl flex items-center justify-center" style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.15)' }}>
           <Users className="w-8 h-8" style={{ color: '#f59e0b' }} />

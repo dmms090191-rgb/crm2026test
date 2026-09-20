@@ -69,6 +69,7 @@ export default function PremiumActionCard({
   if (hiding) {
     return (
       <div
+        data-tx-card="masquer"
         className={`group flex items-center gap-3 px-3 py-2.5 min-h-[58px] rounded-xl${span}`}
         style={{ ...skin, borderStyle: 'dashed', borderColor: `${c}3d` }}
       >
@@ -88,6 +89,7 @@ export default function PremiumActionCard({
   if (!reordering) {
     return (
       <button
+        data-tx-card="action"
         onClick={action.onClick}
         className={`group flex items-center gap-3 px-3 py-2.5 min-h-[58px] rounded-xl text-left transition-all duration-200 active:scale-[0.985]${span}`}
         style={skin}
@@ -109,6 +111,7 @@ export default function PremiumActionCard({
 
   return (
     <div
+      data-tx-card="ordre"
       draggable
       onDragStart={onDragStart}
       onDragOver={onDragOver}

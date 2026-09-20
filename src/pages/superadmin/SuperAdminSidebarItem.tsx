@@ -54,12 +54,12 @@ function SAItem({ id, label, icon, isActive, collapsed, onClick, tokens, editorC
         onClick={onClick}
         title={collapsed ? label : undefined}
         data-testid={id === 'admins' ? 'liste-admins-tab' : undefined}
-        data-sidebar-item={id}
+        data-sidebar-item={id} aria-current={isActive ? 'page' : undefined}
         className={`flex items-center gap-2.5 min-w-0 flex-1 ${hideEditMode ? 'pointer-events-none' : ''}`}
         style={{ color: dimmed ? tokens.itemText : finalColor }}
         tabIndex={hideEditMode ? -1 : 0}
       >
-        <span className="flex-shrink-0 relative">
+        <span className="flex-shrink-0 relative" data-sb-icon>
           {icon}
           {collapsed && !!badgeCount && badgeCount > 0 && !hideEditMode && (
             <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 flex items-center justify-center rounded-full text-[10px] font-bold text-white bg-red-500 shadow-sm">{badgeCount > 99 ? '99+' : badgeCount}</span>

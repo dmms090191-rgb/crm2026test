@@ -27,14 +27,14 @@ export default function SASuperAdminsNotices({
   return (
     <>
       {error && (
-        <div className="flex items-center gap-2 px-4 py-3 rounded-xl mb-4" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)' }}>
+        <div data-tx-notice="error" className="flex items-center gap-2 px-4 py-3 rounded-xl mb-4" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)' }}>
           <AlertCircle className="w-4 h-4 flex-shrink-0" style={{ color: '#ef4444' }} />
           <p className="text-xs" style={{ color: '#f87171' }}>{error}</p>
         </div>
       )}
 
       {openJobs.length > 0 && (
-        <div className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl mb-3"
+        <div data-tx-notice="job" className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl mb-3"
           style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)' }}>
           <div className="flex items-center gap-2 min-w-0">
             <AlertCircle className="w-4 h-4 flex-shrink-0" style={{ color: '#f59e0b' }} />
@@ -56,7 +56,7 @@ export default function SASuperAdminsNotices({
       )}
 
       {selectMode && shownCount > 0 && (
-        <div className="flex items-center gap-2 px-3 py-2 rounded-xl mb-3"
+        <div data-tx-notice="select" className="flex items-center gap-2 px-3 py-2 rounded-xl mb-3"
           style={{ background: t.surface.primary, border: `1px solid ${t.surface.border}` }}>
           <input
             type="checkbox"
@@ -68,7 +68,7 @@ export default function SASuperAdminsNotices({
             Tout sélectionner{shownCount !== totalCount ? ` (${shownCount} affichés)` : ''}
           </span>
           {selectedCount > 0 && (
-            <span className="text-xs font-semibold ml-auto" style={{ color: '#ef4444' }}>
+            <span data-tx-count className="text-xs font-semibold ml-auto" style={{ color: '#ef4444' }}>
               {selectedCount} sélectionné{selectedCount > 1 ? 's' : ''}
             </span>
           )}

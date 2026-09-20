@@ -82,6 +82,7 @@ export default function SAProfileMenu({ tokens, firstName, lastName }: { tokens:
 
       {dropdownOpen && (
         <div
+          data-tx-menu
           className="absolute right-0 top-full mt-2 w-56 rounded-xl overflow-hidden z-50"
           style={{
             background: d.bg,

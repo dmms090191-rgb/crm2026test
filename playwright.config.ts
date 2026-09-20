@@ -14,6 +14,9 @@ export default defineConfig({
     baseURL: 'http://localhost:5173',
     screenshot: 'only-on-failure',
     trace: 'on-first-retry',
+    // Tests automatiques uniquement : la roue Talixy laisse place a la liste normale (tests stables).
+    // Les vrais utilisateurs ne sont jamais concernes par ce reglage.
+    reducedMotion: 'reduce',
     headless: process.env.PW_HEADED !== '1',
     launchOptions: {
       slowMo: Number(process.env.PW_SLOWMO) || 0,

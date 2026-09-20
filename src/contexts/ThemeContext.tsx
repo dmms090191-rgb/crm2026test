@@ -28,6 +28,8 @@ interface ThemeContextValue {
   setGlassConfig: (config: GlassConfig) => void;
   customThemeKey: string | null;
   customThemeOverrides: CustomThemeOverrides | null;
+  /** Vrai seulement si le choix s'ecrit dans la preference personnelle de Talvex Administrateur (hors Visu d'une entreprise). */
+  personalScope: boolean;
   applyCustomTheme: (key: string, baseTheme: Theme, overrides: CustomThemeOverrides) => void;
   clearCustomTheme: () => void;
 }
@@ -110,9 +112,15 @@ interface ThemeProviderProps {
   panelRole: PanelRole;
   effectiveUserId?: string;
   companyId?: string | null;
+  /**
+   * Vrai UNIQUEMENT sous un tableau de bord connecte (pose par AppShell). La landing publique ne le
+   * pose jamais : en portee 'none' sans ce marqueur, tout data-theme residuel est retire de <html>
+   * (la landing garde toujours son propre rendu, quel que soit le dernier theme utilise).
+   */
+  dashboardHost?: boolean;
 }
 
-export function ThemeProvider({ children, panelRole, effectiveUserId, companyId }: ThemeProviderProps) {
+export function ThemeProvider({ children, panelRole, effectiveUserId, companyId, dashboardHost = false }: ThemeProviderProps) {
   const [sessionUserId, setSessionUserId] = useState<string | null>(null);
   const [jwtCompanyId, setJwtCompanyId] = useState<string | null>(null);
   const [theme, setThemeState] = useState<Theme>('dark');
@@ -161,6 +169,11 @@ export function ThemeProvider({ children, panelRole, effectiveUserId, companyId 
         revealApp();
         return;
       }
+      if (!dashboardHost) {
+        // Montage public (landing) : on retire ce que l'anti-flash ou une session precedente a pose.
+        document.documentElement.removeAttribute('data-theme');
+        document.body.style.background = '#020617';
+      }
       setReady(false);
       const t = setTimeout(() => { setReady(true); revealApp(); }, 600);
       return () => clearTimeout(t);
@@ -206,7 +219,7 @@ export function ThemeProvider({ children, panelRole, effectiveUserId, companyId 
     }).catch(() => { /* ignore */ });
 
     return () => { cancelled = true; };
-  }, [scopeId]);
+  }, [scopeId, dashboardHost]);
 
   const canPersist = isOwnAccount || scope.kind === 'company';
 
@@ -257,7 +270,7 @@ export function ThemeProvider({ children, panelRole, effectiveUserId, companyId 
   }
 
   return (
-    <ThemeContext.Provider value={{ theme, setTheme, glassConfig, setGlassConfig, customThemeKey, customThemeOverrides, applyCustomTheme, clearCustomTheme }}>
+    <ThemeContext.Provider value={{ theme, setTheme, glassConfig, setGlassConfig, customThemeKey, customThemeOverrides, personalScope: scope.kind === 'sa' && canPersist, applyCustomTheme, clearCustomTheme }}>
       <div key={scopeId}>{children}</div>
     </ThemeContext.Provider>
   );

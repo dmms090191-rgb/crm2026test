@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
+import TalixyBackdrop from '../../talixy/TalixyBackdrop';
 
 export default function GlassBackgroundLayer() {
   const { theme, glassConfig } = useTheme();
@@ -30,6 +31,8 @@ export default function GlassBackgroundLayer() {
     return { imageUrl, imgFilter, overlayGradient, fallbackBg, showOverlay };
   }, [theme, glassConfig]);
 
+  // Talixy : meme point de montage, autre scene (fond vignette gris bleute de la maquette).
+  if (theme === 'talixy') return <TalixyBackdrop />;
   if (!styles) return null;
 
   return (

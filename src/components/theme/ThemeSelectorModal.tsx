@@ -10,13 +10,15 @@ import GlassPresetsGrid from './GlassPresetsGrid';
 import { CUSTOM_CATEGORY, FAV_TAB, PERSONAL_TAB, COMMUNITY_TAB, type CustomThemeRow } from './themeSelectorTypes';
 import { SectionHeader, ModalHeader, TabBar, CustomThemeCard } from './ThemeSelectorParts';
 import { useThemeSelectorData, useThemeSelectorFilters } from './useThemeSelectorData';
+import { TALIXY_TAB, withTalixyTab } from '../../talixy/talixyLibrary';
+import TalixyShowcase from '../../talixy/TalixyShowcase';
 
 interface Props { open: boolean; onClose: () => void; effectiveUserId?: string | null; }
 
 export default function ThemeSelectorModal({ open, onClose, effectiveUserId }: Props) {
   const [tab, setTab] = useState('all');
   const [search, setSearch] = useState('');
-  const { theme, setTheme, glassConfig, setGlassConfig, customThemeKey, applyCustomTheme, clearCustomTheme } = useTheme();
+  const { theme, setTheme, glassConfig, setGlassConfig, customThemeKey, applyCustomTheme, clearCustomTheme, personalScope } = useTheme();
   const editorCtx = useEditorModeSafe();
   const vc = useVisualCustomizeSafe();
 
@@ -59,6 +61,15 @@ export default function ThemeSelectorModal({ open, onClose, effectiveUserId }: P
     setTheme(entry.value);
   }
 
+  // Prototype Talixy : uniquement dans la preference personnelle de Talvex Administrateur (meme chemin que les autres themes).
+  function activateTalixy() {
+    if (!personalScope) return;
+    editorCtx?.clearAllOverrides();
+    vc?.clearAllConfigs();
+    clearCustomTheme();
+    setTheme('talixy');
+  }
+
   function handleSelectCustom(ct: CustomThemeRow) {
     applyCustomFromTokens(ct, editorCtx, vc, applyCustomTheme, clearCustomTheme);
   }
@@ -96,7 +107,7 @@ export default function ThemeSelectorModal({ open, onClose, effectiveUserId }: P
           onTab={t => { setTab(t); setSearch(''); }}
           activeTheme={theme}
           themes={visibleThemes}
-          tabs={tabs}
+          tabs={withTalixyTab(tabs, personalScope, FAV_TAB)}
           configMap={configMap}
           customThemeCount={customThemes.length}
           customThemeKey={customThemeKey}
@@ -109,7 +120,9 @@ export default function ThemeSelectorModal({ open, onClose, effectiveUserId }: P
         <div className="mx-5 sm:mx-8 h-px flex-shrink-0 bg-white/[0.06]" />
 
         <div className="flex-1 min-h-0 overflow-y-auto px-5 sm:px-8 pt-5 sm:pt-6 pb-8">
-          {tab === 'glass' && !search.trim() ? (
+          {tab === TALIXY_TAB && personalScope ? (
+            <TalixyShowcase active={theme === 'talixy' && !customThemeKey} onActivate={activateTalixy} />
+          ) : tab === 'glass' && !search.trim() ? (
             <GlassPresetsGrid
               currentGlassConfig={glassConfig}
               isGlassActive={theme === 'glass'}
@@ -176,7 +189,7 @@ export default function ThemeSelectorModal({ open, onClose, effectiveUserId }: P
               )}
             </>
           )}
-          {entries.length === 0 && filteredCustomThemes.length === 0 && !isFavTab && tab !== 'glass' && (
+          {entries.length === 0 && filteredCustomThemes.length === 0 && !isFavTab && tab !== 'glass' && tab !== TALIXY_TAB && (
             <div className="flex flex-col items-center justify-center py-20 gap-3">
               <Search className="w-8 h-8 text-white/15" />
               <p className="text-sm font-medium text-white/30">Aucun theme trouve</p>

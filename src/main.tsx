@@ -5,6 +5,8 @@ import ErrorBoundary from './components/ErrorBoundary';
 import SitePreviewEntry, { prepareSitePreviewRealm } from './pages/public/SitePreviewEntry';
 import './lib/pwaPromptCapture';
 import './index.css';
+import './talixy/talixy.css';
+import './talixy/talixyUI.css';
 
 // --- Session security: non-persistent sessions ---
 // Supabase auth now uses sessionStorage (configured in lib/supabase.ts).

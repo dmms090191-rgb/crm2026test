@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-18T04:29:59.055Z",
+  "generatedAt": "2026-09-20T11:36:50.938Z",
   "anyCount": 0,
   "anyOccurrences": [],
   "unusedImportCount": 20,
@@ -105,8 +105,39 @@
       "name": "Globe"
     }
   ],
-  "largeFileCount": 0,
-  "largeFiles": [],
+  "largeFileCount": 6,
+  "largeFiles": [
+    {
+      "file": "src\\talixy\\arcGeometry.ts",
+      "lines": 301,
+      "overflow": 1
+    },
+    {
+      "file": "src\\pages\\superadmin\\SuperAdminDashboard.tsx",
+      "lines": 308,
+      "overflow": 8
+    },
+    {
+      "file": "src\\pages\\admin\\views\\system\\SystemView.tsx",
+      "lines": 314,
+      "overflow": 14
+    },
+    {
+      "file": "src\\pages\\superadmin\\views\\SAMonCompte.tsx",
+      "lines": 325,
+      "overflow": 25
+    },
+    {
+      "file": "src\\pages\\superadmin\\views\\mon-compte\\SAMonComptePasswordSection.tsx",
+      "lines": 337,
+      "overflow": 37
+    },
+    {
+      "file": "src\\talixy\\TalixyArc.tsx",
+      "lines": 413,
+      "overflow": 113
+    }
+  ],
   "tscErrorCount": 206,
   "tscErrors": [
     {
@@ -1349,7 +1380,7 @@
   "eslintErrorCount": 0,
   "eslintWarningCount": 0,
   "eslintIssues": [],
-  "totalFilesAnalyzed": 1065,
-  "totalLinesAnalyzed": 139875,
-  "totalOverflowLines": 0
+  "totalFilesAnalyzed": 1101,
+  "totalLinesAnalyzed": 144620,
+  "totalOverflowLines": 198
 }

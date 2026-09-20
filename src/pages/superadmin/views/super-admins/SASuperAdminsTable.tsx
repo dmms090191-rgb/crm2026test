@@ -35,7 +35,7 @@ export default function SASuperAdminsTable({ list, tokens: t, onActions, saStatu
   const columns = ['Prenom', 'Nom', 'Email', 'Groupe', 'Statut', 'Telephone', 'Role', 'Cree le', 'Acces', 'Actions'];
 
   return (
-    <div className="overflow-x-auto rounded-xl" style={{ border: `1px solid ${t.surface.border}` }}>
+    <div data-tx-table className="overflow-x-auto rounded-xl" style={{ border: `1px solid ${t.surface.border}` }}>
       <table className="w-full text-left">
         <thead>
           <tr style={{ background: t.surface.hover }}>

@@ -13,6 +13,9 @@ import { useEditorModeSafe, resolveTextColor, resolveTypography } from '../../co
 import { useTheme } from '../../contexts/ThemeContext';
 import { ensureGoogleFont } from '../../components/editor/EditorTypographyPanel';
 import { isProtectedTab, PROTECTED_TAB_IDS } from './useSAHiddenTabs';
+import { useTalixySidebar } from '../../talixy/useTalixySidebar';
+import { useArcMetrics } from '../../talixy/useArcMetrics';
+import TalixyArcLine from '../../talixy/TalixyArcLine';
 
 export type SAView = 'dashboard' | 'super-admins' | 'admins' | 'chat-admin' | 'documentation-crm' | 'system' | 'sauvegarde' | 'mon-compte' | 'tests-systeme' | 'crm-societe' | 'statuts' | 'api-ia' | 'cerveau-ia' | 'sites' | 'fonctions-talvex' | 'site-talvex' | 'logo' | 'ameliorations' | 'tuto' | 'application' | 'themes' | 'editeur-ia' | 'calquer-logo' | 'mes-logos-ra';
 
@@ -117,6 +120,10 @@ export default function SuperAdminSidebar({ activeView, onNavigate, collapsed, o
   // Configuration propre au compte Talvex connecte : cle v2:super_admin.
   const layout = useSidebarLayout({ panel: 'super_admin', entityUserId: userId, sections, protectedIds: PROTECTED_TAB_IDS });
 
+  // Talixy (maquette gris bleute, desktop) : arc, decor et navigation sonore via le hook commun.
+  const tx = useTalixySidebar<SAView>({ activeView, onNavigate, collapsed, reordering: layout.reordering });
+  const arc = useArcMetrics();
+
   const mergedTextOverrides = useMemo(() => {
     const base = { ...ctTextOverrides };
     if (editorCtx) Object.assign(base, editorCtx.textOverrides);
@@ -148,15 +155,37 @@ export default function SuperAdminSidebar({ activeView, onNavigate, collapsed, o
 
   return (
     <aside
-      className={`relative flex flex-col flex-shrink-0 h-full transition-[width] duration-300 ${collapsed ? 'w-16' : 'w-full md:w-60'}`}
-      style={{ borderRight: `1px solid ${t.sidebar.border}`, backdropFilter: 'blur(16px) saturate(1.4)', WebkitBackdropFilter: 'blur(16px) saturate(1.4)' }}
+      className={`relative flex flex-col flex-shrink-0 h-full transition-[width] duration-300 ${collapsed ? 'w-16' : tx.arc ? 'w-full md:w-[var(--tx-aside)]' : 'w-full md:w-60'}`}
+      data-tx-scene={tx.scene ? '' : undefined}
+      style={{
+        borderRight: tx.scene ? 'none' : `1px solid ${t.sidebar.border}`,
+        backdropFilter: 'blur(16px) saturate(1.4)',
+        WebkitBackdropFilter: 'blur(16px) saturate(1.4)',
+        /*
+         * Largeur de la colonne : la MEME courbe que l'arc, lue par le meme crochet. C'est ce qui
+         * garantit que l'arc reste centre dans sa colonne a toutes les largeurs. Avant, la colonne
+         * sautait de 312 a 376 puis a 420 px pendant que l'arc, lui, sautait a d'autres seuils.
+         */
+        ...(tx.arc ? ({ '--tx-aside': `${arc.asideW}px` } as React.CSSProperties) : {}),
+      }}
     >
+      {tx.scene && <TalixyArcLine />}
       <div
         ref={logoZoneRef}
+        data-tx-logozone={tx.scene ? '' : undefined}
         className={`flex items-center h-16 flex-shrink-0 overflow-hidden ${activeLogo ? (collapsed ? 'justify-center px-2' : 'justify-center px-3') : 'gap-3 px-4'}`}
-        style={{ background: editorZone1Bg || t.sidebar.bg, borderBottom: `1px solid ${t.sidebar.border}` }}
+        style={{ background: editorZone1Bg || (tx.scene ? 'transparent' : t.sidebar.bg), borderBottom: tx.scene ? 'none' : `1px solid ${t.sidebar.border}` }}
       >
-        {activeLogo ? (
+        {tx.scene ? (
+          /* Maquette : le vrai logo Talvex pose dans l'espace, sans case (encre 770x200 dans 1024x1024 :
+             affiche a 26 px de capitale comme la maquette => image de 160 px calee sur son encre). */
+          /* Encre du fichier : x 128-897, y 413-612 sur 1024 ; affiche pour que « Talvex » commence a
+             (98, 33) avec 26 px de capitale, comme la maquette. */
+          <span className="tx-logo" style={{ alignSelf: 'flex-start', width: 132, height: 34, marginLeft: 86, marginRight: 'auto', marginTop: 30 }}>
+            <img src="/talixy/logo-talvex.png" alt="Talvex" width={160} height={160} style={{ left: -20, top: -62 }} />
+            <span className="tx-logo-tagline">Tout en un. Plus loin.</span>
+          </span>
+        ) : activeLogo ? (
           <img
             src={activeLogo}
             alt="Logo"
@@ -183,7 +212,7 @@ export default function SuperAdminSidebar({ activeView, onNavigate, collapsed, o
       <div
         ref={sidebarBodyRef}
         className="flex-1 flex flex-col min-h-0"
-        style={{ background: editorZone2Bg || t.sidebar.bg }}
+        style={{ background: editorZone2Bg || (tx.scene ? 'transparent' : t.sidebar.bg) }}
       >
         {!layout.loaded ? (
           <SASidebarSkeleton collapsed={collapsed} tokens={t} />
@@ -192,7 +221,8 @@ export default function SuperAdminSidebar({ activeView, onNavigate, collapsed, o
           entries={layout.reordering ? layout.draft : layout.visible}
           reordering={layout.reordering}
           collapsed={collapsed}
-          activeId={activeView}
+          activeId={tx.activeId}
+          wheel={tx.arc}
           defaultLabels={layout.defaultLabels}
           cancelReorder={layout.cancelReorder}
           confirmReorder={layout.confirmReorder}
@@ -212,7 +242,7 @@ export default function SuperAdminSidebar({ activeView, onNavigate, collapsed, o
           renderItem={(entry, isActive, label) => (
             <SAItem
               id={entry.id} label={label} icon={ICONS[entry.id]} isActive={isActive} collapsed={collapsed}
-              onClick={() => onNavigate(entry.id as SAView)}
+              onClick={() => tx.navigate(entry.id as SAView)}
               tokens={t.sidebar} editorCtx={editorCtx} mergedTextOverrides={mergedTextOverrides} itemFontFamily={itemFont}
               badgeCount={badgeCounts?.[entry.id]}
             />

@@ -73,6 +73,8 @@ function ReorderRow({
 
   return (
     <div draggable onDragStart={() => onDragStart(idx)} onDragOver={e => onDragOver(e, idx)} onDragEnd={onDragEnd}
+      data-reorder-row
+      data-reorder-kind={entry.kind}
       className="flex items-center gap-1 py-1.5 px-1.5 rounded-lg text-xs font-medium cursor-grab active:cursor-grabbing select-none mb-0.5 transition-opacity duration-150"
       style={{
         background: t.surface.secondary,

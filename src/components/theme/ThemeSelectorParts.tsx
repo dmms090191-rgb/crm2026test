@@ -1,7 +1,9 @@
-import { X, Sparkles, Layers, Search, Check, Paintbrush, Star, Share2 } from 'lucide-react';
+import { X, Sparkles, Layers, Search, Check, Paintbrush, Star, Share2, Orbit } from 'lucide-react';
 import type { ThemeEntry } from './themeData';
 import { FavoriteButton } from './ThemeCard';
 import { CUSTOM_CATEGORY, FAV_TAB, PERSONAL_TAB, COMMUNITY_TAB, type ThemeConfigLite, type CustomThemeRow } from './themeSelectorTypes';
+import { TALIXY_TAB } from '../../talixy/talixyLibrary';
+import { TALIXY_PALETTE } from '../../talixy/talixyPalette';
 
 export function SectionHeader({ icon, label, count, color }: { icon: React.ReactNode; label: string; count: number; color: string }) {
   return (
@@ -68,6 +70,7 @@ export function TabBar({ tab, onTab, activeTheme, themes, tabs, configMap, custo
         const isFavTab = t.key === FAV_TAB;
         const isPersonalTab = t.key === PERSONAL_TAB;
         const isCommunityTab = t.key === COMMUNITY_TAB;
+        const isTalixyTab = t.key === TALIXY_TAB;
         const count = t.key === 'all'
           ? themes.length + customThemeCount
           : isFavTab
@@ -86,10 +89,11 @@ export function TabBar({ tab, onTab, activeTheme, themes, tabs, configMap, custo
         const hasActive = t.key === 'all'
           || t.key === activeCategory
           || (t.key === 'glass' && activeTheme === 'glass')
-          || (isFavTab && activeIsFavorite);
-        if (t.key !== 'all' && !isCustomTab && !isFavTab && !isPersonalTab && !isCommunityTab && t.key !== 'glass' && count === 0) return null;
+          || (isFavTab && activeIsFavorite)
+          || (isTalixyTab && activeTheme === 'talixy');
+        if (t.key !== 'all' && !isCustomTab && !isFavTab && !isPersonalTab && !isCommunityTab && !isTalixyTab && t.key !== 'glass' && count === 0) return null;
 
-        const accentColor = isCustomTab || isFavTab || isPersonalTab ? '#f59e0b' : isCommunityTab ? '#22d3ee' : '#3b82f6';
+        const accentColor = isTalixyTab ? TALIXY_PALETTE.violetLight : isCustomTab || isFavTab || isPersonalTab ? '#f59e0b' : isCommunityTab ? '#22d3ee' : '#3b82f6';
         return (
           <button key={t.key} onClick={() => onTab(t.key)} className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-[11px] sm:text-xs font-bold transition-all whitespace-nowrap flex-shrink-0" style={{ background: isActive ? `${accentColor}1f` : 'transparent', border: isActive ? `1px solid ${accentColor}40` : '1px solid transparent', color: isActive ? accentColor : 'rgba(255,255,255,0.40)', boxShadow: isActive ? `0 2px 12px ${accentColor}10` : 'none' }}>
             {isFavTab && <Star className="w-3 h-3" />}
@@ -98,8 +102,9 @@ export function TabBar({ tab, onTab, activeTheme, themes, tabs, configMap, custo
             {isCommunityTab && <Share2 className="w-3 h-3" />}
             {t.key === 'glass' && <Layers className="w-3 h-3" />}
             {t.key === 'premium' && <Sparkles className="w-3 h-3" />}
+            {isTalixyTab && <Orbit className="w-3 h-3" />}
             {t.label}
-            {t.key !== 'glass' && (
+            {t.key !== 'glass' && !isTalixyTab && (
               <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md" style={{ background: isActive ? `${accentColor}1f` : 'rgba(255,255,255,0.05)', color: isActive ? accentColor : 'rgba(255,255,255,0.25)' }}>{count}</span>
             )}
             {hasActive && !isActive && <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: accentColor }} />}

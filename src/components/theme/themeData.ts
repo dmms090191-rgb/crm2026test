@@ -38,6 +38,8 @@ export const ALL_THEMES: ThemeEntry[] = [
   { value: 'highlevel_light', label: 'HighLevel Clair', colors: ['#f4f7fb', '#ffffff', '#2563eb'], description: 'Style HighLevel professionnel clair', tags: ['pro'], category: 'business' },
   { value: 'highlevel_dark', label: 'HighLevel Nuit', colors: ['#0f172a', '#f3f6fb', '#2563eb'], description: 'Style HighLevel professionnel sombre', tags: ['pro'], category: 'business' },
   { value: 'highlevel_emerald', label: 'HighLevel Champagne', colors: ['#111827', '#f8fafc', '#d4af37'], description: 'Style HighLevel ton champagne premium', tags: ['pro', 'luxury'], category: 'business' },
+  // Theme signature Talvex. N'apparait dans la bibliotheque qu'avec une ligne theme_config (aucune a l'etape 1).
+  { value: 'talixy', label: 'Talixy', colors: ['#AEB8C7', '#E8EEF7', '#33567A'], description: 'Theme signature Talvex : gris bleute, lumiere douce et navigation en arc', tags: ['signature', 'nouveau'], category: 'premium' },
 ];
 
 export function getThemesByTab(tab: ThemeTab): ThemeEntry[] {

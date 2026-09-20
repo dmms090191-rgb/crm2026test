@@ -14,6 +14,7 @@ import type { AdminNotifEntry } from '../../hooks/useUnreadSuperAdminMessages';
 import MessageBubblePopover from '../../components/notifications/MessageBubblePopover';
 import { conversationIdentity } from '../../components/notifications/notifIdentity';
 import MessagesBubbleTrigger from '../../components/notifications/MessagesBubbleTrigger';
+import { useTalixy } from '../../talixy/useTalixy';
 
 const viewLabels: Record<string, string> = {
   dashboard: 'Dashboard', 'super-admins': 'Liste des groupes', admins: 'Liste admins', 'chat-admin': 'Chat Groupes',
@@ -50,6 +51,7 @@ export default function SuperAdminTopBar({ activeView, onMobileMenuToggle, unrea
 
   const phone = useFloatingPhoneState();
   const editor = useEditorModeSafe();
+  const tx = useTalixy();
 
   const vcBreadcrumb = useVCElement<HTMLDivElement>('sa-topbar-breadcrumb', 'text', 'Breadcrumb Super Admin');
   const vcAdminMsg = useVCElement<HTMLButtonElement>('hybrid-sa-topbar-admin-msg', 'button', 'Bouton Admin (messages)');
@@ -74,6 +76,7 @@ export default function SuperAdminTopBar({ activeView, onMobileMenuToggle, unrea
     <>
       <header
         ref={topbarRef as React.RefObject<HTMLElement> | undefined}
+        data-tx-topbar
         className="relative z-30 flex items-center justify-between px-3 sm:px-4 md:px-6 h-14 md:h-16 flex-shrink-0"
         style={{
           background: editorZone3Bg || t.topbar.bg,
@@ -134,7 +137,12 @@ export default function SuperAdminTopBar({ activeView, onMobileMenuToggle, unrea
           />
 
           {/* Editor button */}
-          {editor && (
+          {/*
+            Talixy est un theme a part entiere, avec son propre systeme de design : l'editeur de
+            fonds n'a plus rien a y regler. On CONDITIONNE seulement son affichage — le bouton,
+            l'editeur et toute sa logique restent intacts, et rien ne change pour les autres themes.
+          */}
+          {editor && !tx.active && (
             <TopBarHybridButton
               innerRef={vcEditor.ref}
               vcStyle={vcEditor.style}

@@ -1,7 +1,7 @@
 export type Theme =
   | 'dark' | 'light' | 'graphite' | 'beige' | 'rose' | 'emerald' | 'luxury'
   | 'pink' | 'red' | 'orange' | 'yellow'
-  | 'highlevel_light' | 'highlevel_dark' | 'highlevel_emerald' | 'glass';
+  | 'highlevel_light' | 'highlevel_dark' | 'highlevel_emerald' | 'glass' | 'talixy';
 
 export interface GlassConfig {
   imageUrl: string;
@@ -51,4 +51,5 @@ export const THEME_BG: Record<Theme, string> = {
   highlevel_dark: '#f3f6fb',
   highlevel_emerald: '#f8fafc',
   glass: '#0a0a14',
+  talixy: '#AEB8C7',
 };

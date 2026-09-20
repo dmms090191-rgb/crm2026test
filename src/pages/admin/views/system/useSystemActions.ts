@@ -1,6 +1,7 @@
-import { useState, useCallback } from 'react';
+import { useCallback } from 'react';
 import { supabase } from '../../../../lib/supabase';
 import type { SystemItem, SystemCategory, SystemStatus } from './types';
+import { checkCategoryDeletable } from './types';
 
 interface Params {
   items: SystemItem[];
@@ -12,8 +13,10 @@ interface Params {
 }
 
 export function useSystemActions({ items, categories, statuses, onItemsChange, onCategoriesChange, onStatusesChange }: Params) {
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-  const [confirmDeleteCatId, setConfirmDeleteCatId] = useState<string | null>(null);
+  /*
+   * L etat de confirmation ne vit plus ici : une seule fenetre, tenue par SystemView, sert les
+   * trois niveaux (note, sous-groupe, categorie).
+   */
 
   // ─── Category Actions ───
 
@@ -54,21 +57,27 @@ export function useSystemActions({ items, categories, statuses, onItemsChange, o
     }
   }, [categories, onCategoriesChange]);
 
+/**
+   * Peut-on supprimer ce parent ? Regle unique, tenue par checkCategoryDeletable : il ne part que
+   * VIDE. Sert a decider s il faut afficher le blocage ou ouvrir la confirmation.
+   */
+  const canDeleteCategory = useCallback(
+    (id: string) => checkCategoryDeletable(categories, items, id),
+    [categories, items],
+  );
+
   const handleDeleteCategory = useCallback(async (id: string): Promise<{ blocked?: boolean; message?: string }> => {
-    const hasChildren = categories.some((c) => c.parent_id === id);
-    const hasItems = items.some((i) => i.category_id === id);
-    if (hasChildren || hasItems) {
-      setConfirmDeleteCatId(null);
-      return { blocked: true, message: 'Impossible de supprimer : cette categorie contient encore des elements.' };
-    }
+    // Deuxieme verrou, volontaire : meme si l appelant se trompe, on ne declenche jamais la
+    // cascade de la base (FK ON DELETE CASCADE sur parent_id et category_id).
+    const verdict = checkCategoryDeletable(categories, items, id);
+    if (!verdict.ok) return { blocked: true, message: verdict.message };
+
     const { error } = await supabase.from('crm_system_categories').delete().eq('id', id);
     if (error) {
       console.error('Delete category failed:', error);
-      setConfirmDeleteCatId(null);
       return { blocked: true, message: 'Erreur lors de la suppression.' };
     }
     onCategoriesChange(categories.filter((c) => c.id !== id));
-    setConfirmDeleteCatId(null);
     return {};
   }, [categories, items, onCategoriesChange]);
 
@@ -151,9 +160,9 @@ export function useSystemActions({ items, categories, statuses, onItemsChange, o
   }, [items, statuses, onItemsChange]);
 
   const handleDeleteItem = useCallback(async (id: string) => {
-    await supabase.from('crm_system_items').delete().eq('id', id);
+    const { error } = await supabase.from('crm_system_items').delete().eq('id', id);
+    if (error) { console.error('Delete item failed:', error); return; }
     onItemsChange(items.filter((a) => a.id !== id));
-    setConfirmDeleteId(null);
   }, [items, onItemsChange]);
 
   const handleMoveItemUp = useCallback(async (id: string) => {
@@ -240,10 +249,7 @@ export function useSystemActions({ items, categories, statuses, onItemsChange, o
   }, [statuses, items, onStatusesChange, onItemsChange]);
 
   return {
-    confirmDeleteId,
-    setConfirmDeleteId,
-    confirmDeleteCatId,
-    setConfirmDeleteCatId,
+    canDeleteCategory,
     handleCreateCategory,
     handleRenameCategory,
     handleSetCategoryColor,

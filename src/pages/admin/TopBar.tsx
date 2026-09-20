@@ -15,6 +15,7 @@ import { useEditorModeSafe } from '../../contexts/EditorModeContext';
 import type { AgendaNotifEntry } from '../../hooks/useAgendaNotifications';
 import type { AgendaEquipeNotifEntry } from '../../hooks/useAgendaEquipeNotifications';
 import type { ImpersonatedAdminInfo } from './AdminDashboard';
+import { useTalixy } from '../../talixy/useTalixy';
 
 export interface ClientNotifEntry {
   clientAuthId: string;
@@ -116,6 +117,7 @@ export default function TopBar({ breadcrumb, onMobileMenuToggle, adminName = 'Ad
   const [tzModalOpen, setTzModalOpen] = useState(false);
   const phone = useFloatingPhoneState();
   const editor = useEditorModeSafe();
+  const tx = useTalixy();
   const mobileNotifRef = useRef<HTMLDivElement>(null);
   const mobileNotifPanelRef = useRef<HTMLDivElement>(null);
   const [, setTick] = useState(0);
@@ -161,7 +163,12 @@ export default function TopBar({ breadcrumb, onMobileMenuToggle, adminName = 'Ad
 
         <PhoneButton open={phone.open} minimized={phone.minimized} onToggleMinimize={phone.toggleMinimize} onOpen={phone.openPhone} />
 
-        {editor && (
+          {/*
+            Talixy est un theme a part entiere, avec son propre systeme de design : l'editeur de
+            fonds n'a plus rien a y regler. On CONDITIONNE seulement son affichage — le bouton,
+            l'editeur et toute sa logique restent intacts, et rien ne change pour les autres themes.
+          */}
+        {editor && !tx.active && (
           <EditorButton editorOpen={editor.editorOpen} onToggle={editor.editorOpen ? editor.closeEditor : editor.openEditor} />
         )}
 

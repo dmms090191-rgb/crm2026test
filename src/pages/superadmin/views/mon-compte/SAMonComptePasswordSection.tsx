@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { Mail, Lock, Save, Eye, EyeOff, CheckCircle, AlertCircle } from 'lucide-react';
 import { supabase } from '../../../../lib/supabase';
 import type { ThemeTokens } from '../../../../lib/themeTokens';
+import { useTalixy } from '../../../../talixy/useTalixy';
 
 function Toast({ message, type, tokens }: { message: string; type: 'success' | 'error'; tokens: ThemeTokens }) {
   return (
@@ -30,6 +31,7 @@ interface Props {
 }
 
 export default function SAMonComptePasswordSection({ userEmail, initialEmail, initialDigits, initialPinSynced, tokens: t }: Props) {
+  const tx = useTalixy();
   const [email, setEmail] = useState(initialEmail);
   const [digits, setDigits] = useState<string[]>(initialDigits);
   const [pinSynced, setPinSynced] = useState(initialPinSynced);
@@ -132,6 +134,93 @@ export default function SAMonComptePasswordSection({ userEmail, initialEmail, in
     outline: 'none',
     color: t.input.text,
   };
+
+  /*
+   * TALIXY — meme etat, memes handlers (syncPin, saveCredentials, navigation au clavier dans les
+   * six cases, validation) : seule la presentation change. Les autres themes gardent le rendu
+   * d'origine juste en dessous.
+   */
+  if (tx.active) {
+    return (
+      <section className="tx-surface">
+        <h2 className="tx-surface-title"><Mail /> Email et mot de passe</h2>
+
+        <div className="tx-stack">
+          <div className="tx-field">
+            <span className="tx-label">Email</span>
+            <input
+              type="email"
+              className="tx-input"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              placeholder="votre@email.com"
+            />
+            <p className="tx-hint">Modifier l'email changera vos identifiants de connexion.</p>
+          </div>
+
+          <hr className="tx-divider" />
+
+          <div>
+            <div className="tx-pin-head">
+              <span className="tx-label">Mot de passe · 6 chiffres</span>
+              <button className="tx-btn" data-variant="ghost" onClick={() => setShowPin(v => !v)}>
+                {showPin ? <EyeOff /> : <Eye />}
+                {showPin ? 'Masquer' : 'Afficher'}
+              </button>
+            </div>
+
+            <div className="tx-pin-row">
+              {digits.map((digit, i) => (
+                <input
+                  key={i}
+                  ref={el => { pinRefs.current[i] = el; }}
+                  type={showPin ? 'text' : 'password'}
+                  inputMode="numeric"
+                  maxLength={1}
+                  value={digit}
+                  data-filled={digit ? 'true' : 'false'}
+                  onChange={e => handlePinInput(i, e.target.value)}
+                  onKeyDown={e => handlePinKeyDown(i, e)}
+                  onFocus={() => handlePinFocus(i)}
+                  className="tx-pin"
+                />
+              ))}
+            </div>
+            <p className="tx-hint" data-center="true">
+              {!pinSynced
+                ? 'Saisissez votre code actuel pour le synchroniser'
+                : 'Utilisez les flèches gauche et droite pour naviguer entre les chiffres'}
+            </p>
+          </div>
+
+          <div className="tx-actions">
+            {credMsg && (
+              <span className="tx-note" data-kind={credMsg.type}>
+                {credMsg.type === 'success' ? <CheckCircle /> : <AlertCircle />}
+                {credMsg.text}
+              </span>
+            )}
+            {!pinSynced ? (
+              <button
+                className="tx-btn"
+                data-variant="primary"
+                onClick={syncPin}
+                disabled={syncingPin || digits.join('').length < 6}
+              >
+                <Lock />
+                {syncingPin ? 'Vérification…' : 'Confirmer mon code actuel'}
+              </button>
+            ) : (
+              <button className="tx-btn" data-variant="primary" onClick={saveCredentials} disabled={savingCred}>
+                <Save />
+                {savingCred ? 'Enregistrement…' : 'Enregistrer'}
+              </button>
+            )}
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <div

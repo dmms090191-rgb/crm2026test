@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
+import { useTalixy } from '../../../../talixy/useTalixy';
 import { useSuperAdminsData } from './useSuperAdminsData';
 import SASuperAdminsTable from './SASuperAdminsTable';
 import type { SortKey } from './SASuperAdminsTable';
@@ -23,6 +24,7 @@ interface Props {
 
 export default function SASuperAdmins({ onConnectAsCompanySuperAdmin, onOpenChat }: Props) {
   const t = useThemeTokens();
+  const tx = useTalixy();
   const { list, loading, error, refresh, statuts, setGroupStatut } = useSuperAdminsData();
   const { saStatuts } = useSaStatuts();
   const [statutFor, setStatutFor] = useState<string | null>(null);
@@ -176,8 +178,8 @@ export default function SASuperAdmins({ onConnectAsCompanySuperAdmin, onOpenChat
     setSiteSa(sa);
   };
 
-  return (
-    <div className="p-3 sm:p-4 md:p-6 flex flex-col h-full min-h-0">
+  const contenu = (
+    <>
       <SASuperAdminsHeader
         total={list.length} shownCount={shown.length} loading={loading}
         selectMode={selectMode} selectedCount={selected.size} tokens={t}
@@ -256,6 +258,36 @@ export default function SASuperAdmins({ onConnectAsCompanySuperAdmin, onOpenChat
         onCloseSite={() => setSiteSa(null)}
         onSiteBack={() => { const sa = siteSa; setSiteSa(null); setActionsSa(sa); }}
       />
+    </>
+  );
+
+  /*
+   * TALIXY — meme composition, memes donnees, memes handlers, meme ordre de montage :
+   * seule la coquille change. En-tete de page centre (sur-titre / titre / sous-titre) comme sur
+   * « Acces & securite », puis exactement le meme contenu. Les autres themes gardent la coquille
+   * d'origine juste en dessous.
+   */
+  if (tx.active) {
+    const n = list.length;
+    return (
+      <div className="tx-page" data-tx-list>
+        <header className="tx-page-head">
+          <p className="tx-page-eyebrow">Gestion</p>
+          <h1 className="tx-page-title">Liste des groupes</h1>
+          <p className="tx-page-subtitle">
+            {n === 0
+              ? 'Aucun groupe actif sur votre plateforme Talvex.'
+              : `${n} groupe${n > 1 ? 's' : ''} actif${n > 1 ? 's' : ''} sur votre plateforme Talvex.`}
+          </p>
+        </header>
+        {contenu}
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-3 sm:p-4 md:p-6 flex flex-col h-full min-h-0">
+      {contenu}
     </div>
   );
 }

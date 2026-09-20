@@ -124,6 +124,7 @@ export default function MessagingPanel({
 
   return (
     <div
+      data-tx-chatpanel
       className="flex gap-0 overflow-hidden rounded-2xl h-full"
       style={{
         background: `linear-gradient(135deg, ${tokens.surface.secondary}, ${tokens.surface.secondary}80)`,
@@ -209,7 +210,7 @@ export default function MessagingPanel({
                             </span>
                           )}
                         </span>
-                        <div className={`relative group px-2.5 md:px-4 py-1 md:py-2.5 rounded-xl md:rounded-2xl ${isPending ? 'opacity-60' : ''}`} style={isOwn ? { background: myCfg.bubbleGradient, boxShadow: `0 2px 12px ${myCfg.glow}` } : senderCfg.bubbleSolid(tokens)}>
+                        <div data-tx-bubble={isOwn ? 'own' : 'other'} className={`relative group px-2.5 md:px-4 py-1 md:py-2.5 rounded-xl md:rounded-2xl ${isPending ? 'opacity-60' : ''}`} style={isOwn ? { background: myCfg.bubbleGradient, boxShadow: `0 2px 12px ${myCfg.glow}` } : senderCfg.bubbleSolid(tokens)}>
                           {msg.deleted ? (
                             <p className="text-xs italic flex items-center gap-1.5" style={{ color: tokens.text.quaternary }}><X className="w-3 h-3" />Message supprime</p>
                           ) : (

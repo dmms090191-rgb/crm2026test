@@ -66,6 +66,7 @@ export default function ContactSidebar({
 
   return (
     <div
+      data-tx-contacts
       className={`flex flex-col overflow-hidden ${className}`}
       style={{
         background: `linear-gradient(135deg, ${tokens.chat.listBg}, ${tokens.chat.listBg}cc)`,
@@ -173,6 +174,8 @@ export default function ContactSidebar({
             return (
               <div key={contact.id} className="relative mb-0.5">
                 <div
+                  data-tx-contact
+                  data-tx-active={isActive ? 'true' : undefined}
                   className="w-full flex items-center gap-1.5 px-1.5 py-2.5 rounded-xl text-left transition-all"
                   style={isActive ? {
                     background: `rgba(${accentRgb},0.1)`,

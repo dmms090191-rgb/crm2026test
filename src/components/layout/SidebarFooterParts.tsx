@@ -205,6 +205,7 @@ function SystemButton({ icon, label, collapsed, variant, onClick, fontFamily }: 
   return (
     <button
       onClick={onClick}
+      title={label}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       className="w-full flex items-center gap-2.5 px-2 py-[7px] rounded-lg transition-all duration-200"

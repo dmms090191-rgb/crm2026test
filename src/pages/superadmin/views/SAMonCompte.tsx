@@ -3,6 +3,7 @@ import { User, Save, CheckCircle, AlertCircle } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { useThemeTokens } from '../../../hooks/useThemeTokens';
 import type { ThemeTokens } from '../../../lib/themeTokens';
+import { useTalixy } from '../../../talixy/useTalixy';
 import SAMonComptePasswordSection from './mon-compte/SAMonComptePasswordSection';
 
 interface SAMonCompteProps {
@@ -29,6 +30,7 @@ function Toast({ message, type, tokens }: { message: string; type: 'success' | '
 
 export default function SAMonCompte({ onNameChange }: SAMonCompteProps) {
   const t = useThemeTokens();
+  const tx = useTalixy();
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
@@ -90,6 +92,100 @@ export default function SAMonCompte({ onNameChange }: SAMonCompteProps) {
     outline: 'none',
     color: t.input.text,
   };
+
+  /*
+   * TALIXY — meme page, meme etat, memes handlers (saveIdentity, Supabase, validation, ordre de
+   * montage de la section mot de passe) : seule la PRESENTATION change. Les autres themes
+   * n'empruntent jamais ce chemin et gardent le rendu d'origine ci-dessous, intact.
+   */
+  if (tx.active) {
+    return (
+      <div className="tx-page">
+        <header className="tx-page-head">
+          <p className="tx-page-eyebrow">Paramètres</p>
+          <h1 className="tx-page-title">Accès &amp; sécurité</h1>
+          <p className="tx-page-subtitle">Gestion de votre identité et de vos accès Talvex.</p>
+        </header>
+
+        <div className="tx-page-body">
+          {accountLoading ? (
+            <>
+              <section className="tx-surface">
+                <h2 className="tx-surface-title"><User /> Identité</h2>
+                <div className="tx-stack">
+                  <div className="tx-field-row">
+                    <div className="tx-skel" style={{ height: 44 }} />
+                    <div className="tx-skel" style={{ height: 44 }} />
+                  </div>
+                  <div className="tx-actions"><div className="tx-skel" style={{ height: 42, width: 190 }} /></div>
+                </div>
+              </section>
+              <section className="tx-surface">
+                <h2 className="tx-surface-title"><User /> Email et mot de passe</h2>
+                <div className="tx-stack">
+                  <div className="tx-skel" style={{ height: 44 }} />
+                  <div className="tx-pin-row">
+                    {Array.from({ length: 6 }).map((_, i) => <div key={i} className="tx-skel" style={{ width: 48, height: 56 }} />)}
+                  </div>
+                  <div className="tx-actions"><div className="tx-skel" style={{ height: 42, width: 230 }} /></div>
+                </div>
+              </section>
+            </>
+          ) : (
+            <>
+              <section className="tx-surface">
+                <h2 className="tx-surface-title"><User /> Identité</h2>
+                <div className="tx-stack">
+                  <div className="tx-field-row">
+                    <label className="tx-field">
+                      <span className="tx-label">Prénom</span>
+                      <input
+                        type="text"
+                        className="tx-input"
+                        value={firstName}
+                        onChange={e => setFirstName(e.target.value)}
+                        placeholder="Votre prénom"
+                      />
+                    </label>
+                    <label className="tx-field">
+                      <span className="tx-label">Nom</span>
+                      <input
+                        type="text"
+                        className="tx-input"
+                        value={lastName}
+                        onChange={e => setLastName(e.target.value)}
+                        placeholder="Votre nom"
+                      />
+                    </label>
+                  </div>
+                  <div className="tx-actions">
+                    {identityMsg && (
+                      <span className="tx-note" data-kind={identityMsg.type}>
+                        {identityMsg.type === 'success' ? <CheckCircle /> : <AlertCircle />}
+                        {identityMsg.text}
+                      </span>
+                    )}
+                    <button className="tx-btn" data-variant="primary" onClick={saveIdentity} disabled={savingIdentity}>
+                      <Save />
+                      {savingIdentity ? 'Enregistrement…' : 'Enregistrer'}
+                    </button>
+                  </div>
+                </div>
+              </section>
+
+              <SAMonComptePasswordSection
+                userEmail={userEmail}
+                initialEmail={email}
+                initialDigits={digits}
+                initialPinSynced={pinSynced}
+                tokens={t}
+              />
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   if (accountLoading) {
     return (

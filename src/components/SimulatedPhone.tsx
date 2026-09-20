@@ -147,7 +147,7 @@ export default function SimulatedPhone({ showReloadButton = true, appIconUrl = n
             Recharger
           </button>
         )}
-        <span className="text-[10px] font-mono" style={{ color: 'rgba(255,255,255,0.2)' }}>
+        <span data-tx-phone-size className="text-[10px] font-mono" style={{ color: 'rgba(255,255,255,0.2)' }}>
           {model.viewportW} x {model.viewportH}
         </span>
       </div>
@@ -155,6 +155,7 @@ export default function SimulatedPhone({ showReloadButton = true, appIconUrl = n
       {/* Phone frame */}
       <div className="relative transition-all duration-300">
         <div
+          data-tx-phone-glow
           className="absolute -inset-4 opacity-25 transition-all duration-300"
           style={{
             borderRadius: model.borderRadius,
@@ -163,6 +164,7 @@ export default function SimulatedPhone({ showReloadButton = true, appIconUrl = n
           }}
         />
         <div
+          data-tx-phone-frame
           className="relative flex flex-col overflow-hidden transition-all duration-300"
           style={{
             width: frameW,
@@ -175,17 +177,20 @@ export default function SimulatedPhone({ showReloadButton = true, appIconUrl = n
         >
           {/* Status bar */}
           <div
+            data-tx-phone-status
             className="flex items-center justify-between px-5 py-1 flex-shrink-0 relative z-10"
             style={{ background: '#0f172a' }}
           >
             <span className="text-[9px] font-semibold text-white/50">9:41</span>
             {model.notchStyle === 'dynamic-island' ? (
               <div
+                data-tx-phone-island
                 className="absolute top-1 left-1/2 -translate-x-1/2 h-[14px] rounded-full"
                 style={{ width: 56, background: '#000', border: '1px solid rgba(255,255,255,0.06)' }}
               />
             ) : (
               <div
+                data-tx-phone-island
                 className="absolute top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 rounded-full"
                 style={{ background: '#000', border: '1px solid rgba(255,255,255,0.06)' }}
               />
@@ -208,7 +213,7 @@ export default function SimulatedPhone({ showReloadButton = true, appIconUrl = n
             {phoneState === 'connected' && (
               <>
                 {!loaded && (
-                  <div className="absolute inset-0 flex items-center justify-center z-10" style={{ background: '#0f172a' }}>
+                  <div data-tx-phone-load className="absolute inset-0 flex items-center justify-center z-10" style={{ background: '#0f172a' }}>
                     <div className="flex flex-col items-center gap-3">
                       <div className="w-8 h-8 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />
                       <span className="text-[10px] text-white/40">Chargement...</span>
@@ -235,7 +240,7 @@ export default function SimulatedPhone({ showReloadButton = true, appIconUrl = n
           </div>
 
           {/* Home indicator */}
-          <div className="flex justify-center py-1.5 flex-shrink-0" style={{ background: '#0f172a' }}>
+          <div data-tx-phone-home className="flex justify-center py-1.5 flex-shrink-0" style={{ background: '#0f172a' }}>
             <div
               className="h-1 rounded-full bg-white/15"
               style={{ width: model.notchStyle === 'dynamic-island' ? 96 : 80 }}

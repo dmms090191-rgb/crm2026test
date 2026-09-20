@@ -4,6 +4,7 @@ import { useThemeTokens } from '../../hooks/useThemeTokens';
 import { entryLabel } from '../../lib/sidebarLayout';
 import { ReorderSlot, ReorderRow } from './SidebarReorderRow';
 import { splitDisplayRows, flatRows, resolveDrop, hasHiddenItems } from './reorderView';
+import TalixySidebarWheel from '../../talixy/TalixySidebarWheel';
 import type { LayoutEntry, LayoutItem } from '../../lib/sidebarLayout';
 
 interface Props {
@@ -47,6 +48,8 @@ interface Props {
 
   /** Rendu d'un onglet hors mode reorganisation. */
   renderItem: (entry: LayoutItem, isActive: boolean, label: string) => ReactNode;
+  /** Talixy : navigation en roue 3D, hors reorganisation. Faux par defaut : les autres panneaux ne changent pas. */
+  wheel?: boolean;
 }
 
 export default function SidebarLayoutControls({
@@ -54,7 +57,7 @@ export default function SidebarLayoutControls({
   cancelReorder, confirmReorder, resetToDefault,
   move, addSection, addDivider, remove, rename, toggleHidden,
   isProtected, canHide = false, sectionColorById, sectionFontFamily,
-  renderItem,
+  renderItem, wheel = false,
 }: Props) {
   const t = useThemeTokens();
   const [addingName, setAddingName] = useState('');
@@ -110,7 +113,10 @@ export default function SidebarLayoutControls({
 
   return (
     <>
-      <nav className="flex-1 overflow-y-auto py-3 px-2">
+      <nav
+        data-tx-reorder={reordering ? 'true' : undefined}
+        className={wheel && !reordering ? 'flex-1 relative min-h-0 tx-arc-host' : 'flex-1 overflow-y-auto py-3 px-2'}
+      >
         {reordering ? (
           <>
             {split.main.map(({ entry, realIdx }, idx) => (
@@ -155,6 +161,9 @@ export default function SidebarLayoutControls({
               );
             })}
           </>
+        ) : wheel ? (
+          <TalixySidebarWheel rows={split.main} activeId={activeId} collapsed={collapsed} defaultLabels={defaultLabels}
+            renderItem={renderItem} sectionColorById={sectionColorById} sectionFontFamily={sectionFontFamily} />
         ) : (
           split.main.map(({ entry }) => {
             if (entry.kind === 'section') {
@@ -180,7 +189,7 @@ export default function SidebarLayoutControls({
       </nav>
 
       {!collapsed && (
-        <div className="px-2 pb-1 space-y-1.5">
+        <div data-tx-reorder-actions={reordering ? 'true' : undefined} className="px-2 pb-1 space-y-1.5">
           {reordering ? (
             <>
               {showAdd ? (
@@ -221,12 +230,12 @@ export default function SidebarLayoutControls({
                 <RotateCcw className="w-3.5 h-3.5" />Par défaut
               </button>
               <div className="flex gap-1.5">
-                <button onClick={confirmReorder}
+                <button onClick={confirmReorder} data-tx-confirm
                   className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[11px] font-semibold transition-all hover:scale-[1.02] active:scale-[0.98]"
                   style={{ background: 'rgba(52,211,153,0.1)', border: '1px solid rgba(52,211,153,0.25)', color: '#34d399' }}>
                   <Check className="w-3.5 h-3.5" />Valider
                 </button>
-                <button onClick={cancelReorder}
+                <button onClick={cancelReorder} data-tx-cancel
                   className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[11px] font-semibold transition-all hover:scale-[1.02] active:scale-[0.98]"
                   style={{ background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.2)', color: '#f87171' }}>
                   <X className="w-3.5 h-3.5" />Annuler

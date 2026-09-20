@@ -1,0 +1,2228 @@
+/*
+ * TALIXY — couche de design de la zone de contenu (pages, formulaires, menus, modales).
+ *
+ * Complement de talixy.css, qui habille la SCENE (fond, arc, coquille). Ici on habille ce qui
+ * VIT DANS la scene : en-tete de page, surfaces de verre, champs, boutons, menus, tableaux.
+ *
+ * Memes regles que talixy.css :
+ *   - tout est limite a html[data-theme="talixy"] : aucun autre theme n'est touche ;
+ *   - aucun selecteur d'element global (nav, aside, header, main, body) ;
+ *   - classes prefixees .tx-, variantes par attribut data-* ;
+ *   - on n'anime que transform, opacity, et les couleurs de bordure/fond (pas de layout).
+ *
+ * Toutes les valeurs DECOULENT du Dashboard (talixy.css) : le sur-titre, le titre et le sous-titre
+ * de page sont l'homothetie 0,6 du hero (53 px -> 32 px), et les surfaces reprennent le verre
+ * mesure de .tx-count-card. Rien n'est invente : c'est la meme famille visuelle, plus petite.
+ */
+
+/* ---------- En-tete de page : sur-titre, titre, sous-titre. Centres, beaucoup d'air. ---------- */
+
+/*
+ * Meme axe optique et meme depart vertical que le Dashboard : .tx-dash et .tx-hero se decalent
+ * a gauche du centre de la zone de contenu (padding-right 17.5vw) et demarrent a clamp(44,10vh,96).
+ * On recopie ces deux valeurs pour qu'en passant d'un onglet a l'autre, le titre ne saute pas.
+ */
+html[data-theme="talixy"] .tx-page {
+  width: 100%;
+  padding: clamp(44px, 10vh, 96px) calc(40px + 17.5vw) 96px 40px;
+  color: var(--tx-ink);
+}
+html[data-theme="talixy"] .tx-page-head {
+  text-align: center;
+  margin-bottom: 52px;
+}
+/* Homothetie du hero : 15 px -> 11 px, meme graisse, interlettrage garde optiquement identique. */
+html[data-theme="talixy"] .tx-page-eyebrow {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.42em;
+  text-indent: 0.42em;
+  text-transform: uppercase;
+  color: var(--tx-ink-soft);
+}
+/* Hero : 53 px / 300. Page : 32 px / 300 — meme graisse, meme interligne, meme encre. */
+html[data-theme="talixy"] .tx-page-title {
+  margin: 22px 0 0;
+  font-size: 32px;
+  font-weight: 300;
+  line-height: 1.1;
+  letter-spacing: 0.002em;
+  color: var(--tx-ink-deep);
+}
+html[data-theme="talixy"] .tx-page-subtitle {
+  margin: 11px 0 0;
+  font-size: 14px;
+  font-weight: 300;
+  letter-spacing: 0.12em;
+  color: var(--tx-ink-muted);
+}
+
+/* Corps de page : une colonne etroite, l'air fait la separation — pas les traits. */
+html[data-theme="talixy"] .tx-page-body {
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+  max-width: 660px;
+  margin: 0 auto;
+}
+
+/* ---------- Surfaces : du verre presque invisible. Le contour ne doit pas se voir d'abord. ---------- */
+
+html[data-theme="talixy"] .tx-surface {
+  padding: 30px 32px;
+  border-radius: 18px;
+  background: rgba(255,255,255,0.10);
+  border: 1px solid rgba(255,255,255,0.32);
+  box-shadow: 0 18px 55px rgba(30,40,60,0.06), inset 0 1px 0 rgba(255,255,255,0.45);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+/* Verre du Dashboard (.tx-count-card) : pour une surface qui doit ressortir. */
+html[data-theme="talixy"] .tx-surface[data-elevated="true"] {
+  background: rgba(255,255,255,0.16);
+  border-color: rgba(255,255,255,0.45);
+  box-shadow: 0 15px 50px rgba(30,40,60,0.08), inset 0 1px 0 rgba(255,255,255,0.55);
+}
+/* Titre de section : la famille du .tx-section-title (30 px / 300), ramene a l'echelle d'un bloc. */
+html[data-theme="talixy"] .tx-surface-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 26px;
+  font-size: 19px;
+  font-weight: 300;
+  line-height: 1.1;
+  letter-spacing: 0.04em;
+  color: var(--tx-ink-deep);
+}
+html[data-theme="talixy"] .tx-surface-title svg {
+  width: 15px;
+  height: 15px;
+  stroke-width: 1.4;
+  color: var(--tx-ink-faint);
+}
+html[data-theme="talixy"] .tx-divider {
+  height: 1px;
+  border: 0;
+  margin: 26px 0;
+  background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.55) 50%, rgba(255,255,255,0) 100%);
+}
+
+/* Rythme interne d'une surface : l'espace separe les blocs, aucun trait n'est necessaire. */
+html[data-theme="talixy"] .tx-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+html[data-theme="talixy"] .tx-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+  margin-top: 4px;
+}
+/* Le message metier prend la place libre a gauche du bouton, sans decaler l'action. */
+html[data-theme="talixy"] .tx-actions .tx-note {
+  margin-right: auto;
+}
+
+/* ---------- Champs : verre clair, contour presque absent, lumiere au focus. ---------- */
+
+html[data-theme="talixy"] .tx-field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+html[data-theme="talixy"] .tx-field {
+  display: block;
+  min-width: 0;
+}
+html[data-theme="talixy"] .tx-label {
+  display: block;
+  margin-bottom: 9px;
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: var(--tx-ink-muted);
+}
+html[data-theme="talixy"] .tx-input {
+  width: 100%;
+  height: 44px;
+  padding: 0 15px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.22);
+  border: 1px solid rgba(255,255,255,0.50);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.40);
+  color: var(--tx-ink);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 300;
+  letter-spacing: 0.01em;
+  outline: none;
+  transition: background 180ms var(--tx-ease-out), border-color 180ms var(--tx-ease-out), box-shadow 180ms var(--tx-ease-out);
+}
+html[data-theme="talixy"] .tx-input::placeholder {
+  color: var(--tx-ink-faint);
+  opacity: 1;
+}
+html[data-theme="talixy"] .tx-input:hover {
+  background: rgba(255,255,255,0.28);
+}
+/* Focus : une lueur, pas un cadre bleu. */
+html[data-theme="talixy"] .tx-input:focus {
+  background: rgba(255,255,255,0.38);
+  border-color: rgba(51,86,122,0.38);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.55), 0 0 0 3px rgba(51,86,122,0.10), 0 6px 20px rgba(30,40,60,0.07);
+}
+/* Mention secondaire : discrete, mais jamais sous le seuil de lisibilite (encre sourde, pas pale). */
+html[data-theme="talixy"] .tx-hint {
+  margin: 9px 0 0;
+  font-size: 11.5px;
+  font-weight: 300;
+  letter-spacing: 0.02em;
+  color: var(--tx-ink-muted);
+}
+
+html[data-theme="talixy"] .tx-hint[data-center="true"] {
+  text-align: center;
+}
+
+/* Cases du code a 6 chiffres : meme verre, format carre, chiffre fin. */
+html[data-theme="talixy"] .tx-pin-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+html[data-theme="talixy"] .tx-pin-head .tx-label {
+  margin-bottom: 0;
+}
+html[data-theme="talixy"] .tx-pin-row {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+html[data-theme="talixy"] .tx-pin {
+  width: 48px;
+  height: 56px;
+  padding: 0;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.18);
+  border: 1px solid rgba(255,255,255,0.45);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.40);
+  color: var(--tx-ink-deep);
+  font-family: inherit;
+  font-size: 22px;
+  font-weight: 300;
+  text-align: center;
+  outline: none;
+  caret-color: transparent;
+  transition: background 180ms var(--tx-ease-out), border-color 180ms var(--tx-ease-out), box-shadow 180ms var(--tx-ease-out);
+}
+html[data-theme="talixy"] .tx-pin[data-filled="true"] {
+  background: rgba(255,255,255,0.34);
+}
+html[data-theme="talixy"] .tx-pin:focus {
+  background: rgba(255,255,255,0.46);
+  border-color: rgba(51,86,122,0.40);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.60), 0 0 0 3px rgba(51,86,122,0.10), 0 8px 22px rgba(30,40,60,0.08);
+}
+
+/* ---------- Boutons : verre bleute, accent cyan Talvex tres discret, jamais de pave sature. ---------- */
+
+html[data-theme="talixy"] .tx-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  height: 42px;
+  padding: 0 22px;
+  border-radius: 12px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  border: 1px solid rgba(255,255,255,0.45);
+  background: rgba(255,255,255,0.16);
+  color: var(--tx-ink-soft);
+  transition: background 180ms var(--tx-ease-out), border-color 180ms var(--tx-ease-out), box-shadow 180ms var(--tx-ease-out), color 180ms var(--tx-ease-out);
+}
+html[data-theme="talixy"] .tx-btn svg {
+  width: 15px;
+  height: 15px;
+  stroke-width: 1.4;
+}
+html[data-theme="talixy"] .tx-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+/* Action principale : verre plus dense, encre acier, liseré cyan a peine perceptible. */
+html[data-theme="talixy"] .tx-btn[data-variant="primary"] {
+  background: linear-gradient(180deg, rgba(255,255,255,0.40) 0%, rgba(255,255,255,0.18) 100%);
+  border-color: rgba(255,255,255,0.62);
+  color: var(--tx-steel-deep);
+  box-shadow: inset 0 0 0 1px rgba(11,165,196,0.16), 0 10px 28px rgba(30,40,60,0.09);
+}
+html[data-theme="talixy"] .tx-btn[data-variant="primary"]:hover:not(:disabled) {
+  background: linear-gradient(180deg, rgba(255,255,255,0.54) 0%, rgba(255,255,255,0.26) 100%);
+  box-shadow: inset 0 0 0 1px rgba(11,165,196,0.30), 0 12px 32px rgba(30,40,60,0.12);
+}
+html[data-theme="talixy"] .tx-btn[data-variant="ghost"] {
+  height: 30px;
+  padding: 0 13px;
+  border-radius: 9px;
+  font-size: 11.5px;
+  background: rgba(255,255,255,0.12);
+  border-color: rgba(255,255,255,0.38);
+  color: var(--tx-ink-muted);
+}
+html[data-theme="talixy"] .tx-btn[data-variant="ghost"]:hover:not(:disabled) {
+  background: rgba(255,255,255,0.26);
+  color: var(--tx-ink-soft);
+}
+html[data-theme="talixy"] .tx-btn[data-variant="danger"] {
+  background: rgba(168,49,73,0.07);
+  border-color: rgba(168,49,73,0.24);
+  color: var(--tx-danger);
+}
+html[data-theme="talixy"] .tx-btn[data-variant="danger"]:hover:not(:disabled) {
+  background: rgba(168,49,73,0.13);
+}
+html[data-theme="talixy"] .tx-btn[data-block="true"] {
+  width: 100%;
+}
+html[data-theme="talixy"] .tx-btn:focus-visible {
+  box-shadow: 0 0 0 3px rgba(51,86,122,0.16);
+}
+
+/* ---------- Messages metier : la couleur reste lisible, mais elle ne pave plus l'ecran. ---------- */
+
+html[data-theme="talixy"] .tx-note {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 12.5px;
+  font-weight: 300;
+  letter-spacing: 0.02em;
+  color: var(--tx-ink-muted);
+}
+html[data-theme="talixy"] .tx-note svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 1.4;
+  flex-shrink: 0;
+}
+html[data-theme="talixy"] .tx-note[data-kind="success"] { color: var(--tx-success); }
+html[data-theme="talixy"] .tx-note[data-kind="error"] { color: var(--tx-danger); }
+html[data-theme="talixy"] .tx-note[data-kind="warning"] { color: var(--tx-warning); }
+
+/* Pastille d'etat : un point de couleur suffit a qualifier, sans dominer. */
+html[data-theme="talixy"] .tx-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 24px;
+  padding: 0 11px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  background: rgba(255,255,255,0.20);
+  border: 1px solid rgba(255,255,255,0.45);
+  color: var(--tx-ink-soft);
+}
+html[data-theme="talixy"] .tx-badge::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.85;
+}
+html[data-theme="talixy"] .tx-badge[data-kind="success"] { color: var(--tx-success); }
+html[data-theme="talixy"] .tx-badge[data-kind="error"] { color: var(--tx-danger); }
+html[data-theme="talixy"] .tx-badge[data-kind="warning"] { color: var(--tx-warning); }
+
+/* ---------- Squelette de chargement : la meme respiration, sans clignotement dur. ---------- */
+
+html[data-theme="talixy"] .tx-skel {
+  border-radius: 12px;
+  background: rgba(255,255,255,0.20);
+  border: 1px solid rgba(255,255,255,0.32);
+}
+
+/* ---------- Icones du contenu : meme poids optique que l'arc (1,4). ---------- */
+
+html[data-theme="talixy"] .tx-page svg {
+  stroke-width: 1.4;
+}
+
+/* ---------- Tableaux : des lignes d'air, presque aucun trait. ---------- */
+
+html[data-theme="talixy"] .tx-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 13px;
+  font-weight: 300;
+  color: var(--tx-ink);
+}
+html[data-theme="talixy"] .tx-table thead th {
+  padding: 0 14px 12px;
+  text-align: left;
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--tx-ink-faint);
+  border-bottom: 1px solid rgba(255,255,255,0.35);
+}
+html[data-theme="talixy"] .tx-table tbody td {
+  padding: 15px 14px;
+  border-bottom: 1px solid rgba(255,255,255,0.18);
+}
+html[data-theme="talixy"] .tx-table tbody tr {
+  transition: background 160ms var(--tx-ease-out);
+}
+html[data-theme="talixy"] .tx-table tbody tr:hover {
+  background: rgba(255,255,255,0.14);
+}
+
+/* Deux colonnes cote a cote, au meme rythme que les deux colonnes du tableau de bord. */
+html[data-theme="talixy"] .tx-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 22px;
+  align-items: start;
+  max-width: 1120px;
+  margin: 0 auto;
+}
+@media (max-width: 1240px) {
+  html[data-theme="talixy"] .tx-cols {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---------- Gestion des statuts : un formulaire et une liste, tous deux sur verre. ---------- */
+
+/*
+ * Les COULEURS des statuts sont la matiere meme de cette page : pastilles, apercu et pilules
+ * gardent exactement leur teinte. Seules les surfaces, les libelles et les boutons sont repris.
+ */
+html[data-theme="talixy"] [data-tx-statuts] h3,
+html[data-theme="talixy"] [data-tx-statuts-list] h3 {
+  margin: 0;
+  font-size: 19px !important;
+  font-weight: 300 !important;
+  letter-spacing: 0.04em;
+  color: var(--tx-ink-deep) !important;
+}
+html[data-theme="talixy"] [data-tx-statuts] label,
+html[data-theme="talixy"] [data-tx-statuts] .uppercase {
+  font-size: 10px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.26em !important;
+  color: var(--tx-ink-muted) !important;
+}
+html[data-theme="talixy"] [data-tx-statuts] input[type="text"] {
+  height: 44px;
+  padding: 0 15px !important;
+  border-radius: 12px !important;
+  background: rgba(255,255,255,0.22) !important;
+  border: 1px solid rgba(255,255,255,0.50) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.40);
+  color: var(--tx-ink) !important;
+  font-family: inherit;
+  font-size: 14px !important;
+  font-weight: 300 !important;
+}
+/* Le composant pose une couleur de bordure en ligne au focus : on redonne la lueur Talixy. */
+html[data-theme="talixy"] [data-tx-statuts] input[type="text"]:focus {
+  background: rgba(255,255,255,0.38) !important;
+  border-color: rgba(51,86,122,0.38) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.55), 0 0 0 3px rgba(51,86,122,0.10), 0 6px 20px rgba(30,40,60,0.07) !important;
+}
+/* Pastilles de couleur : des disques, comme partout ailleurs dans Talixy. */
+html[data-theme="talixy"] [data-tx-statuts] button[title^="#"],
+html[data-theme="talixy"] [data-tx-statuts] button[title="Couleur personnalisee"] {
+  width: 28px !important;
+  height: 28px !important;
+  border-radius: 50% !important;
+}
+html[data-theme="talixy"] [data-tx-statuts] button[title="Couleur personnalisee"] {
+  background: rgba(255,255,255,0.22) !important;
+  border: 1px solid rgba(255,255,255,0.50) !important;
+  color: var(--tx-ink-muted) !important;
+}
+/* Etiquette « couleur choisie » et bouton favori : verre discret. */
+html[data-theme="talixy"] [data-tx-statuts] .rounded-xl.text-xs,
+html[data-theme="talixy"] [data-tx-statuts] [class*="px-3"][class*="py-1.5"][class*="rounded-xl"] {
+  border-radius: 999px !important;
+  background: rgba(255,255,255,0.20) !important;
+  border: 1px solid rgba(255,255,255,0.45) !important;
+}
+html[data-theme="talixy"] [data-tx-statuts] button[title*="favori"] {
+  height: 30px;
+  padding: 0 13px !important;
+  border-radius: 9px !important;
+  font-size: 11px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.04em;
+  background: rgba(255,255,255,0.18) !important;
+  border: 1px solid rgba(255,255,255,0.45) !important;
+  color: var(--tx-ink-muted) !important;
+}
+/* Bloc « apercu » : une zone plus claire dans la surface, sans cadre marque. */
+html[data-theme="talixy"] [data-tx-statuts] [class*="rounded-xl"][class*="p-4"] {
+  border-radius: 14px !important;
+  background: rgba(255,255,255,0.14) !important;
+  border: 1px solid rgba(255,255,255,0.34) !important;
+}
+/* Creation : le bouton principal reste lisible ; la couleur choisie parle dans l'apercu. */
+html[data-theme="talixy"] [data-tx-statuts] > div > div:first-child > button:last-child {
+  height: 44px;
+  border-radius: 12px !important;
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.08em;
+  background: linear-gradient(180deg, rgba(255,255,255,0.40) 0%, rgba(255,255,255,0.18) 100%) !important;
+  border: 1px solid rgba(255,255,255,0.62) !important;
+  color: var(--tx-steel-deep) !important;
+  box-shadow: inset 0 0 0 1px rgba(11,165,196,0.16), 0 10px 28px rgba(30,40,60,0.09) !important;
+}
+html[data-theme="talixy"] [data-tx-statuts] svg {
+  stroke-width: 1.4;
+}
+
+/* Liste des statuts crees (composant partage avec le panneau Admin). */
+html[data-theme="talixy"] [data-tx-statuts-list] {
+  padding: 30px 32px !important;
+  border-radius: 18px !important;
+  background: rgba(255,255,255,0.10) !important;
+  border: 1px solid rgba(255,255,255,0.32) !important;
+  box-shadow: 0 18px 55px rgba(30,40,60,0.06), inset 0 1px 0 rgba(255,255,255,0.45);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+html[data-theme="talixy"] [data-tx-statuts-list] > div:first-child > span {
+  border-radius: 999px !important;
+  padding: 2px 11px !important;
+  font-size: 11px !important;
+  font-weight: 400 !important;
+  background: rgba(255,255,255,0.20) !important;
+  border: 1px solid rgba(255,255,255,0.45) !important;
+  color: var(--tx-ink-muted) !important;
+}
+html[data-theme="talixy"] [data-tx-statuts-list] > div:last-child > div {
+  padding: 12px 14px !important;
+  border-radius: 12px !important;
+  background: rgba(255,255,255,0.14) !important;
+  border: 1px solid rgba(255,255,255,0.34) !important;
+}
+html[data-theme="talixy"] [data-tx-statuts-list] .font-mono {
+  font-size: 11px !important;
+  color: var(--tx-ink-faint) !important;
+}
+html[data-theme="talixy"] [data-tx-statuts-list] svg {
+  stroke-width: 1.4;
+}
+
+/* ---------- Pages de liste : meme langage que la page de reference, largeur au service du tableau. ---------- */
+
+/*
+ * La coquille d'origine de ces pages est une colonne pleine hauteur qui fait defiler le tableau :
+ * on la reproduit ici pour ne rien casser du defilement, en ajoutant l'en-tete de page centre.
+ */
+html[data-theme="talixy"] .tx-page[data-tx-list] {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  padding-bottom: 28px;
+}
+html[data-theme="talixy"] [data-tx-list] .tx-page-head {
+  margin-bottom: 38px;
+}
+
+/* Barre d'actions : le titre d'origine ferait doublon avec le titre de page, on ne garde que les actions. */
+html[data-theme="talixy"] [data-tx-listhead] {
+  justify-content: flex-end !important;
+  margin-bottom: 18px !important;
+}
+html[data-theme="talixy"] [data-tx-listhead] > div:first-child {
+  display: none !important;
+}
+html[data-theme="talixy"] [data-tx-listhead] button {
+  height: 38px;
+  padding: 0 16px !important;
+  border-radius: 11px !important;
+  font-size: 12px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.06em;
+  background: rgba(255,255,255,0.16) !important;
+  background-image: none !important;
+  border: 1px solid rgba(255,255,255,0.45) !important;
+  color: var(--tx-ink-soft) !important;
+  box-shadow: none !important;
+}
+html[data-theme="talixy"] [data-tx-listhead] button:hover {
+  background: rgba(255,255,255,0.30) !important;
+}
+html[data-theme="talixy"] [data-tx-listhead] button svg {
+  width: 15px;
+  height: 15px;
+  stroke-width: 1.4;
+}
+/*
+ * Bouton sans libelle (actualiser) : cercle, pas une pilule etiree.
+ * :only-child ne compte que les ELEMENTS : un bouton « icone + texte nu » (sans span autour du
+ * texte) y ressemblait et se retrouvait comprime en rond, le libelle debordant a cote. On exige
+ * donc en plus un title ou un aria-label, que seuls portent les vrais boutons-icones.
+ */
+html[data-theme="talixy"] [data-tx-listhead] button[title]:has(> svg:only-child),
+html[data-theme="talixy"] [data-tx-listhead] button[aria-label]:has(> svg:only-child) {
+  width: 38px;
+  padding: 0 !important;
+  justify-content: center;
+  border-radius: 50% !important;
+}
+/* Action principale (creer) : meme verre dense et meme liseré cyan que .tx-btn primary. */
+html[data-theme="talixy"] [data-tx-listhead] button:last-child {
+  background: linear-gradient(180deg, rgba(255,255,255,0.40) 0%, rgba(255,255,255,0.18) 100%) !important;
+  border-color: rgba(255,255,255,0.62) !important;
+  color: var(--tx-steel-deep) !important;
+  box-shadow: inset 0 0 0 1px rgba(11,165,196,0.16), 0 10px 28px rgba(30,40,60,0.09) !important;
+}
+
+/* Recherche et filtres : memes champs de verre que la page de reference. */
+html[data-theme="talixy"] [data-tx-list] input:not([type="checkbox"]),
+html[data-theme="talixy"] [data-tx-list] select {
+  height: 40px;
+  border-radius: 12px !important;
+  background: rgba(255,255,255,0.22) !important;
+  border: 1px solid rgba(255,255,255,0.50) !important;
+  color: var(--tx-ink) !important;
+  font-family: inherit;
+  font-size: 13px !important;
+  font-weight: 300 !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.40);
+}
+html[data-theme="talixy"] [data-tx-list] input:not([type="checkbox"]):focus {
+  background: rgba(255,255,255,0.38) !important;
+  border-color: rgba(51,86,122,0.38) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.55), 0 0 0 3px rgba(51,86,122,0.10) !important;
+}
+
+/* Barre de filtres (composant partage) : champs et boutons de verre, plus aucune teinte ambre. */
+html[data-theme="talixy"] [data-tx-filters] {
+  margin-bottom: 22px !important;
+}
+html[data-theme="talixy"] [data-tx-filters] > div:first-child > div:first-child {
+  height: 40px;
+  padding: 0 14px !important;
+  border-radius: 12px !important;
+  background: rgba(255,255,255,0.22) !important;
+  border: 1px solid rgba(255,255,255,0.50) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.40);
+}
+html[data-theme="talixy"] [data-tx-filters] input {
+  height: auto !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  font-size: 13px !important;
+}
+html[data-theme="talixy"] [data-tx-filters] button {
+  height: 40px;
+  padding: 0 14px !important;
+  border-radius: 12px !important;
+  font-size: 12px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.04em;
+  background: rgba(255,255,255,0.16) !important;
+  background-image: none !important;
+  border: 1px solid rgba(255,255,255,0.45) !important;
+  color: var(--tx-ink-soft) !important;
+}
+html[data-theme="talixy"] [data-tx-filters] button:hover {
+  background: rgba(255,255,255,0.30) !important;
+}
+html[data-theme="talixy"] [data-tx-filters] svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 1.4;
+  color: var(--tx-ink-faint);
+}
+/* Menu deroulant des statuts et panneau deplie : meme verre que les autres surfaces flottantes. */
+html[data-theme="talixy"] [data-tx-filters] [class*="absolute"] {
+  border-radius: 14px !important;
+  background: rgba(238,243,250,0.62) !important;
+  border: 1px solid rgba(255,255,255,0.60) !important;
+  box-shadow: 0 22px 56px rgba(20,28,39,0.16) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(1.12) !important;
+  backdrop-filter: blur(16px) saturate(1.12) !important;
+}
+html[data-theme="talixy"] [data-tx-filters] label {
+  font-size: 10px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.24em !important;
+  color: var(--tx-ink-muted) !important;
+}
+
+/* Bandeaux : un filet de couleur metier, plus un pave teinte. */
+html[data-theme="talixy"] [data-tx-notice] {
+  border-radius: 14px !important;
+  padding: 13px 16px !important;
+  background: rgba(255,255,255,0.14) !important;
+  border: 1px solid rgba(255,255,255,0.38) !important;
+}
+html[data-theme="talixy"] [data-tx-notice] p,
+html[data-theme="talixy"] [data-tx-notice] span {
+  font-size: 12.5px !important;
+  font-weight: 300 !important;
+}
+html[data-theme="talixy"] [data-tx-notice="error"] p {
+  color: var(--tx-danger) !important;
+}
+html[data-theme="talixy"] [data-tx-notice] svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 1.4;
+}
+html[data-theme="talixy"] [data-tx-notice] button {
+  height: 32px;
+  padding: 0 14px !important;
+  border-radius: 10px !important;
+  font-size: 11.5px !important;
+  font-weight: 400 !important;
+  background: rgba(255,255,255,0.20) !important;
+  border: 1px solid rgba(255,255,255,0.45) !important;
+  color: var(--tx-ink-soft) !important;
+}
+
+/* Etat vide : la meme respiration que le reste, sans carre d'icone colore. */
+html[data-theme="talixy"] [data-tx-empty] > div > div:first-child {
+  width: 64px !important;
+  height: 64px !important;
+  border-radius: 50% !important;
+  background: rgba(255,255,255,0.20) !important;
+  border: 1px solid rgba(255,255,255,0.45) !important;
+}
+html[data-theme="talixy"] [data-tx-empty] > div > div:first-child svg {
+  width: 24px;
+  height: 24px;
+  stroke-width: 1.3;
+  color: var(--tx-ink-faint) !important;
+}
+html[data-theme="talixy"] [data-tx-empty] h2 {
+  font-size: 19px !important;
+  font-weight: 300 !important;
+  letter-spacing: 0.02em;
+  color: var(--tx-ink-deep) !important;
+}
+html[data-theme="talixy"] [data-tx-empty] p {
+  font-size: 13px !important;
+  font-weight: 300 !important;
+  color: var(--tx-ink-muted) !important;
+}
+html[data-theme="talixy"] [data-tx-empty] button {
+  height: 42px;
+  padding: 0 22px !important;
+  border-radius: 12px !important;
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.08em;
+  background: linear-gradient(180deg, rgba(255,255,255,0.40) 0%, rgba(255,255,255,0.18) 100%) !important;
+  background-image: linear-gradient(180deg, rgba(255,255,255,0.40) 0%, rgba(255,255,255,0.18) 100%) !important;
+  border: 1px solid rgba(255,255,255,0.62) !important;
+  color: var(--tx-steel-deep) !important;
+  box-shadow: inset 0 0 0 1px rgba(11,165,196,0.16) !important;
+}
+
+/* ---------- Tableau : des lignes d'air, aucun cadre, en-tetes fins en capitales espacees. ---------- */
+
+html[data-theme="talixy"] [data-tx-table] {
+  border: 0 !important;
+  border-radius: 0 !important;
+}
+html[data-theme="talixy"] [data-tx-table] thead tr {
+  background: transparent !important;
+}
+html[data-theme="talixy"] [data-tx-table] thead th {
+  padding: 0 14px 14px !important;
+  font-size: 10px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.24em !important;
+  color: var(--tx-ink-faint) !important;
+  border-bottom: 1px solid rgba(255,255,255,0.35) !important;
+}
+/* Colonne triable : encre un peu plus dense ; l'actif reste signale par l'opacite du chevron. */
+html[data-theme="talixy"] [data-tx-table] thead th button {
+  letter-spacing: 0.24em !important;
+  color: var(--tx-ink-soft) !important;
+}
+html[data-theme="talixy"] [data-tx-table] thead th button svg {
+  width: 11px;
+  height: 11px;
+  stroke-width: 1.6;
+}
+html[data-theme="talixy"] [data-tx-table] tbody tr {
+  border-bottom: 1px solid rgba(255,255,255,0.18) !important;
+}
+html[data-theme="talixy"] [data-tx-table] tbody td {
+  padding: 17px 14px !important;
+  font-size: 13px !important;
+  font-weight: 300 !important;
+  color: var(--tx-ink-soft) !important;
+}
+html[data-theme="talixy"] [data-tx-table] tbody td:first-child {
+  font-weight: 400 !important;
+  color: var(--tx-ink-deep) !important;
+}
+/* Pastille de statut : le verre porte la pastille, la couleur metier reste sur le texte et le point. */
+html[data-theme="talixy"] [data-tx-table] tbody td button[class*="rounded-full"] {
+  height: 28px;
+  padding: 0 12px !important;
+  font-size: 11px !important;
+  font-weight: 400 !important;
+  background: rgba(255,255,255,0.20) !important;
+  border-color: rgba(255,255,255,0.45) !important;
+  box-shadow: none !important;
+}
+/* Libelle de role : neutre, ce n'est pas un etat metier. */
+html[data-theme="talixy"] [data-tx-table] tbody td > span[class*="rounded-full"]:not(:has(span)) {
+  height: 24px;
+  padding: 0 11px !important;
+  font-size: 10.5px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.06em;
+  background: rgba(255,255,255,0.20) !important;
+  border: 1px solid rgba(255,255,255,0.45);
+  color: var(--tx-ink-muted) !important;
+}
+/* Acces : la couleur metier (vert / rouge) est conservee, posee sur du verre. */
+html[data-theme="talixy"] [data-tx-table] tbody td > span[class*="rounded-full"]:has(span) {
+  height: 24px;
+  padding: 0 11px !important;
+  font-size: 10.5px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.06em;
+  background: rgba(255,255,255,0.20) !important;
+  border: 1px solid rgba(255,255,255,0.45);
+}
+/* Bouton d'actions de fin de ligne : discret, plus aucune teinte ambre. */
+html[data-theme="talixy"] [data-tx-table] tbody td button[class*="rounded-lg"] {
+  height: 30px;
+  padding: 0 13px !important;
+  border-radius: 9px !important;
+  font-size: 11.5px !important;
+  font-weight: 400 !important;
+  background: rgba(255,255,255,0.16) !important;
+  border-color: rgba(255,255,255,0.40) !important;
+  color: var(--tx-ink-muted) !important;
+}
+html[data-theme="talixy"] [data-tx-table] tbody td button[class*="rounded-lg"]:hover {
+  background: rgba(255,255,255,0.30) !important;
+  color: var(--tx-ink-soft) !important;
+}
+html[data-theme="talixy"] [data-tx-table] tbody td svg {
+  stroke-width: 1.4;
+}
+
+/* ---------- Systeme : un suivi lisible pose sur le verre, chiffres fins, couleurs en filet. ---------- */
+
+html[data-theme="talixy"] [data-tx-sys] {
+  max-width: 1120px;
+  margin: 0 auto;
+  width: 100%;
+}
+/* Spinner de chargement : accent.border vaut rgba(51,86,122,0.28), invisible sur ce fond clair. */
+html[data-theme="talixy"] [data-tx-system] .animate-spin {
+  color: var(--tx-steel) !important;
+  opacity: 0.55;
+}
+/* Barre de resume : plus de cadre, les chiffres portent seuls la couleur metier. */
+html[data-theme="talixy"] [data-tx-sys-summary] {
+  padding: 26px 30px !important;
+  border-radius: 18px !important;
+  background: rgba(255,255,255,0.12) !important;
+  border: 1px solid rgba(255,255,255,0.34) !important;
+  box-shadow: 0 16px 48px rgba(30,40,60,0.06), inset 0 1px 0 rgba(255,255,255,0.45);
+}
+html[data-theme="talixy"] [data-tx-sys-summary] > div:first-child > div > div:first-child {
+  font-size: 30px !important;
+  font-weight: 300 !important;
+  line-height: 1.05;
+}
+html[data-theme="talixy"] [data-tx-sys-summary] > div:first-child > div > div:last-child {
+  margin-top: 6px;
+  font-size: 10px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--tx-ink-muted) !important;
+}
+/* Jauge : un filet fin, pas une barre pleine. */
+html[data-theme="talixy"] [data-tx-sys-summary] > div:last-child {
+  margin-top: 22px !important;
+}
+html[data-theme="talixy"] [data-tx-sys-summary] > div:last-child > div:first-child {
+  height: 4px !important;
+  background: rgba(255,255,255,0.35) !important;
+}
+html[data-theme="talixy"] [data-tx-sys-summary] > div:last-child span {
+  font-size: 12px !important;
+  font-weight: 400 !important;
+}
+
+/* Barre d'outils : titre de section fin, champ et boutons de verre. */
+html[data-theme="talixy"] [data-tx-sys] > div:nth-child(2) {
+  margin-top: 26px !important;
+  margin-bottom: 16px !important;
+}
+html[data-theme="talixy"] [data-tx-sys] h2 {
+  font-size: 19px !important;
+  font-weight: 300 !important;
+  letter-spacing: 0.04em;
+  color: var(--tx-ink-deep) !important;
+}
+html[data-theme="talixy"] [data-tx-sys] input[type="text"] {
+  height: 38px;
+  padding-left: 32px !important;
+  border-radius: 11px !important;
+  background: rgba(255,255,255,0.24) !important;
+  border: 1px solid rgba(255,255,255,0.50) !important;
+  color: var(--tx-ink) !important;
+  font-family: inherit;
+  font-size: 12.5px !important;
+  font-weight: 300 !important;
+}
+html[data-theme="talixy"] [data-tx-sys] input[type="text"]:focus {
+  background: rgba(255,255,255,0.40) !important;
+  border-color: rgba(51,86,122,0.38) !important;
+  box-shadow: 0 0 0 3px rgba(51,86,122,0.10) !important;
+}
+html[data-theme="talixy"] [data-tx-sys] > div:nth-child(2) button {
+  height: 38px;
+  padding: 0 13px !important;
+  border-radius: 11px !important;
+  font-size: 11.5px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.04em;
+  background: rgba(255,255,255,0.16) !important;
+  background-image: none !important;
+  border: 1px solid rgba(255,255,255,0.45) !important;
+  color: var(--tx-ink-soft) !important;
+}
+html[data-theme="talixy"] [data-tx-sys] > div:nth-child(2) button:hover {
+  background: rgba(255,255,255,0.30) !important;
+}
+html[data-theme="talixy"] [data-tx-sys] svg {
+  stroke-width: 1.4;
+}
+
+/* Lignes de categories et d'elements : des surfaces d'air, un survol doux, aucun cadre lourd. */
+html[data-theme="talixy"] [data-tx-sys] [class*="rounded-xl"]:not([data-tx-sys-summary]),
+html[data-theme="talixy"] [data-tx-sys] [class*="rounded-lg"]:not(button):not(input) {
+  border-radius: 12px !important;
+}
+html[data-theme="talixy"] [data-tx-sys-cat] {
+  padding: 13px 16px !important;
+  border-radius: 12px !important;
+  background: rgba(255,255,255,0.14) !important;
+  border: 1px solid rgba(255,255,255,0.34) !important;
+  box-shadow: none !important;
+  transition: background 160ms var(--tx-ease-out);
+}
+html[data-theme="talixy"] [data-tx-sys-cat]:hover {
+  background: rgba(255,255,255,0.26) !important;
+}
+html[data-theme="talixy"] [data-tx-sys-item] {
+  padding: 11px 14px !important;
+  border-radius: 11px !important;
+  background: rgba(255,255,255,0.10) !important;
+  border: 1px solid rgba(255,255,255,0.26) !important;
+  box-shadow: none !important;
+}
+html[data-theme="talixy"] [data-tx-sys-item]:hover {
+  background: rgba(255,255,255,0.22) !important;
+}
+
+/* ---------- Chat : une scene de conversation posee dans le decor, pas un panneau opaque. ---------- */
+
+/*
+ * PIEGE CONNU : ContactSidebar concatene `${tokens.chat.listBg}cc` pour son degrade. Le jeton
+ * DOIT donc rester un hexadecimal a 7 caracteres. La transparence du verre vient d'ici, du CSS,
+ * jamais du jeton — sinon la chaine devient « rgba(...)cc » et le fond disparait.
+ */
+html[data-theme="talixy"] .tx-page[data-tx-chat] {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  padding-bottom: 26px;
+}
+html[data-theme="talixy"] [data-tx-chat] .tx-page-head {
+  margin-bottom: 30px;
+}
+/*
+ * Hauteur COMPACTE. Le composant demande `h-full` : il descendait donc jusqu'en bas de l'ecran,
+ * bien plus bas que la fin de l'arc. On le borne ici a une hauteur de bloc, et l'air reste dessous.
+ * Rien d'autre ne change : la liste des conversations (flex-1 overflow-y-auto) et le fil de messages
+ * (flex-1 overflow-y-auto, min-height 0) defilent DEJA a l'interieur, et la barre de saisie reste
+ * collee en bas DU PANNEAU puisqu'elle est le dernier enfant de la colonne.
+ */
+html[data-theme="talixy"] [data-tx-chatpanel] {
+  border-radius: 18px !important;
+  background: rgba(255,255,255,0.10) !important;
+  border: 1px solid rgba(255,255,255,0.32) !important;
+  box-shadow: 0 18px 55px rgba(30,40,60,0.06), inset 0 1px 0 rgba(255,255,255,0.45) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+  backdrop-filter: blur(10px) !important;
+}
+html[data-theme="talixy"] [data-tx-chat] [data-tx-chatpanel] {
+  flex: 0 0 auto !important;
+  height: clamp(440px, 48vh, 560px) !important;
+}
+/* Ecrans courts : on garde un bloc utilisable sans jamais toucher le bas de la fenetre. */
+@media (max-height: 820px) {
+  html[data-theme="talixy"] [data-tx-chat] [data-tx-chatpanel] {
+    height: clamp(380px, 58vh, 480px) !important;
+  }
+  html[data-theme="talixy"] [data-tx-chat] .tx-page-head {
+    margin-bottom: 22px;
+  }
+}
+
+/* Colonne des conversations. */
+html[data-theme="talixy"] [data-tx-contacts] {
+  width: 286px !important;
+  background: rgba(255,255,255,0.12) !important;
+  border-right: 1px solid rgba(255,255,255,0.28) !important;
+  box-shadow: none !important;
+  padding-top: 4px;
+}
+html[data-theme="talixy"] [data-tx-contacts] input {
+  height: 38px;
+  padding-left: 32px !important;
+  border-radius: 11px !important;
+  background: rgba(255,255,255,0.24) !important;
+  border: 1px solid rgba(255,255,255,0.50) !important;
+  color: var(--tx-ink) !important;
+  font-family: inherit;
+  font-size: 12.5px !important;
+  font-weight: 300 !important;
+}
+html[data-theme="talixy"] [data-tx-contacts] input:focus {
+  background: rgba(255,255,255,0.40) !important;
+  border-color: rgba(51,86,122,0.38) !important;
+  box-shadow: 0 0 0 3px rgba(51,86,122,0.10) !important;
+}
+html[data-theme="talixy"] [data-tx-contacts] button {
+  border-radius: 9px !important;
+  font-size: 11px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.04em;
+  background: rgba(255,255,255,0.18) !important;
+  border: 1px solid rgba(255,255,255,0.45) !important;
+  color: var(--tx-ink-muted) !important;
+}
+html[data-theme="talixy"] [data-tx-contacts] svg {
+  stroke-width: 1.4;
+}
+/* Ligne de conversation : le survol n'existait pas, on le cree ; l'actif passe de l'ambre au verre. */
+html[data-theme="talixy"] [data-tx-contact] {
+  padding: 10px 10px !important;
+  border-radius: 12px !important;
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  transition: background 160ms var(--tx-ease-out), border-color 160ms var(--tx-ease-out);
+}
+html[data-theme="talixy"] [data-tx-contact]:hover {
+  background: rgba(255,255,255,0.22) !important;
+}
+html[data-theme="talixy"] [data-tx-contact][data-tx-active="true"] {
+  background: rgba(255,255,255,0.40) !important;
+  border-color: rgba(255,255,255,0.60) !important;
+  box-shadow: 0 6px 18px rgba(30,40,60,0.07);
+}
+html[data-theme="talixy"] [data-tx-contact] > button > div:first-child {
+  width: 36px !important;
+  height: 36px !important;
+  border-radius: 50% !important;
+  background: rgba(255,255,255,0.55) !important;
+  border: 1px solid rgba(255,255,255,0.70) !important;
+  box-shadow: none !important;
+  color: var(--tx-steel) !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+}
+html[data-theme="talixy"] [data-tx-contact] p:first-child,
+html[data-theme="talixy"] [data-tx-contact] .truncate {
+  font-weight: 400 !important;
+}
+
+/* Fil de conversation : en-tete sans trait lourd, bulles de verre. */
+html[data-theme="talixy"] [data-tx-chatpanel] > div:last-child > div:first-child {
+  border-bottom-color: rgba(255,255,255,0.28) !important;
+}
+html[data-theme="talixy"] [data-tx-bubble] {
+  border-radius: 16px !important;
+  box-shadow: none !important;
+  font-weight: 300;
+}
+/* Message recu : verre blanc. Message envoye : verre acier, legerement plus dense. */
+html[data-theme="talixy"] [data-tx-bubble="other"] {
+  background: rgba(255,255,255,0.38) !important;
+  border: 1px solid rgba(255,255,255,0.55) !important;
+  color: var(--tx-ink) !important;
+}
+html[data-theme="talixy"] [data-tx-bubble="own"] {
+  background: linear-gradient(180deg, rgba(51,86,122,0.16) 0%, rgba(51,86,122,0.10) 100%) !important;
+  border: 1px solid rgba(51,86,122,0.22) !important;
+  color: var(--tx-ink-deep) !important;
+}
+html[data-theme="talixy"] [data-tx-bubble] p,
+html[data-theme="talixy"] [data-tx-bubble] span {
+  font-weight: 300 !important;
+}
+
+/* Barre de saisie : un champ de verre, des boutons ronds discrets. */
+html[data-theme="talixy"] [data-tx-chatinput] {
+  border-top: 1px solid rgba(255,255,255,0.28) !important;
+  padding: 14px 18px !important;
+}
+html[data-theme="talixy"] [data-tx-chatinput] input,
+html[data-theme="talixy"] [data-tx-chatinput] textarea {
+  border-radius: 12px !important;
+  background: rgba(255,255,255,0.26) !important;
+  border: 1px solid rgba(255,255,255,0.50) !important;
+  color: var(--tx-ink) !important;
+  font-family: inherit;
+  font-size: 13.5px !important;
+  font-weight: 300 !important;
+}
+html[data-theme="talixy"] [data-tx-chatinput] input:focus,
+html[data-theme="talixy"] [data-tx-chatinput] textarea:focus {
+  background: rgba(255,255,255,0.42) !important;
+  border-color: rgba(51,86,122,0.38) !important;
+  box-shadow: 0 0 0 3px rgba(51,86,122,0.10) !important;
+}
+html[data-theme="talixy"] [data-tx-chatinput] button {
+  border-radius: 50% !important;
+  background: rgba(255,255,255,0.22) !important;
+  background-image: none !important;
+  border: 1px solid rgba(255,255,255,0.50) !important;
+  color: var(--tx-ink-muted) !important;
+  box-shadow: none !important;
+}
+html[data-theme="talixy"] [data-tx-chatinput] button:hover:not(:disabled) {
+  background: rgba(255,255,255,0.40) !important;
+}
+/* Envoyer : la seule action dense, avec le liseré cyan des autres pages. */
+html[data-theme="talixy"] [data-tx-chatinput] button:last-child {
+  background-image: linear-gradient(180deg, rgba(255,255,255,0.46) 0%, rgba(255,255,255,0.22) 100%) !important;
+  border-color: rgba(255,255,255,0.65) !important;
+  color: var(--tx-steel-deep) !important;
+  box-shadow: inset 0 0 0 1px rgba(11,165,196,0.18) !important;
+}
+html[data-theme="talixy"] [data-tx-chatinput] svg {
+  stroke-width: 1.4;
+}
+
+/* Etats vides du chat : un disque de verre et une phrase fine, comme partout ailleurs. */
+html[data-theme="talixy"] [data-tx-chatpanel] [class*="rounded-2xl"][class*="w-12"] {
+  border-radius: 50% !important;
+  background: rgba(255,255,255,0.20) !important;
+  border: 1px solid rgba(255,255,255,0.45) !important;
+}
+html[data-theme="talixy"] [data-tx-chatpanel] [class*="rounded-2xl"][class*="w-12"] svg {
+  stroke-width: 1.3;
+  color: var(--tx-ink-faint) !important;
+}
+
+/* ---------- Tout ce qui S'OUVRE : menus, popovers, modales. Jamais de retour a l'ancien theme. ---------- */
+
+/*
+ * Ces composants sont partages avec les autres themes : on ne touche pas a leur code, on pose
+ * seulement un attribut data-tx-* dessus et on les rhabille ici. Le !important est necessaire
+ * parce que leurs couleurs sont ecrites en style inline par le systeme de jetons.
+ */
+html[data-theme="talixy"] [data-tx-menu] {
+  border-radius: 16px !important;
+  background: rgba(238,243,250,0.62) !important;
+  border: 1px solid rgba(255,255,255,0.60) !important;
+  box-shadow: 0 26px 64px rgba(20,28,39,0.16), inset 0 1px 0 rgba(255,255,255,0.65) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(1.15) !important;
+  backdrop-filter: blur(18px) saturate(1.15) !important;
+  padding: 7px !important;
+  width: 248px !important;
+}
+html[data-theme="talixy"] [data-tx-menu] > div {
+  padding: 0 !important;
+}
+html[data-theme="talixy"] [data-tx-menu] button {
+  gap: 11px !important;
+  padding: 11px 12px !important;
+  border-radius: 11px !important;
+  color: var(--tx-ink-soft) !important;
+  background: transparent !important;
+  transition: background 160ms var(--tx-ease-out), color 160ms var(--tx-ease-out);
+}
+html[data-theme="talixy"] [data-tx-menu] button:hover {
+  background: rgba(255,255,255,0.55) !important;
+  color: var(--tx-ink-deep) !important;
+}
+html[data-theme="talixy"] [data-tx-menu] button svg {
+  width: 15px !important;
+  height: 15px !important;
+  stroke-width: 1.4 !important;
+  color: var(--tx-ink-faint);
+}
+html[data-theme="talixy"] [data-tx-menu] button span:first-child {
+  font-size: 12.5px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.02em;
+}
+html[data-theme="talixy"] [data-tx-menu] button span + span {
+  font-size: 10.5px !important;
+  font-weight: 300 !important;
+  letter-spacing: 0.02em;
+  opacity: 0.72 !important;
+  color: var(--tx-ink-muted);
+}
+
+html[data-theme="talixy"] [data-tx-modal] {
+  border-radius: 20px !important;
+  background: rgba(238,243,250,0.72) !important;
+  border: 1px solid rgba(255,255,255,0.62) !important;
+  box-shadow: 0 34px 90px rgba(20,28,39,0.20), inset 0 1px 0 rgba(255,255,255,0.65) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(1.15) !important;
+  backdrop-filter: blur(22px) saturate(1.15) !important;
+}
+/* En-tete : titre fin, aucun trait de separation, bouton de fermeture discret. */
+html[data-theme="talixy"] [data-tx-modal] > div:first-child {
+  padding: 22px 26px 6px !important;
+  border-bottom: 0 !important;
+}
+html[data-theme="talixy"] [data-tx-modal] h2 {
+  font-size: 19px !important;
+  font-weight: 300 !important;
+  letter-spacing: 0.02em;
+  color: var(--tx-ink-deep) !important;
+}
+html[data-theme="talixy"] [data-tx-modal] > div:first-child button {
+  width: 30px !important;
+  height: 30px !important;
+  border-radius: 50% !important;
+  background: rgba(255,255,255,0.28) !important;
+  border: 1px solid rgba(255,255,255,0.50);
+  color: var(--tx-ink-muted) !important;
+}
+/* Corps : memes labels, memes champs et memes boutons que la page de reference. */
+html[data-theme="talixy"] [data-tx-modal] form,
+html[data-theme="talixy"] [data-tx-modal] > div:nth-child(2) {
+  padding: 18px 26px 24px !important;
+}
+html[data-theme="talixy"] [data-tx-modal] label {
+  font-size: 10px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.26em !important;
+  color: var(--tx-ink-muted) !important;
+}
+html[data-theme="talixy"] [data-tx-modal] input:not([type="checkbox"]) {
+  height: 42px;
+  padding: 0 14px !important;
+  border-radius: 12px !important;
+  background: rgba(255,255,255,0.30) !important;
+  border: 1px solid rgba(255,255,255,0.55) !important;
+  color: var(--tx-ink) !important;
+  font-family: inherit;
+  font-size: 13.5px !important;
+  font-weight: 300 !important;
+}
+html[data-theme="talixy"] [data-tx-modal] input:not([type="checkbox"]):focus {
+  background: rgba(255,255,255,0.46) !important;
+  border-color: rgba(51,86,122,0.38) !important;
+  box-shadow: 0 0 0 3px rgba(51,86,122,0.10) !important;
+}
+/* Cases d'un code a 6 chiffres dans une modale : meme traitement que sur la page de reference. */
+html[data-theme="talixy"] [data-tx-modal] input[maxlength="1"] {
+  width: 48px;
+  height: 54px;
+  padding: 0 !important;
+  border-radius: 14px !important;
+  text-align: center;
+  font-size: 22px !important;
+}
+/* Boutons secondaires au fil du formulaire (Afficher, etc.) : discrets, pas pleine hauteur. */
+html[data-theme="talixy"] [data-tx-modal] form button:not([type="submit"]) {
+  height: 30px;
+  padding: 0 13px !important;
+  border-radius: 9px !important;
+  font-size: 11.5px !important;
+  font-weight: 400 !important;
+  background: rgba(255,255,255,0.18) !important;
+  background-image: none !important;
+  border: 1px solid rgba(255,255,255,0.45) !important;
+  color: var(--tx-ink-muted) !important;
+  box-shadow: none !important;
+}
+html[data-theme="talixy"] [data-tx-modal] form > div:last-child button,
+html[data-theme="talixy"] [data-tx-modal] > div:last-child button {
+  height: 42px;
+  border-radius: 12px !important;
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.08em;
+  background: rgba(255,255,255,0.18) !important;
+  background-image: none !important;
+  border: 1px solid rgba(255,255,255,0.45) !important;
+  color: var(--tx-ink-soft) !important;
+  box-shadow: none !important;
+}
+/* Action principale de la modale : le meme verre dense et le meme liseré cyan. */
+html[data-theme="talixy"] [data-tx-modal] form button[type="submit"] {
+  background-image: linear-gradient(180deg, rgba(255,255,255,0.40) 0%, rgba(255,255,255,0.18) 100%) !important;
+  border-color: rgba(255,255,255,0.62) !important;
+  color: var(--tx-steel-deep) !important;
+  box-shadow: inset 0 0 0 1px rgba(11,165,196,0.16), 0 10px 28px rgba(30,40,60,0.09) !important;
+}
+html[data-theme="talixy"] [data-tx-modal] svg {
+  stroke-width: 1.4;
+}
+
+/* ---------- Mode Reorganiser : meme fonction, habillage Talixy. ---------- */
+
+/*
+ * Le panneau de reorganisation reste EXACTEMENT le meme composant (memes poignees, memes actions,
+ * meme logique d'index) : seules ses couleurs et ses formes, ecrites en dur ou en jetons, sont
+ * rhabillees ici. Les titres de compartiments ne sont plus orange vif mais de l'encre fine.
+ */
+html[data-theme="talixy"] [data-tx-reorder] {
+  padding: 10px 8px !important;
+}
+html[data-theme="talixy"] [data-reorder-row] {
+  margin-bottom: 6px !important;
+  padding: 9px 10px !important;
+  border-radius: 12px !important;
+  background: rgba(255,255,255,0.14) !important;
+  border: 1px solid rgba(255,255,255,0.34) !important;
+  box-shadow: none !important;
+  color: var(--tx-ink-soft) !important;
+  transition: background 160ms var(--tx-ease-out);
+}
+html[data-theme="talixy"] [data-reorder-row]:hover {
+  background: rgba(255,255,255,0.26) !important;
+}
+html[data-theme="talixy"] [data-reorder-row] span {
+  color: var(--tx-ink-soft) !important;
+}
+/* Compartiment : plus d'orange vif — une capitale fine et une pastille discrete. */
+html[data-theme="talixy"] [data-reorder-kind="section"] {
+  background: transparent !important;
+  border-color: rgba(255,255,255,0.22) !important;
+}
+html[data-theme="talixy"] [data-reorder-kind="section"] span {
+  font-size: 10px !important;
+  letter-spacing: 0.24em !important;
+  font-weight: 400 !important;
+  /* encre sourde, pas pale : a 10 px avec cet interlettrage, --tx-ink-faint devient illisible */
+  color: var(--tx-ink-soft) !important;
+}
+html[data-theme="talixy"] [data-reorder-kind="section"] span[class*="rounded-full"] {
+  background: var(--tx-ink-faint) !important;
+  opacity: 0.55;
+}
+html[data-theme="talixy"] [data-reorder-kind="divider"] {
+  background: transparent !important;
+  border-style: dashed !important;
+  border-color: rgba(255,255,255,0.30) !important;
+}
+html[data-theme="talixy"] [data-reorder-row] svg {
+  stroke-width: 1.4 !important;
+  color: var(--tx-ink-faint) !important;
+}
+/* Poignee de glisser-deposer : presente mais tres discrete. */
+html[data-theme="talixy"] [data-reorder-row] > svg:first-child {
+  opacity: 0.4 !important;
+}
+html[data-theme="talixy"] [data-tx-reorder-actions] {
+  padding: 0 14px 14px !important;
+}
+html[data-theme="talixy"] [data-tx-reorder-actions] button {
+  padding-top: 9px !important;
+  padding-bottom: 9px !important;
+  border-radius: 11px !important;
+  font-size: 11.5px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.06em !important;
+  background: rgba(255,255,255,0.16) !important;
+  border: 1px solid rgba(255,255,255,0.42) !important;
+  color: var(--tx-ink-soft) !important;
+}
+html[data-theme="talixy"] [data-tx-reorder-actions] button:hover {
+  background: rgba(255,255,255,0.30) !important;
+}
+html[data-theme="talixy"] [data-tx-reorder-actions] button svg {
+  stroke-width: 1.4 !important;
+}
+html[data-theme="talixy"] [data-tx-reorder-actions] input {
+  border-radius: 11px !important;
+  padding: 8px 12px !important;
+  background: rgba(255,255,255,0.24) !important;
+  border: 1px solid rgba(255,255,255,0.50) !important;
+  color: var(--tx-ink) !important;
+  font-family: inherit;
+  font-size: 12px !important;
+  font-weight: 300;
+}
+html[data-theme="talixy"] [data-tx-reorder-actions] button[data-tx-confirm] {
+  background: linear-gradient(180deg, rgba(255,255,255,0.42) 0%, rgba(255,255,255,0.20) 100%) !important;
+  border-color: rgba(255,255,255,0.62) !important;
+  color: var(--tx-steel-deep) !important;
+  box-shadow: inset 0 0 0 1px rgba(11,165,196,0.16) !important;
+}
+html[data-theme="talixy"] [data-tx-reorder-actions] button[data-tx-cancel] {
+  background: rgba(168,49,73,0.07) !important;
+  border-color: rgba(168,49,73,0.24) !important;
+  color: var(--tx-danger) !important;
+}
+
+/* ---------- Largeurs reduites : la page respire moins, mais garde ses proportions. ---------- */
+
+@media (max-width: 1100px) {
+  html[data-theme="talixy"] .tx-page { padding: 26px 24px 48px; }
+  html[data-theme="talixy"] .tx-page-head { margin-bottom: 40px; }
+  html[data-theme="talixy"] .tx-page-title { font-size: 28px; }
+  html[data-theme="talixy"] .tx-page-body { gap: 32px; }
+  html[data-theme="talixy"] .tx-surface { padding: 24px 22px; }
+}
+
+/* ---------- Fenetres de « Liste des groupes » : Actions, Detail, Suppression, statut. ---------- */
+
+/*
+ * Ces quatre surfaces sont PARTAGEES (panel Admin, Vendeurs, Company Super Admin) : leur code n est
+ * pas reecrit, on pose seulement un attribut data-tx-* dessus et on les rhabille ici. Leurs
+ * couleurs sont ecrites en style inline par les jetons de theme, d ou le !important.
+ * Meme verre, memes graisses et memes rayons que la page de reference « Acces & securite ».
+ */
+
+/* --- Modale « Actions » --- */
+
+html[data-theme="talixy"] [data-tx-actions] {
+  max-width: 430px !important;
+  border-radius: 20px !important;
+  background: rgba(238,243,250,0.72) !important;
+  border: 1px solid rgba(255,255,255,0.62) !important;
+  box-shadow: 0 34px 90px rgba(20,28,39,0.20), inset 0 1px 0 rgba(255,255,255,0.65) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(1.15) !important;
+  backdrop-filter: blur(22px) saturate(1.15) !important;
+}
+/* En-tete : titre fin, aucun trait de separation, fermeture discrete. */
+html[data-theme="talixy"] [data-tx-actions] > div:first-child {
+  padding: 20px 20px 4px 26px !important;
+  border-bottom: 0 !important;
+}
+html[data-theme="talixy"] [data-tx-actions] h2 {
+  font-size: 18px !important;
+  font-weight: 300 !important;
+  letter-spacing: 0.02em;
+  color: var(--tx-ink-deep) !important;
+}
+html[data-theme="talixy"] [data-tx-actions] > div:first-child > button {
+  width: 30px !important;
+  height: 30px !important;
+  border-radius: 50% !important;
+  background: rgba(255,255,255,0.28) !important;
+  border: 1px solid rgba(255,255,255,0.50);
+  color: var(--tx-ink-muted) !important;
+}
+html[data-theme="talixy"] [data-tx-actions] > div:nth-child(2) {
+  padding: 14px 26px 24px !important;
+}
+
+/* Carte d identite : du verre, pas un bandeau colore. */
+html[data-theme="talixy"] [data-tx-actions-id] {
+  border-radius: 14px !important;
+  padding: 13px 15px !important;
+  background: rgba(255,255,255,0.30) !important;
+  border: 1px solid rgba(255,255,255,0.55) !important;
+  box-shadow: none !important;
+}
+html[data-theme="talixy"] [data-tx-actions-avatar] {
+  border-radius: 13px !important;
+  background: linear-gradient(160deg, rgba(255,255,255,0.72) 0%, rgba(216,223,234,0.55) 100%) !important;
+  border: 1px solid rgba(255,255,255,0.68);
+  box-shadow: none !important;
+  color: var(--tx-steel-deep) !important;
+  font-size: 14px !important;
+  font-weight: 400 !important;
+}
+html[data-theme="talixy"] [data-tx-actions-id] p:first-of-type {
+  font-size: 13.5px !important;
+  font-weight: 400 !important;
+  color: var(--tx-ink-deep) !important;
+}
+html[data-theme="talixy"] [data-tx-actions-id] p + p {
+  font-weight: 300 !important;
+  color: var(--tx-ink-muted) !important;
+}
+
+/* Titre de section : la meme capitale fine que partout ailleurs. */
+html[data-theme="talixy"] [data-tx-actions-section] {
+  font-size: 10px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.26em !important;
+  color: var(--tx-ink-muted) !important;
+}
+html[data-theme="talixy"] [data-tx-actions-rule] {
+  background: rgba(31,41,55,0.10) !important;
+}
+
+/*
+ * Pastilles de commande. Le vert et le rouge satures disparaissent : la fonction reste lisible
+ * par l encre et un liseret, jamais par un aplat. Ce sont des commandes, pas des CTA.
+ */
+html[data-theme="talixy"] [data-tx-pill] {
+  height: 26px;
+  padding: 0 10px !important;
+  border-radius: 9px !important;
+  font-size: 10.5px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.04em;
+  background: rgba(255,255,255,0.26) !important;
+  border: 1px solid rgba(255,255,255,0.52) !important;
+  color: var(--tx-ink-muted) !important;
+}
+html[data-theme="talixy"] [data-tx-pill]:hover {
+  background: rgba(255,255,255,0.46) !important;
+  color: var(--tx-ink-deep) !important;
+}
+html[data-theme="talixy"] [data-tx-pill="ok"] {
+  color: var(--tx-success) !important;
+  border-color: rgba(19,106,74,0.26) !important;
+}
+html[data-theme="talixy"] [data-tx-pill="ko"] {
+  color: var(--tx-danger) !important;
+  border-color: rgba(168,49,73,0.26) !important;
+}
+html[data-theme="talixy"] [data-tx-pill] svg {
+  width: 12px !important;
+  height: 12px !important;
+  stroke-width: 1.4 !important;
+}
+
+/*
+ * Cartes d action. La couleur metier reste sur l icone et le libelle — elle dit encore de quoi il
+ * s agit — mais le fond redevient du verre : plus aucun aplat teinte ne domine la fenetre.
+ */
+html[data-theme="talixy"] [data-tx-card] {
+  border-radius: 14px !important;
+  padding: 11px 13px !important;
+  background: rgba(255,255,255,0.26) !important;
+  border: 1px solid rgba(255,255,255,0.52) !important;
+  box-shadow: none !important;
+  transition: background 180ms var(--tx-ease-out), border-color 180ms var(--tx-ease-out);
+}
+html[data-theme="talixy"] [data-tx-card="action"]:hover {
+  background: rgba(255,255,255,0.46) !important;
+  border-color: rgba(255,255,255,0.72) !important;
+  box-shadow: 0 10px 26px rgba(30,40,60,0.08) !important;
+  transform: none !important;
+}
+html[data-theme="talixy"] [data-tx-card="masquer"],
+html[data-theme="talixy"] [data-tx-card="ordre"] {
+  border-style: dashed !important;
+  border-color: rgba(31,41,55,0.16) !important;
+}
+html[data-theme="talixy"] [data-tx-card] > span:first-child {
+  width: 34px !important;
+  height: 34px !important;
+  border-radius: 11px !important;
+  background: rgba(255,255,255,0.42) !important;
+  border: 1px solid rgba(255,255,255,0.62) !important;
+}
+html[data-theme="talixy"] [data-tx-card] svg {
+  stroke-width: 1.4 !important;
+}
+html[data-theme="talixy"] [data-tx-card] > span + span > span:first-child {
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.01em;
+}
+html[data-theme="talixy"] [data-tx-card] > span + span > span + span {
+  font-size: 10.5px !important;
+  font-weight: 300 !important;
+  color: var(--tx-ink-muted) !important;
+}
+/* Fleches de reordonnancement : du verre, comme les autres commandes. */
+html[data-theme="talixy"] [data-tx-card="ordre"] button {
+  border-radius: 8px !important;
+  background: rgba(255,255,255,0.40) !important;
+  border: 1px solid rgba(255,255,255,0.58);
+  color: var(--tx-ink-muted) !important;
+}
+
+/* --- Modale « Detail » a trois onglets --- */
+
+html[data-theme="talixy"] [data-tx-detail] {
+  border-radius: 20px !important;
+  background: rgba(238,243,250,0.72) !important;
+  border: 1px solid rgba(255,255,255,0.62) !important;
+  box-shadow: 0 34px 90px rgba(20,28,39,0.20), inset 0 1px 0 rgba(255,255,255,0.65) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(1.15) !important;
+  backdrop-filter: blur(22px) saturate(1.15) !important;
+}
+html[data-theme="talixy"] [data-tx-detail] > div:first-child {
+  padding: 22px 20px 12px 26px !important;
+  border-bottom: 0 !important;
+}
+html[data-theme="talixy"] [data-tx-detail] > div:first-child p:first-child {
+  font-size: 18px !important;
+  font-weight: 300 !important;
+  letter-spacing: 0.02em;
+  color: var(--tx-ink-deep) !important;
+}
+html[data-theme="talixy"] [data-tx-detail] > div:first-child p + p {
+  font-size: 12px !important;
+  font-weight: 300 !important;
+  color: var(--tx-ink-muted) !important;
+}
+html[data-theme="talixy"] [data-tx-detail] > div:first-child button {
+  width: 30px !important;
+  height: 30px !important;
+  border-radius: 50% !important;
+  background: rgba(255,255,255,0.28) !important;
+  border: 1px solid rgba(255,255,255,0.50);
+  color: var(--tx-ink-muted) !important;
+}
+/* Onglets : un souligne fin, pas un bandeau. */
+html[data-theme="talixy"] [data-tx-detail-tabs] {
+  padding: 0 26px !important;
+  gap: 4px !important;
+  border-bottom: 1px solid rgba(31,41,55,0.08) !important;
+}
+html[data-theme="talixy"] [data-tx-detail-tabs] button {
+  padding: 9px 12px !important;
+  font-size: 12px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.03em;
+  border-radius: 0 !important;
+  color: var(--tx-ink-muted) !important;
+  border-bottom: 1.5px solid transparent !important;
+}
+html[data-theme="talixy"] [data-tx-detail-tabs] button[style*="border-bottom"] {
+  color: var(--tx-ink-deep) !important;
+  border-bottom-color: var(--tx-steel) !important;
+}
+html[data-theme="talixy"] [data-tx-detail] > div:last-child {
+  padding: 20px 26px 24px !important;
+}
+html[data-theme="talixy"] [data-tx-detail] label {
+  font-size: 10px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.26em !important;
+  color: var(--tx-ink-muted) !important;
+}
+html[data-theme="talixy"] [data-tx-detail] input:not([type="checkbox"]),
+html[data-theme="talixy"] [data-tx-detail] textarea,
+html[data-theme="talixy"] [data-tx-detail] select {
+  border-radius: 12px !important;
+  background: rgba(255,255,255,0.30) !important;
+  border: 1px solid rgba(255,255,255,0.55) !important;
+  color: var(--tx-ink) !important;
+  font-family: inherit;
+  font-size: 13.5px !important;
+  font-weight: 300 !important;
+}
+html[data-theme="talixy"] [data-tx-detail] input:not([type="checkbox"]):focus,
+html[data-theme="talixy"] [data-tx-detail] textarea:focus {
+  background: rgba(255,255,255,0.46) !important;
+  border-color: rgba(51,86,122,0.38) !important;
+  box-shadow: 0 0 0 3px rgba(51,86,122,0.10) !important;
+}
+html[data-theme="talixy"] [data-tx-detail] svg {
+  stroke-width: 1.4;
+}
+
+/* --- Confirmation de suppression --- */
+
+/*
+ * Ici la couleur metier compte : c est un garde-fou. On garde donc un signal d alerte clair, mais
+ * en encre grenat sur du verre plutot qu en aplat rouge — lisible sans hurler.
+ */
+html[data-theme="talixy"] [data-tx-delete] {
+  border-radius: 20px !important;
+  background: rgba(238,243,250,0.74) !important;
+  border: 1px solid rgba(255,255,255,0.62) !important;
+  box-shadow: 0 34px 90px rgba(20,28,39,0.22), inset 0 1px 0 rgba(255,255,255,0.65) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(1.15) !important;
+  backdrop-filter: blur(22px) saturate(1.15) !important;
+}
+html[data-theme="talixy"] [data-tx-delete] > div:first-child {
+  padding: 22px 26px 14px !important;
+  border-bottom: 1px solid rgba(31,41,55,0.08) !important;
+}
+html[data-theme="talixy"] [data-tx-delete] > div:first-child > div:first-child {
+  border-radius: 13px !important;
+  background: rgba(168,49,73,0.08) !important;
+  border: 1px solid rgba(168,49,73,0.20);
+}
+/* Seule l icone d alerte porte le grenat : la croix de fermeture reste de l encre. */
+html[data-theme="talixy"] [data-tx-delete] > div:first-child > div:first-child svg {
+  color: var(--tx-danger) !important;
+}
+html[data-theme="talixy"] [data-tx-delete] > div:first-child > button svg {
+  color: var(--tx-ink-muted) !important;
+}
+/* Le voile reprend celui des autres fenetres Talixy : un gris bleute, pas un noir. */
+html[data-theme="talixy"] [data-tx-veil] {
+  background: rgba(31,41,55,0.40) !important;
+  -webkit-backdrop-filter: blur(6px) !important;
+  backdrop-filter: blur(6px) !important;
+}
+html[data-theme="talixy"] [data-tx-delete] h2 {
+  font-size: 16px !important;
+  font-weight: 300 !important;
+  line-height: 1.35;
+  letter-spacing: 0.01em;
+  color: var(--tx-ink-deep) !important;
+}
+html[data-theme="talixy"] [data-tx-delete] > div + div {
+  padding: 18px 26px 24px !important;
+}
+html[data-theme="talixy"] [data-tx-delete] p,
+html[data-theme="talixy"] [data-tx-delete] li {
+  font-weight: 300 !important;
+  color: var(--tx-ink-muted) !important;
+}
+html[data-theme="talixy"] [data-tx-delete] label {
+  font-size: 10px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.26em !important;
+  color: var(--tx-ink-muted) !important;
+}
+html[data-theme="talixy"] [data-tx-delete] input {
+  height: 42px;
+  border-radius: 12px !important;
+  background: rgba(255,255,255,0.30) !important;
+  border: 1px solid rgba(255,255,255,0.55) !important;
+  color: var(--tx-ink) !important;
+  font-family: inherit;
+  font-size: 13.5px !important;
+  font-weight: 300 !important;
+}
+html[data-theme="talixy"] [data-tx-delete] button {
+  height: 42px;
+  border-radius: 12px !important;
+  font-size: 12.5px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.06em;
+  background: rgba(255,255,255,0.22) !important;
+  background-image: none !important;
+  border: 1px solid rgba(255,255,255,0.50) !important;
+  color: var(--tx-ink-soft) !important;
+  box-shadow: none !important;
+}
+/* L action destructrice reste identifiable : encre grenat et liseret, jamais un aplat. */
+html[data-theme="talixy"] [data-tx-delete] button[data-tx-danger] {
+  background: rgba(168,49,73,0.07) !important;
+  border-color: rgba(168,49,73,0.30) !important;
+  color: var(--tx-danger) !important;
+}
+html[data-theme="talixy"] [data-tx-delete] button[data-tx-warn] {
+  background: rgba(122,86,0,0.07) !important;
+  border-color: rgba(122,86,0,0.28) !important;
+  color: var(--tx-warning) !important;
+}
+html[data-theme="talixy"] [data-tx-delete] svg {
+  stroke-width: 1.4;
+}
+
+/* --- Liste deroulante de statut, posee sur une ligne du tableau --- */
+
+html[data-theme="talixy"] [data-tx-drop] {
+  padding: 6px !important;
+  border-radius: 14px !important;
+  background: rgba(238,243,250,0.62) !important;
+  border: 1px solid rgba(255,255,255,0.60) !important;
+  box-shadow: 0 22px 56px rgba(20,28,39,0.16), inset 0 1px 0 rgba(255,255,255,0.65) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(1.15) !important;
+  backdrop-filter: blur(18px) saturate(1.15) !important;
+}
+html[data-theme="talixy"] [data-tx-drop] button {
+  padding: 9px 11px !important;
+  border-radius: 10px !important;
+  background: transparent !important;
+  transition: background 160ms var(--tx-ease-out);
+}
+html[data-theme="talixy"] [data-tx-drop] button:hover {
+  background: rgba(255,255,255,0.55) !important;
+}
+html[data-theme="talixy"] [data-tx-drop] button > span + span {
+  font-size: 12.5px !important;
+  font-weight: 300 !important;
+  letter-spacing: 0.02em;
+}
+html[data-theme="talixy"] [data-tx-drop] svg {
+  stroke-width: 1.4 !important;
+}
+
+/*
+ * Boutons du corps de la modale « Detail ». Plus aucun bloc bleu plein : du verre, comme sur la
+ * page de reference. L action principale garde son liseret cyan, les autres restent discretes.
+ */
+html[data-theme="talixy"] [data-tx-detail] > div:last-child button {
+  border-radius: 11px !important;
+  font-size: 12px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.05em;
+  background: rgba(255,255,255,0.22) !important;
+  background-image: none !important;
+  border: 1px solid rgba(255,255,255,0.50) !important;
+  color: var(--tx-ink-soft) !important;
+  box-shadow: none !important;
+  transition: background 160ms var(--tx-ease-out);
+}
+html[data-theme="talixy"] [data-tx-detail] > div:last-child button:hover {
+  background: rgba(255,255,255,0.42) !important;
+}
+html[data-theme="talixy"] [data-tx-detail] button[data-tx-primary] {
+  height: 38px;
+  padding: 0 18px !important;
+  border-radius: 12px !important;
+  background-image: linear-gradient(180deg, rgba(255,255,255,0.40) 0%, rgba(255,255,255,0.18) 100%) !important;
+  border-color: rgba(255,255,255,0.62) !important;
+  color: var(--tx-steel-deep) !important;
+  box-shadow: inset 0 0 0 1px rgba(11,165,196,0.16), 0 10px 28px rgba(30,40,60,0.09) !important;
+}
+/* Suppression de commentaires : encre grenat, jamais un aplat. */
+html[data-theme="talixy"] [data-tx-detail] > div:last-child button[style*="rgba(239"],
+html[data-theme="talixy"] [data-tx-detail] > div:last-child button[style*="danger"] {
+  color: var(--tx-danger) !important;
+  border-color: rgba(168,49,73,0.26) !important;
+}
+/* Cases du code a 6 chiffres : meme traitement que sur la page de reference. */
+html[data-theme="talixy"] [data-tx-detail] input[maxlength="1"] {
+  width: 46px;
+  height: 52px;
+  border-radius: 14px !important;
+  text-align: center;
+  font-size: 21px !important;
+  font-weight: 300 !important;
+}
+
+/* ---------- Mode selection de la liste : le rouge vif cede la place a l encre grenat. ---------- */
+
+/*
+ * Supprimer reste parfaitement identifiable — c est une action irreversible — mais par une encre
+ * grenat et un liseret, jamais par un aplat rouge qui domine toute la barre.
+ */
+html[data-theme="talixy"] [data-tx-listhead] button[data-tx-danger] {
+  background: rgba(168,49,73,0.07) !important;
+  border-color: rgba(168,49,73,0.30) !important;
+  color: var(--tx-danger) !important;
+}
+html[data-theme="talixy"] [data-tx-listhead] button[data-tx-danger]:hover {
+  background: rgba(168,49,73,0.12) !important;
+}
+/* Le compteur « N selectionne » suit la meme encre. */
+html[data-theme="talixy"] [data-tx-notice="select"] [data-tx-count] {
+  font-weight: 400 !important;
+  letter-spacing: 0.04em;
+  color: var(--tx-danger) !important;
+}
+/* Cases a cocher : la teinte d accent rouge de Tailwind n a pas sa place ici. */
+html[data-theme="talixy"] [data-tx-list] input[type="checkbox"],
+html[data-theme="talixy"] [data-tx-notice] input[type="checkbox"] {
+  accent-color: var(--tx-steel);
+  width: 15px;
+  height: 15px;
+}
+
+/* ---------- Module Systeme : menu « ... », confirmation et message de blocage. ---------- */
+
+/*
+ * Le menu du module Systeme a une structure « icone + libelle », differente de celle des menus de
+ * la barre du haut (« libelle + sous-titre ») : il lui faut donc son propre crochet, sinon le
+ * libelle heriterait de la taille reservee aux sous-titres.
+ */
+html[data-theme="talixy"] [data-tx-sysmenu] {
+  padding: 7px !important;
+  border-radius: 16px !important;
+  background: rgba(238,243,250,0.62) !important;
+  border: 1px solid rgba(255,255,255,0.60) !important;
+  box-shadow: 0 26px 64px rgba(20,28,39,0.16), inset 0 1px 0 rgba(255,255,255,0.65) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(1.15) !important;
+  backdrop-filter: blur(18px) saturate(1.15) !important;
+  min-width: 190px !important;
+}
+html[data-theme="talixy"] [data-tx-sysmenu] button {
+  gap: 11px !important;
+  padding: 10px 12px !important;
+  border-radius: 11px !important;
+  font-size: 12.5px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.02em;
+  color: var(--tx-ink-soft) !important;
+  background: transparent !important;
+  transition: background 160ms var(--tx-ease-out), color 160ms var(--tx-ease-out);
+}
+html[data-theme="talixy"] [data-tx-sysmenu] button:hover {
+  background: rgba(255,255,255,0.55) !important;
+  opacity: 1 !important;
+  color: var(--tx-ink-deep) !important;
+}
+html[data-theme="talixy"] [data-tx-sysmenu] button svg {
+  width: 15px !important;
+  height: 15px !important;
+  stroke-width: 1.4 !important;
+}
+html[data-theme="talixy"] [data-tx-sysmenu] button > span:first-child {
+  color: var(--tx-ink-faint) !important;
+}
+/* Supprimer reste identifiable : de l encre grenat, jamais un aplat. */
+html[data-theme="talixy"] [data-tx-sysmenu] button[data-tx-danger],
+html[data-theme="talixy"] [data-tx-sysmenu] button[data-tx-danger] > span:first-child {
+  color: var(--tx-danger) !important;
+}
+html[data-theme="talixy"] [data-tx-sysmenu] button[data-tx-danger]:hover {
+  background: rgba(168,49,73,0.08) !important;
+}
+
+/* --- Confirmation « Supprimer « nom » ? » : la meme pour la note, le sous-groupe et la categorie. --- */
+
+html[data-theme="talixy"] [data-tx-ask] {
+  border-radius: 20px !important;
+  background: rgba(238,243,250,0.74) !important;
+  border: 1px solid rgba(255,255,255,0.62) !important;
+  box-shadow: 0 34px 90px rgba(20,28,39,0.22), inset 0 1px 0 rgba(255,255,255,0.65) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(1.15) !important;
+  backdrop-filter: blur(22px) saturate(1.15) !important;
+}
+html[data-theme="talixy"] [data-tx-ask] h2 {
+  font-size: 16px !important;
+  font-weight: 300 !important;
+  line-height: 1.4;
+  letter-spacing: 0.01em;
+  color: var(--tx-ink-deep) !important;
+}
+html[data-theme="talixy"] [data-tx-ask] p {
+  font-weight: 300 !important;
+  color: var(--tx-ink-muted) !important;
+}
+html[data-theme="talixy"] [data-tx-ask-badge] {
+  border-radius: 13px !important;
+  background: rgba(168,49,73,0.08) !important;
+  border: 1px solid rgba(168,49,73,0.20) !important;
+}
+html[data-theme="talixy"] [data-tx-ask-badge] svg {
+  color: var(--tx-danger) !important;
+  stroke-width: 1.4 !important;
+}
+html[data-theme="talixy"] [data-tx-ask] button {
+  height: 42px;
+  border-radius: 12px !important;
+  font-size: 12.5px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.06em;
+  background: rgba(255,255,255,0.22) !important;
+  background-image: none !important;
+  border: 1px solid rgba(255,255,255,0.50) !important;
+  color: var(--tx-ink-soft) !important;
+  box-shadow: none !important;
+  transition: background 160ms var(--tx-ease-out);
+}
+html[data-theme="talixy"] [data-tx-ask] button:hover {
+  background: rgba(255,255,255,0.42) !important;
+}
+html[data-theme="talixy"] [data-tx-ask] button[data-tx-danger] {
+  background: rgba(168,49,73,0.07) !important;
+  border-color: rgba(168,49,73,0.30) !important;
+  color: var(--tx-danger) !important;
+}
+html[data-theme="talixy"] [data-tx-ask] button[data-tx-danger]:hover {
+  background: rgba(168,49,73,0.13) !important;
+}
+
+/* --- Message de blocage : precis, en encre grenat sur du verre, jamais un bandeau rouge. --- */
+
+html[data-theme="talixy"] [data-tx-bloque] {
+  padding: 11px 18px !important;
+  font-size: 12px !important;
+  font-weight: 300 !important;
+  letter-spacing: 0.02em;
+  background: rgba(168,49,73,0.07) !important;
+  border-top: 1px solid rgba(168,49,73,0.18) !important;
+  color: var(--tx-danger) !important;
+}
+
+/* --- Feuille d actions mobile : le meme verre que le reste. --- */
+
+html[data-theme="talixy"] [data-tx-sheet] {
+  background: rgba(238,243,250,0.82) !important;
+  border-top: 1px solid rgba(255,255,255,0.60) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(1.15) !important;
+  backdrop-filter: blur(22px) saturate(1.15) !important;
+}
+html[data-theme="talixy"] [data-tx-sheet] button[data-tx-danger] {
+  background: rgba(168,49,73,0.07) !important;
+  color: var(--tx-danger) !important;
+}
+
+/* ---------- Telephone virtuel : la meme matiere que le reste de la scene Talixy. ---------- */
+
+/*
+ * Composant partage (Talvex Administrateur, Admin, Company Super Admin) : son code n'est pas
+ * reecrit, on pose des attributs data-tx-* et on l'habille ici. Ses couleurs sont ecrites en
+ * style inline, d'ou le !important. Hors Talixy, absolument rien ne change.
+ *
+ * L'ECRAN INTERIEUR n'est pas concerne : c'est une <iframe> qui recharge l'application elle-meme
+ * (?virtualPhone=1). Elle porte donc deja le theme de l'utilisateur — aucune regle d'ici ne la
+ * traverse, et c'est tant mieux : on habille la coque, pas le contenu simule.
+ */
+
+/* --- Panneau flottant : du verre pose dans la scene, plus une masse bleu nuit. --- */
+
+html[data-theme="talixy"] [data-tx-phone] {
+  font-family: 'Urbanist', system-ui, sans-serif;
+  filter: drop-shadow(0 28px 60px rgba(20,28,39,0.22));
+}
+html[data-theme="talixy"] [data-tx-phone-head] {
+  padding: 11px 12px 9px 16px !important;
+  border-radius: 18px 18px 0 0 !important;
+  background: rgba(238,243,250,0.72) !important;
+  border: 1px solid rgba(255,255,255,0.62) !important;
+  border-bottom: 0 !important;
+  -webkit-backdrop-filter: blur(22px) saturate(1.15) !important;
+  backdrop-filter: blur(22px) saturate(1.15) !important;
+}
+/* Titre fin, pas une capitale grasse. */
+html[data-theme="talixy"] [data-tx-phone-head] > span {
+  font-size: 9.5px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.26em !important;
+  color: var(--tx-ink-muted) !important;
+}
+html[data-theme="talixy"] [data-tx-phone-head] button {
+  width: 24px !important;
+  height: 24px !important;
+  border-radius: 50% !important;
+  color: var(--tx-ink-faint) !important;
+  transition: background 160ms var(--tx-ease-out), color 160ms var(--tx-ease-out);
+}
+html[data-theme="talixy"] [data-tx-phone-head] button:hover {
+  background: rgba(255,255,255,0.55) !important;
+  color: var(--tx-ink-deep) !important;
+}
+html[data-theme="talixy"] [data-tx-phone-head] button:last-child:hover {
+  background: rgba(168,49,73,0.10) !important;
+  color: var(--tx-danger) !important;
+}
+html[data-theme="talixy"] [data-tx-phone-head] svg {
+  width: 12px !important;
+  height: 12px !important;
+  stroke-width: 1.5 !important;
+}
+
+/* --- Barre de controles : iPhone / Samsung / zoom, en petites commandes de verre. --- */
+
+html[data-theme="talixy"] [data-tx-phone-ctl] {
+  padding: 8px 12px 9px !important;
+  background: rgba(238,243,250,0.66) !important;
+  border-left: 1px solid rgba(255,255,255,0.62) !important;
+  border-right: 1px solid rgba(255,255,255,0.62) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(1.15) !important;
+  backdrop-filter: blur(22px) saturate(1.15) !important;
+}
+html[data-theme="talixy"] [data-tx-model] {
+  height: 24px;
+  padding: 0 10px !important;
+  border-radius: 8px !important;
+  font-size: 10px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.06em;
+  background: rgba(255,255,255,0.26) !important;
+  border: 1px solid rgba(255,255,255,0.50) !important;
+  color: var(--tx-ink-muted) !important;
+  transition: background 160ms var(--tx-ease-out), color 160ms var(--tx-ease-out);
+}
+html[data-theme="talixy"] [data-tx-model]:hover {
+  background: rgba(255,255,255,0.46) !important;
+  color: var(--tx-ink-deep) !important;
+}
+/* Modele choisi : un liseret cyan tres leger, jamais un aplat bleu. */
+html[data-theme="talixy"] [data-tx-model][data-tx-active] {
+  background: linear-gradient(180deg, rgba(255,255,255,0.42) 0%, rgba(255,255,255,0.20) 100%) !important;
+  border-color: rgba(255,255,255,0.66) !important;
+  color: var(--tx-steel-deep) !important;
+  box-shadow: inset 0 0 0 1px rgba(11,165,196,0.20) !important;
+}
+html[data-theme="talixy"] [data-tx-phone-ctl] button:not([data-tx-model]) {
+  width: 22px !important;
+  height: 22px !important;
+  border-radius: 7px !important;
+  color: var(--tx-ink-faint) !important;
+}
+html[data-theme="talixy"] [data-tx-phone-ctl] button:not([data-tx-model]):hover {
+  background: rgba(255,255,255,0.55) !important;
+  color: var(--tx-ink-deep) !important;
+}
+html[data-theme="talixy"] [data-tx-phone-ctl] svg {
+  stroke-width: 1.6 !important;
+}
+html[data-theme="talixy"] [data-tx-phone-ctl] > div:last-child > span {
+  font-family: inherit !important;
+  font-size: 10px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.04em;
+  color: var(--tx-ink-muted) !important;
+}
+
+/* --- Corps du panneau --- */
+
+html[data-theme="talixy"] [data-tx-phone-body] {
+  border-radius: 0 0 18px 18px !important;
+  background: rgba(238,243,250,0.66) !important;
+  border-left: 1px solid rgba(255,255,255,0.62) !important;
+  border-right: 1px solid rgba(255,255,255,0.62) !important;
+  border-bottom: 1px solid rgba(255,255,255,0.62) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(1.15) !important;
+  backdrop-filter: blur(22px) saturate(1.15) !important;
+}
+html[data-theme="talixy"] [data-tx-phone-size] {
+  font-family: inherit !important;
+  font-weight: 300 !important;
+  letter-spacing: 0.06em;
+  color: var(--tx-ink-faint) !important;
+}
+
+/* --- L'appareil : meme silhouette, coque gris acier au lieu du noir massif. --- */
+
+html[data-theme="talixy"] [data-tx-phone-glow] {
+  background: radial-gradient(circle, rgba(51,86,122,0.10) 0%, transparent 70%) !important;
+  opacity: 0.5 !important;
+}
+html[data-theme="talixy"] [data-tx-phone-frame] {
+  border-color: rgba(150,162,180,0.85) !important;
+  background: #E3E9F2 !important;
+  box-shadow:
+    0 22px 54px rgba(20,28,39,0.26),
+    inset 0 0 0 1.5px rgba(255,255,255,0.75),
+    inset 0 0 0 3px rgba(122,136,158,0.30) !important;
+}
+html[data-theme="talixy"] [data-tx-phone-status] {
+  background: #E3E9F2 !important;
+}
+html[data-theme="talixy"] [data-tx-phone-status] span {
+  color: var(--tx-ink-soft) !important;
+  font-weight: 400 !important;
+}
+html[data-theme="talixy"] [data-tx-phone-status] svg {
+  color: var(--tx-ink-muted) !important;
+  stroke-width: 1.6 !important;
+}
+/* La Dynamic Island reste noire : c'est elle qui fait reconnaitre l'appareil. */
+html[data-theme="talixy"] [data-tx-phone-island] {
+  background: #141C27 !important;
+  border-color: rgba(255,255,255,0.10) !important;
+}
+html[data-theme="talixy"] [data-tx-phone-home] {
+  background: #E3E9F2 !important;
+}
+html[data-theme="talixy"] [data-tx-phone-home] > div {
+  background: rgba(31,41,55,0.22) !important;
+}
+html[data-theme="talixy"] [data-tx-phone-load] {
+  background: #E8EEF7 !important;
+}
+html[data-theme="talixy"] [data-tx-phone-load] span {
+  color: var(--tx-ink-muted) !important;
+}
+html[data-theme="talixy"] [data-tx-phone-load] .animate-spin {
+  border-color: rgba(51,86,122,0.45) !important;
+  border-top-color: transparent !important;
+}
+
+/* --- Ecran d'accueil simule : fond clair, dock plus discret. --- */
+
+html[data-theme="talixy"] [data-tx-phone-wall] {
+  background: linear-gradient(180deg, #E8EEF7 0%, #D6DDE8 45%, #E8EEF7 100%) !important;
+}
+html[data-theme="talixy"] [data-tx-phone-wall] > div:first-of-type {
+  background: radial-gradient(ellipse at 50% 30%, rgba(51,86,122,0.08) 0%, transparent 70%) !important;
+}
+html[data-theme="talixy"] [data-tx-phone-wall] span {
+  color: var(--tx-ink-soft) !important;
+  font-weight: 400 !important;
+  text-shadow: none !important;
+}
+html[data-theme="talixy"] [data-tx-phone-dock] {
+  gap: 10px !important;
+  padding: 7px 12px !important;
+  border-radius: 18px !important;
+  background: rgba(255,255,255,0.42) !important;
+  border: 1px solid rgba(255,255,255,0.70) !important;
+  box-shadow: 0 10px 26px rgba(30,40,60,0.10) !important;
+  -webkit-backdrop-filter: blur(14px) !important;
+  backdrop-filter: blur(14px) !important;
+}
+/*
+ * Dock : trois surfaces plus petites, en verre. La couleur metier ne disparait pas — elle passe
+ * du gros aplat au liseret et au glyphe, ce qui suffit a les distinguer sans tirer l'oeil.
+ */
+html[data-theme="talixy"] [data-tx-dock-app] {
+  width: 28px !important;
+  height: 28px !important;
+  border-radius: 9px !important;
+  opacity: 1 !important;
+  background: rgba(255,255,255,0.55) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.85);
+}
+html[data-theme="talixy"] [data-tx-dock-app="phone"] {
+  border: 1px solid rgba(19,106,74,0.34) !important;
+}
+html[data-theme="talixy"] [data-tx-dock-app="message"] {
+  border: 1px solid rgba(51,86,122,0.34) !important;
+}
+html[data-theme="talixy"] [data-tx-dock-app="camera"] {
+  border: 1px solid rgba(122,86,0,0.34) !important;
+}
+html[data-theme="talixy"] [data-tx-dock-glyph] {
+  width: 9px !important;
+  height: 9px !important;
+  border-radius: 3px !important;
+}
+html[data-theme="talixy"] [data-tx-dock-app="phone"] [data-tx-dock-glyph] {
+  background: var(--tx-success) !important;
+}
+html[data-theme="talixy"] [data-tx-dock-app="message"] [data-tx-dock-glyph] {
+  background: var(--tx-steel) !important;
+}
+html[data-theme="talixy"] [data-tx-dock-app="camera"] [data-tx-dock-glyph] {
+  background: var(--tx-warning) !important;
+}
+
+/* --- Plein ecran du telephone virtuel --- */
+
+/*
+ * Le bouton reprend exactement le traitement des deux commandes de zoom voisines : meme taille,
+ * meme encre, meme survol. Sa regle est deja couverte par
+ * « [data-tx-phone-ctl] button:not([data-tx-model]) » — on ne fait ici que l'ecarter legerement
+ * et poser le voile.
+ */
+html[data-theme="talixy"] [data-tx-fs-btn] {
+  margin-left: 6px !important;
+}
+html[data-theme="talixy"] [data-tx-phone-veil] {
+  background: rgba(31,41,55,0.42) !important;
+}
+/* En plein ecran le panneau ne se deplace plus : le curseur ne doit plus le promettre. */
+html[data-theme="talixy"] [data-tx-fs] [data-tx-phone-head] {
+  cursor: default;
+}

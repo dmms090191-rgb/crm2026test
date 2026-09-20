@@ -171,6 +171,7 @@ export default function EntityInfoTab({ entity, companyLabel, editableFields, on
 
       <div className="flex items-center gap-3 pt-1">
         <button
+          data-tx-primary
           onClick={save} disabled={saving}
           className="px-4 py-2 rounded-lg text-xs font-semibold transition-all disabled:opacity-50"
           style={{ background: tokens.accent.solid, color: tokens.text.primary, boxShadow: `0 0 16px ${tokens.accent.border}` }}

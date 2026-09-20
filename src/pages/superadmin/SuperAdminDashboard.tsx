@@ -12,6 +12,8 @@ import type { CompanySuperAdmin } from './views/super-admins/superAdminTypes';
 import { useAdminsCache } from './useAdminsCache';
 import { useEditorLocateHandler } from './useEditorLocateHandler';
 import GlassBackgroundLayer from '../../components/theme/GlassBackgroundLayer';
+import TalixyShellChrome from '../../talixy/TalixyShellChrome';
+import { useTalixy } from '../../talixy/useTalixy';
 import { EditorModeProvider, useEditorMode, resolveZoneEffective } from '../../contexts/EditorModeContext';
 import EditorSaveThemeModal from '../../components/editor/EditorSaveThemeModal';
 import SuperAdminEditorPanels from './SuperAdminEditorPanels';
@@ -49,6 +51,7 @@ export default function SuperAdminDashboard(props: SuperAdminDashboardProps) {
 
 function SuperAdminDashboardInner({ onLogout, onConnectAsAdmin, onConnectAsCompanySuperAdmin }: SuperAdminDashboardProps) {
   const t = useThemeTokens();
+  const talixy = useTalixy();
   const [activeView, setActiveView] = useState<SAView>('dashboard');
   const [docInitialTab, setDocInitialTab] = useState<string | undefined>(undefined);
   const [docKey, setDocKey] = useState(0);
@@ -137,6 +140,8 @@ function SuperAdminDashboardInner({ onLogout, onConnectAsAdmin, onConnectAsCompa
         if (meta.last_name) setSaLastName(meta.last_name);
       }
     });
+    const t = window.setTimeout(() => { void import('./views/SAchatAdmin'); }, 2200); // chat precharge
+    return () => window.clearTimeout(t);
   }, []);
 
   useEffect(() => {
@@ -216,6 +221,7 @@ function SuperAdminDashboardInner({ onLogout, onConnectAsAdmin, onConnectAsCompa
         </div>
       )}
       <GlassBackgroundLayer />
+      <TalixyShellChrome />
       {mobileOpen && <div className="fixed inset-0 z-40 md:hidden" style={{ background: t.modal.overlayBg }} onClick={() => setMobileOpen(false)} />}
 
       <div className={`fixed inset-y-0 left-0 z-50 md:hidden transition-transform duration-300 ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}>
@@ -263,7 +269,14 @@ function SuperAdminDashboardInner({ onLogout, onConnectAsAdmin, onConnectAsCompa
         <main ref={contentZoneRef} className={`flex-1 ${activeView === 'chat-admin' ? 'p-1.5 sm:p-2 md:p-3 lg:p-4' : ''}`} style={{ minHeight: 0, overflow: activeView === 'chat-admin' ? 'hidden' : 'auto' }}>
           {activeView === 'chat-admin' && (
             <Suspense fallback={<div className="flex items-center justify-center h-64"><div className="w-8 h-8 border-3 border-amber-500 border-t-transparent rounded-full animate-spin" /></div>}>
-              <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, height: '100%' }}>
+              <div className={talixy.active ? 'tx-anim tx-view-in tx-page' : 'tx-anim tx-view-in'} data-tx-chat={talixy.active ? 'true' : undefined} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, height: '100%' }}>
+                {talixy.active && (
+                  <header className="tx-page-head">
+                    <p className="tx-page-eyebrow">Communication</p>
+                    <h1 className="tx-page-title">Chat Groupes</h1>
+                    <p className="tx-page-subtitle">Vos echanges avec les groupes de la plateforme.</p>
+                  </header>
+                )}
                 <SAchatAdmin key={chatAdmin?.id ?? 'no-admin'} initialAdmin={chatAdmin} onAdminViewed={markAdminMsgRead} cachedAdmins={cachedAdmins} />
               </div>
             </Suspense>

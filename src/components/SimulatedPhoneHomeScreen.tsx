@@ -10,6 +10,7 @@ export default function SimulatedPhoneHomeScreen({ appIconUrl, appName, onOpenAp
 
   return (
     <div
+      data-tx-phone-wall
       className="absolute inset-0 flex flex-col items-center justify-center select-none"
       style={{
         background: 'linear-gradient(180deg, #0c1222 0%, #162036 40%, #0c1222 100%)',
@@ -59,6 +60,7 @@ export default function SimulatedPhoneHomeScreen({ appIconUrl, appName, onOpenAp
 
       {/* Dock bar */}
       <div
+        data-tx-phone-dock
         className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 px-4 py-2 rounded-2xl"
         style={{
           background: 'rgba(255,255,255,0.08)',
@@ -73,10 +75,11 @@ export default function SimulatedPhoneHomeScreen({ appIconUrl, appName, onOpenAp
         ].map((item, i) => (
           <div
             key={i}
+            data-tx-dock-app={item.icon}
             className="w-[36px] h-[36px] rounded-[10px] flex items-center justify-center"
             style={{ background: item.bg, opacity: 0.7 }}
           >
-            <div className="w-3.5 h-3.5 rounded-sm" style={{ background: 'rgba(255,255,255,0.5)' }} />
+            <div data-tx-dock-glyph className="w-3.5 h-3.5 rounded-sm" style={{ background: 'rgba(255,255,255,0.5)' }} />
           </div>
         ))}
       </div>

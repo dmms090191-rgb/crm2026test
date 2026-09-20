@@ -3,6 +3,9 @@ import { useThemeTokens } from '../../../hooks/useThemeTokens';
 import SAProjectHealthCard from './dashboard/SAProjectHealthCard';
 import type { SAView } from '../SuperAdminSidebar';
 import { useVCElement } from '../../../components/visualCustomize/useVCElement';
+import { useEditorModeSafe } from '../../../contexts/EditorModeContext';
+import { useTalixy } from '../../../talixy/useTalixy';
+import TalixyDashboard from '../../../talixy/TalixyDashboard';
 
 interface SADashboardProps {
   onNavigate?: (view: SAView) => void;
@@ -17,6 +20,12 @@ export default function SADashboard(props: SADashboardProps) {
 
 function SADashboardInner({ onNavigate, onNavigateToAudit, adminCount = 0, adminsLoading }: SADashboardProps) {
   const t = useThemeTokens();
+  // Talixy hors editeur : la composition validee par David REMPLACE visuellement l'ancien bloc
+  // (titre, carte ENTREPRISES, position de Sante du projet) — masque, jamais supprime : tout
+  // reste intact pour Graphite et les autres themes, et pour le mode editeur.
+  const talixy = useTalixy();
+  const editorCtx = useEditorModeSafe();
+  const talixyDash = talixy.active && !editorCtx?.editorOpen;
   const enterpriseBg = `linear-gradient(135deg, ${t.surface.secondary}, ${t.surface.secondary}80)`;
 
   const titleVC = useVCElement<HTMLHeadingElement>('sa-dashboard-title', 'text', 'Titre Dashboard', {
@@ -39,6 +48,10 @@ function SADashboardInner({ onNavigate, onNavigateToAudit, adminCount = 0, admin
   const entTitleVC = useVCElement<HTMLSpanElement>('sa-dashboard-ent-title', 'text', 'Titre ENTREPRISES', { color: t.text.tertiary });
   const entCountVC = useVCElement<HTMLSpanElement>('sa-dashboard-ent-count', 'text', 'Nombre Entreprises', { color: t.text.primary });
   const entCaptionVC = useVCElement<HTMLParagraphElement>('sa-dashboard-ent-caption', 'text', 'Texte Societes clientes', { color: t.text.tertiary });
+
+  if (talixyDash) {
+    return <TalixyDashboard health={<SAProjectHealthCard onNavigateToAudit={onNavigateToAudit} />} />;
+  }
 
   return (
     <div className="p-4 md:p-8 space-y-4 md:space-y-6 max-w-5xl">

@@ -7,6 +7,10 @@ import { buildTree } from './types';
 import SystemSummaryBar from './components/SystemSummaryBar';
 import SystemCategoryNode from './components/SystemCategoryNode';
 import SystemStatusModal from './components/SystemStatusModal';
+import SystemConfirmDelete from './components/SystemConfirmDelete';
+
+/** Ce dont on attend la confirmation : une note, ou une categorie (ou sous-groupe) deja vide. */
+type Demande = { genre: 'note' | 'categorie'; id: string; nom: string } | null;
 
 export type { SystemItem, SystemCategory, SystemStatus };
 
@@ -33,6 +37,10 @@ export default function SystemView({ items, categories, statuses, onItemsChange,
   const [newItemTitle, setNewItemTitle] = useState('');
   const [statusModalOpen, setStatusModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [demande, setDemande] = useState<Demande>(null);
+  const [blocage, setBlocage] = useState<{ id: string; message: string } | null>(null);
+  const [renamingItemId, setRenamingItemId] = useState<string | null>(null);
+  const [itemRenameDraft, setItemRenameDraft] = useState('');
 
   const actions = useSystemActions({ items, categories, statuses, onItemsChange, onCategoriesChange, onStatusesChange });
   const tree = buildTree(categories, items);
@@ -86,6 +94,43 @@ export default function SystemView({ items, categories, statuses, onItemsChange,
     setAddingItemToCat(null);
   };
 
+  /*
+   * Une seule porte pour les trois niveaux. Pour une categorie on verifie D ABORD la regle « un
+   * parent ne part que vide » : si elle est violee, on affiche le blocage et on n ouvre RIEN.
+   */
+  const demanderSuppressionCategorie = (id: string, nom: string) => {
+    const verdict = actions.canDeleteCategory(id);
+    if (!verdict.ok) {
+      setBlocage({ id, message: verdict.message ?? 'Suppression impossible.' });
+      window.setTimeout(() => setBlocage((b) => (b && b.id === id ? null : b)), 5000);
+      return;
+    }
+    setBlocage(null);
+    setDemande({ genre: 'categorie', id, nom });
+  };
+
+  const confirmerSuppression = async () => {
+    if (!demande) return;
+    const d = demande;
+    setDemande(null);
+    if (d.genre === 'note') {
+      await actions.handleDeleteItem(d.id);
+      return;
+    }
+    const resultat = await actions.handleDeleteCategory(d.id);
+    if (resultat.blocked && resultat.message) {
+      setBlocage({ id: d.id, message: resultat.message });
+      window.setTimeout(() => setBlocage((b) => (b && b.id === d.id ? null : b)), 5000);
+    }
+  };
+
+  const confirmerModificationNote = async (id: string) => {
+    const titre = itemRenameDraft.trim();
+    if (titre) await actions.handleUpdateItemTitle(id, titre);
+    setRenamingItemId(null);
+    setItemRenameDraft('');
+  };
+
   const filteredTree = useMemo(() => {
     if (!searchQuery.trim()) return tree;
     const q = searchQuery.toLowerCase();
@@ -93,7 +138,7 @@ export default function SystemView({ items, categories, statuses, onItemsChange,
   }, [tree, searchQuery]);
 
   return (
-    <div className="flex flex-col flex-1">
+    <div data-tx-sys className="flex flex-col flex-1">
       {/* Summary */}
       <SystemSummaryBar items={items} statuses={activeStatuses} tokens={tokens} />
 
@@ -189,8 +234,10 @@ export default function SystemView({ items, categories, statuses, onItemsChange,
             childCatName={childCatName}
             renamingCatId={renamingCatId}
             renameDraft={renameDraft}
-            confirmDeleteCatId={actions.confirmDeleteCatId}
-            confirmDeleteId={actions.confirmDeleteId}
+            blockedCatId={blocage?.id ?? null}
+            blockedMessage={blocage?.message ?? null}
+            renamingItemId={renamingItemId}
+            itemRenameDraft={itemRenameDraft}
             tokens={tokens}
             statuses={activeStatuses}
             addingItemToCat={addingItemToCat}
@@ -203,9 +250,7 @@ export default function SystemView({ items, categories, statuses, onItemsChange,
             onRenameDraftChange={setRenameDraft}
             onConfirmRename={handleRename}
             onCancelRename={() => { setRenamingCatId(null); setRenameDraft(''); }}
-            onConfirmDeleteCat={actions.setConfirmDeleteCatId}
-            onDeleteCat={actions.handleDeleteCategory}
-            onCancelDeleteCat={() => actions.setConfirmDeleteCatId(null)}
+            onAskDeleteCat={demanderSuppressionCategorie}
             onMoveCatUp={actions.handleMoveCategoryUp}
             onMoveCatDown={actions.handleMoveCategoryDown}
             onSetAddingItem={(id) => { setAddingItemToCat(id); setNewItemTitle(''); }}
@@ -213,9 +258,11 @@ export default function SystemView({ items, categories, statuses, onItemsChange,
             onCreateItem={handleCreateItem}
             onCancelAddItem={() => { setAddingItemToCat(null); setNewItemTitle(''); }}
             onSetItemStatus={actions.handleSetItemStatus}
-            onDeleteItem={actions.handleDeleteItem}
-            onConfirmDeleteItem={actions.setConfirmDeleteId}
-            onCancelDeleteItem={() => actions.setConfirmDeleteId(null)}
+            onAskDeleteItem={(id, titre) => setDemande({ genre: 'note', id, nom: titre })}
+            onStartItemRename={(id, titre) => { setRenamingItemId(id); setItemRenameDraft(titre); }}
+            onItemRenameDraftChange={setItemRenameDraft}
+            onConfirmItemRename={confirmerModificationNote}
+            onCancelItemRename={() => { setRenamingItemId(null); setItemRenameDraft(''); }}
             onMoveItemUp={actions.handleMoveItemUp}
             onMoveItemDown={actions.handleMoveItemDown}
             colorPickerCatId={colorPickerCatId}
@@ -224,6 +271,15 @@ export default function SystemView({ items, categories, statuses, onItemsChange,
           />
         ))}
       </div>
+
+      {demande && (
+        <SystemConfirmDelete
+          name={demande.nom}
+          tokens={tokens}
+          onCancel={() => setDemande(null)}
+          onConfirm={confirmerSuppression}
+        />
+      )}
 
       {statusModalOpen && (
         <SystemStatusModal

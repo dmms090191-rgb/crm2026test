@@ -14,6 +14,13 @@ import { highLevelLightTokens } from './themeTokensHighLevelLight';
 import { highLevelDarkTokens } from './themeTokensHighLevelDark';
 import { highLevelEmeraldTokens } from './themeTokensHighLevelEmerald';
 import { buildGlassTokens } from './themeTokensGlass';
+import { buildTalixyTokens } from './themeTokensTalixy';
+import { TALIXY_PALETTE } from '../talixy/talixyPalette';
+import { TALIXY_CLAIR } from '../talixy/talixyPaletteClair';
+import { buildTalixyClairTokens } from './themeTokensTalixyClair';
+
+/** Variante « Nuit indigo » de Talixy : conservee prete a l'emploi, non branchee (masquer, jamais supprimer). */
+export const TALIXY_NUIT_TOKENS = buildTalixyTokens(TALIXY_PALETTE);
 
 export type { ThemeTokens } from './themeTokensTypes';
 
@@ -32,6 +39,9 @@ const tokenMap: Record<Exclude<Theme, 'glass'>, typeof darkTokens> = {
   highlevel_light: highLevelLightTokens,
   highlevel_dark: highLevelDarkTokens,
   highlevel_emerald: highLevelEmeraldTokens,
+  // Reference maquette « gris bleute ». L'ancienne variante « Nuit indigo » (buildTalixyTokens +
+  // TALIXY_PALETTE) est conservee non branchee : masquer, jamais supprimer.
+  talixy: buildTalixyClairTokens(TALIXY_CLAIR),
 };
 
 export function getThemeTokens(theme: Theme, accentColor?: string, glassOverlayMode?: 'dark' | 'light') {

@@ -18,6 +18,7 @@ export default function SAStatutRowDropdown({
     <>
       <div className="fixed inset-0 z-[90]" onClick={onClose} />
       <div
+        data-tx-drop
         className="fixed py-1 rounded-xl z-[100] min-w-[160px]"
         style={{
           top: rect.top,
