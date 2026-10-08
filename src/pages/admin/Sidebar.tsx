@@ -3,6 +3,7 @@ import {
   LayoutDashboard, Info, UserPlus, Upload, Users, Database, UserCheck, List,
   MessageCircle, MessageSquare, Shield, Calendar, CalendarRange, CalendarCheck,
   Settings, Globe, Brain, Image as ImageIcon, GraduationCap, Smartphone, Sparkles, CopySlash, Store,
+  Briefcase,
 } from 'lucide-react';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
 import SidebarLayoutControls from '../../components/sidebar-v2/SidebarLayoutControls';
@@ -52,6 +53,7 @@ const LAYOUT_SECTIONS: LayoutDefaultSection[] = [
     { id: 'vue-ensemble', label: 'Dashboard' },
     { id: 'info-admin', label: 'Accès & sécurité' },
     { id: 'boutique', label: 'Boutique' },
+    { id: 'cabinet', label: 'Cabinet' },
     // Site : module normal, visible par defaut. Talvex Administrateur peut toujours le masquer ;
     // une configuration deja enregistree garde son propre etat (reconcileLayout).
     { id: 'site', label: 'Site' },
@@ -88,6 +90,7 @@ const LAYOUT_SECTIONS: LayoutDefaultSection[] = [
 const ICONS: Record<string, React.ReactNode> = {
   'vue-ensemble': <LayoutDashboard className="w-4 h-4" />,
   'boutique': <Store className="w-4 h-4" />,
+  'cabinet': <Briefcase className="w-4 h-4" />,
   'site': <Globe className="w-4 h-4" />,
   'logo': <ImageIcon className="w-4 h-4" />,
   'calquer-logo': <CopySlash className="w-4 h-4" />,

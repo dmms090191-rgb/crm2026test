@@ -25,3 +25,4 @@ export const EditeurIA = lazy(() => import('../views/editeur-ia/EditeurIA'));
 export const AdminCalquerLogo = lazy(() => import('../views/AdminCalquerLogo'));
 export const AdminMesLogosRA = lazy(() => import('../views/AdminMesLogosRA'));
 export const Boutiques = lazy(() => import('../views/Boutiques'));
+export const Cabinets = lazy(() => import('../views/Cabinets'));

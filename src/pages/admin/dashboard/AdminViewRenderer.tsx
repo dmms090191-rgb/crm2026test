@@ -10,7 +10,7 @@ import {
   ChatClient, ChatVendeur, ChatSuperAdmin, Agenda, PropositionsRdv, Statuts, Crm,
   ImportLeads, DocumentationCrm, SauvegardeRestauration,
   SystemPage, AdminCerveauIA, AdminApplicationPage, EditeurIA, AdminCalquerLogo, AdminMesLogosRA,
-  Boutiques,
+  Boutiques, Cabinets,
 } from './adminLazyViews';
 import { saveConnectReturnContext, saveChatReturnContext } from '../../../lib/connectReturnContext';
 import type { ImpersonatedClient } from '../views/Crm';
@@ -114,6 +114,7 @@ export default function AdminViewRenderer({
           case 'calquer-logo': return <Suspense fallback={lazyFallback}><AdminCalquerLogo /></Suspense>;
           case 'mes-logos-ra': return <Suspense fallback={lazyFallback}><AdminMesLogosRA /></Suspense>;
           case 'boutique': return <Suspense fallback={lazyFallback}><Boutiques /></Suspense>;
+          case 'cabinet': return <Suspense fallback={lazyFallback}><Cabinets /></Suspense>;
           case 'tuto': return <div className="p-6"><p className="text-sm" style={{ color: 'inherit' }}>Tuto - Contenu a venir</p></div>;
           default: return <Suspense fallback={lazyFallback}><VueEnsemble unreadClientConversations={unreadClientConversations} unreadVendorConversations={unreadVendorConversations} fullName={identityName} companyName={companyName} email={identityEmail} rdvCount={rdvCount} /></Suspense>;
         }
