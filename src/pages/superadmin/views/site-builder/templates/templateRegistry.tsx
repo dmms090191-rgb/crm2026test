@@ -11,6 +11,8 @@ import BarbieWellnessTemplate from './BarbieWellnessTemplate';
 // L'hote de la scene 3D : il ne porte AUCUNE dependance 3D, c'est lui qui tient la
 // frontiere de chargement (voir NumerologieTemplate.tsx). Ne jamais importer la scene ici.
 import NumerologieTemplate from './NumerologieTemplate';
+// Meme regle que ci-dessus : l hote est leger, le voyage est charge a la demande.
+import IsraelHayaTemplate from './IsraelHayaTemplate';
 
 export interface SectionOverride {
   content: Record<string, string>;
@@ -37,6 +39,7 @@ const TEMPLATE_REGISTRY: Record<string, ComponentType<TemplateProps>> = {
   builder_ready: BuilderReadyTemplate,
   barbie_wellness: BarbieWellnessTemplate,
   numerologie_celeste: NumerologieTemplate,
+  israel_haya: IsraelHayaTemplate,
 };
 
 export function getTemplateComponent(templateKey: string): ComponentType<TemplateProps> | null {

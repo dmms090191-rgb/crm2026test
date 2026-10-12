@@ -16,6 +16,7 @@ const TEMPLATE_GRADIENTS: Record<string, string> = {
   gold_buying: 'linear-gradient(135deg, #d4a017 0%, #78350f 100%)',
   builder_ready: 'linear-gradient(135deg, #0ea5e9 0%, #10b981 100%)',
   barbie_wellness: 'linear-gradient(135deg, #c9956b 0%, #6b8e6b 100%)',
+  numerologie_celeste: 'linear-gradient(135deg, #0a1430 0%, #3d4a6b 55%, #c9a65a 100%)',
 };
 
 interface Props {

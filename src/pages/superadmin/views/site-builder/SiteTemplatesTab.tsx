@@ -179,6 +179,13 @@ function TemplateCard({ template, isActive, isApplying, onPreview, onApply, t }:
   onApply: () => void;
   t: ReturnType<typeof useThemeTokens>;
 }) {
+  /*
+   * vercel.json reecrit tout chemin inconnu vers index.html, en 200. Une vignette absente
+   * arriverait donc comme du HTML et non comme une image cassee franche : sans ce garde-fou,
+   * la carte afficherait un rectangle vide au lieu de son degrade. Meme protection que
+   * SiteTemplateCard, son composant frere.
+   */
+  const [vignetteCassee, setVignetteCassee] = useState(false);
   return (
     <div
       className="rounded-xl overflow-hidden transition-all hover:scale-[1.01]"
@@ -192,7 +199,21 @@ function TemplateCard({ template, isActive, isApplying, onPreview, onApply, t }:
         WebkitBackdropFilter: 'blur(24px) saturate(140%)',
       }}
     >
-      <div className="h-20 relative" style={{ background: CATEGORY_GRADIENT[template.template_key] ?? 'linear-gradient(135deg, #334155, #1e293b)' }}>
+      <div className="h-20 relative overflow-hidden" style={{ background: CATEGORY_GRADIENT[template.template_key] ?? 'linear-gradient(135deg, #334155, #1e293b)' }}>
+        {/*
+          Vignette reelle du template, quand il en a une. Le degrade reste dessous : il sert
+          de fond pendant le chargement de l image, et seul fond si elle manque. Aucun des
+          autres templates n a de thumbnail_url, leur rendu est donc inchange.
+        */}
+        {template.thumbnail_url && !vignetteCassee && (
+          <img
+            src={template.thumbnail_url}
+            alt=""
+            loading="lazy"
+            onError={() => setVignetteCassee(true)}
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+        )}
         {isActive && (
           <div className="absolute top-2 right-2 inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold bg-green-500/90 text-white">
             <Check className="w-3 h-3" />
@@ -260,4 +281,6 @@ const CATEGORY_GRADIENT: Record<string, string> = {
   gold_buying: 'linear-gradient(135deg, rgba(212,160,23,0.4), rgba(184,134,11,0.15))',
   builder_ready: 'linear-gradient(135deg, rgba(14,165,233,0.3), rgba(16,185,129,0.15))',
   barbie_wellness: 'linear-gradient(135deg, rgba(201,149,107,0.4), rgba(143,188,143,0.15))',
+  // Nuit profonde vers or chaud : les deux couleurs de la scene elle-meme.
+  numerologie_celeste: 'linear-gradient(135deg, rgba(10,20,48,0.55), rgba(201,166,90,0.20))',
 };
