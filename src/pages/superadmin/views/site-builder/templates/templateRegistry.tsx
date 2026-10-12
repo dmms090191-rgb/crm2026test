@@ -8,6 +8,9 @@ import RenovationTemplate from './RenovationTemplate';
 import GoldBuyingTemplate from './GoldBuyingTemplate';
 import BuilderReadyTemplate from './BuilderReadyTemplate';
 import BarbieWellnessTemplate from './BarbieWellnessTemplate';
+// L'hote de la scene 3D : il ne porte AUCUNE dependance 3D, c'est lui qui tient la
+// frontiere de chargement (voir NumerologieTemplate.tsx). Ne jamais importer la scene ici.
+import NumerologieTemplate from './NumerologieTemplate';
 
 export interface SectionOverride {
   content: Record<string, string>;
@@ -33,6 +36,7 @@ const TEMPLATE_REGISTRY: Record<string, ComponentType<TemplateProps>> = {
   gold_buying: GoldBuyingTemplate,
   builder_ready: BuilderReadyTemplate,
   barbie_wellness: BarbieWellnessTemplate,
+  numerologie_celeste: NumerologieTemplate,
 };
 
 export function getTemplateComponent(templateKey: string): ComponentType<TemplateProps> | null {
