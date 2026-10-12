@@ -110,7 +110,8 @@ export default function SectionsBas({ onReserver, seul }: Props) {
           borderTop: '1px solid rgba(232,205,147,0.14)',
           fontSize: 12,
           lineHeight: 1.9,
-          color: 'rgba(238,231,219,0.45)',
+          // 0,45 donnait 3,8:1 sur ce fond uni, sous le seuil de 4,5:1 exige a cette taille.
+          color: 'rgba(238,231,219,0.62)',
         }}
       >
         <p style={{ margin: 0 }}>ישראל חיה · ייעוץ אישי</p>

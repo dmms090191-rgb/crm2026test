@@ -37,6 +37,7 @@ export function useProgressionVoyage(
 ): number {
   const [progression, setProgression] = useState(0);
   const enCours = useRef(false);
+  const vue = useRef(0);
 
   useEffect(() => {
     const zone = conteneur.current;
@@ -49,7 +50,9 @@ export function useProgressionVoyage(
       // La course utile : la piste moins ce qui tient deja a l'ecran.
       const course = p0.offsetHeight - zone.clientHeight;
       if (course <= 0) { setProgression(0); return; }
-      setProgression(Math.min(1, Math.max(0, zone.scrollTop / course)));
+      const p = Math.min(1, Math.max(0, zone.scrollTop / course));
+      vue.current = p;
+      setProgression(p);
     };
 
     // Un seul calcul par image, quoi qu'il arrive : le defilement en emet bien plus.
@@ -59,12 +62,44 @@ export function useProgressionVoyage(
       requestAnimationFrame(lire);
     };
 
+    /*
+     * ---------- LE REDIMENSIONNEMENT DEPLACE LA TETE DE LECTURE ----------
+     *
+     * La piste est haute de 3200vh : sa hauteur en PIXELS suit donc celle de la fenetre. Le
+     * navigateur, lui, conserve scrollTop en pixels a travers un redimensionnement. Relire
+     * simplement scrollTop / course apres coup revient donc a lire une AUTRE position dans
+     * l'histoire, sans que personne n'ait defile.
+     *
+     * Mesures, en partant du milieu du chapitre 3 : passer de 1366x640 a 1600x1000 ramenait au
+     * chapitre 2 ; de 1440x900 a 1024x600 propulsait au chapitre 4 ; sur telephone, la simple
+     * reapparition de la barre d'URL avancait de 181vh. Autrement dit la progression etait une
+     * fonction de la hauteur de la fenetre, ce qui contredit tout le principe du voyage.
+     *
+     * On RESTAURE donc la progression au lieu de la relire : c'est elle la verite, pas le
+     * nombre de pixels. On n'ecrit que si la HAUTEUR a reellement change — un redimensionnement
+     * horizontal seul n'a rien a restaurer, et ecrire scrollTop pendant un defilement inertiel
+     * sur telephone le couperait net.
+     */
+    let hauteurVue = zone.clientHeight;
+    const surTaille = () => {
+      if (zone.clientHeight === hauteurVue) return;
+      hauteurVue = zone.clientHeight;
+      const p0 = piste.current;
+      if (!p0) return;
+      const course = p0.offsetHeight - zone.clientHeight;
+      if (course > 0) zone.scrollTop = vue.current * course;
+      surScroll();
+    };
+
     lire();
     zone.addEventListener('scroll', surScroll, { passive: true });
-    window.addEventListener('resize', surScroll, { passive: true });
+    // Un observateur sur la zone plutot que sur la fenetre : le template se comporte pareil
+    // dans un cadre redimensionne que dans un onglet, sans rien savoir de son hote.
+    const observateur = new ResizeObserver(surTaille);
+    observateur.observe(zone);
     return () => {
       zone.removeEventListener('scroll', surScroll);
-      window.removeEventListener('resize', surScroll);
+      observateur.disconnect();
     };
   }, [conteneur, piste]);
 
@@ -140,4 +175,50 @@ export function usePolicesHebraiques(): void {
     lien.setAttribute('data-ih-polices', '');
     document.head.appendChild(lien);
   }, []);
+}
+
+/**
+ * LE VOYAGE AU CLAVIER.
+ *
+ * La zone de defilement est un div : tant que rien a l'interieur n'a le focus, le navigateur n'a
+ * aucune raison de la faire defiler. Mesure faite au chargement, fenetre 1440x900 : Page
+ * suivante, Espace, les fleches et Fin laissaient tous scrollTop a 0. Le voyage etait donc
+ * strictement impossible sans souris — pour un site de 3200vh, c'est une porte fermee.
+ *
+ * On ecoute donc au niveau de la fenetre et on fait defiler nous-memes. Les touches sont
+ * ignorees des que la frappe s'adresse a un champ ou a un bouton : un visiteur qui tape sa date
+ * de naissance ne doit pas partir au chapitre suivant en appuyant sur Espace.
+ */
+export function useClavierVoyage(conteneur: RefObject<HTMLElement | null>): void {
+  useEffect(() => {
+    const zone = conteneur.current;
+    if (!zone) return;
+
+    const auClavier = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const cible = e.target as HTMLElement | null;
+      if (cible?.closest?.('input, textarea, select, button, summary, [contenteditable]')) return;
+
+      const ecran = zone.clientHeight;
+      const course = zone.scrollHeight - ecran;
+      let vers: number | null = null;
+
+      switch (e.key) {
+        case 'PageDown': vers = zone.scrollTop + ecran * 0.9; break;
+        case 'PageUp': vers = zone.scrollTop - ecran * 0.9; break;
+        case 'ArrowDown': vers = zone.scrollTop + 90; break;
+        case 'ArrowUp': vers = zone.scrollTop - 90; break;
+        case ' ': vers = zone.scrollTop + (e.shiftKey ? -1 : 1) * ecran * 0.9; break;
+        case 'Home': vers = 0; break;
+        case 'End': vers = course; break;
+        default: return;
+      }
+
+      e.preventDefault();
+      zone.scrollTop = Math.min(course, Math.max(0, vers));
+    };
+
+    window.addEventListener('keydown', auClavier);
+    return () => { window.removeEventListener('keydown', auClavier); };
+  }, [conteneur]);
 }

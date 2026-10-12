@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
-import { NEUF, peindreChiffre, peindreGraduations } from './anneauxTexture';
+import { NEUF, peindreChiffre, peindreGraduations, peindreHalo } from './anneauxTexture';
 
 /**
  * LE MECANISME CELESTE — trois anneaux d'or qui tournent independamment.
@@ -43,25 +43,40 @@ export default function AnneauxCelestes({ progression, nombre, mouvementReduit }
   const a3 = useRef<THREE.Group>(null);
   const gChiffres = useRef<THREE.Group>(null);
 
-  // Geste du visiteur : vitesse ajoutee, qui retombe toute seule.
-  const elan = useRef(0);
+  /*
+   * LE GESTE, EN DEUX PARTS.
+   *
+   * Premiere version : le geste poussait une valeur qui retombait a zero, donc les anneaux
+   * revenaient a leur position des qu'on lachait — un elastique, pas un mecanisme. Et
+   * l'amortissement etait si fort (demi-vie mesuree : deux dixiemes de seconde) qu'on tirait
+   * dessus sans presque rien voir bouger.
+   *
+   * Maintenant : `angle` est ce que le geste a REELLEMENT tourne, et il reste — c'est le
+   * seul etat du site qui n'est pas une fonction du defilement, et c'est voulu : le visiteur
+   * a le droit de laisser sa marque sur le mecanisme. `vitesse` ne sert qu au relachement,
+   * pour que l'anneau coule sur sa lancee avant de s'arreter.
+   */
+  const angle = useRef(0);
+  const vitesse = useRef(0);
   const dernierX = useRef<number | null>(null);
   const { gl } = useThree();
 
   const textures = useMemo(() => {
     const chiffres = NEUF.map(s => new THREE.CanvasTexture(peindreChiffre(s)));
+    const halo = new THREE.CanvasTexture(peindreHalo(256));
     const fines = new THREE.CanvasTexture(peindreGraduations(72));
     const larges = new THREE.CanvasTexture(peindreGraduations(36));
-    for (const t of [...chiffres, fines, larges]) {
+    for (const t of [...chiffres, halo, fines, larges]) {
       t.anisotropy = 4;
       t.needsUpdate = true;
     }
-    return { chiffres, fines, larges };
+    return { chiffres, halo, fines, larges };
   }, []);
 
   // Liberation : une texture de canvas garde sa memoire GPU tant qu'on ne la rend pas.
   useEffect(() => () => {
     for (const t of textures.chiffres) t.dispose();
+    textures.halo.dispose();
     textures.fines.dispose();
     textures.larges.dispose();
   }, [textures]);
@@ -75,7 +90,11 @@ export default function AnneauxCelestes({ progression, nombre, mouvementReduit }
       if (dernierX.current === null) return;
       const d = e.clientX - dernierX.current;
       dernierX.current = e.clientX;
-      elan.current += d * 0.00035;
+      // Le doigt entraine l'anneau au meme instant : pas d'inertie a l'aller, sinon le geste
+      // parait mou. 300 px de glissement font environ un sixieme de tour.
+      angle.current += d * 0.004;
+      // Vitesse approchee, bornee : un geste brusque ne doit pas lancer une toupie.
+      vitesse.current = Math.max(-8, Math.min(8, d * 0.24));
     };
     const fin = () => { dernierX.current = null; };
     toile.addEventListener('pointerdown', debut);
@@ -92,12 +111,18 @@ export default function AnneauxCelestes({ progression, nombre, mouvementReduit }
 
   useFrame((_etat, delta) => {
     const pas = Math.min(delta, 0.05);
-    // L'elan retombe : sans cela le mecanisme tournerait pour toujours apres un geste.
-    elan.current *= Math.pow(0.04, pas);
+    // Tant que le doigt est pose, c'est lui qui mene. Des qu'il se leve, l'anneau coule puis
+    // s'arrete : demi-vie d'un tiers de seconde, assez pour qu'on voie la lancee.
+    if (dernierX.current === null && vitesse.current !== 0) {
+      angle.current += vitesse.current * pas;
+      vitesse.current *= Math.pow(0.12, pas);
+      if (Math.abs(vitesse.current) < 0.004) vitesse.current = 0;
+    }
 
     const p = progression;
     const base = mouvementReduit ? 0 : p;
-    if (a1.current) a1.current.rotation.z = base * 2.2 + elan.current * 3;
+    const g = angle.current;
+    if (a1.current) a1.current.rotation.z = base * 2.2 + g * 1.6;
     /*
      * Les chiffres VOYAGENT avec l anneau mais restent DROITS. Sans cette contre-rotation,
      * ceux du bas se presentent la tete en bas : un cadran grave peut se le permettre, un
@@ -107,8 +132,8 @@ export default function AnneauxCelestes({ progression, nombre, mouvementReduit }
       const inverse = -a1.current.rotation.z;
       for (const c of gChiffres.current.children) c.rotation.z = inverse;
     }
-    if (a2.current) a2.current.rotation.z = -base * 1.5 - elan.current * 2;
-    if (a3.current) a3.current.rotation.z = base * 0.9 + elan.current;
+    if (a2.current) a2.current.rotation.z = -base * 1.5 - g * 1.05;
+    if (a3.current) a3.current.rotation.z = base * 0.9 + g * 0.6;
 
     // Le mecanisme s'incline doucement vers le spectateur a mesure qu'on avance.
     if (groupe.current) {
@@ -177,17 +202,33 @@ export default function AnneauxCelestes({ progression, nombre, mouvementReduit }
       {/* Le nombre obtenu, pose au centre : une sphere de lumiere, pas un chiffre de plus.
           Le chiffre lui-meme est ecrit en HTML par-dessus, ou il reste net et lisible. */}
       {nombre !== null && (
-        <mesh>
-          <sphereGeometry args={[0.5, 32, 32]} />
-          <meshStandardMaterial
-            color={OR_CLAIR}
-            emissive={OR_CLAIR}
-            emissiveIntensity={2.6}
-            roughness={0.2}
-            metalness={0}
-            toneMapped={false}
-          />
-        </mesh>
+        <group>
+          {/* Le noyau reste PETIT et modere : pousse assez haut pour briller seul, une sphere
+              emissive sature a 1 sur toute sa surface et rend un disque blanc a bord net —
+              une pastille, pas une lumiere. */}
+          <mesh>
+            <sphereGeometry args={[0.26, 32, 32]} />
+            <meshStandardMaterial
+              color={OR_CLAIR}
+              emissive={OR_CLAIR}
+              emissiveIntensity={1.15}
+              roughness={0.25}
+              metalness={0}
+            />
+          </mesh>
+          {/* C'est la DECROISSANCE qui se lit comme une lumiere : un halo peint, en melange
+              additif, qui ne cache rien de ce qui passe derriere lui. */}
+          <sprite scale={[3.6, 3.6, 1]}>
+            <spriteMaterial
+              map={textures.halo}
+              transparent
+              depthWrite={false}
+              blending={THREE.AdditiveBlending}
+              toneMapped={false}
+              opacity={0.95}
+            />
+          </sprite>
+        </group>
       )}
 
       <pointLight position={[0, 0, 2.4]} intensity={6} distance={14} color="#ffe2ad" />

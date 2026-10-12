@@ -40,9 +40,17 @@ export interface Arbre {
   feuilles: Feuille[];
 }
 
-/** Les racines occupent le premier tiers ; les branches la suite, jusqu a la fin du chapitre. */
+/**
+ * Les racines occupent le premier tiers. Les branches suivent, mais s'arretent AVANT la fin
+ * du chapitre : il faut du temps apres elles pour que le feuillage se forme.
+ *
+ * La premiere version faisait courir les branches jusqu'a 0,94, si bien que les feuilles,
+ * qui naissent apres leur branche, n'arrivaient qu'entre 0,85 et 0,93 — et en petit nombre.
+ * Mesure a l'ecran : l'olivier restait un arbre d'HIVER pendant tout le chapitre, branches
+ * nues sur ciel noir, et le feuillage apparaissait trop tard pour qu'on le voie.
+ */
 const DEBUT_BRANCHES = 0.3;
-const FIN_BRANCHES = 0.94;
+const FIN_BRANCHES = 0.78;
 
 /** Generateur reproductible : le meme arbre a chaque chargement, jamais un arbre au hasard. */
 function graine(n: number): () => number {
@@ -123,20 +131,32 @@ export function construireArbre(o: Options = {}): Arbre {
       epaisseur: Math.max(0.06, 1 - niveau / (profondeur + 1)),
     });
 
-    if (niveau >= profondeur - 1) {
-      // Bout de branche : on y accroche quelques feuilles, nees juste apres elle.
-      const n = 2 + Math.floor(alea() * 3);
+    /*
+     * Le feuillage occupe les DEUX derniers niveaux, pas seulement les bouts : un olivier porte
+     * ses feuilles sur toute la ramure fine, et une couronne accrochee aux seules extremites se
+     * lit comme une guirlande. Environ 370 feuilles au lieu de 150, et elles s'ouvrent sur une
+     * fenetre large pour que la couronne se remplisse au lieu d'apparaitre d'un coup.
+     */
+    if (niveau >= profondeur - 2) {
+      // Beaucoup de feuilles, serrees autour de chaque brindille : une couronne se lit comme
+      // une MASSE. A cinq cents points on comptait encore les feuilles une a une, ce qui donne
+      // un arbre de maquette ; il en faut plusieurs milliers pour que l oeil voie du feuillage.
+      const n = 12 + Math.floor(alea() * 10);
       for (let f = 0; f < n; f++) {
         feuilles.push({
-          x: x2 + (alea() - 0.5) * 0.3,
-          y: y2 + (alea() - 0.5) * 0.3,
-          z: z2 + (alea() - 0.5) * 0.3,
-          naissance: Math.min(0.99, t1 + alea() * 0.08),
+          x: x2 + (alea() - 0.5) * 0.58,
+          y: y2 + (alea() - 0.5) * 0.52,
+          z: z2 + (alea() - 0.5) * 0.58,
+          // Fenetre LARGE : la couronne se remplit tout au long de la fin du chapitre au lieu
+          // de se poser d un bloc, et il ne reste aucun palier mort avant la frontiere suivante.
+          naissance: Math.min(0.97, t1 + alea() * 0.28),
           phase: alea() * Math.PI * 2,
         });
       }
-      return;
     }
+
+    // La ramification, elle, s'arrete au dernier niveau.
+    if (niveau >= profondeur - 1) return;
 
     const enfants = alea() < 0.25 ? 3 : 2;
     for (let c = 0; c < enfants; c++) {

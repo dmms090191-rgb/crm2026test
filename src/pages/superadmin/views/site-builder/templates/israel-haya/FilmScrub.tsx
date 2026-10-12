@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
+import { obtenirFilm } from './cacheFilms';
 
 /**
  * LE FILM PILOTE PAR LE DEFILEMENT.
  *
  * Le visiteur ne lance jamais la lecture : il DEPLACE la tete de lecture avec sa molette. Vers
  * le bas la scene avance, vers le haut elle revient, image par image. C'est toute la mecanique
- * du site, et elle tient dans quatre precautions que l'on ne peut pas sauter.
+ * du site, et elle tient dans cinq precautions que l'on ne peut pas sauter.
  *
  * 1. LE POSTER D'ABORD. L'image est peinte avant que la video existe, et elle reste dessous
  *    pour toujours. Si le reseau echoue, le chapitre garde son image et ses mots : le site est
@@ -23,6 +24,9 @@ import { useEffect, useRef, useState } from 'react';
  * 4. LA VIDEO ENTIERE EST TELECHARGEE AVANT D'ETRE UTILISEE. Un seek dans un flux partiel
  *    rebondit sur le reseau a chaque image et saccade. On attend le fichier complet, on le
  *    donne au lecteur sous forme de Blob, et seulement alors le defilement le pilote.
+ *
+ * 5. ET LE FILM NE SE TELECHARGE QU'UNE FOIS. Voir cacheFilms.ts : c'est la correction d'une
+ *    fuite mesuree, pas une optimisation de confort.
  */
 
 interface Props {
@@ -33,8 +37,6 @@ interface Props {
   progression: number;
   /** Mouvement reduit : on ne scrubbe pas, on montre l'image finale. */
   mouvementReduit: boolean;
-  /** L'ecran est-il sur ce chapitre ? Sinon on ne telecharge rien. */
-  proche: boolean;
 }
 
 /** Au-dela, l'ecart est invisible : la boucle s'arrete. */
@@ -42,59 +44,49 @@ const REPOS = 0.0004;
 /** Force de l'amortissement, par pas de 16,667 ms. */
 const K = 0.16;
 
-export default function FilmScrub({ src, poster, progression, mouvementReduit, proche }: Props) {
+export default function FilmScrub({ src, poster, progression, mouvementReduit }: Props) {
   const video = useRef<HTMLVideoElement>(null);
   const [pret, setPret] = useState(false);
   const [echec, setEchec] = useState(false);
   const [charge, setCharge] = useState(0);
 
-  const cible = useRef(0);
-  const montre = useRef(0);
+  const cible = useRef(progression);
+  /*
+   * LA TETE DE LECTURE PART D'OU L'ON ENTRE, et non de zero.
+   *
+   * Partir de zero avait une consequence qu'on ne voit qu'en remontant : entrer dans un chapitre
+   * PAR LE HAUT — c'est-a-dire a sa toute fin — faisait rejouer son film vers l'AVANT, du debut
+   * jusqu'a l'image voulue, pendant que le visiteur, lui, remontait. Mesure : environ 45 images
+   * de rattrapage a K=0,16, et le film qui defile a l'endroit alors que la page defile a
+   * l'envers. C'est l'inverse exact de ce que le site promet.
+   */
+  const montre = useRef(progression);
   const raf = useRef<number | null>(null);
   const dernierTic = useRef(0);
   const seekOccupe = useRef(false);
   const enAttente = useRef<number | null>(null);
 
-  // Telechargement complet, declenche seulement quand le chapitre approche.
+  // Le film : pris au cache s'il y est, telecharge une seule fois sinon.
   useEffect(() => {
-    if (!proche || mouvementReduit || echec || pret) return;
+    if (mouvementReduit || echec || pret) return;
     let vivant = true;
-    const controleur = new AbortController();
 
-    (async () => {
-      try {
-        const reponse = await fetch(src, { signal: controleur.signal });
-        if (!reponse.ok) throw new Error(String(reponse.status));
-        const total = Number(reponse.headers.get('Content-Length')) || 0;
-        const lecteur = reponse.body?.getReader();
-        if (!lecteur) throw new Error('flux indisponible');
-
-        const morceaux: Uint8Array[] = [];
-        let recu = 0;
-        for (;;) {
-          const { done, value } = await lecteur.read();
-          if (done) break;
-          if (!value) continue;
-          morceaux.push(value);
-          recu += value.length;
-          if (vivant && total) setCharge(recu / total);
-        }
+    obtenirFilm(src, part => { if (vivant) setCharge(part); })
+      .then(url => {
         if (!vivant) return;
-
-        const blob = new Blob(morceaux as BlobPart[], { type: 'video/mp4' });
-        const url = URL.createObjectURL(blob);
         const el = video.current;
         if (!el) return;
         el.src = url;
         el.load();
+        // On cale la tete de lecture sur la position d'arrivee avant d'autoriser la boucle :
+        // sans cela, le premier amortissement repartirait de la valeur du montage precedent.
+        montre.current = cible.current;
         setPret(true);
-      } catch {
-        if (vivant) setEchec(true);
-      }
-    })();
+      })
+      .catch(() => { if (vivant) setEchec(true); });
 
-    return () => { vivant = false; controleur.abort(); };
-  }, [src, proche, mouvementReduit, echec, pret]);
+    return () => { vivant = false; };
+  }, [src, mouvementReduit, echec, pret]);
 
   // Une seule demande de position a la fois ; la plus recente gagne.
   useEffect(() => {
@@ -177,7 +169,7 @@ export default function FilmScrub({ src, poster, progression, mouvementReduit, p
       />
       {/* Anneau de chargement : il disparait des que le film prend la main, et ne reste
           jamais bloque — en cas d'echec, le poster porte le chapitre a lui seul. */}
-      {proche && !pret && !echec && !mouvementReduit && (
+      {!pret && !echec && !mouvementReduit && (
         <div style={{ position: 'absolute', insetInlineEnd: 24, bottom: 24, display: 'flex', alignItems: 'center', gap: 10 }}>
           <span
             style={{

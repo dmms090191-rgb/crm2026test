@@ -91,6 +91,7 @@ export default function SaisieNombres({ onResultat }: Props) {
               value={prenom}
               onChange={e => setPrenom(e.target.value)}
               data-testid="ih-prenom"
+              data-ih-champ
               autoComplete="given-name"
               style={champ}
             />
@@ -105,6 +106,7 @@ export default function SaisieNombres({ onResultat }: Props) {
               required
               name="naissance"
               data-testid="ih-date"
+              data-ih-champ
               style={{ ...champ, direction: 'ltr', textAlign: 'start' }}
             />
           </label>
@@ -152,7 +154,7 @@ export default function SaisieNombres({ onResultat }: Props) {
 
           {/* Le calcul est montre : un nombre qu'on ne peut pas refaire a la main ne vaut rien. */}
           <details style={{ textAlign: 'start' }}>
-            <summary style={{ cursor: 'pointer', fontSize: 12, color: 'rgba(238,231,219,0.6)' }}>איך חושב המספר</summary>
+            <summary style={{ cursor: 'pointer', fontSize: 12, color: 'rgba(238,231,219,0.6)' }}>איך מחושב המספר</summary>
             <ul style={{ margin: '8px 0 0', paddingInlineStart: 18, fontSize: 12, lineHeight: 1.9, color: 'rgba(238,231,219,0.65)', direction: 'ltr', textAlign: 'start' }}>
               {resultat.etapes.map(e => <li key={e}>{e}</li>)}
             </ul>
@@ -180,7 +182,11 @@ const champ: React.CSSProperties = {
   color: '#f4ece0',
   fontSize: 15,
   fontFamily: 'inherit',
-  outline: 'none',
+  // PAS de `outline: none` ici : un style en ligne ne peut pas porter d'etat, donc le retirer
+  // etait retirer l'anneau de focus pour de bon. Mesure : outlineStyle 'none', boxShadow 'none'
+  // et bordure inchangee sur le champ focalise — un visiteur au clavier ne voyait plus ou il
+  // etait. L'anneau est maintenant une regle :focus-visible sur [data-ih-champ], posee dans
+  // IsraelHayaSite.
 };
 
 const bouton: React.CSSProperties = {

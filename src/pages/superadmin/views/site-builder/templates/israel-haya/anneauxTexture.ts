@@ -123,3 +123,36 @@ export function peindreGraduations(nombre = 72, largeur = 2048, hauteur = 64): H
   }
   return toile;
 }
+
+/**
+ * Peint un halo rond : blanc chaud au centre, transparent au bord.
+ *
+ * Il sert a la sphere du nombre revele. Sans lui, une sphere emissive poussee assez haut pour
+ * briller rend un DISQUE BLANC net — la couleur sature a 1 sur toute la surface et le bord se
+ * decoupe au pixel. Ce n'est pas une lumiere, c'est une pastille. La lumiere, ce qui la fait
+ * lire, c'est la decroissance : on peint donc la decroissance, et on la pose en melange additif
+ * autour d'une sphere redevenue discrete.
+ *
+ * Le profil n'est pas lineaire. Une rampe droite donne un halo plat, qui ressemble a un
+ * brouillard ; on empile donc trois arrets resserres pres du centre, ce qui approche la chute
+ * en carre inverse d'une vraie source.
+ */
+export function peindreHalo(taille = 256): HTMLCanvasElement {
+  const toile = document.createElement('canvas');
+  toile.width = taille;
+  toile.height = taille;
+  const ctx = toile.getContext('2d');
+  if (!ctx) return toile;
+
+  const r = taille / 2;
+  const degrade = ctx.createRadialGradient(r, r, 0, r, r, r);
+  degrade.addColorStop(0, 'rgba(255, 247, 224, 1)');
+  degrade.addColorStop(0.16, 'rgba(255, 233, 184, 0.72)');
+  degrade.addColorStop(0.38, 'rgba(240, 199, 126, 0.26)');
+  degrade.addColorStop(0.66, 'rgba(214, 160, 86, 0.07)');
+  degrade.addColorStop(1, 'rgba(184, 137, 60, 0)');
+
+  ctx.fillStyle = degrade;
+  ctx.fillRect(0, 0, taille, taille);
+  return toile;
+}

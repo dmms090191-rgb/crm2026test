@@ -170,3 +170,93 @@ test('aucun debordement horizontal, du telephone a l ordinateur', async ({ brows
     await contexte.close();
   }
 });
+
+/*
+ * ---------- LES QUATRE CORRECTIONS D UN AUDIT, MISES SOUS GARDE ----------
+ *
+ * Les quatre defauts ci-dessous ont tous ete mesures sur une version qui passait deja la suite
+ * precedente. Ils ont un point commun : aucun ne se voit en regardant la page. Un film
+ * retelecharge, de la memoire qui ne revient pas, une fenetre qu'on redimensionne, un visiteur
+ * sans souris — rien de tout cela n'apparait sur une capture d'ecran. D'ou ces tests.
+ */
+
+test('le voyage se parcourt au CLAVIER, sans souris', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const frame = await ouvrir(page);
+
+  // La zone de defilement est un div : sans traitement, aucune touche ne la fait bouger.
+  await frame.locator('[data-testid="ih-zone"]').focus();
+  const depart = await frame.evaluate(() => document.querySelector('[data-testid="ih-zone"]')!.scrollTop);
+  expect(depart).toBe(0);
+
+  for (let i = 0; i < 4; i++) await page.keyboard.press('PageDown');
+  await frame.waitForTimeout(400);
+  const apres = await frame.evaluate(() => document.querySelector('[data-testid="ih-zone"]')!.scrollTop);
+  expect(apres, 'Page suivante doit faire avancer le voyage').toBeGreaterThan(0);
+
+  await page.keyboard.press('End');
+  await frame.waitForTimeout(400);
+  expect(await chapitre(frame), 'Fin doit mener au dernier chapitre').toBe('carte');
+
+  await page.keyboard.press('Home');
+  await frame.waitForTimeout(400);
+  expect(await chapitre(frame), 'Debut doit ramener au premier').toBe('naissance');
+});
+
+test('REDIMENSIONNER la fenetre ne deplace pas la tete de lecture', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const frame = await ouvrir(page);
+
+  await allerA(frame, 0.42);
+  const avant = await chapitre(frame);
+  expect(avant).toBe('anneaux');
+
+  // La piste est haute de 3200vh : sa hauteur en pixels suit la fenetre, alors que le
+  // navigateur garde scrollTop en pixels. Sans restauration, ces trois tailles promenaient le
+  // lecteur de plusieurs chapitres, en avant comme en arriere.
+  for (const taille of [{ width: 1024, height: 600 }, { width: 1600, height: 1000 }, { width: 1366, height: 640 }]) {
+    await page.setViewportSize(taille);
+    await frame.waitForTimeout(500);
+    expect(
+      await chapitre(frame),
+      `le chapitre a change en passant a ${taille.width}x${taille.height}`,
+    ).toBe(avant);
+  }
+});
+
+test('chaque film n est telecharge QU UNE FOIS, meme en allant et venant', async ({ page }) => {
+  const films: string[] = [];
+  page.on('response', r => { if (r.url().endsWith('.mp4')) films.push(r.url().split('/').pop()!); });
+
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const frame = await ouvrir(page);
+
+  // Huit franchissements de la frontiere entre les chapitres 1 et 2.
+  for (let i = 0; i < 8; i++) await allerA(frame, i % 2 ? 0.19 : 0.09);
+
+  const parFilm = new Map<string, number>();
+  for (const f of films) parFilm.set(f, (parFilm.get(f) ?? 0) + 1);
+  for (const [nom, n] of parFilm) {
+    expect(n, `${nom} telecharge ${n} fois : le cache de cacheFilms.ts ne tient plus`).toBe(1);
+  }
+  expect(parFilm.size, 'les deux films du debut doivent avoir ete demandes').toBeGreaterThanOrEqual(2);
+});
+
+test('MOUVEMENT REDUIT : tous les textes du recit restent lisibles', async ({ page }) => {
+  // Le piege classique de cette preference : respecter la demande en n'affichant plus rien.
+  // Mesure sur la premiere version : 5 des 10 legendes n'apparaissaient JAMAIS, dont l'appel
+  // a prendre rendez-vous.
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const frame = await ouvrir(page);
+
+  const vus = new Set<string>();
+  for (let i = 0; i <= 20; i++) {
+    await allerA(frame, i / 20);
+    for (const t of await frame.locator('[data-testid="ih-scene"] h2').allTextContents()) vus.add(t.trim());
+  }
+
+  // Le voyage porte onze legendes ; aucune ne doit rester invisible.
+  expect(vus.size, `legendes vues : ${[...vus].join(' | ')}`).toBeGreaterThanOrEqual(10);
+  await page.emulateMedia({ reducedMotion: null });
+});

@@ -119,12 +119,14 @@ export default function ArbreDeVie({ progression, mouvementReduit }: Props) {
             uniform float uTemps;
             uniform float uVent;
             varying float vVie;
+            varying float vPhase;
 
             void main() {
               float naissance = donnees.x;
               float phase = donnees.y;
+              vPhase = phase;
               // La feuille s ouvre sur une courte fenetre apres sa branche.
-              vVie = clamp((uProgression - naissance) / 0.1, 0.0, 1.0);
+              vVie = clamp((uProgression - naissance) / 0.07, 0.0, 1.0);
 
               vec3 p = position;
               // Vent : un balancement propre a chaque feuille, d amplitude croissante vers le haut.
@@ -134,17 +136,33 @@ export default function ArbreDeVie({ progression, mouvementReduit }: Props) {
 
               vec4 vue = modelViewMatrix * vec4(p, 1.0);
               gl_Position = projectionMatrix * vue;
-              gl_PointSize = clamp(vVie * 110.0 / -vue.z, 0.0, 7.0);
+              // 110 et un plafond de 7 px donnaient des grains de poussiere : a cette distance
+              // de camera, une feuille rendait 7 px sur un canvas de 800, soit rien.
+              gl_PointSize = clamp(vVie * 150.0 / -vue.z, 0.0, 9.0);
             }
           `}
           fragmentShader={/* glsl */ `
             varying float vVie;
+            varying float vPhase;
             void main() {
               if (vVie <= 0.001) discard;
               vec2 d = gl_PointCoord - vec2(0.5);
-              float masque = smoothstep(0.5, 0.12, length(d));
-              vec3 vert = mix(vec3(0.44, 0.52, 0.35), vec3(0.62, 0.70, 0.48), vVie);
-              gl_FragColor = vec4(vert, masque * vVie * 0.92);
+              // Un bord plus doux : les feuilles se fondent entre elles en une masse plutot
+              // que de se compter une a une comme des baies.
+              float masque = smoothstep(0.5, 0.05, length(d));
+              // L'olivier n'est pas vert franc : son feuillage tire sur l'argent, et chaque
+              // feuille montre tantot sa face claire tantot sa face sombre. La phase sert donc
+              // aussi a varier la teinte, sinon la couronne est une tache unie.
+              float face = 0.5 + 0.5 * sin(vPhase * 3.1);
+              // Teintes TENUES : des verts clairs donnaient une couronne de fleurs blanches,
+              // pas un olivier. Le feuillage d un olivier est sombre, poudre d argent sur la
+              // face qui prend la lumiere, jamais lumineux.
+              vec3 sombre = vec3(0.21, 0.28, 0.20);
+              vec3 claire = vec3(0.47, 0.54, 0.41);
+              vec3 vert = mix(sombre, claire, mix(0.15, 0.85, face) * vVie);
+              // Peu opaques, mais nombreuses : elles s additionnent en une masse continue au lieu
+              // de se decouper chacune sur le ciel.
+              gl_FragColor = vec4(vert, masque * vVie * 0.55);
             }
           `}
         />

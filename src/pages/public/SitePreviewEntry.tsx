@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { neutralizePreviewClient } from '../../lib/sitePreviewGuard';
 import { getTemplateComponent } from '../superadmin/views/site-builder/templates/templateRegistry';
@@ -29,9 +29,28 @@ export function prepareSitePreviewRealm(): void {
   document.getElementById('root')?.classList.add('app-ready');
 }
 
+/*
+ * Ouverture DIRECTE, hors cadre : /site-apercu?template=<cle>.
+ *
+ * Le cadre du module Site reste le chemin normal. Ce raccourci sert a regarder un template
+ * SEUL, dans un vrai onglet, a sa vraie taille — ce qu'un cadre de quelques centaines de
+ * pixels ne montre pas. Les garde-fous ne changent pas : le client Supabase de la page est
+ * deja neutralise avant le rendu (prepareSitePreviewRealm), les envois de formulaire et les
+ * liens sortants sont bloques plus bas. Sans parametre, le message d origine est conserve.
+ */
+function templateDemande(): string | null {
+  const brut = new URLSearchParams(window.location.search).get('template');
+  if (!brut?.trim()) return null;
+  // Les cles du registre portent des tirets BAS ; on accepte aussi le tiret, plus naturel a taper.
+  // On ne verifie PAS la cle ici : une cle inconnue doit aboutir au message « template
+  // indisponible », pas au message « ouvrez cette page depuis l apercu ».
+  return brut.trim().replace(/-/g, '_');
+}
+
 export default function SitePreviewEntry() {
   const [payload, setPayload] = useState<SitePreviewPayload | null>(null);
   const embedded = window.parent !== window;
+  const direct = useMemo(() => (embedded ? null : templateDemande()), [embedded]);
 
   useEffect(() => {
     const blockSubmit = (e: Event) => { e.preventDefault(); e.stopPropagation(); };
@@ -57,19 +76,19 @@ export default function SitePreviewEntry() {
     };
   }, [embedded]);
 
-  if (!embedded) return <PreviewNotice text="Cette page s'affiche uniquement dans l'aperçu du site Talvex." />;
-  if (!payload) return <PreviewNotice text="" />;
+  if (!embedded && !direct) return <PreviewNotice text="Cette page s'affiche uniquement dans l'aperçu du site Talvex." />;
+  if (embedded && !payload) return <PreviewNotice text="" />;
 
-  const TemplateComponent = getTemplateComponent(payload.templateKey);
+  const TemplateComponent = getTemplateComponent(payload?.templateKey ?? direct ?? '');
   if (!TemplateComponent) return <PreviewNotice text="Ce template n'est pas disponible." />;
 
   return (
     <TemplateComponent
       domainCompanyId={null}
       onDomainLogin={() => {}}
-      sectionOverrides={payload.sectionOverrides}
-      sectionOrder={payload.sectionOrder}
-      appIconUrl={payload.appIconUrl}
+      sectionOverrides={payload?.sectionOverrides}
+      sectionOrder={payload?.sectionOrder}
+      appIconUrl={payload?.appIconUrl ?? null}
     />
   );
 }

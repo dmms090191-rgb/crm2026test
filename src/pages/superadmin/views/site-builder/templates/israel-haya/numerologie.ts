@@ -92,11 +92,11 @@ function METHODE(d: DateNaissance): { nombre: number; etapes: string[] } {
   return {
     nombre,
     etapes: [
-      `${d.jour} ← ${rJour}`,
-      `${d.mois} ← ${rMois}`,
-      `${d.annee} ← ${rAnnee}`,
+      `${d.jour} → ${rJour}`,
+      `${d.mois} → ${rMois}`,
+      `${d.annee} → ${rAnnee}`,
       `${rJour} + ${rMois} + ${rAnnee} = ${somme}`,
-      `${somme} ← ${nombre}`,
+      `${somme} → ${nombre}`,
     ],
   };
 }
