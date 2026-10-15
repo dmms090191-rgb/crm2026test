@@ -12,8 +12,12 @@
  * clair, et le visiteur ne voit jamais un faux chiffre.
  */
 
+import { directionDe, etiquetteLangue, type Langue } from './langue';
+import { textesDe } from './textes';
+
 interface Props {
   onReserver?: () => void;
+  langue: Langue;
   /** Mode secours : ni WebGL ni video. Cette partie porte alors tout le site. */
   seul?: boolean;
 }
@@ -21,17 +25,12 @@ interface Props {
 const OR = '#e8cd93';
 const CREME = '#f4ece0';
 
-const PRESTATIONS = [
-  { titre: 'ייעוץ אישי', texte: 'פגישה אחת, לעומק, סביב שאלה שמעסיקה אתכם.' },
-  { titre: 'ליווי מתמשך', texte: 'סדרת מפגשים, לאורך תקופה, עם מעקב בין הפגישות.' },
-  { titre: 'שאלה אחת', texte: 'תשובה כתובה ומנומקת לשאלה ממוקדת אחת.' },
-];
-
-export default function SectionsBas({ onReserver, seul }: Props) {
+export default function SectionsBas({ onReserver, seul, langue }: Props) {
+  const T = textesDe(langue).bas;
   return (
     <div
-      dir="rtl"
-      lang="he"
+      dir={directionDe(langue)}
+      lang={etiquetteLangue(langue)}
       style={{
         background: 'linear-gradient(to bottom, #070a16 0%, #0d1326 40%, #121a31 100%)',
         color: CREME,
@@ -42,13 +41,13 @@ export default function SectionsBas({ onReserver, seul }: Props) {
     >
       {seul && (
         <header style={{ maxWidth: '38ch', marginInline: 'auto', textAlign: 'center', marginBottom: 'clamp(40px, 8vh, 90px)' }}>
-          <h1 style={{ ...titre, fontSize: 'clamp(2.4rem, 7vw, 4.4rem)', margin: 0 }}>ישראל חיה</h1>
-          <p style={{ margin: '0.6em 0 0', color: 'rgba(238,231,219,0.75)' }}>מסע הנשמה</p>
+          <h1 style={{ ...titre, fontSize: 'clamp(2.4rem, 7vw, 4.4rem)', margin: 0 }}>{T.piedNom.split(' · ')[0]}</h1>
+          <p style={{ margin: '0.6em 0 0', color: 'rgba(238,231,219,0.75)' }}>{textesDe(langue).voyage.region}</p>
         </header>
       )}
 
       <section style={{ maxWidth: 1040, marginInline: 'auto' }}>
-        <h2 style={{ ...titre, fontSize: 'clamp(1.7rem, 4vw, 2.7rem)', margin: 0 }}>מה אפשר לעשות יחד</h2>
+        <h2 style={{ ...titre, fontSize: 'clamp(1.7rem, 4vw, 2.7rem)', margin: 0 }}>{T.titreOffre}</h2>
         <div
           style={{
             display: 'grid',
@@ -57,7 +56,7 @@ export default function SectionsBas({ onReserver, seul }: Props) {
             marginTop: 'clamp(22px, 4vh, 40px)',
           }}
         >
-          {PRESTATIONS.map(p => (
+          {T.offres.map(p => (
             <article key={p.titre} style={carte}>
               <h3 style={{ margin: 0, fontSize: '1.12rem', color: OR, fontWeight: 400 }}>{p.titre}</h3>
               <p style={{ margin: '0.6em 0 0', fontSize: '0.94rem', lineHeight: 1.75, color: 'rgba(238,231,219,0.74)' }}>
@@ -68,15 +67,14 @@ export default function SectionsBas({ onReserver, seul }: Props) {
         </div>
         {/* Dit au visiteur, pas cache dans un commentaire. */}
         <p style={{ marginTop: 18, fontSize: 12, color: 'rgba(238,231,219,0.45)' }}>
-          פרטי המחיר, המשך והמקום יתווספו לאחר אישור המטפלת.
+          {T.reserveTarif}
         </p>
       </section>
 
       <section style={{ maxWidth: 1040, marginInline: 'auto', marginTop: 'clamp(48px, 10vh, 110px)' }}>
-        <h2 style={{ ...titre, fontSize: 'clamp(1.7rem, 4vw, 2.7rem)', margin: 0 }}>על המספרים</h2>
+        <h2 style={{ ...titre, fontSize: 'clamp(1.7rem, 4vw, 2.7rem)', margin: 0 }}>{T.titreNombres}</h2>
         <p style={{ maxWidth: '46ch', margin: '0.8em 0 0', lineHeight: 1.85, color: 'rgba(238,231,219,0.78)' }}>
-          המספרים שעל האתר מחושבים בשיטה נומרולוגית מודרנית, מתוך תאריך הלידה. זו אינה גימטריה,
-          ואינה מסורת יהודית עתיקה. ההבחנה הזו חשובה, ולכן היא כתובה כאן ולא מוסתרת.
+          {T.texteNombres}
         </p>
       </section>
 
@@ -92,12 +90,12 @@ export default function SectionsBas({ onReserver, seul }: Props) {
           border: '1px solid rgba(232,205,147,0.2)',
         }}
       >
-        <h2 style={{ ...titre, fontSize: 'clamp(1.6rem, 4vw, 2.4rem)', margin: 0 }}>לקביעת פגישה</h2>
+        <h2 style={{ ...titre, fontSize: 'clamp(1.6rem, 4vw, 2.4rem)', margin: 0 }}>{T.titreRdv}</h2>
         <p style={{ margin: '0.7em auto 0', maxWidth: '34ch', lineHeight: 1.8, color: 'rgba(238,231,219,0.78)' }}>
-          השאירו פרטים ונחזור אליכם. אפשר גם פשוט לשאול שאלה.
+          {T.texteRdv}
         </p>
         <button type="button" onClick={() => onReserver?.()} data-testid="ih-reserver" style={bouton}>
-          אני רוצה לקבוע
+          {T.boutonRdv}
         </button>
       </section>
 
@@ -114,9 +112,9 @@ export default function SectionsBas({ onReserver, seul }: Props) {
           color: 'rgba(238,231,219,0.62)',
         }}
       >
-        <p style={{ margin: 0 }}>ישראל חיה · ייעוץ אישי</p>
-        <p style={{ margin: 0 }}>התמונות והסרטונים באתר נוצרו באמצעות בינה מלאכותית.</p>
-        <p style={{ margin: 0 }}>האתר אינו מהווה ייעוץ רפואי, משפטי או פיננסי.</p>
+        <p style={{ margin: 0 }}>{T.piedNom}</p>
+        <p style={{ margin: 0 }}>{T.piedIa}</p>
+        <p style={{ margin: 0 }}>{T.piedAvis}</p>
       </footer>
     </div>
   );

@@ -1,5 +1,6 @@
 import { X, Mail, Delete, Lock, Eye, EyeOff, Shield, ArrowRight, Sparkles } from 'lucide-react';
 import type { SiteModalTheme } from './siteModalTheme';
+import { textesModale, type LangueModale } from './modaleTextes';
 import TalvexQuickEmailSelector from './TalvexQuickEmailSelector';
 import { PinDigitBox } from './TalvexLoginHelpers';
 
@@ -25,15 +26,20 @@ interface Props {
   progress: number;
   theme: SiteModalTheme;
   appIconUrl?: string | null;
+  /** Absente = francais, exactement comme avant. */
+  langue?: LangueModale | null;
+  /** Afficher la ligne « Pas encore de compte ? ». Vrai par defaut. */
+  inscription?: boolean;
 }
 
 export default function TalvexLoginForm({
   email, setEmail, emailInputRef, digits, showPin, setShowPin,
   focusedPin, pinRefs, handlePinInput, handlePinKeyDown, wrappedPinFocus,
   error, loading, canSubmit, submitHover, setSubmitHover,
-  onValidate, onRegister, progress, theme: t, appIconUrl,
+  onValidate, onRegister, progress, theme: t, appIconUrl, langue, inscription = true,
 }: Props) {
   const LoginIcon = t.loginIcon;
+  const L = textesModale(langue);
 
   return (
     <>
@@ -58,9 +64,9 @@ export default function TalvexLoginForm({
             )}
           </div>
           <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-            <span className="bg-clip-text text-transparent" style={{ backgroundImage: t.textGradient }}>Connexion</span>
+            <span className="bg-clip-text text-transparent" style={{ backgroundImage: t.textGradient }}>{L.titre}</span>
           </h2>
-          <p className="text-[13px] mt-1.5 text-slate-500 font-medium">Accedez a votre espace personnel</p>
+          <p className="text-[13px] mt-1.5 text-slate-500 font-medium">{L.sousTitre}</p>
           <div className="flex items-center gap-1.5 mt-3">
             {Array.from({ length: 7 }).map((_, i) => (
               <div key={i} className="h-1 rounded-full transition-all duration-500" style={{ width: i < progress ? 12 : 6, background: i < progress ? `linear-gradient(90deg, ${t.primary}, ${t.secondary})` : 'rgba(255,255,255,0.08)', boxShadow: i < progress ? `0 0 8px rgba(${t.primaryRgb},0.3)` : 'none', animation: i < progress ? 'progressGlow 2s ease-in-out infinite' : 'none', animationDelay: `${i * 0.1}s` }} />
@@ -73,16 +79,19 @@ export default function TalvexLoginForm({
       <div className="px-6 sm:px-8 pb-6 sm:pb-8 space-y-5">
         {/* Email field */}
         <div>
-          <label className="flex items-center gap-1.5 text-[13px] font-semibold mb-2.5 text-slate-400"><Mail className="w-3.5 h-3.5" />Adresse email</label>
+          <label className="flex items-center gap-1.5 text-[13px] font-semibold mb-2.5 text-slate-400"><Mail className="w-3.5 h-3.5" />{L.adresseEmail}</label>
           <div className="flex items-center gap-1.5">
             <div className="relative flex-1 min-w-0 group">
               <div className="absolute inset-0 rounded-xl opacity-0 group-focus-within:opacity-100 transition-opacity duration-300 -z-0" style={{ background: `linear-gradient(135deg, rgba(${t.primaryRgb},0.06), rgba(${t.secondaryRgb},0.03))`, border: `1px solid rgba(${t.primaryRgb},0.2)` }} />
-              <input ref={emailInputRef} type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="votre@email.com" autoComplete="off" className="site-modal-input relative z-10 w-full rounded-xl px-4 py-3.5 focus:outline-none transition-all text-sm sm:text-[15px] truncate" style={{ backgroundColor: 'rgba(255,255,255,0.03)', border: '1.5px solid rgba(255,255,255,0.06)', color: '#fff', caretColor: t.caretColor }}
+              <input ref={emailInputRef} type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder={L.exempleEmail} autoComplete="off" className="site-modal-input relative z-10 w-full rounded-xl px-4 py-3.5 focus:outline-none transition-all text-sm sm:text-[15px] text-ellipsis" style={{ backgroundColor: 'rgba(255,255,255,0.03)', border: '1.5px solid rgba(255,255,255,0.06)', color: '#fff', caretColor: t.caretColor }}
                 onFocusCapture={e => { e.currentTarget.style.borderColor = `rgba(${t.primaryRgb},0.4)`; e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; }}
                 onBlurCapture={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'; e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; }}
               />
+              {/* Position LOGIQUE : `right-2.5` collait ce bouton au bord physique droit, donc au
+                  bord de DEBUT du champ en hebreu — exactement l inverse de ce qu il faut, et
+                  par-dessus le debut du texte saisi. */}
               {email && (
-                <button type="button" onClick={() => { setEmail(''); emailInputRef.current?.focus(); }} className="absolute right-2.5 top-1/2 -translate-y-1/2 z-20 w-7 h-7 rounded-lg flex items-center justify-center transition-all duration-200 hover:scale-110" style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.4)' }}>
+                <button type="button" aria-label={L.effacer} onClick={() => { setEmail(''); emailInputRef.current?.focus(); }} className="absolute top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-lg flex items-center justify-center transition-all duration-200 hover:scale-110" style={{ insetInlineEnd: '0.5rem', backgroundColor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.4)' }}>
                   <X className="w-3.5 h-3.5" />
                 </button>
               )}
@@ -93,7 +102,7 @@ export default function TalvexLoginForm({
               </button>
             )}
           </div>
-          <TalvexQuickEmailSelector email={email} onSelect={v => setEmail(v)} theme={t} />
+          <TalvexQuickEmailSelector email={email} onSelect={v => setEmail(v)} theme={t} langue={langue} />
         </div>
 
         <div className="flex items-center gap-3">
@@ -105,17 +114,24 @@ export default function TalvexLoginForm({
         {/* PIN field */}
         <div>
           <div className="flex items-center justify-between mb-3">
-            <label className="flex items-center gap-1.5 text-[13px] font-semibold text-slate-400"><Lock className="w-3.5 h-3.5" />Mot de passe (6 chiffres)</label>
-            <button type="button" onClick={() => setShowPin((v: boolean) => !v)} className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all duration-200 hover:scale-105" style={{ background: 'rgba(255,255,255,0.04)', color: 'rgba(255,255,255,0.45)', border: '1px solid rgba(255,255,255,0.06)' }}>
-              {showPin ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}{showPin ? 'Masquer' : 'Afficher'}
+            <label className="flex items-center gap-1.5 text-[13px] font-semibold text-slate-400"><Lock className="w-3.5 h-3.5" />{L.motDePasse}</label>
+            <button type="button" onClick={() => setShowPin((v: boolean) => !v)} className="flex items-center gap-1.5 px-2.5 min-h-[44px] rounded-lg text-[11px] font-semibold transition-all duration-200 hover:scale-105" style={{ background: 'rgba(255,255,255,0.04)', color: 'rgba(255,255,255,0.45)', border: '1px solid rgba(255,255,255,0.06)' }}>
+              {showPin ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}{showPin ? L.masquer : L.afficher}
             </button>
           </div>
-          <div className="flex gap-2 sm:gap-2.5 justify-center w-full max-w-[340px] mx-auto">
+          {/*
+            dir="ltr" sur la rangee : un NOMBRE se lit de gauche a droite dans toutes les
+            langues, y compris en hebreu. Sans cela les six cases etaient physiquement
+            inversees et un code saisi 123456 s affichait 654321 — mesure a l appui, les x des
+            cases dans l ordre du DOM etaient strictement decroissants. Ce n etait pas un
+            defaut de presentation, c etait un defaut de saisie.
+          */}
+          <div dir="ltr" className="flex gap-2 sm:gap-2.5 justify-center w-full max-w-[340px] mx-auto">
             {digits.map((digit, i) => (
               <PinDigitBox key={i} digit={digit} index={i} showPin={showPin} focused={focusedPin === i} inputRef={el => { pinRefs.current[i] = el; }} onInput={handlePinInput} onKeyDown={handlePinKeyDown} onFocus={wrappedPinFocus} theme={t} />
             ))}
           </div>
-          <p className="text-[11px] text-center mt-2.5 text-slate-600 font-medium">Fleches gauche/droite pour naviguer</p>
+          <p className="text-[11px] text-center mt-2.5 text-slate-600 font-medium">{L.naviguer}</p>
         </div>
 
         {error && (
@@ -135,14 +151,16 @@ export default function TalvexLoginForm({
             </div>
           )}
           <span className="relative z-10 flex items-center justify-center gap-2">
-            {loading ? (<><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Connexion en cours...</>) : (<>{canSubmit && <Sparkles className="w-4 h-4" />}VALIDER{canSubmit && <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />}</>)}
+            {loading ? (<><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />{L.enCours}</>) : (<>{canSubmit && <Sparkles className="w-4 h-4" />}{L.valider}{canSubmit && <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />}</>)}
           </span>
         </button>
 
-        <div className="flex items-center justify-center gap-2 pt-1">
-          <span className="text-[13px] text-slate-600">Pas encore de compte ?</span>
-          <button onClick={onRegister} className="text-[13px] font-semibold transition-all duration-200 hover:underline underline-offset-2" style={{ color: t.primary }}>S'inscrire</button>
-        </div>
+        {inscription && (
+          <div className="flex items-center justify-center gap-2 pt-1">
+            <span className="text-[13px] text-slate-600">{L.pasDeCompte}</span>
+            <button onClick={onRegister} className="text-[13px] font-semibold transition-all duration-200 hover:underline underline-offset-2" style={{ color: t.primary }}>{L.sInscrire}</button>
+          </div>
+        )}
       </div>
     </>
   );

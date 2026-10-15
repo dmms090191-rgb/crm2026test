@@ -37,6 +37,15 @@ export function PinDigitBox({ digit, index, showPin, focused, inputRef, onInput,
   theme: SiteModalTheme;
 }) {
   const filled = !!digit;
+  /*
+   * `aspect-square` faisait deriver la HAUTEUR de la largeur disponible : a 320 px, les six
+   * cases tombaient a 34,3 x 34,3 — sous la cible tactile, et difficile a viser pour taper un
+   * code. La hauteur est desormais fixe et seule la largeur se resserre.
+   *
+   * La case n est donc plus carree, a aucune largeur : 46,3 x 48 a 390 px, 48,3 x 52 a partir
+   * de 640 px. C est un ecart assume — une case un peu plus haute que large se vise mieux au
+   * pouce qu un carre de 34 px — et il vaut pour les six templates qui montent cette fenetre.
+   */
   return (
     <div className="relative flex-1 min-w-0 max-w-[52px]">
       {filled && (
@@ -52,7 +61,7 @@ export function PinDigitBox({ digit, index, showPin, focused, inputRef, onInput,
         onChange={e => onInput(index, e.target.value)}
         onKeyDown={e => onKeyDown(index, e)}
         onFocus={() => onFocus(index)}
-        className="relative z-10 w-full aspect-square rounded-xl text-center text-xl font-bold text-white caret-transparent outline-none transition-all duration-300"
+        className="relative z-10 w-full h-12 sm:h-[52px] rounded-xl text-center text-xl font-bold text-white caret-transparent outline-none transition-all duration-300"
         style={{
           background: filled
             ? `linear-gradient(135deg, rgba(${theme.primaryRgb},0.12), rgba(${theme.secondaryRgb},0.08))`

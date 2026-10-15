@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { calculer, salutation, themeDe, type Resultat } from './numerologie';
+import { dit, directionDe, etiquetteLangue, type Langue } from './langue';
+import { textesDe } from './textes';
 
 /**
  * LA SAISIE — prenom et date de naissance.
@@ -25,11 +27,13 @@ import { calculer, salutation, themeDe, type Resultat } from './numerologie';
 interface Props {
   /** Appele quand un nombre sort, pour que la scene 3D l'affiche. */
   onResultat: (nombre: number | null) => void;
+  langue: Langue;
 }
 
 const OR = '#e8cd93';
 
-export default function SaisieNombres({ onResultat }: Props) {
+export default function SaisieNombres({ onResultat, langue }: Props) {
+  const T = textesDe(langue).saisie;
   const [prenom, setPrenom] = useState('');
   const [date, setDate] = useState('');
   const [resultat, setResultat] = useState<Resultat | null>(null);
@@ -54,7 +58,7 @@ export default function SaisieNombres({ onResultat }: Props) {
     const [a, m, j] = date.split('-').map(Number);
     const r = calculer({ jour: j, mois: m, annee: a });
     if (!r) {
-      setErreur('תאריך לא תקין');
+      setErreur(T.dateInvalide);
       setResultat(null);
       onResultat(null);
       return;
@@ -68,8 +72,8 @@ export default function SaisieNombres({ onResultat }: Props) {
 
   return (
     <div
-      dir="rtl"
-      lang="he"
+      dir={directionDe(langue)}
+      lang={etiquetteLangue(langue)}
       style={{
         pointerEvents: 'auto',
         width: 'min(92vw, 440px)',
@@ -85,7 +89,7 @@ export default function SaisieNombres({ onResultat }: Props) {
       {!resultat ? (
         <form onSubmit={soumettre} style={{ display: 'grid', gap: 14 }}>
           <label style={{ display: 'grid', gap: 6 }}>
-            <span style={{ fontSize: 12, letterSpacing: '0.06em', color: 'rgba(238,231,219,0.7)' }}>שם פרטי</span>
+            <span style={{ fontSize: 12, letterSpacing: '0.06em', color: 'rgba(238,231,219,0.7)' }}>{T.prenom}</span>
             <input
               type="text"
               value={prenom}
@@ -98,7 +102,7 @@ export default function SaisieNombres({ onResultat }: Props) {
           </label>
 
           <label style={{ display: 'grid', gap: 6 }}>
-            <span style={{ fontSize: 12, letterSpacing: '0.06em', color: 'rgba(238,231,219,0.7)' }}>תאריך לידה</span>
+            <span style={{ fontSize: 12, letterSpacing: '0.06em', color: 'rgba(238,231,219,0.7)' }}>{T.dateNaissance}</span>
             <input
               type="date"
               value={date}
@@ -114,11 +118,11 @@ export default function SaisieNombres({ onResultat }: Props) {
           {erreur && <p style={{ margin: 0, fontSize: 13, color: '#f0a8a8' }}>{erreur}</p>}
 
           <button type="button" onClick={() => soumettre()} data-testid="ih-calculer" style={bouton}>
-            גלו את המספר
+            {T.calculer}
           </button>
 
           <p style={{ margin: 0, fontSize: 11, lineHeight: 1.6, color: 'rgba(238,231,219,0.5)' }}>
-            החישוב מתבצע בדפדפן שלכם בלבד. שום פרט אינו נשמר ואינו נשלח לשום מקום.
+            {T.confidentialite}
           </p>
         </form>
       ) : (
@@ -133,7 +137,7 @@ export default function SaisieNombres({ onResultat }: Props) {
                 fontSize: 11, lineHeight: 1.6, color: OR,
               }}
             >
-              הדגמה בלבד. שיטת החישוב הסופית טרם הוגדרה, והמספר כאן אינו ייעוץ.
+              {T.demonstration}
             </p>
           )}
 
@@ -147,14 +151,14 @@ export default function SaisieNombres({ onResultat }: Props) {
 
           {theme && (
             <>
-              <p style={{ margin: 0, fontSize: 17, color: '#f4ece0' }}>{theme.titre}</p>
-              <p style={{ margin: 0, fontSize: 13, lineHeight: 1.75, color: 'rgba(238,231,219,0.78)' }}>{theme.texte}</p>
+              <p style={{ margin: 0, fontSize: 17, color: '#f4ece0' }}>{dit(theme.titre, langue)}</p>
+              <p style={{ margin: 0, fontSize: 13, lineHeight: 1.75, color: 'rgba(238,231,219,0.78)' }}>{dit(theme.texte, langue)}</p>
             </>
           )}
 
           {/* Le calcul est montre : un nombre qu'on ne peut pas refaire a la main ne vaut rien. */}
           <details style={{ textAlign: 'start' }}>
-            <summary style={{ cursor: 'pointer', fontSize: 12, color: 'rgba(238,231,219,0.6)' }}>איך מחושב המספר</summary>
+            <summary style={{ cursor: 'pointer', fontSize: 12, color: 'rgba(238,231,219,0.6)' }}>{T.detailCalcul}</summary>
             <ul style={{ margin: '8px 0 0', paddingInlineStart: 18, fontSize: 12, lineHeight: 1.9, color: 'rgba(238,231,219,0.65)', direction: 'ltr', textAlign: 'start' }}>
               {resultat.etapes.map(e => <li key={e}>{e}</li>)}
             </ul>
@@ -165,7 +169,7 @@ export default function SaisieNombres({ onResultat }: Props) {
             onClick={() => { setResultat(null); onResultat(null); }}
             style={{ ...bouton, background: 'transparent', border: '1px solid rgba(232,205,147,0.35)', color: OR }}
           >
-            חישוב נוסף
+            {T.recommencer}
           </button>
         </div>
       )}

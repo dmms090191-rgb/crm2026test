@@ -1,16 +1,20 @@
 import { useState } from 'react';
 import { ChevronDown, Star, Settings, Trash2, Plus, Mail, Zap, Sparkles } from 'lucide-react';
 import { type SiteModalTheme, getSiteModalTheme } from './siteModalTheme';
+import { textesModale, type LangueModale } from './modaleTextes';
 import { getQuickEmails, setQuickEmails, isValidEmail, ModalShell, ModalHeader, EmptyState } from './TalvexQuickEmailShell';
 
 interface Props {
   email: string;
   onSelect: (email: string) => void;
   theme?: SiteModalTheme;
+  /** Absente = francais, exactement comme avant. */
+  langue?: LangueModale | null;
 }
 
-export default function TalvexQuickEmailSelector({ email, onSelect, theme: themeProp }: Props) {
+export default function TalvexQuickEmailSelector({ email, onSelect, theme: themeProp, langue }: Props) {
   const t = themeProp ?? getSiteModalTheme();
+  const L = textesModale(langue);
   const [quickEmails, setQuickEmailsState] = useState<string[]>(getQuickEmails);
   const [showPicker, setShowPicker] = useState(false);
   const [showManage, setShowManage] = useState(false);
@@ -24,13 +28,13 @@ export default function TalvexQuickEmailSelector({ email, onSelect, theme: theme
   function handleSaveCurrent() {
     const trimmed = email.trim().toLowerCase();
     if (!trimmed) return;
-    if (!isValidEmail(trimmed)) { showToast('Adresse email invalide.'); return; }
+    if (!isValidEmail(trimmed)) { showToast(L.emailInvalide); return; }
     const list = refresh();
-    if (list.includes(trimmed)) { showToast('Cet email est deja enregistre.'); return; }
+    if (list.includes(trimmed)) { showToast(L.dejaEnregistre); return; }
     const updated = [...list, trimmed];
     setQuickEmails(updated);
     setQuickEmailsState(updated);
-    showToast('Email ajoute aux acces rapides.');
+    showToast(L.ajouteAuxRapides);
   }
 
   function handleRemove(target: string) {
@@ -40,42 +44,42 @@ export default function TalvexQuickEmailSelector({ email, onSelect, theme: theme
       setQuickEmails(updated);
       setQuickEmailsState(updated);
       setDeletingEmail(null);
-      showToast('Email supprime.');
+      showToast(L.supprime);
     }, 250);
   }
 
   function handleClearAll() {
     setQuickEmails([]);
     setQuickEmailsState([]);
-    showToast('Emails rapides vides.');
+    showToast(L.listeVidee);
   }
 
   function handleManageAdd() {
     const trimmed = manageInput.trim().toLowerCase();
     if (!trimmed) return;
-    if (!isValidEmail(trimmed)) { showToast('Adresse email invalide.'); return; }
-    if (quickEmails.includes(trimmed)) { showToast('Cet email est deja enregistre.'); return; }
+    if (!isValidEmail(trimmed)) { showToast(L.emailInvalide); return; }
+    if (quickEmails.includes(trimmed)) { showToast(L.dejaEnregistre); return; }
     const updated = [...quickEmails, trimmed];
     setQuickEmails(updated);
     setQuickEmailsState(updated);
     setManageInput('');
-    showToast('Email ajoute.');
+    showToast(L.ajoute);
   }
 
   return (
     <>
       <div className="flex items-center gap-1.5 mt-2.5 flex-wrap">
         {([
-          { label: 'Rapides', icon: ChevronDown, action: () => { refresh(); setShowPicker(true); } },
-          { label: 'Enregistrer', icon: Star, action: handleSaveCurrent, disabled: !email.trim() },
-          { label: 'Gerer', icon: Settings, action: () => { refresh(); setShowManage(true); } },
+          { label: L.rapides, icon: ChevronDown, action: () => { refresh(); setShowPicker(true); } },
+          { label: L.enregistrer, icon: Star, action: handleSaveCurrent, disabled: !email.trim() },
+          { label: L.gerer, icon: Settings, action: () => { refresh(); setShowManage(true); } },
         ] as const).map(btn => (
           <button
             key={btn.label}
             type="button"
             onClick={btn.action}
             disabled={'disabled' in btn ? btn.disabled : false}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all duration-200 disabled:opacity-30 hover:scale-[1.03] group"
+            className="flex items-center gap-1.5 px-3 min-h-[44px] rounded-lg text-[11px] font-semibold transition-all duration-200 disabled:opacity-30 hover:scale-[1.03] group"
             style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.4)' }}
           >
             <btn.icon className="w-3.5 h-3.5 group-hover:text-cyan-400 transition-colors" />
@@ -91,11 +95,11 @@ export default function TalvexQuickEmailSelector({ email, onSelect, theme: theme
 
       {/* Picker modal */}
       <ModalShell open={showPicker} onClose={() => setShowPicker(false)} theme={t}>
-        <ModalHeader title="Emails rapides" icon={Zap} onClose={() => setShowPicker(false)} count={quickEmails.length} theme={t} />
+        <ModalHeader title={L.titreRapides} icon={Zap} onClose={() => setShowPicker(false)} count={quickEmails.length} countLabel={L.compteur(quickEmails.length)} theme={t} />
         <div className="h-px mx-5" style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent)' }} />
         <div className="max-h-64 overflow-y-auto py-2 px-2">
           {quickEmails.length === 0 ? (
-            <EmptyState message="Aucun email rapide" sub="Cliquez Enregistrer pour ajouter l'email actuel." />
+            <EmptyState message={L.aucunEmail} sub={L.aucunEmailAide} />
           ) : (
             quickEmails.map((qe, i) => (
               <button key={qe} type="button"
@@ -120,13 +124,13 @@ export default function TalvexQuickEmailSelector({ email, onSelect, theme: theme
 
       {/* Manage modal */}
       <ModalShell open={showManage} onClose={() => setShowManage(false)} theme={t}>
-        <ModalHeader title="Gerer les emails" icon={Settings} onClose={() => setShowManage(false)} count={quickEmails.length} theme={t} />
+        <ModalHeader title={L.titreGerer} icon={Settings} onClose={() => setShowManage(false)} count={quickEmails.length} countLabel={L.compteur(quickEmails.length)} theme={t} />
         <div className="h-px mx-5" style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent)' }} />
         <div className="px-4 pt-4 flex gap-2">
           <div className="relative flex-1 min-w-0 group">
             <input type="email" value={manageInput} onChange={e => setManageInput(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleManageAdd(); } }}
-              placeholder="Ajouter un email..." className="site-modal-input w-full px-3.5 py-2.5 rounded-xl text-sm outline-none transition-all"
+              placeholder={L.ajouterUnEmail} className="site-modal-input w-full px-3.5 py-2.5 rounded-xl text-sm outline-none transition-all"
               style={{ backgroundColor: 'rgba(255,255,255,0.03)', border: '1.5px solid rgba(255,255,255,0.06)', color: '#fff', caretColor: t.caretColor }}
               onFocusCapture={e => { e.currentTarget.style.borderColor = `rgba(${t.primaryRgb},0.35)`; e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; }}
               onBlurCapture={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'; e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; }}
@@ -141,7 +145,7 @@ export default function TalvexQuickEmailSelector({ email, onSelect, theme: theme
         </div>
         <div className="px-3 py-3 max-h-52 overflow-y-auto space-y-1">
           {quickEmails.length === 0 ? (
-            <EmptyState message="Aucun email rapide" sub="Ajoutez un email ci-dessus." />
+            <EmptyState message={L.aucunEmail} sub={L.aucunEmailAideGerer} />
           ) : (
             quickEmails.map((qe, i) => (
               <div key={qe} className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl transition-all duration-300"
@@ -174,7 +178,7 @@ export default function TalvexQuickEmailSelector({ email, onSelect, theme: theme
             className="w-full py-2.5 rounded-xl text-[12px] font-semibold transition-all duration-200 disabled:opacity-30 hover:scale-[1.01]"
             style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.1)', color: '#f87171' }}
           >
-            Tout supprimer
+            {L.toutSupprimer}
           </button>
         </div>
         {toast && (

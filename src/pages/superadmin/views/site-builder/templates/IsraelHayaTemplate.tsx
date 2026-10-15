@@ -13,7 +13,7 @@ import type { TemplateProps } from './templateRegistry';
  * Cet hote ne porte donc aucune dependance lourde. Le voyage n'est telecharge que lorsque
  * quelqu'un l'ouvre vraiment. Ne jamais remplacer ce `lazy()` par un import direct.
  */
-const Voyage = lazy(() => import('./israel-haya/IsraelHayaSite'));
+const Site = lazy(() => import('./israel-haya/CoquilleIsraelHaya'));
 
 /** Attente aux couleurs de la nuit du site : aucun saut de fond quand le voyage arrive. */
 function Attente() {
@@ -48,15 +48,18 @@ function Attente() {
   );
 }
 
-export default function IsraelHayaTemplate({ onDomainLogin }: TemplateProps = {}) {
+export default function IsraelHayaTemplate(
+  { domainCompanyId, onDomainLogin, appIconUrl }: TemplateProps = {},
+) {
   return (
     <Suspense fallback={<Attente />}>
       {/*
-        « Prendre rendez-vous » mene a la connexion quand le site est servi sur un domaine, et
-        ne fait rien sinon. Le jour ou la praticienne aura un systeme de reservation, c'est ce
-        seul point qu'on rebranchera.
+        `onDomainLogin` est transmis TEL QUEL a la coquille, qui le donnera a la fenetre de
+        connexion comme rappel de reussite. Il ne doit surtout pas servir de gestionnaire de
+        clic : ce n'est pas un ouvre-fenetre, et branche ainsi il ejectait le visiteur vers la
+        landing Talvex au lieu de lui ouvrir une connexion.
       */}
-      <Voyage onReserver={onDomainLogin} />
+      <Site domainCompanyId={domainCompanyId} onDomainLogin={onDomainLogin} appIconUrl={appIconUrl} />
     </Suspense>
   );
 }

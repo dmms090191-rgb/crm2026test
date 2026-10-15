@@ -23,6 +23,30 @@ export function ModalShell({ open, onClose, children, theme }: { open: boolean; 
     else setMounted(false);
   }, [open]);
 
+  /*
+   * ECHAP REFERME CE PANNEAU, ET S ARRETE LA.
+   *
+   * La fenetre de connexion, en dessous, ecoute elle aussi Echap depuis qu une issue de
+   * secours lui a ete ajoutee. Sans cet ecouteur-ci, Echap pris dans << Rapides >> ou
+   * << Gerer >> fermait la CONNEXION entiere : le sous-panneau disparaissait avec elle, et
+   * l adresse et les six chiffres deja saisis etaient effaces. Une touche de retour en
+   * arriere qui detruit la saisie est pire que pas de touche du tout.
+   *
+   * On ecoute donc en phase de CAPTURE et on arrete la propagation : la fenetre du dessous
+   * ne voit jamais la touche tant que ce panneau est ouvert. Les six templates qui montent
+   * cette fenetre en beneficient de la meme facon.
+   */
+  useEffect(() => {
+    if (!open) return;
+    const auClavier = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.stopPropagation();
+      onClose();
+    };
+    window.addEventListener('keydown', auClavier, true);
+    return () => window.removeEventListener('keydown', auClavier, true);
+  }, [open, onClose]);
+
   if (!open) return null;
 
   return createPortal(
@@ -82,14 +106,19 @@ export function ModalShell({ open, onClose, children, theme }: { open: boolean; 
   );
 }
 
-export function ModalHeader({ title, icon: Icon, onClose, count, theme }: { title: string; icon: typeof X; onClose: () => void; count?: number; theme: SiteModalTheme }) {
+/*
+ * `countLabel` permet d ecrire le compteur dans la langue de l appelant. Sans lui, la
+ * formulation francaise d origine est conservee telle quelle : aucun template existant ne
+ * voit de difference.
+ */
+export function ModalHeader({ title, icon: Icon, onClose, count, countLabel, theme }: { title: string; icon: typeof X; onClose: () => void; count?: number; countLabel?: string; theme: SiteModalTheme }) {
   return (
     <div className="relative px-5 pt-5 pb-4">
       <button
         type="button"
         onClick={onClose}
-        className="absolute top-4 right-4 w-8 h-8 rounded-xl flex items-center justify-center transition-all duration-300 hover:scale-110 hover:rotate-90 group"
-        style={{ backgroundColor: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}
+        className="absolute top-4 w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-300 hover:scale-110 hover:rotate-90 group"
+        style={{ insetInlineEnd: '1rem', backgroundColor: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}
       >
         <X className="w-3.5 h-3.5 text-slate-500 group-hover:text-slate-300 transition-colors" />
       </button>
@@ -107,7 +136,7 @@ export function ModalHeader({ title, icon: Icon, onClose, count, theme }: { titl
           <h3 className="text-[15px] font-bold text-white">{title}</h3>
           {count !== undefined && (
             <p className="text-[11px] text-slate-500 font-medium mt-0.5">
-              {count} email{count !== 1 ? 's' : ''} enregistre{count !== 1 ? 's' : ''}
+              {countLabel ?? `${count} email${count !== 1 ? 's' : ''} enregistre${count !== 1 ? 's' : ''}`}
             </p>
           )}
         </div>

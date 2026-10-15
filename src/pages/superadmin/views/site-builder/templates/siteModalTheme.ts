@@ -1,5 +1,4 @@
-import type { ComponentType } from 'react';
-import { Zap, Leaf, Crown, UserPlus, Heart } from 'lucide-react';
+import { Zap, Leaf, Crown, UserPlus, Heart, Sparkles, type LucideIcon } from 'lucide-react';
 
 export interface SiteModalTheme {
   primary: string;
@@ -13,8 +12,14 @@ export interface SiteModalTheme {
   orbColor2: string;
   caretColor: string;
   placeholderColor: string;
-  loginIcon: ComponentType<{ className?: string; strokeWidth?: number }>;
-  registerIcon: ComponentType<{ className?: string; strokeWidth?: number }>;
+  /*
+   * Le type vient de lucide-react plutot que d un ComponentType reecrit a la main : une
+   * icone lucide est une ForwardRefExoticComponent, qu un ComponentType simple n accepte pas.
+   * L ecart produisait deux erreurs de compilation par theme, soit douze au total, toutes du
+   * meme genre et toutes sans consequence a l execution — mais elles masquaient les vraies.
+   */
+  loginIcon: LucideIcon;
+  registerIcon: LucideIcon;
 }
 
 const TALVEX_THEME: SiteModalTheme = {
@@ -97,12 +102,34 @@ const BARBIE_WELLNESS_THEME: SiteModalTheme = {
   registerIcon: UserPlus,
 };
 
+/**
+ * ISRAEL HAYA — or et nuit. Sans cette entree, getSiteModalTheme retombe sur le theme
+ * Talvex, et la connexion arriverait en cyan au milieu d un site dont toute la palette est
+ * l'or #e8cd93 sur la nuit #070a16.
+ */
+const ISRAEL_HAYA_THEME: SiteModalTheme = {
+  primary: '#e8cd93',
+  secondary: '#b8893c',
+  primaryRgb: '232,205,147',
+  secondaryRgb: '184,137,60',
+  gradient: 'linear-gradient(135deg, #e8cd93, #b8893c)',
+  gradientHover: 'linear-gradient(135deg, #f0dfae, #a97c33)',
+  textGradient: 'linear-gradient(to right, #f0dfae, #e8cd93, #d8bd83)',
+  orbColor1: '#e8cd93',
+  orbColor2: '#b8893c',
+  caretColor: '#e8cd93',
+  placeholderColor: 'rgba(238,231,219,0.45)',
+  loginIcon: Sparkles,
+  registerIcon: UserPlus,
+};
+
 const THEME_REGISTRY: Record<string, SiteModalTheme> = {
   talvex_official: TALVEX_THEME,
   renewable_energy: RENEWABLE_THEME,
   gold_buying: GOLD_BUYING_THEME,
   builder_ready: BUILDER_READY_THEME,
   barbie_wellness: BARBIE_WELLNESS_THEME,
+  israel_haya: ISRAEL_HAYA_THEME,
 };
 
 export function getSiteModalTheme(templateKey?: string | null): SiteModalTheme {

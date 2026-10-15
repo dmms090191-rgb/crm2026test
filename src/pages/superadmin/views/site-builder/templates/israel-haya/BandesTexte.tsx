@@ -1,5 +1,6 @@
 import type { Bande } from './chapitres';
 import { opaciteBande } from './chapitres';
+import { dit, directionDe, etiquetteLangue, type Langue } from './langue';
 
 /**
  * LES LEGENDES HEBRAIQUES, posees sur le film.
@@ -53,13 +54,14 @@ interface Props {
    * Cela reste une fonction pure de la progression, comme tout le reste du voyage.
    */
   montee?: number;
+  langue: Langue;
 }
 
-export default function BandesTexte({ bandes, progression, mouvementReduit, montee = 0 }: Props) {
+export default function BandesTexte({ bandes, progression, mouvementReduit, montee = 0, langue }: Props) {
   return (
     <div
-      dir="rtl"
-      lang="he"
+      dir={directionDe(langue)}
+      lang={etiquetteLangue(langue)}
       style={{
         position: 'absolute',
         inset: 0,
@@ -67,7 +69,10 @@ export default function BandesTexte({ bandes, progression, mouvementReduit, mont
         placeItems: 'center',
         alignContent: 'center',
         gap: mouvementReduit ? 'clamp(16px, 3.5vh, 36px)' : undefined,
-        paddingInline: 'clamp(20px, 7vw, 120px)',
+        // Le rail des chapitres occupe le bord de DEBUT : la legende lui laisse la place, sinon
+        // elle le traverse (mesure : chapitre 4 en francais, de 320 a 375 px).
+        paddingInlineStart: 'clamp(44px, 9vw, 120px)',
+        paddingInlineEnd: 'clamp(20px, 7vw, 120px)',
         paddingBlock: mouvementReduit ? 'clamp(24px, 6vh, 64px)' : undefined,
         pointerEvents: 'none',
         textAlign: 'center',
@@ -77,16 +82,20 @@ export default function BandesTexte({ bandes, progression, mouvementReduit, mont
         const k = mouvementReduit ? 1 : opaciteBande(progression, bande);
         if (k <= 0.001) return null;
         /*
-         * La montee : on translate de quoi amener le HAUT de la legende a une marge du bord
-         * superieur. Le pourcentage d'un translateY se rapporte a la hauteur de l'element
-         * lui-meme, donc la formule s'adapte toute seule a une legende d'une ou de trois lignes.
+         * La montee : on translate de quoi amener le HAUT de la legende juste SOUS la barre.
+         * Le pourcentage d'un translateY se rapporte a la hauteur de l'element lui-meme, donc
+         * la formule s'adapte seule a une legende d'une ou de trois lignes.
+         *
+         * La reserve etait auparavant un 4vh fixe, soit 32 px : la legende du chapitre 3 se
+         * posait alors sur les six boutons de la barre, qui en mesure 134 sur telephone. Elle
+         * se cale desormais sur la hauteur REELLE de la barre, repliee ou non.
          */
         const vers = montee > 0 && !mouvementReduit
-          ? ` translateY(calc(${-montee} * (50svh - 50% - 4vh)))`
+          ? ` translateY(calc(${-montee} * (50svh - 50% - var(--ih-barre, 4vh) - 12px)))`
           : '';
         return (
           <div
-            key={`${bande.titre}-${i}`}
+            key={`${bande.titre.he}-${i}`}
             style={{
               gridArea: mouvementReduit ? undefined : '1 / 1',
               opacity: k,
@@ -119,7 +128,7 @@ export default function BandesTexte({ bandes, progression, mouvementReduit, mont
                 textWrap: 'balance',
               }}
             >
-              {bande.titre}
+              {dit(bande.titre, langue)}
             </h2>
             {bande.sous && (
               <p
@@ -135,7 +144,7 @@ export default function BandesTexte({ bandes, progression, mouvementReduit, mont
                   textShadow: '0 1px 18px rgba(7,10,22,0.9)',
                 }}
               >
-                {bande.sous}
+                {dit(bande.sous, langue)}
               </p>
             )}
           </div>

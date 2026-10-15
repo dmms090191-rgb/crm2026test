@@ -1,13 +1,15 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CHAPITRES, chapitreActif, hauteurTotale, progressionDe } from './chapitres';
 import FilmScrub from './FilmScrub';
-import { libererFilms, prechargerFilm } from './cacheFilms';
+import { prechargerFilm } from './cacheFilms';
 import SceneTempsReel from './SceneTempsReel';
 import BandesTexte from './BandesTexte';
 import SaisieNombres from './SaisieNombres';
 import SectionsBas from './SectionsBas';
 import RailChapitres from './RailChapitres';
 import { usePolicesHebraiques, useClavierVoyage, useProgressionVoyage, useReglagesIsraelHaya } from './useVoyage';
+import { dit, type Langue } from './langue';
+import { textesDe } from './textes';
 
 /**
  * ISRAEL HAYA — le voyage, d'un seul tenant.
@@ -39,7 +41,13 @@ const POUR_LECTEUR: React.CSSProperties = {
   border: 0,
 };
 
-export default function IsraelHayaSite({ onReserver }: { onReserver?: () => void }) {
+interface Props {
+  onReserver?: () => void;
+  langue: Langue;
+}
+
+export default function IsraelHayaSite({ onReserver, langue }: Props) {
+  const T = textesDe(langue);
   usePolicesHebraiques();
   const reglages = useReglagesIsraelHaya();
   // Le template porte SA zone de defilement : voir useProgressionVoyage pour la mesure
@@ -50,6 +58,39 @@ export default function IsraelHayaSite({ onReserver }: { onReserver?: () => void
   useClavierVoyage(zone);
   const [nombre, setNombre] = useState<number | null>(null);
 
+  /*
+   * LA MESURE DU PANNEAU DE SAISIE, pour que la camera sache ce qui lui reste de libre.
+   *
+   * Au chapitre des anneaux, le panneau se pose en bas. Sur un ecran large il tient dans un
+   * coin et les anneaux respirent a cote ; sur un telephone il prend 92 % de la largeur et les
+   * 44 % du bas, et les anneaux se retrouveraient derriere lui. La scene a donc besoin de
+   * savoir ou il commence — pas de le deviner d un @media, qui ne connait ni la hauteur reelle
+   * du panneau ni celle qu il prend quand il affiche le detail du calcul.
+   *
+   * On arrondit a huit pixels : le panneau grandit en deux temps quand il revele le nombre,
+   * et la camera n a aucune raison de bouger pour trois pixels.
+   */
+  const refScene = useRef<HTMLDivElement>(null);
+  const refPanneau = useRef<HTMLDivElement | null>(null);
+  const [panneau, setPanneau] = useState<{ haut: number; largeur: number } | null>(null);
+
+  const releverPanneau = useCallback(() => {
+    const s = refScene.current;
+    const p = refPanneau.current;
+    if (!s || !p) { setPanneau(null); return; }
+    const bs = s.getBoundingClientRect();
+    const bp = p.getBoundingClientRect();
+    if (bs.height <= 0 || bp.height <= 0) { setPanneau(null); return; }
+    const haut = Math.round((bp.top - bs.top) / 8) * 8;
+    const largeur = Math.round(bp.width / 8) * 8;
+    setPanneau(ancien => (ancien && ancien.haut === haut && ancien.largeur === largeur ? ancien : { haut, largeur }));
+  }, []);
+
+  const poserPanneau = useCallback((element: HTMLDivElement | null) => {
+    refPanneau.current = element;
+    releverPanneau();
+  }, [releverPanneau]);
+
   const total = useMemo(() => hauteurTotale(), []);
   const index = chapitreActif(progression);
   const chapitre = CHAPITRES[index];
@@ -59,21 +100,23 @@ export default function IsraelHayaSite({ onReserver }: { onReserver?: () => void
   // pour qu'elle soit deja en haut quand il arrive.
   const montee = chapitre.numero === 3 ? Math.min(1, Math.max(0, (p - 0.3) / 0.08)) : 0;
 
-  // Le document entier passe en hebreu pendant la visite, et seulement pendant.
-  useEffect(() => {
-    const html = document.documentElement;
-    const dirAvant = html.getAttribute('dir');
-    const langAvant = html.getAttribute('lang');
-    html.setAttribute('dir', 'rtl');
-    html.setAttribute('lang', 'he');
-    return () => {
-      if (dirAvant) html.setAttribute('dir', dirAvant); else html.removeAttribute('dir');
-      if (langAvant) html.setAttribute('lang', langAvant); else html.removeAttribute('lang');
-    };
-  }, []);
+  /*
+   * La DIRECTION du document et la LIBERATION des films ont quitte ce composant pour la
+   * coquille (CoquilleIsraelHaya). Les deux debordent du voyage : « A propos » et « Contact »
+   * ont besoin de la meme direction, et les films doivent survivre a un aller-retour vers une
+   * autre page — les liberer ici les faisait retelecharger a chaque passage par le menu.
+   */
 
-  // Les films gardes en memoire sont rendus quand le voyage entier quitte l'ecran.
-  useEffect(() => () => { libererFilms(); }, []);
+  // Le panneau et la scene changent de taille sans que React ne le sache : rotation de
+  // l appareil, clavier qui s ouvre, resultat qui s affiche. On les observe tous les deux.
+  useEffect(() => {
+    if (typeof ResizeObserver === 'undefined') return;
+    const observateur = new ResizeObserver(() => releverPanneau());
+    if (refScene.current) observateur.observe(refScene.current);
+    if (refPanneau.current) observateur.observe(refPanneau.current);
+    releverPanneau();
+    return () => observateur.disconnect();
+  }, [releverPanneau, index]);
 
   // Le chapitre d'avant et celui d'apres sont demandes sans etre montes.
   useEffect(() => {
@@ -90,7 +133,7 @@ export default function IsraelHayaSite({ onReserver }: { onReserver?: () => void
         tabIndex={0}
         style={{ height: '100%', minHeight: '100svh', overflowY: 'auto', background: '#070a16' }}
       >
-        <SectionsBas onReserver={onReserver} seul />
+        <SectionsBas onReserver={onReserver} seul langue={langue} />
       </div>
     );
   }
@@ -102,7 +145,7 @@ export default function IsraelHayaSite({ onReserver }: { onReserver?: () => void
       data-ih-zone
       tabIndex={0}
       role="region"
-      aria-label="מסע הנשמה"
+      aria-label={T.voyage.region}
       style={{
         background: '#070a16',
         height: '100%',
@@ -116,20 +159,37 @@ export default function IsraelHayaSite({ onReserver }: { onReserver?: () => void
     >
       {/* Le recit, pour qui ne voit pas l'ecran : un seul chapitre vit dans le DOM a la fois,
           il faut donc nommer le voyage une fois et annoncer chaque chapitre a son entree. */}
-      <h1 style={POUR_LECTEUR}>ישראל חיה — מסע הנשמה</h1>
-      <p style={POUR_LECTEUR} aria-live="polite">{chapitre.bandes[0]?.titre ?? ''}</p>
+      <h1 style={POUR_LECTEUR}>{T.voyage.titreLu}</h1>
+      <p style={POUR_LECTEUR} aria-live="polite">
+        {chapitre.bandes[0] ? dit(chapitre.bandes[0].titre, langue) : ''}
+      </p>
 
       <div ref={piste} style={{ position: 'relative', height: `${total}vh` }}>
         <div
+          ref={refScene}
           data-testid="ih-scene"
           data-ih-chapitre={chapitre.cle}
-          style={{ position: 'sticky', top: 0, height: '100svh', minHeight: 520, overflow: 'hidden' }}
+          style={{
+            position: 'sticky',
+            top: 0,
+            height: '100svh',
+            /*
+              Un plancher de 520 px tout court depassait l'ecran sur un telephone couche
+              (812 x 375) : la scene restait epinglee en haut, ses 145 px du bas ne se
+              revelaient jamais, et le bouton de calcul du chapitre 3 tombait dedans —
+              donc hors d'atteinte, alors que c'est la seule interaction du chapitre.
+              Le plancher ne peut plus depasser la hauteur reellement disponible.
+            */
+            minHeight: 'min(520px, 100svh)',
+            overflow: 'hidden',
+          }}
         >
           {chapitre.technique === 'film' && chapitre.film && chapitre.poster ? (
             <FilmScrub
               key={chapitre.cle}
               src={chapitre.film}
               poster={chapitre.poster}
+              cadrage={chapitre.cadrage}
               progression={p}
               mouvementReduit={reglages.mouvementReduit || !reglages.video}
             />
@@ -144,6 +204,9 @@ export default function IsraelHayaSite({ onReserver }: { onReserver?: () => void
               nombre={nombre}
               mouvementReduit={reglages.mouvementReduit}
               dpr={reglages.dpr}
+              hautPanneau={panneau ? panneau.haut : null}
+              largeurPanneau={panneau ? panneau.largeur : 0}
+              monteePanneau={montee}
             />
           )}
 
@@ -164,6 +227,7 @@ export default function IsraelHayaSite({ onReserver }: { onReserver?: () => void
             progression={p}
             mouvementReduit={reglages.mouvementReduit}
             montee={montee}
+            langue={langue}
           />
 
           {/*
@@ -176,6 +240,8 @@ export default function IsraelHayaSite({ onReserver }: { onReserver?: () => void
           */}
           {chapitre.numero === 3 && (
             <div
+              ref={poserPanneau}
+              data-testid="ih-panneau"
               style={{
                 position: 'absolute',
                 insetInlineEnd: 'clamp(16px, 5vw, 64px)',
@@ -190,7 +256,7 @@ export default function IsraelHayaSite({ onReserver }: { onReserver?: () => void
                 overflowY: 'auto',
               }}
             >
-              <SaisieNombres onResultat={setNombre} />
+              <SaisieNombres onResultat={setNombre} langue={langue} />
             </div>
           )}
 
@@ -212,14 +278,14 @@ export default function IsraelHayaSite({ onReserver }: { onReserver?: () => void
                 fontFamily: '"Heebo", system-ui, sans-serif',
               }}
             >
-              <span>גללו</span>
+              <span>{T.voyage.defiler}</span>
               <span style={{ width: 1, height: 26, background: 'linear-gradient(to bottom, rgba(232,205,147,0.6), transparent)' }} />
             </div>
           )}
         </div>
       </div>
 
-      <SectionsBas onReserver={onReserver} />
+      <SectionsBas onReserver={onReserver} langue={langue} />
 
       <style>{`
         @keyframes ihTourne { to { transform: rotate(360deg); } }

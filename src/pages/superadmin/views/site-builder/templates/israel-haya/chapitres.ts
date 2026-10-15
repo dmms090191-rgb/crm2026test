@@ -22,16 +22,38 @@
  * valeurs ci-dessous sont des points de depart a valider au test de molette.
  */
 
+import type { Paire } from './langue';
+
+/** Raccourci d ecriture : l hebreu d abord, puisque c est la langue d origine du site. */
+const P = (he: string, fr: string): Paire => ({ he, fr });
+
 export type Technique = 'film' | 'temps-reel';
+
+/**
+ * CE QU'UN FILM DOIT MONTRER QUAND L'ECRAN EST PLUS ETROIT QUE LUI.
+ *
+ * Les six films sont tournes en 1920 x 1074, soit un rapport de 1,79. Sur un telephone en
+ * portrait (0,46), remplir l'ecran revient a n'en montrer que 26 % de la largeur — mesure,
+ * pas estimee. Pour la plupart des chapitres, ce recadrage est une AUBAINE : une ruelle de
+ * Jerusalem ou un cabinet aux bougies ont de la matiere partout, et la version telephone est
+ * une belle image serree.
+ *
+ * Pour la carte de visite, non : le sujet est un objet LARGE ET PLAT, pose a plat. En garder
+ * le quart central ne laisse qu'une bande beige, et le visiteur ne voit plus que c'est une
+ * carte. Ce chapitre demande donc a etre vu ENTIER, quitte a ne pas remplir la hauteur — le
+ * reste du cadre etant tenu par son propre poster, agrandi et floute, pour que l'image ne
+ * flotte pas sur deux bandes noires.
+ */
+export type Cadrage = 'couvrir' | 'entier';
 
 /** Une legende, posee sur une plage de progression du chapitre. */
 export interface Bande {
   /** Debut et fin dans la progression du chapitre, de 0 a 1. */
   de: number;
   a: number;
-  /** Texte hebreu. */
-  titre: string;
-  sous?: string;
+  /** La legende, dans les deux langues. */
+  titre: Paire;
+  sous?: Paire;
   /**
    * Bande d OUVERTURE : posee des le chargement, sans attendre le defilement.
    * Sans elle le visiteur arrive sur une image muette et doit deviner qu il faut
@@ -49,6 +71,8 @@ export interface Chapitre {
   /** Fichier du film, pour les chapitres filmes. */
   film?: string;
   poster?: string;
+  /** Cadrage du film sur un ecran plus etroit que lui. Par defaut : 'couvrir'. */
+  cadrage?: Cadrage;
   bandes: Bande[];
 }
 
@@ -61,8 +85,8 @@ export const CHAPITRES: readonly Chapitre[] = [
     film: '/israel-haya/ch01.mp4',
     poster: '/israel-haya/ch01-poster.jpg',
     bandes: [
-      { de: 0, a: 0.52, titre: 'ישראל חיה', sous: 'מסע הנשמה', posee: true },
-      { de: 0.60, a: 0.97, titre: 'כל התחלה היא אור קטן' },
+      { de: 0, a: 0.52, titre: P('ישראל חיה', 'Israel Haya'), sous: P('מסע הנשמה', 'Le voyage de l’âme'), posee: true },
+      { de: 0.60, a: 0.97, titre: P('כל התחלה היא אור קטן', 'Tout commencement est une petite lumière') },
     ],
   },
   {
@@ -73,8 +97,8 @@ export const CHAPITRES: readonly Chapitre[] = [
     film: '/israel-haya/ch02.mp4',
     poster: '/israel-haya/ch02-poster.jpg',
     bandes: [
-      { de: 0.05, a: 0.45, titre: 'שערי ירושלים', sous: 'אבן, אור ואבק' },
-      { de: 0.55, a: 0.95, titre: 'האותיות מתעוררות' },
+      { de: 0.05, a: 0.45, titre: P('שערי ירושלים', 'Les portes de Jérusalem'), sous: P('אבן, אור ואבק', 'Pierre, lumière et poussière') },
+      { de: 0.55, a: 0.95, titre: P('האותיות מתעוררות', 'Les lettres s’éveillent') },
     ],
   },
   {
@@ -83,8 +107,8 @@ export const CHAPITRES: readonly Chapitre[] = [
     technique: 'temps-reel',
     vh: 700,
     bandes: [
-      { de: 0.03, a: 0.30, titre: 'מפת המספרים', sous: 'סובבו את הטבעות' },
-      { de: 0.38, a: 0.95, titre: 'הזינו שם ותאריך לידה' },
+      { de: 0.03, a: 0.30, titre: P('מפת המספרים', 'La carte des nombres'), sous: P('סובבו את הטבעות', 'Faites tourner les anneaux') },
+      { de: 0.38, a: 0.95, titre: P('הזינו שם ותאריך לידה', 'Entrez un prénom et une date de naissance') },
     ],
   },
   {
@@ -93,8 +117,8 @@ export const CHAPITRES: readonly Chapitre[] = [
     technique: 'temps-reel',
     vh: 600,
     bandes: [
-      { de: 0.05, a: 0.40, titre: 'עץ החיים', sous: 'מהשורש אל הענף' },
-      { de: 0.52, a: 0.96, titre: 'מה שנזרע, גדל' },
+      { de: 0.05, a: 0.40, titre: P('עץ החיים', 'L’arbre de vie'), sous: P('מהשורש אל הענף', 'De la racine à la branche') },
+      { de: 0.52, a: 0.96, titre: P('מה שנזרע, גדל', 'Ce qui est semé grandit') },
     ],
   },
   {
@@ -105,18 +129,19 @@ export const CHAPITRES: readonly Chapitre[] = [
     film: '/israel-haya/ch05.mp4',
     poster: '/israel-haya/ch05-poster.jpg',
     bandes: [
-      { de: 0.05, a: 0.45, titre: 'מקום להקשיב', sous: 'פגישה אישית, בשקט' },
-      { de: 0.55, a: 0.95, titre: 'לקביעת פגישה' },
+      { de: 0.05, a: 0.45, titre: P('מקום להקשיב', 'Un lieu pour écouter'), sous: P('פגישה אישית, בשקט', 'Une rencontre personnelle, au calme') },
+      { de: 0.55, a: 0.95, titre: P('לקביעת פגישה', 'Prendre rendez-vous') },
     ],
   },
   {
     numero: 6,
     cle: 'carte',
     technique: 'film',
+    cadrage: 'entier',
     vh: 400,
     film: '/israel-haya/ch06.mp4',
     poster: '/israel-haya/ch06-poster.jpg',
-    bandes: [{ de: 0.10, a: 0.95, titre: 'ישראל חיה', sous: 'ייעוץ אישי' }],
+    bandes: [{ de: 0.10, a: 0.95, titre: P('ישראל חיה', 'Israel Haya'), sous: P('ייעוץ אישי', 'Consultation individuelle') }],
   },
 ];
 

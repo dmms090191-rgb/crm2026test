@@ -26,6 +26,9 @@ interface Props {
   mouvementReduit: boolean;
 }
 
+/** Echelle du groupe : elle sert aussi a convertir le centre de l arbre en unites de scene. */
+const ECHELLE = 0.92;
+
 const ECORCE = '#6b5a44';
 const FEUILLE_CLAIRE = '#9fb37a';
 
@@ -76,6 +79,31 @@ export default function ArbreDeVie({ progression, mouvementReduit }: Props) {
     [],
   );
 
+  /*
+   * L'ARBRE N'EST PAS SYMETRIQUE, et il n'a aucune raison de l'etre : son houppier penche,
+   * comme celui d'un olivier. Mais un objet decentre coute cher au cadrage, parce que le
+   * cadre doit tenir son cote le plus large DES DEUX COTES : mesure sur le rendu, le houppier
+   * s'etendait a 3,51 unites d'un cote du centre de l'ecran pour 2,95 de largeur reelle. On
+   * reculait donc la camera de 20 % de trop sur telephone pour cadrer du vide.
+   *
+   * On le pose sur SON centre, pas sur zero. L'arbre garde exactement sa silhouette ; c'est le
+   * piquet qui se deplace. La geometrie etant reproductible (voir la graine dans arbre.ts), ce
+   * centre est le meme a chaque chargement, et il se recalcule tout seul si l'arbre change.
+   */
+  const centreX = useMemo(() => {
+    let min = Infinity;
+    let max = -Infinity;
+    for (const s of arbre.segments) {
+      min = Math.min(min, s.x1, s.x2);
+      max = Math.max(max, s.x1, s.x2);
+    }
+    for (const f of arbre.feuilles) {
+      min = Math.min(min, f.x);
+      max = Math.max(max, f.x);
+    }
+    return Number.isFinite(min) && Number.isFinite(max) ? (min + max) / 2 : 0;
+  }, [arbre]);
+
   const objet = useMemo(() => new THREE.Object3D(), []);
 
   useFrame((_etat, delta) => {
@@ -101,7 +129,7 @@ export default function ArbreDeVie({ progression, mouvementReduit }: Props) {
   });
 
   return (
-    <group position={[0, -2.5, 0]} scale={0.92}>
+    <group position={[-centreX * ECHELLE, -2.5, 0]} scale={ECHELLE}>
       <instancedMesh ref={branches} args={[undefined, undefined, plan.length]} castShadow frustumCulled={false}>
         <cylinderGeometry args={[1, 1, 1, 7, 1]} />
         <meshStandardMaterial color={ECORCE} roughness={0.92} metalness={0} />

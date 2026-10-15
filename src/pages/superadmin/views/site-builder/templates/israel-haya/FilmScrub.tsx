@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import type { Cadrage } from './chapitres';
 import { obtenirFilm } from './cacheFilms';
 
 /**
@@ -33,6 +34,8 @@ interface Props {
   /** Chemin du film encode pour le scrub (images cles rapprochees). */
   src: string;
   poster: string;
+  /** Cadrage voulu sur un ecran plus etroit que le film. Par defaut : 'couvrir'. */
+  cadrage?: Cadrage;
   /** Progression du chapitre, de 0 a 1. */
   progression: number;
   /** Mouvement reduit : on ne scrubbe pas, on montre l'image finale. */
@@ -44,7 +47,8 @@ const REPOS = 0.0004;
 /** Force de l'amortissement, par pas de 16,667 ms. */
 const K = 0.16;
 
-export default function FilmScrub({ src, poster, progression, mouvementReduit }: Props) {
+export default function FilmScrub({ src, poster, cadrage = 'couvrir', progression, mouvementReduit }: Props) {
+  const cadre = useRef<HTMLDivElement>(null);
   const video = useRef<HTMLVideoElement>(null);
   const [pret, setPret] = useState(false);
   const [echec, setEchec] = useState(false);
@@ -140,15 +144,91 @@ export default function FilmScrub({ src, poster, progression, mouvementReduit }:
 
   useEffect(() => () => { if (raf.current !== null) cancelAnimationFrame(raf.current); }, []);
 
+  /*
+   * ---------- LE CADRAGE, QUAND L'ECRAN EST PLUS ETROIT QUE LE FILM ----------
+   *
+   * Remplir l'ecran avec un film de rapport 1,79 sur un telephone de rapport 0,46 n'en
+   * laisse voir que 26 % de la largeur. Pour la plupart des chapitres c'est un beau
+   * recadrage ; pour un sujet large et plat, c'est la perte du sujet. Voir chapitres.ts.
+   *
+   * Le rapport du film n'est pas ecrit en dur : il est lu sur le POSTER, qui a les memes
+   * dimensions et arrive bien avant la video. Un film reencode dans un autre format sera
+   * donc cadre correctement sans que personne ait a retoucher ce fichier.
+   */
+  const [ratioFilm, setRatioFilm] = useState<number | null>(null);
+  const [boite, setBoite] = useState<{ l: number; h: number } | null>(null);
+
+  useEffect(() => {
+    if (typeof ResizeObserver === 'undefined') return;
+    const element = cadre.current;
+    if (!element) return;
+    const relever = () => {
+      const b = element.getBoundingClientRect();
+      setBoite(ancien => (ancien && Math.abs(ancien.l - b.width) < 1 && Math.abs(ancien.h - b.height) < 1
+        ? ancien : { l: b.width, h: b.height }));
+    };
+    const observateur = new ResizeObserver(relever);
+    observateur.observe(element);
+    relever();
+    return () => observateur.disconnect();
+  }, []);
+
+  // En deca de ce seuil, on perd plus du quart de la largeur du film : le sujet n'y survit pas.
+  const partVue = ratioFilm && boite && boite.h > 0 ? Math.min(1, boite.l / boite.h / ratioFilm) : 1;
+  const entier = cadrage === 'entier' && partVue < 0.72;
+  /*
+   * Vu en entier, le film s'arrete net en haut et en bas sur le fond floute : deux coutures
+   * horizontales, et l'image cesse d'etre une scene pour devenir une video dans un cadre. On
+   * fait donc fondre ses deux bords dans le fond, qui montre de toute facon la meme matiere.
+   *
+   * Le fondu ne peut pas etre pose sur une boite pleine page en objectFit 'contain' : le
+   * masque porterait sur la BOITE, dont les bords sont deja transparents, et pas sur l'image,
+   * qui occupe une bande en son milieu. On donne donc a la bande sa boite exacte — meme
+   * rapport que le film — et le masque tombe alors juste.
+   *
+   * Sept pour cent de fondu : assez pour effacer la couture, assez peu pour que le sujet,
+   * centre dans l'image, n'y perde rien.
+   */
+  const bande: React.CSSProperties = entier && boite && ratioFilm
+    ? {
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        top: Math.round((boite.h - boite.l / ratioFilm) / 2),
+        height: Math.round(boite.l / ratioFilm),
+        objectFit: 'cover',
+        maskImage: 'linear-gradient(to bottom, transparent 0%, #000 7%, #000 93%, transparent 100%)',
+        WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, #000 7%, #000 93%, transparent 100%)',
+      }
+    : { position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' };
+
   const scrubActif = pret && !echec && !mouvementReduit;
 
   return (
-    <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', background: '#070a16' }}>
+    <div ref={cadre} style={{ position: 'absolute', inset: 0, overflow: 'hidden', background: '#070a16' }}>
+      {/* Le fond : le poster lui-meme, agrandi et floute, pour que le film vu en entier ne
+          flotte pas entre deux bandes noires. Il ne coute aucun telechargement de plus —
+          c'est la meme image que celle du dessus, deja dans le cache du navigateur. */}
+      {entier && (
+        <img
+          src={poster}
+          alt=""
+          aria-hidden
+          style={{
+            position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover',
+            transform: 'scale(1.2)', filter: 'blur(30px) brightness(0.66) saturate(0.95)',
+          }}
+        />
+      )}
       <img
         src={poster}
         alt=""
         aria-hidden
-        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+        onLoad={evenement => {
+          const img = evenement.currentTarget;
+          if (img.naturalWidth > 0 && img.naturalHeight > 0) setRatioFilm(img.naturalWidth / img.naturalHeight);
+        }}
+        style={bande}
       />
       <video
         ref={video}
@@ -158,11 +238,7 @@ export default function FilmScrub({ src, poster, progression, mouvementReduit }:
         aria-hidden
         tabIndex={-1}
         style={{
-          position: 'absolute',
-          inset: 0,
-          width: '100%',
-          height: '100%',
-          objectFit: 'cover',
+          ...bande,
           opacity: scrubActif ? 1 : 0,
           transition: 'opacity 420ms ease',
         }}

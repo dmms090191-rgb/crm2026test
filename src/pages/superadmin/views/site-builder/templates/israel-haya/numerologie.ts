@@ -24,6 +24,11 @@
  * Module PUR : aucun import, donc verifiable sans navigateur.
  */
 
+import type { Paire } from './langue';
+
+/** Raccourci : hebreu d abord, langue d origine du site. */
+const P = (he: string, fr: string): Paire => ({ he, fr });
+
 export interface Resultat {
   /** Le nombre obtenu, de 1 a 9, ou un nombre maitre si la methode en produit. */
   nombre: number;
@@ -130,19 +135,19 @@ export function salutation(prenom: string): string {
  * de reflexion, pas des predictions, et aucune ne se reclame d'une source religieuse.
  * Elles seront remplacees par les interpretations de la praticienne.
  */
-export const THEMES: Record<number, { titre: string; texte: string }> = {
-  1: { titre: 'התחלה', texte: 'כוח של פתיחה, יוזמה ועמידה עצמאית.' },
-  2: { titre: 'קשב', texte: 'רגישות לזולת, שיתוף פעולה ואיזון.' },
-  3: { titre: 'ביטוי', texte: 'יצירתיות, מילים ושמחה שמדבקת.' },
-  4: { titre: 'יסוד', texte: 'סדר, התמדה ובנייה לאורך זמן.' },
-  5: { titre: 'תנועה', texte: 'שינוי, סקרנות וחופש פעולה.' },
-  6: { titre: 'אחריות', texte: 'משפחה, נתינה ודאגה לסובבים.' },
-  7: { titre: 'עומק', texte: 'התבוננות, לימוד ושקט פנימי.' },
-  8: { titre: 'מימוש', texte: 'כוח מעשי, ניהול ותוצאה בעולם.' },
-  9: { titre: 'מסירה', texte: 'ראייה רחבה, חמלה וסגירת מעגל.' },
-  11: { titre: 'השראה', texte: 'רגישות גבוהה וחיבור לאינטואיציה.' },
-  22: { titre: 'בנייה', texte: 'חזון גדול שמבקש להיעשות מעשי.' },
-  33: { titre: 'הוראה', texte: 'נתינה רחבה דרך לימוד וליווי.' },
+export const THEMES: Record<number, { titre: Paire; texte: Paire }> = {
+  1: { titre: P('התחלה', 'Commencement'), texte: P('כוח של פתיחה, יוזמה ועמידה עצמאית.', 'Une force d’ouverture, d’initiative et d’autonomie.') },
+  2: { titre: P('קשב', 'Écoute'), texte: P('רגישות לזולת, שיתוף פעולה ואיזון.', 'Sensibilité à l’autre, coopération et équilibre.') },
+  3: { titre: P('ביטוי', 'Expression'), texte: P('יצירתיות, מילים ושמחה שמדבקת.', 'Créativité, mots, et une joie qui se communique.') },
+  4: { titre: P('יסוד', 'Fondation'), texte: P('סדר, התמדה ובנייה לאורך זמן.', 'Ordre, constance et construction dans la durée.') },
+  5: { titre: P('תנועה', 'Mouvement'), texte: P('שינוי, סקרנות וחופש פעולה.', 'Changement, curiosité et liberté d’action.') },
+  6: { titre: P('אחריות', 'Responsabilité'), texte: P('משפחה, נתינה ודאגה לסובבים.', 'Famille, don de soi et attention aux proches.') },
+  7: { titre: P('עומק', 'Profondeur'), texte: P('התבוננות, לימוד ושקט פנימי.', 'Observation, étude et calme intérieur.') },
+  8: { titre: P('מימוש', 'Réalisation'), texte: P('כוח מעשי, ניהול ותוצאה בעולם.', 'Force pratique, conduite et résultat concret.') },
+  9: { titre: P('מסירה', 'Transmission'), texte: P('ראייה רחבה, חמלה וסגירת מעגל.', 'Vue d’ensemble, compassion, et un cercle qui se referme.') },
+  11: { titre: P('השראה', 'Inspiration'), texte: P('רגישות גבוהה וחיבור לאינטואיציה.', 'Grande sensibilité et lien à l’intuition.') },
+  22: { titre: P('בנייה', 'Édification'), texte: P('חזון גדול שמבקש להיעשות מעשי.', 'Une vision large qui demande à devenir concrète.') },
+  33: { titre: P('הוראה', 'Enseignement'), texte: P('נתינה רחבה דרך לימוד וליווי.', 'Un don de soi large, par l’étude et l’accompagnement.') },
 };
 
 /** Le theme d'un nombre, ou celui de 9 si la methode produit un nombre inattendu. */
