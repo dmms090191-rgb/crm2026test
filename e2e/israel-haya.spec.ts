@@ -853,3 +853,98 @@ test('EN HEBREU, les boutons sans texte portent un nom hebreu', async ({ page })
   await frame.waitForTimeout(300);
   await expect(voile.locator('button[aria-label="מחיקה"]')).toHaveCount(1);
 });
+
+/*
+ * ---------- LE VOYAGE NE DOIT DEPENDRE D AUCUN PARENT ----------
+ *
+ * Ce test rejoue le defaut qui a rendu le site INUTILISABLE sur telephone, en production, et
+ * qu aucune des 230 mesures precedentes ne pouvait voir : toutes passaient par /site-apercu,
+ * qui monte le template directement sous #root. La page PUBLIQUE, elle, l enveloppe dans
+ * <ThemeProvider>, qui rend un <div> sans aucune hauteur (ThemeContext.tsx). La chaine de
+ * `height: 100%` cassait sur ce div, la zone de defilement prenait la hauteur de son CONTENU
+ * — 27 439 px au lieu de 812 — et ne defilait donc plus du tout : scrollTop reste a 0, la
+ * course utile devient negative (25 984 - 27 439 = -1 455), la progression est bloquee a 0 et
+ * le voyage ne quitte jamais son premier chapitre. Le visiteur faisait defiler la page et ne
+ * voyait que la premiere image, puis pres de 26 000 px de piste vide.
+ *
+ * On casse donc la chaine exactement comme la page publique le fait, et on exige que le
+ * voyage se comporte comme si de rien n etait.
+ */
+test('LE VOYAGE marche meme quand un parent n a pas de hauteur (cas de la page publique)', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  const frame = await ouvrir(page);
+
+  // On rend #root de hauteur AUTO : la meme rupture que <ThemeProvider> sur le site public.
+  await frame.evaluate(() => {
+    const r = document.getElementById('root')!;
+    r.style.height = 'auto';
+    r.style.minHeight = '0';
+  });
+  await frame.waitForTimeout(1500);
+
+  const etat = await frame.evaluate(() => {
+    const z = document.querySelector('[data-testid="ih-zone"]') as HTMLElement;
+    const s = document.querySelector('[data-testid="ih-scene"]') as HTMLElement;
+    return {
+      hauteurZone: Math.round(z.getBoundingClientRect().height),
+      hauteurScene: Math.round(s.getBoundingClientRect().height),
+      fenetre: window.innerHeight,
+      defile: z.scrollHeight > z.clientHeight + 1,
+      course: s.parentElement!.offsetHeight - z.clientHeight,
+    };
+  });
+
+  expect(etat.hauteurZone, 'la zone doit faire la hauteur de l ecran, pas celle de son contenu').toBe(etat.fenetre);
+  expect(etat.hauteurScene, 'la scene doit couvrir exactement l ecran').toBe(etat.fenetre);
+  expect(etat.defile, 'la zone doit rester un conteneur qui defile').toBe(true);
+  expect(etat.course, 'la course utile doit rester largement positive').toBeGreaterThan(etat.fenetre * 20);
+
+  // Et le voyage avance vraiment : le chapitre change.
+  await allerAuChapitre(frame, 'anneaux', 0.5);
+  await allerAuChapitre(frame, 'carte', 0.5);
+});
+
+test('LA SCENE suit la fenetre quand la barre d adresse se retire, sans deplacer la lecture', async ({ page }) => {
+  /*
+   * Sur un telephone, retirer la barre d adresse agrandit la fenetre de 60 a 120 px. Une scene
+   * figee a `100svh` aurait alors laisse une bande vide en bas — le meme defaut en plus petit.
+   * Et un simple recalcul de scrollTop / course aurait deplace la tete de lecture : la piste
+   * grandit avec la fenetre, mais le navigateur garde scrollTop en pixels.
+   */
+  await page.setViewportSize({ width: 375, height: 812 });
+  const frame = await ouvrir(page);
+  await allerAuChapitre(frame, 'anneaux', 0.5);
+
+  const lire = () => frame.evaluate(() => {
+    const z = document.querySelector('[data-testid="ih-zone"]') as HTMLElement;
+    const s = document.querySelector('[data-testid="ih-scene"]') as HTMLElement;
+    const b = s.getBoundingClientRect();
+    return {
+      fenetre: window.innerHeight,
+      hauteurScene: Math.round(b.height),
+      bandeVideEnBas: Math.round(window.innerHeight - b.bottom),
+      chapitre: s.getAttribute('data-ih-chapitre'),
+      progression: z.scrollTop / Math.max(1, s.parentElement!.offsetHeight - z.clientHeight),
+    };
+  });
+
+  const avant = await lire();
+
+  // La barre d adresse se retire : la fenetre grandit de 110 px, sans rechargement.
+  await page.setViewportSize({ width: 375, height: 922 });
+  await frame.waitForTimeout(2000);
+  const pendant = await lire();
+  expect(pendant.hauteurScene, 'la scene doit suivre la fenetre agrandie').toBe(pendant.fenetre);
+  expect(Math.abs(pendant.bandeVideEnBas), 'aucune bande vide sous la scene').toBeLessThanOrEqual(1);
+
+  // Et elle revient.
+  await page.setViewportSize({ width: 375, height: 812 });
+  await frame.waitForTimeout(2000);
+  const apres = await lire();
+  expect(apres.hauteurScene).toBe(apres.fenetre);
+  expect(Math.abs(apres.bandeVideEnBas)).toBeLessThanOrEqual(1);
+
+  // La tete de lecture n a pas bouge : le voyage est reste au meme endroit de son histoire.
+  expect(apres.chapitre, 'le chapitre doit etre le meme qu avant').toBe(avant.chapitre);
+  expect(Math.abs(apres.progression - avant.progression), 'la lecture a derive').toBeLessThan(0.02);
+});

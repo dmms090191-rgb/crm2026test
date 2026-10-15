@@ -7,7 +7,7 @@ import PageAPropos from './PageAPropos';
 import PageContact from './PageContact';
 import { libererFilms } from './cacheFilms';
 import { directionDe, etiquetteLangue, useLangue } from './langue';
-import { usePolicesHebraiques } from './useVoyage';
+import { useHauteurVue, usePolicesHebraiques } from './useVoyage';
 
 /**
  * LA COQUILLE DU SITE : la langue, la page affichee, et la connexion.
@@ -86,11 +86,37 @@ export default function CoquilleIsraelHaya({ domainCompanyId, onDomainLogin, app
   // Les films gardes en memoire sont rendus quand le site entier quitte l'ecran.
   useEffect(() => () => { libererFilms(); }, []);
 
+  /*
+   * LA HAUTEUR DE LA SCENE, MESUREE ICI ET NULLE PART AILLEURS.
+   *
+   * Le voyage et les deux pages la lisent dans `--ih-vue`. Une seule mesure, un seul
+   * endroit : deux composants qui calculeraient chacun leur hauteur finiraient par se
+   * contredire, exactement comme les deux reserves de barre de navigation avant elles.
+   *
+   * Avant la premiere mesure, le repli `100svh` tient la scene. Il est deja bien meilleur
+   * qu'un `height: 100%` : svh ne depend d'aucun parent. Voir useHauteurVue pour le defaut
+   * que le pourcentage a cause sur le site public.
+   */
+  const hauteurVue = useHauteurVue();
+  const scene = hauteurVue > 0 ? `${hauteurVue}px` : '100svh';
+
   return (
     <div
       data-testid="ih-coquille"
       data-ih-page={page}
-      style={{ position: 'relative', height: '100%', minHeight: '100svh', background: '#070a16' }}
+      style={{
+        position: 'relative',
+        /*
+          Hauteur MESUREE, jamais heritee. `height: 100%` exigeait que chaque parent jusqu a
+          la racine porte une hauteur definie : vrai dans l'apercu, faux sur la page publique,
+          ou <ThemeProvider> intercale un <div> sans hauteur. La chaine cassait, la scene
+          prenait la taille de son CONTENU — 27 439 px — et le voyage se figeait.
+        */
+        height: scene,
+        background: '#070a16',
+        // Publiee pour le voyage ET pour les deux pages : une seule verite.
+        ['--ih-vue' as string]: scene,
+      } as React.CSSProperties}
     >
       <BarreNavigation
         page={page}

@@ -131,7 +131,7 @@ export default function IsraelHayaSite({ onReserver, langue }: Props) {
     return (
       <div
         tabIndex={0}
-        style={{ height: '100%', minHeight: '100svh', overflowY: 'auto', background: '#070a16' }}
+        style={{ height: 'var(--ih-vue, 100svh)', overflowY: 'auto', background: '#070a16' }}
       >
         <SectionsBas onReserver={onReserver} seul langue={langue} />
       </div>
@@ -148,8 +148,13 @@ export default function IsraelHayaSite({ onReserver, langue }: Props) {
       aria-label={T.voyage.region}
       style={{
         background: '#070a16',
-        height: '100%',
-        minHeight: '100svh',
+        /*
+          Hauteur MESUREE, publiee par la coquille. Un `height: 100%` ne vaut que si TOUS les
+          parents ont une hauteur definie ; sur la page publique ce n etait pas le cas, la
+          zone prenait la hauteur de son contenu et ne defilait plus du tout. Voir
+          useHauteurVue.
+        */
+        height: 'var(--ih-vue, 100svh)',
         overflowY: 'auto',
         overflowX: 'hidden',
         // Sans cela, le navigateur tente de garder a l'ecran l'element qu'il juge ancre, et
@@ -164,7 +169,13 @@ export default function IsraelHayaSite({ onReserver, langue }: Props) {
         {chapitre.bandes[0] ? dit(chapitre.bandes[0].titre, langue) : ''}
       </p>
 
-      <div ref={piste} style={{ position: 'relative', height: `${total}vh` }}>
+      {/*
+        La piste vaut exactement N fois la scene. Elle etait exprimee en `vh`, qui vise la
+        FENETRE et non la scene : sur telephone, `vh` vaut la hauteur barre d'adresse CACHEE,
+        donc la piste et la scene ne parlaient pas de la meme hauteur. En multiple de
+        `--ih-vue`, chaque chapitre recoit sa part au pixel pres, dans les deux orientations.
+      */}
+      <div ref={piste} style={{ position: 'relative', height: `calc(var(--ih-vue, 100svh) * ${total / 100})` }}>
         <div
           ref={refScene}
           data-testid="ih-scene"
@@ -172,15 +183,13 @@ export default function IsraelHayaSite({ onReserver, langue }: Props) {
           style={{
             position: 'sticky',
             top: 0,
-            height: '100svh',
             /*
-              Un plancher de 520 px tout court depassait l'ecran sur un telephone couche
-              (812 x 375) : la scene restait epinglee en haut, ses 145 px du bas ne se
-              revelaient jamais, et le bouton de calcul du chapitre 3 tombait dedans —
-              donc hors d'atteinte, alors que c'est la seule interaction du chapitre.
-              Le plancher ne peut plus depasser la hauteur reellement disponible.
+              Exactement la hauteur visible, mesuree. Ni `100%` (qui dependait des parents et
+              cassait sur la page publique), ni `100svh` fige (qui laisse une bande vide des
+              que la barre d'adresse se retire), ni plancher en pixels (qui depassait l ecran
+              d'un telephone couche et mettait le bouton de calcul hors d'atteinte).
             */
-            minHeight: 'min(520px, 100svh)',
+            height: 'var(--ih-vue, 100svh)',
             overflow: 'hidden',
           }}
         >

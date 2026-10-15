@@ -27,9 +27,12 @@ import { useEffect, useRef, useState, type RefObject } from 'react';
  * tout : scrollHeight restait egal a innerHeight, et le voyage ne quittait jamais son premier
  * chapitre.
  *
- * Le template cree donc SA propre zone de defilement et lit sa position. C'est aussi ce qui le
- * rend portable : il se comporte pareil dans l'apercu, dans une page publique et en plein
- * ecran, sans rien savoir de son hote.
+ * Le template cree donc SA propre zone de defilement et lit sa position.
+ *
+ * ATTENTION — cette zone tire sa hauteur de `useHauteurVue`, en PIXELS MESURES, et surtout
+ * PAS d'un `height: 100%` : voir ce crochet pour le defaut qu'un pourcentage a cause sur le
+ * site public. Tant que la scene est mesuree, la course utile vaut 31 fois sa hauteur et ne
+ * peut plus devenir negative.
  */
 export function useProgressionVoyage(
   conteneur: RefObject<HTMLElement | null>,
@@ -104,6 +107,83 @@ export function useProgressionVoyage(
   }, [conteneur, piste]);
 
   return progression;
+}
+
+/**
+ * LA HAUTEUR REELLEMENT VISIBLE, EN PIXELS — et pourquoi le voyage ne peut pas s'en passer.
+ *
+ * ---------- LE DEFAUT QUE CE CROCHET CORRIGE ----------
+ *
+ * Le voyage se donnait sa scene en `height: 100%`. Un pourcentage ne vaut quelque chose que
+ * si CHAQUE parent, jusqu'a la racine, porte une hauteur definie. C'etait vrai dans l'apercu
+ * de Talvex, qui monte le template directement sous #root. Ce ne l'est PAS sur une page
+ * publique : App.tsx enveloppe le site dans <ThemeProvider>, qui rend un <div> sans aucune
+ * hauteur (ThemeContext.tsx). La chaine se casse sur ce div, et `height: 100%` retombe sur
+ * `auto`, donc sur la hauteur du CONTENU.
+ *
+ * Mesure faite sur barbiewellness.com, telephone 375 x 812 :
+ *   zone de defilement : 27 439 px au lieu de 812   (elle ne defile donc plus)
+ *   course utile       : 25 984 - 27 439 = -1 455   (negative)
+ *   progression        : bloquee a 0, chapitre fige sur << naissance >>
+ * Le visiteur faisait alors defiler la PAGE, voyait la premiere image collee en haut, puis
+ * pres de 26 000 px de piste vide : l'immense zone bleu nuit signalee.
+ *
+ * ---------- POURQUOI DES PIXELS MESURES, ET NON `100svh` ----------
+ *
+ * `100svh` reglerait la dependance aux parents, mais pas le telephone : svh est la hauteur
+ * de l'ecran BARRE D'ADRESSE AFFICHEE. Des qu'elle se retire, la fenetre grandit de 60 a
+ * 120 px et la scene, figee a svh, laisse une bande vide en bas — le meme defaut en plus
+ * petit. `100dvh` suit la fenetre, mais relance une mise en page a chaque image pendant que
+ * la barre glisse.
+ *
+ * On MESURE donc, une fois par image au plus, et on publie le resultat dans une variable CSS.
+ * La scene, la piste et les pages en dependent toutes : une seule verite, et elle est juste.
+ *
+ * ---------- LE CLAVIER NE DOIT PAS REDIMENSIONNER LE VOYAGE ----------
+ *
+ * Sur Android, ouvrir le clavier reduit innerHeight. Au chapitre des anneaux, le visiteur
+ * saisit son prenom et sa date : la scene entiere se serait alors ecrasee, et la piste avec
+ * elle. On ignore donc toute diminution brutale pendant qu'un champ a le focus — un clavier
+ * ne change pas la taille de l'ecran, seulement ce qu'il en reste.
+ */
+export function useHauteurVue(): number {
+  const [hauteur, setHauteur] = useState(0);
+
+  useEffect(() => {
+    let demande = 0;
+    let plafond = 0;
+
+    const mesurer = () => {
+      demande = 0;
+      const brut = Math.round(window.visualViewport?.height ?? window.innerHeight);
+      if (!(brut > 0)) return;
+      plafond = Math.max(plafond, brut);
+
+      const actif = document.activeElement;
+      const saisieEnCours = !!actif && (
+        actif.tagName === 'INPUT' || actif.tagName === 'TEXTAREA' || (actif as HTMLElement).isContentEditable
+      );
+      // Une chute de plus d un quart pendant une saisie : c est un clavier, pas un ecran.
+      if (saisieEnCours && brut < plafond * 0.75) return;
+
+      setHauteur(ancienne => (Math.abs(ancienne - brut) >= 1 ? brut : ancienne));
+    };
+
+    const planifier = () => { if (!demande) demande = requestAnimationFrame(mesurer); };
+
+    mesurer();
+    window.addEventListener('resize', planifier);
+    window.addEventListener('orientationchange', planifier);
+    window.visualViewport?.addEventListener('resize', planifier);
+    return () => {
+      if (demande) cancelAnimationFrame(demande);
+      window.removeEventListener('resize', planifier);
+      window.removeEventListener('orientationchange', planifier);
+      window.visualViewport?.removeEventListener('resize', planifier);
+    };
+  }, []);
+
+  return hauteur;
 }
 
 export interface ReglagesVoyage {

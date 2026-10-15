@@ -19,9 +19,13 @@ export const OR = '#e8cd93';
 export const CREME = '#f4ece0';
 export const NUIT = '#070a16';
 
+/*
+ * Hauteur MESUREE, publiee par la coquille dans `--ih-vue`. Ces deux pages portaient elles
+ * aussi un `height: 100%` : sur la page publique, ou <ThemeProvider> intercale un <div> sans
+ * hauteur, elles cessaient de defiler par elles-memes exactement comme le voyage.
+ */
 export const zonePage: React.CSSProperties = {
-  height: '100%',
-  minHeight: '100svh',
+  height: 'var(--ih-vue, 100svh)',
   overflowY: 'auto',
   overflowX: 'hidden',
   overflowAnchor: 'none',
