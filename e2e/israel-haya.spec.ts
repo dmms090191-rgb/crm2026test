@@ -764,14 +764,40 @@ test('LES ANNEAUX tiennent dans le cadre sur telephone, et le panneau ne les rec
   }
 });
 
-test('L ARBRE tient dans le cadre sur telephone, racines comprises', async ({ page }) => {
-  for (const [l, h] of [[320, 720], [375, 812]]) {
+test('L ARBRE DE VIE est un film, et il remplit le cadre sur telephone', async ({ page }) => {
+  /*
+   * Ce chapitre etait la seule scene calculee en temps reel des six, et cela se voyait : a cote
+   * de la ruelle de Jerusalem et du cabinet aux bougies, un olivier fait de cylindres et de
+   * points lisait comme une maquette. Il est desormais filme comme ses voisins.
+   *
+   * Le test change donc de nature : on ne verifie plus qu'un objet 3D tient dans le cadre, mais
+   * que le film occupe la scene entiere — c'est ce qui garantit qu'aucune bande vide n'apparait,
+   * et le chapitre ne declare pas le cadrage << entier >> reserve a la carte de visite.
+   */
+  for (const [l, h] of [[320, 720], [375, 812], [412, 915]]) {
     await page.setViewportSize({ width: l, height: h });
     const frame = await ouvrir(page);
-    // Aux deux tiers du chapitre : le houppier est sorti, les racines aussi.
     await allerAuChapitre(frame, 'arbre', 0.66);
-    const part = await matiereAuBord(page, frame, l, h);
-    expect(part, `${l}x${h} : l arbre deborde du cadre`).toBeLessThan(0.05);
+
+    const etat = await frame.evaluate(() => {
+      const scene = document.querySelector('[data-testid="ih-scene"]')!.getBoundingClientRect();
+      const video = document.querySelector('video');
+      const toile = document.querySelector('canvas');
+      const b = video?.getBoundingClientRect();
+      return {
+        video: !!video,
+        canvas: !!toile,
+        largeurRelative: b ? b.width / scene.width : 0,
+        hauteurRelative: b ? b.height / scene.height : 0,
+        source: video ? `${video.videoWidth}x${video.videoHeight}` : null,
+      };
+    });
+
+    expect(etat.video, `${l}x${h} : le chapitre doit etre un film`).toBe(true);
+    expect(etat.canvas, `${l}x${h} : plus aucune scene 3D ici`).toBe(false);
+    expect(etat.largeurRelative, `${l}x${h} : le film doit remplir la largeur`).toBeGreaterThan(0.99);
+    expect(etat.hauteurRelative, `${l}x${h} : le film doit remplir la hauteur`).toBeGreaterThan(0.99);
+    expect(etat.source, `${l}x${h} : le film doit etre au gabarit du voyage`).toBe('1920x1074');
   }
 });
 
@@ -947,4 +973,98 @@ test('LA SCENE suit la fenetre quand la barre d adresse se retire, sans deplacer
   // La tete de lecture n a pas bouge : le voyage est reste au meme endroit de son histoire.
   expect(apres.chapitre, 'le chapitre doit etre le meme qu avant').toBe(avant.chapitre);
   expect(Math.abs(apres.progression - avant.progression), 'la lecture a derive').toBeLessThan(0.02);
+});
+
+test.describe('MOUVEMENT REDUIT : aucun film ne doit etre telecharge', () => {
+  test.use({ reducedMotion: 'reduce' });
+
+  test('en mouvement reduit, le voyage ne demande AUCUN mp4', async ({ page }) => {
+    /*
+     * Le prechargement allait chercher les chapitres voisins sans jamais consulter les reglages
+     * du visiteur. FilmScrub, lui, sait ne rien demander en mouvement reduit et n'afficher que
+     * les posters. Les deux chemins divergeaient : 16,1 Mo de films telecharges pour zero pixel
+     * affiche, retenus jusqu'au depart du site. Sur un telephone en donnees mobiles, c'est de la
+     * facture pure.
+     */
+    const films: string[] = [];
+    page.on('request', r => { if (/\/israel-haya\/.*\.mp4/.test(r.url())) films.push(r.url()); });
+
+    await page.setViewportSize({ width: 375, height: 812 });
+    /*
+     * ON REPOSE L EMULATION APRES AVOIR CHANGE LA TAILLE, et ce n'est pas superflu.
+     *
+     * La configuration du projet declare pourtant `reducedMotion: 'reduce'` pour toute la suite.
+     * Mesure faite en instrumentant ce test : apres un `setViewportSize`, l'iframe de l'apercu
+     * repond `false` a `matchMedia('(prefers-reduced-motion: reduce)')`. Le test passait donc son
+     * temps a verifier le contraire de ce qu'il annonçait — et il a d'abord echoue en accusant le
+     * code, qui lui etait juste.
+     */
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    const frame = await ouvrir(page);
+    expect(
+      await frame.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches),
+      'le mouvement reduit doit vraiment etre actif dans l apercu, sinon ce test ne prouve rien',
+    ).toBe(true);
+
+    // On traverse tout le voyage, donc tous les voisins possibles.
+    for (const cle of ['jerusalem', 'anneaux', 'arbre', 'cabinet', 'carte']) {
+      await allerAuChapitre(frame, cle, 0.5);
+    }
+
+    expect(films, `des films ont ete telecharges pour rien : ${films.join(', ')}`).toEqual([]);
+
+    // Et le visiteur voit bien quelque chose : le poster de chaque chapitre.
+    const poster = await frame.evaluate(() => {
+      const i = document.querySelector('[data-testid="ih-scene"] img') as HTMLImageElement | null;
+      return { present: !!i, charge: !!i && i.naturalWidth > 0 };
+    });
+    expect(poster.present, 'le poster doit porter le chapitre').toBe(true);
+    expect(poster.charge, 'et il doit etre charge').toBe(true);
+  });
+});
+
+test('SANS WEBGL, le chapitre des anneaux ne fait pas tomber le site', async ({ page }) => {
+  /*
+   * Le repli general exige que la video ET WebGL soient absents. Un navigateur dont le GPU est
+   * sur liste noire a pourtant la video : il jouait donc cinq chapitres sur six, puis, en entrant
+   * au chapitre des anneaux, three levait << Error creating WebGL context >>, React Three Fiber
+   * la relancait telle quelle, et comme aucune barriere n'existe dans ce template, c'etait TOUTE
+   * l'application Talvex qui tombait sur le repli de la racine — connexion comprise.
+   */
+  await page.addInitScript(() => {
+    const vrai = HTMLCanvasElement.prototype.getContext;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    HTMLCanvasElement.prototype.getContext = function (type: string, ...reste: any[]) {
+      if (type === 'webgl' || type === 'webgl2' || type === 'experimental-webgl') return null;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return (vrai as any).call(this, type, ...reste);
+    } as typeof HTMLCanvasElement.prototype.getContext;
+  });
+
+  const erreurs: string[] = [];
+  page.on('pageerror', e => erreurs.push(String(e).slice(0, 160)));
+
+  await page.setViewportSize({ width: 375, height: 812 });
+  const frame = await ouvrir(page);
+
+  // Le chapitre qui plantait.
+  await allerAuChapitre(frame, 'anneaux', 0.6);
+
+  // Le voyage est toujours la, et aucune scene 3D ne tente de se monter.
+  const etat = await frame.evaluate(() => ({
+    voyage: !!document.querySelector('[data-testid="ih-zone"]'),
+    canvas: !!document.querySelector('canvas'),
+    legende: (document.querySelector('[data-testid="ih-scene"] h2')?.textContent || '').trim().length > 0,
+  }));
+  expect(etat.voyage, 'le voyage doit survivre a l absence de WebGL').toBe(true);
+  expect(etat.canvas, 'aucune scene 3D ne doit etre montee').toBe(false);
+  expect(etat.legende, 'le chapitre garde ses legendes').toBe(true);
+
+  // Et la barre de navigation repond encore : le site n'est pas tombe.
+  await expect(frame.getByTestId('ih-nav-apropos')).toBeVisible();
+  await frame.getByTestId('ih-nav-apropos').click();
+  await frame.waitForTimeout(500);
+  await expect(frame.getByTestId('ih-page-apropos')).toBeVisible();
+
+  expect(erreurs, `une erreur a traverse : ${erreurs.join(' | ')}`).toEqual([]);
 });

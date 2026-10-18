@@ -2,7 +2,7 @@
 //   node --test --experimental-strip-types scripts/site/israelHaya.test.ts
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import {
   CHAPITRES, bornes, chapitreActif, hauteurTotale, opaciteBande, progressionDe, tempsFilm,
 } from '../../src/pages/superadmin/views/site-builder/templates/israel-haya/chapitres.ts';
@@ -642,6 +642,36 @@ test('CADRAGE : une taille d ecran absurde ne casse rien', () => {
     assert.ok(Number.isFinite(vue.hauteur) && vue.hauteur <= 0, JSON.stringify(absurde));
   }
 });
+test('LE CHAPITRE 4 est un film, au meme gabarit que les cinq autres', () => {
+  /*
+   * L'arbre de vie etait la seule scene 3D calculee en temps reel du voyage, et son rendu ne
+   * tenait pas la comparaison avec les chapitres filmes. Il est desormais filme lui aussi.
+   *
+   * Ce test verrouille les deux choses qu'un oubli casserait en silence : le chapitre declare
+   * bien un film ET un poster, et les deux fichiers existent vraiment dans public/. Un chemin
+   * faux ne leve aucune erreur — FilmScrub se rabat sur son poster, et s'il manque aussi, le
+   * chapitre devient un rectangle noir que rien ne signale.
+   */
+  const arbre = CHAPITRES.find(c => c.cle === 'arbre');
+  assert.equal(arbre?.technique, 'film', 'le chapitre 4 est filme');
+  assert.equal(arbre?.film, '/israel-haya/ch04.mp4');
+  assert.equal(arbre?.poster, '/israel-haya/ch04-poster.jpg');
+  assert.equal(arbre?.cadrage, undefined, 'plein cadre, comme les autres sauf la carte');
+
+  for (const chemin of [arbre!.film!, arbre!.poster!]) {
+    const sur = new URL(`../../public${chemin}`, import.meta.url);
+    assert.ok(existsSync(sur), `fichier absent : public${chemin}`);
+  }
+
+  // Et le theme ne change pas : on ne renomme pas le chapitre pour autant.
+  assert.equal(arbre?.bandes[0].titre.he, 'עץ החיים');
+  assert.equal(arbre?.bandes[0].titre.fr, 'L’arbre de vie');
+
+  // Les six chapitres : cinq films et une seule scene temps reel, les anneaux.
+  const tempsReel = CHAPITRES.filter(c => c.technique === 'temps-reel').map(c => c.cle);
+  assert.deepEqual(tempsReel, ['anneaux'], 'il ne doit rester qu une scene calculee');
+});
+
 test('CADRAGE : le film large se montre entier la ou le recadrer lui couterait son sujet', () => {
   const carte = CHAPITRES.find(c => c.cle === 'carte');
   assert.equal(carte?.cadrage, 'entier', 'la carte de visite est un objet large et plat : la recadrer la detruit');

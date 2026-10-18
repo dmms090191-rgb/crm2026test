@@ -114,8 +114,29 @@ export const CHAPITRES: readonly Chapitre[] = [
   {
     numero: 4,
     cle: 'arbre',
-    technique: 'temps-reel',
+    /*
+     * ---------- POURQUOI CE CHAPITRE EST PASSE D'UNE SCENE 3D A UN FILM ----------
+     *
+     * Il etait le SEUL des six a etre calcule en temps reel, et cela se voyait : a cote de la
+     * ruelle de Jerusalem et du cabinet aux bougies, un olivier fait de cylindres et de points
+     * lit comme une maquette. Le propriétaire l'a dit sans detour, et il avait raison —
+     * aucun reglage de shader ne rattrape cet ecart de nature.
+     *
+     * Le film est donc produit comme ses cinq voisins et encode comme eux : 1920 x 1074,
+     * 24 images par seconde, 145 images, 6,041 s, une image cle TOUTES LES HUIT IMAGES pour
+     * que le defilement reste net. Master 4K (3840 x 2160) conserve hors depot.
+     *
+     * Le theme ne change pas : c'est toujours עץ החיים, l'arbre de vie. Un olivier ancien qui
+     * brule sans se consumer — ecorce intacte, feuillage vert argent toujours lisible — porte
+     * la reference a l'Exode sans qu'on ait eu a renommer le chapitre.
+     *
+     * La scene 3D n'est pas supprimee : ArbreDeVie.tsx et arbre.ts restent entiers sur disque,
+     * avec leur cadrage dans cadrage.ts. Il suffit de rendre ces deux lignes a temps-reel.
+     */
+    technique: 'film',
     vh: 600,
+    film: '/israel-haya/ch04.mp4',
+    poster: '/israel-haya/ch04-poster.jpg',
     bandes: [
       { de: 0.05, a: 0.40, titre: P('עץ החיים', 'L’arbre de vie'), sous: P('מהשורש אל הענף', 'De la racine à la branche') },
       { de: 0.52, a: 0.96, titre: P('מה שנזרע, גדל', 'Ce qui est semé grandit') },

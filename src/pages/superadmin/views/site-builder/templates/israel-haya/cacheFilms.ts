@@ -15,9 +15,14 @@
  * a faire, finissait donc par ramer puis par manquer de memoire.
  *
  * Le cache vit au niveau du MODULE, pas du composant : il survit aux montages. Il garde au plus
- * une URL d'objet par film, soit quatre pour tout le voyage — borne connue, et egale au poids
- * des films que le visiteur a de toute facon choisi de regarder. `libererFilms` rend le tout
- * quand le voyage entier quitte l'ecran.
+ * une URL d'objet par film, soit CINQ pour tout le voyage depuis que l'arbre de vie est filme
+ * lui aussi : 16 124 682 octets, soit 15,4 Mio. Borne connue et atteignable — un visiteur qui
+ * parcourt le voyage en entier les detient tous a la fin. `libererFilms` rend le tout quand le
+ * voyage quitte l'ecran.
+ *
+ * Cette borne ne vaut QUE si les films servent. C'est pourquoi le prechargement, lui, est garde
+ * par les reglages du visiteur dans IsraelHayaSite : en mouvement reduit, aucun film n'est
+ * demande, et le cache reste vide.
  *
  * Module sans dependance : verifiable sans navigateur, a condition de lui fournir un fetch.
  */

@@ -173,6 +173,12 @@ export default function SceneTempsReel({
       {chapitre === 3 ? (
         <AnneauxCelestes progression={progression} nombre={nombre} mouvementReduit={mouvementReduit} />
       ) : (
+        /*
+          BRANCHE DORMANTE depuis que le chapitre 4 est un film (voir chapitres.ts) : plus rien
+          ne monte ce composant avec chapitre === 4. Elle est gardee entiere, avec son cadrage
+          dans cadrage.ts et ses tests, parce qu'elle redevient vivante des qu'on rend le
+          chapitre 4 a temps-reel. BuissonArdent.tsx, l'autre piste explorée, dort a cote.
+        */
         <ArbreDeVie progression={progression} mouvementReduit={mouvementReduit} />
       )}
     </Canvas>

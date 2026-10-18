@@ -118,12 +118,26 @@ export default function IsraelHayaSite({ onReserver, langue }: Props) {
     return () => observateur.disconnect();
   }, [releverPanneau, index]);
 
-  // Le chapitre d'avant et celui d'apres sont demandes sans etre montes.
+  /*
+   * Le chapitre d'avant et celui d'apres sont demandes sans etre montes — MAIS seulement si
+   * le visiteur verra reellement des films.
+   *
+   * Sans cette garde, un visiteur en MOUVEMENT REDUIT telechargeait les cinq films en entier
+   * — 16,1 Mo mesures sur disque — alors que FilmScrub, lui, sait ne rien demander dans ce
+   * cas et n'affiche que les posters. Seize megaoctets de donnees mobiles pour zero pixel,
+   * retenus jusqu'au depart du site. Meme chose pour un navigateur qui ne lit pas le mp4.
+   *
+   * La garde est ICI et pas dans cacheFilms : ce module n'a aucune dependance, c'est ce qui le
+   * rend verifiable sans navigateur, et il n'a aucun moyen de connaitre les reglages du
+   * visiteur. C'est a l'appelant de savoir s'il aura besoin de ce qu'il demande.
+   */
+  const filmsUtiles = reglages.video && !reglages.mouvementReduit;
   useEffect(() => {
+    if (!filmsUtiles) return;
     for (const voisin of [CHAPITRES[index - 1], CHAPITRES[index + 1]]) {
       if (voisin?.technique === 'film' && voisin.film) prechargerFilm(voisin.film);
     }
-  }, [index]);
+  }, [index, filmsUtiles]);
 
   if (!reglages.webgl && !reglages.video) {
     // Le repli porte le MEME conteneur que le voyage : sans lui, son contenu depasse la
@@ -202,6 +216,24 @@ export default function IsraelHayaSite({ onReserver, langue }: Props) {
               progression={p}
               mouvementReduit={reglages.mouvementReduit || !reglages.video}
             />
+          ) : !reglages.webgl ? (
+            /*
+              SANS WEBGL, ON NE MONTE PAS LA SCENE — ON NE LA REMPLACE PAS PAR UN PLANTAGE.
+
+              Le repli general exige que la video ET WebGL soient absents. Un navigateur dont le
+              GPU est sur liste noire a pourtant la video : il jouait donc cinq chapitres sur
+              six, puis, en entrant au chapitre des anneaux, three levait << Error creating
+              WebGL context >>, React Three Fiber la relancait telle quelle, et comme aucune
+              barriere n'existe dans ce template, c'est TOUTE l'application Talvex qui tombait
+              sur le repli de la racine — connexion comprise.
+
+              Ce chapitre garde donc sa nuit et ses legendes, qui sont rendues par-dessus.
+              Perdre une scene vaut toujours mieux que perdre le site.
+            */
+            <div aria-hidden style={{
+              position: 'absolute', inset: 0,
+              background: 'radial-gradient(ellipse 90% 70% at 50% 46%, #141c33 0%, #070a16 72%)',
+            }} />
           ) : (
             /* Une cle STABLE entre les chapitres 3 et 4 : avec une cle par chapitre, React
                demontait le Canvas a chaque franchissement et creait un contexte WebGL neuf —
