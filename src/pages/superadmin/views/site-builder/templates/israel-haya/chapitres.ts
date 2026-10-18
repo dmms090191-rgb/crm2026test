@@ -104,8 +104,30 @@ export const CHAPITRES: readonly Chapitre[] = [
   {
     numero: 3,
     cle: 'anneaux',
-    technique: 'temps-reel',
+    /*
+     * ---------- LE DECOR EST FILME, L'OUTIL RESTE EN REACT ----------
+     *
+     * C'etait le dernier chapitre calcule en temps reel. Sur telephone, un mecanisme fait
+     * d'anneaux de geometrie et de chiffres en texture lisait comme une interface au milieu de
+     * cinq chapitres photorealistes : il cassait le niveau de tout le voyage.
+     *
+     * Le DECOR devient donc un film, au gabarit de ses voisins. Mais rien de ce qui FONCTIONNE
+     * n'a bouge : le prenom, la date de naissance, le bouton, le calcul, ses etapes, le
+     * resultat, son theme, le bandeau de demonstration, les deux langues et le RTL vivent
+     * toujours dans SaisieNombres, pose PAR-DESSUS la video. Un film ne remplace pas un outil.
+     *
+     * Le nombre revele s'affiche au centre du mecanisme — la ou le film laisse un disque noir
+     * volontairement degage. La scene 3D y allumait une sphere de lumiere ; cette lueur est
+     * reconstruite en DOM (NombreRevele). Le chiffre, lui, a TOUJOURS ete ecrit en HTML : un
+     * glyphe rendu dans une texture se lit moins bien que le meme glyphe rendu par le navigateur.
+     *
+     * AnneauxCelestes.tsx, SceneTempsReel.tsx et cadrage.ts restent entiers sur disque, avec
+     * leurs tests : rendre cette ligne a 'temps-reel' suffit a les rallumer.
+     */
+    technique: 'film',
     vh: 700,
+    film: '/israel-haya/ch03.mp4',
+    poster: '/israel-haya/ch03-poster.jpg',
     bandes: [
       { de: 0.03, a: 0.30, titre: P('מפת המספרים', 'La carte des nombres'), sous: P('סובבו את הטבעות', 'Faites tourner les anneaux') },
       { de: 0.38, a: 0.95, titre: P('הזינו שם ותאריך לידה', 'Entrez un prénom et une date de naissance') },

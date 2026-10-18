@@ -664,32 +664,23 @@ test('EN HEBREU, le code a six chiffres se saisit et se lit de gauche a droite',
 });
 
 /*
- * ---------- LE CADRAGE DES SCENES 3D, VERIFIE SUR L IMAGE ----------
+ * ---------- LE HARNAIS DE PIXELS EST PARTI AVEC LES SCENES 3D ----------
  *
- * Ces deux tests ne regardent pas le DOM : ils regardent les PIXELS. C'est la seule façon de
- * voir ce defaut-la. Une scene 3D occupe une boite qui remplit toujours son conteneur, quel
- * que soit ce qu'elle montre ; la moitie des anneaux pouvait tomber hors de l'ecran sans
- * qu'aucun rectangle ne bouge d'un pixel. Un releve responsive de 160 combinaisons est passe
- * au vert pendant que le defaut etait la, entier.
+ * Les deux chapitres calcules en temps reel sont devenus des films. La fonction qui mesurait
+ * la matiere lumineuse collee aux bords de la scene — seule facon d'attraper un objet 3D sorti
+ * du cadre, qui ne deplace aucun rectangle du DOM — n a donc plus rien a mesurer : un film
+ * remplit toujours son cadre, par construction.
  *
- * On cherche donc de la matiere lumineuse collee au bord gauche ou droit, dans la bande libre
- * entre la barre de navigation et le panneau de saisie. Chromium decode la capture pour nous.
+ * Elle n'est pas perdue : elle vit dans l'historique git de ce fichier, et le jour ou un
+ * chapitre redeviendra une scene calculee, elle revient avec lui. Les tests unitaires de
+ * cadrage.ts, eux, restent en place et continuent de verrouiller la geometrie de camera.
  */
-/**
- * Se poser AU MILIEU d'un chapitre, nomme par sa cle.
- *
- * Viser une fraction du voyage est un piege : les hauteurs sont en vh, les bornes bougent
- * avec les chapitres, et 0,68 tombait sur le cabinet quand on croyait viser l'arbre — le test
- * mesurait alors un film, qui occupe legitimement tout le cadre, et echouait pour une raison
- * qui n'avait rien a voir avec ce qu'il verifiait. On cherche donc les bornes reelles.
- */
+
 /**
  * Se poser AU MILIEU d'un chapitre, nomme par sa cle.
  *
  * Viser une fraction du voyage a vue est un piege : 0,68 tombait sur le cabinet quand on
- * croyait viser l'arbre, et le test mesurait alors un film — qui occupe legitimement tout le
- * cadre — puis echouait pour une raison etrangere a ce qu'il verifiait.
- *
+ * croyait viser l'arbre, et le test mesurait alors un autre chapitre que celui qu'il nommait.
  * On demande donc ses bornes au MODELE, celui-la meme qui decide du chapitre affiche. Un test
  * qui recalcule de son cote ce que le code sait deja finit toujours par mesurer autre chose.
  */
@@ -702,66 +693,88 @@ async function allerAuChapitre(frame: Frame, cle: string, dans = 0.5) {
   const obtenu = await frame.evaluate(() => document.querySelector('[data-testid="ih-scene"]')!.getAttribute('data-ih-chapitre'));
   expect(obtenu, `on voulait le chapitre ${cle}`).toBe(cle);
 }
-async function matiereAuBord(page: Page, frame: Frame, largeur: number, hauteur: number) {
-  const bornes = await frame.evaluate(() => {
-    const scene = document.querySelector('[data-testid="ih-scene"]')!.getBoundingClientRect();
-    const barre = document.querySelector('[data-testid="ih-barre"]');
-    const panneau = document.querySelector('[data-testid="ih-panneau"]');
-    const rp = panneau?.getBoundingClientRect();
-    return {
-      basBarre: barre ? barre.getBoundingClientRect().bottom - scene.top : 0,
-      hautPanneau: rp && rp.height > 4 ? rp.top - scene.top : null,
-    };
-  });
-  const capture = (await page.screenshot({ type: 'png' })).toString('base64');
-  return page.evaluate(
-    async ([donnees, l, h, basBarre, hautPanneau]) => {
-      const image = new Image();
-      await new Promise(resoudre => { image.onload = resoudre; image.src = `data:image/png;base64,${donnees}`; });
-      const toile = document.createElement('canvas');
-      toile.width = l as number;
-      toile.height = h as number;
-      const ctx = toile.getContext('2d')!;
-      ctx.drawImage(image, 0, 0);
-      const px = ctx.getImageData(0, 0, l as number, h as number).data;
-      const lum = (x: number, y: number) => {
-        const i = (y * (l as number) + x) * 4;
-        return 0.2126 * px[i] + 0.7152 * px[i + 1] + 0.0722 * px[i + 2];
-      };
-      // Le fond de la scene est #070a16, de luminance 10 : 34 est nettement au-dessus.
-      const y0 = Math.round((basBarre as number) + 8);
-      const y1 = Math.round((hautPanneau === null ? (h as number) : (hautPanneau as number)) - 8);
-      let gauche = 0;
-      let droite = 0;
-      let lignes = 0;
-      for (let y = y0; y < y1; y++) {
-        lignes++;
-        for (let x = 0; x < 3; x++) if (lum(x, y) > 34) { gauche++; break; }
-        for (let x = (l as number) - 3; x < (l as number); x++) if (lum(x, y) > 34) { droite++; break; }
-      }
-      return lignes > 0 ? Math.max(gauche, droite) / lignes : 0;
-    },
-    [capture, largeur, hauteur, bornes.basBarre, bornes.hautPanneau] as const,
-  );
-}
 
-test('LES ANNEAUX tiennent dans le cadre sur telephone, et le panneau ne les recouvre pas', async ({ page }) => {
+test('LE MECANISME CELESTE est un film, et le formulaire vit par-dessus', async ({ page }) => {
+  /*
+   * Ce chapitre etait la derniere scene calculee en temps reel du voyage. Son decor est
+   * desormais filme comme les cinq autres — mais TOUTE la logique interactive reste du cote
+   * React, posee par-dessus : prenom, date de naissance, bouton, calcul, resultat, bandeau de
+   * demonstration, traductions et RTL. C'est exactement ce que ce test verifie : le decor a
+   * change, l'outil n'a pas bouge.
+   */
   for (const [l, h] of [[320, 720], [375, 812], [390, 844]]) {
     await page.setViewportSize({ width: l, height: h });
     const frame = await ouvrir(page);
     await allerAuChapitre(frame, 'anneaux', 0.6);
 
-    // Avant la correction : 16 % des lignes portaient de la matiere au ras du bord.
-    const part = await matiereAuBord(page, frame, l, h);
-    expect(part, `${l}x${h} : les anneaux debordent du cadre`).toBeLessThan(0.05);
-
-    // Et ils sont bien au-dessus du panneau, pas derriere lui.
-    const audessus = await frame.evaluate(() => {
-      const p = document.querySelector('[data-testid="ih-panneau"]')?.getBoundingClientRect();
-      return p ? p.width > 0 : false;
+    const etat = await frame.evaluate(() => {
+      const scene = document.querySelector('[data-testid="ih-scene"]')!.getBoundingClientRect();
+      const video = document.querySelector('[data-testid="ih-scene"] video');
+      const panneau = document.querySelector('[data-testid="ih-panneau"]');
+      const b = video?.getBoundingClientRect();
+      const p = panneau?.getBoundingClientRect();
+      return {
+        film: !!video,
+        canvas: !!document.querySelector('[data-testid="ih-scene"] canvas'),
+        source: video ? `${(video as HTMLVideoElement).videoWidth}x${(video as HTMLVideoElement).videoHeight}` : null,
+        largeurRelative: b ? b.width / scene.width : 0,
+        hauteurRelative: b ? b.height / scene.height : 0,
+        panneauVisible: !!p && p.width > 0 && p.height > 0,
+        prenom: !!document.querySelector('[data-testid="ih-prenom"]'),
+        // Le panneau doit tenir DANS la scene : ni deborder, ni passer sous le pli.
+        panneauDansLEcran: !!p && p.top >= -1 && p.bottom <= scene.height + 1,
+      };
     });
-    expect(audessus, 'le panneau de saisie doit etre monte a ce stade du chapitre').toBe(true);
+
+    expect(etat.film, `${l}x${h} : le decor doit etre un film`).toBe(true);
+    expect(etat.canvas, `${l}x${h} : plus aucune scene 3D ici`).toBe(false);
+    expect(etat.source, `${l}x${h} : le film doit etre au gabarit du voyage`).toBe('1920x1074');
+    expect(etat.largeurRelative, `${l}x${h} : le film doit remplir la largeur`).toBeGreaterThan(0.99);
+    expect(etat.hauteurRelative, `${l}x${h} : le film doit remplir la hauteur`).toBeGreaterThan(0.99);
+
+    // ET L OUTIL EST TOUJOURS LA, par-dessus le film.
+    expect(etat.panneauVisible, `${l}x${h} : le panneau de saisie doit etre monte`).toBe(true);
+    expect(etat.prenom, `${l}x${h} : le champ Prenom doit exister`).toBe(true);
+    expect(etat.panneauDansLEcran, `${l}x${h} : le panneau ne doit pas sortir de la scene`).toBe(true);
   }
+});
+
+test('LE NOMBRE REVELE se pose au centre du mecanisme, pas derriere le panneau', async ({ page }) => {
+  /*
+   * La scene 3D allumait une sphere de lumiere au centre des anneaux quand le nombre sortait.
+   * Le decor est filme : cette lueur est reconstruite en DOM par-dessus la video. Elle doit se
+   * poser dans ce qui reste LIBRE au-dessus du panneau — au centre de la scene, elle passerait
+   * derriere lui sur telephone, a l'instant precis ou le visiteur vient de la demander.
+   */
+  await page.setViewportSize({ width: 375, height: 812 });
+  const frame = await ouvrir(page);
+  await allerAuChapitre(frame, 'anneaux', 0.6);
+
+  // Rien tant que rien n a ete calcule.
+  await expect(frame.getByTestId('ih-nombre-revele')).toHaveAttribute('data-ih-visible', 'non');
+
+  // On remplit le formulaire pour de vrai, comme un visiteur.
+  await frame.getByTestId('ih-prenom').fill('David');
+  await frame.getByTestId('ih-date').fill('1991-10-12');
+  await frame.getByTestId('ih-calculer').click();
+  await frame.waitForTimeout(900);
+
+  await expect(frame.getByTestId('ih-resultat')).toBeVisible();
+  await expect(frame.getByTestId('ih-nombre-revele')).toHaveAttribute('data-ih-visible', 'oui');
+
+  const place = await frame.evaluate(() => {
+    const n = document.querySelector('[data-testid="ih-nombre-revele"] span')!.getBoundingClientRect();
+    const p = document.querySelector('[data-testid="ih-panneau"]')!.getBoundingClientRect();
+    const b = document.querySelector('[data-testid="ih-barre"]')!.getBoundingClientRect();
+    return {
+      sousLaBarre: Math.round(n.top - b.bottom),
+      auDessusDuPanneau: Math.round(p.top - n.bottom),
+      hauteur: Math.round(n.height),
+    };
+  });
+  expect(place.sousLaBarre, 'le nombre ne doit pas passer sous la barre').toBeGreaterThan(0);
+  expect(place.auDessusDuPanneau, 'le nombre ne doit pas passer derriere le panneau').toBeGreaterThan(0);
+  expect(place.hauteur, 'le nombre doit etre grand, c est l evenement du chapitre').toBeGreaterThan(50);
 });
 
 test('L ARBRE DE VIE est un film, et il remplit le cadre sur telephone', async ({ page }) => {

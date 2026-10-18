@@ -7,6 +7,7 @@ import BandesTexte from './BandesTexte';
 import SaisieNombres from './SaisieNombres';
 import SectionsBas from './SectionsBas';
 import RailChapitres from './RailChapitres';
+import NombreRevele from './NombreRevele';
 import { usePolicesHebraiques, useClavierVoyage, useProgressionVoyage, useReglagesIsraelHaya } from './useVoyage';
 import { dit, type Langue } from './langue';
 import { textesDe } from './textes';
@@ -26,6 +27,14 @@ import { textesDe } from './textes';
  * Tout ce qui s'anime est une fonction de la progression. Rien n'accumule. Remonter la page
  * rejoue le voyage a l'envers, exactement, sans qu'aucun etat n'ait a etre defait.
  */
+
+/**
+ * De combien le nombre revele s'ecarte au minimum de la barre et du panneau.
+ *
+ * C'est la demi-hauteur du plus grand glyphe possible plus un souffle : au-dela, on sait
+ * qu'il ne touche ni l'une ni l'autre, quelle que soit la taille d'ecran.
+ */
+const MARGE_NOMBRE = 56;
 
 /** Visible d'un lecteur d'ecran, invisible a l'oeil. */
 const POUR_LECTEUR: React.CSSProperties = {
@@ -72,7 +81,7 @@ export default function IsraelHayaSite({ onReserver, langue }: Props) {
    */
   const refScene = useRef<HTMLDivElement>(null);
   const refPanneau = useRef<HTMLDivElement | null>(null);
-  const [panneau, setPanneau] = useState<{ haut: number; largeur: number } | null>(null);
+  const [panneau, setPanneau] = useState<{ haut: number; largeur: number; barre: number; hauteurScene: number } | null>(null);
 
   const releverPanneau = useCallback(() => {
     const s = refScene.current;
@@ -83,7 +92,18 @@ export default function IsraelHayaSite({ onReserver, langue }: Props) {
     if (bs.height <= 0 || bp.height <= 0) { setPanneau(null); return; }
     const haut = Math.round((bp.top - bs.top) / 8) * 8;
     const largeur = Math.round(bp.width / 8) * 8;
-    setPanneau(ancien => (ancien && ancien.haut === haut && ancien.largeur === largeur ? ancien : { haut, largeur }));
+    /*
+     * La hauteur de la barre de navigation vient de la variable qu'elle publie elle-meme.
+     * Deux reserves calculees separement finissent toujours par se contredire : il y en a
+     * une seule dans ce site, et c'est celle-la (voir BarreNavigation).
+     */
+    const barre = Math.round(parseFloat(getComputedStyle(s).getPropertyValue('--ih-barre')) || 0);
+    const hauteurScene = Math.round(bs.height / 8) * 8;
+    setPanneau(ancien => (ancien
+      && ancien.haut === haut && ancien.largeur === largeur
+      && ancien.barre === barre && ancien.hauteurScene === hauteurScene
+      ? ancien
+      : { haut, largeur, barre, hauteurScene }));
   }, []);
 
   const poserPanneau = useCallback((element: HTMLDivElement | null) => {
@@ -299,6 +319,29 @@ export default function IsraelHayaSite({ onReserver, langue }: Props) {
             >
               <SaisieNombres onResultat={setNombre} langue={langue} />
             </div>
+          )}
+
+          {/*
+            LE NOMBRE REVELE, AU COEUR DU MECANISME.
+
+            Il remplace la sphere de lumiere que la scene 3D allumait avant que ce chapitre ne
+            devienne un film ; le chiffre, lui, a toujours ete ecrit en HTML (voir NombreRevele).
+
+            Il VISE le centre de la scene, parce que c'est la que le film laisse son disque noir
+            — le travelling avant est axial, le coeur du mecanisme reste au milieu du cadre du
+            debut a la fin. Il ne REMONTE que de ce qu'il faut pour ne pas passer derriere le
+            panneau de saisie, qui occupe le bas sur telephone. Viser la zone libre plutot que
+            le centre le posait 142 px trop haut, a cote du trou.
+          */}
+          {chapitre.numero === 3 && (
+            <NombreRevele
+              nombre={nombre}
+              mouvementReduit={reglages.mouvementReduit}
+              centreY={panneau ? Math.max(
+                panneau.barre + MARGE_NOMBRE,
+                Math.min(panneau.hauteurScene / 2, panneau.haut - MARGE_NOMBRE),
+              ) : null}
+            />
           )}
 
           <RailChapitres index={index} total={CHAPITRES.length} />

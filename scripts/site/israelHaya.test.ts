@@ -667,9 +667,26 @@ test('LE CHAPITRE 4 est un film, au meme gabarit que les cinq autres', () => {
   assert.equal(arbre?.bandes[0].titre.he, 'עץ החיים');
   assert.equal(arbre?.bandes[0].titre.fr, 'L’arbre de vie');
 
-  // Les six chapitres : cinq films et une seule scene temps reel, les anneaux.
+  /*
+   * LES SIX CHAPITRES SONT DESORMAIS DES FILMS. Le mecanisme celeste etait le dernier calcule
+   * en temps reel ; son decor est filme lui aussi, et seule sa logique interactive reste du
+   * cote React, posee par-dessus la video.
+   *
+   * Le moteur temps reel n'est pas supprime pour autant : SceneTempsReel, AnneauxCelestes,
+   * ArbreDeVie et cadrage.ts restent entiers sur disque, avec leurs tests. Rendre un chapitre
+   * a `technique: 'temps-reel'` suffit a les rallumer.
+   */
   const tempsReel = CHAPITRES.filter(c => c.technique === 'temps-reel').map(c => c.cle);
-  assert.deepEqual(tempsReel, ['anneaux'], 'il ne doit rester qu une scene calculee');
+  assert.deepEqual(tempsReel, [], 'les six chapitres sont filmes');
+
+  // Et chaque film declare bien son fichier ET son poster, tous deux presents sur disque.
+  for (const c of CHAPITRES) {
+    assert.equal(c.technique, 'film', `${c.cle} doit etre filme`);
+    assert.ok(c.film && c.poster, `${c.cle} doit declarer un film et un poster`);
+    for (const chemin of [c.film!, c.poster!]) {
+      assert.ok(existsSync(new URL(`../../public${chemin}`, import.meta.url)), `fichier absent : public${chemin}`);
+    }
+  }
 });
 
 test('CADRAGE : le film large se montre entier la ou le recadrer lui couterait son sujet', () => {
