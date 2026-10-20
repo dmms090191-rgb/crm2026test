@@ -137,14 +137,62 @@ test("DEFAUT 2 bis — un echec REVIENT EN ARRIERE, etat et cache ensemble", () 
   assert.ok(!dansUpdater, "persistHiddenTabs est appele dans l updater de setState, qui doit rester pur");
 });
 
-test("DEFAUT 3 — l oeil de la carte ne vole plus le clic", () => {
+test("DEFAUT 3 — l oeil est un VRAI bouton, qui recoit son propre clic", () => {
   const code = lire("src/components/notifications/hub/NotifHubCards.tsx");
-  /* L indicateur est pose en absolute PAR-DESSUS le bouton de la carte. Sans
-     pointer-events-none, cliquer dessus — le geste naturel — n atteint jamais le bouton. */
-  const ligne = code.split("\n").find(l => /absolute top-1\.5 right-1\.5 flex items-center gap-1/.test(l));
-  assert.ok(ligne, "l indicateur d oeil n a pas ete trouve");
-  assert.ok(/pointer-events-none/.test(ligne!),
-    "l indicateur d oeil intercepte le clic destine au bouton de la carte");
+
+  /*
+   * L oeil etait un <div> pose en absolute PAR-DESSUS le bouton de la carte : cliquer
+   * dessus — le geste naturel, il RESSEMBLE a la commande — atterrissait sur ce div, qui
+   * n avait aucun gestionnaire.
+   *
+   * Le rendre traversable (pointer-events: none) marchait, mais PAR RICOCHET : le clic
+   * tombait sur ce qui se trouvait DESSOUS, c est-a-dire le libelle de la carte. Mesure
+   * faite sur le composant reel monte dans un navigateur — elementFromPoint au centre de
+   * l oeil rendait le <p> du libelle. Ca tient tant que rien ne s intercale, donc ca tient
+   * a la chance.
+   *
+   * Un bouton recoit son PROPRE clic, est atteignable au clavier, et annonce son etat.
+   */
+  const i = code.indexOf("hideEditMode && (");
+  assert.ok(i > 0, "le bloc du mode masquage n a pas ete trouve");
+  const bloc = code.slice(i, i + 2000);
+
+  assert.ok(/<button/.test(bloc), "l oeil n est pas un <button> : il ne recoit pas son propre clic");
+  assert.ok(/notif-card-oeil-/.test(bloc), "le bouton de l oeil n a pas de data-testid stable");
+  assert.ok(/onClick=\{onToggleHide\}/.test(bloc), "le bouton de l oeil n appelle pas onToggleHide");
+  assert.ok(/aria-pressed=/.test(bloc), "le bouton de l oeil n annonce pas son etat (aria-pressed)");
+  assert.ok(/aria-label=/.test(bloc), "le bouton de l oeil n a pas de nom accessible");
+  assert.ok(/title=/.test(bloc), "le bouton de l oeil n a pas d infobulle");
+
+  /* Et il ne doit PAS redevenir traversable : ce serait revenir au ricochet. */
+  const ligne = bloc.split("\n").find(l => /absolute top-1\.5 right-1\.5/.test(l));
+  assert.ok(ligne, "le conteneur de l oeil n a pas ete trouve");
+  assert.ok(!/pointer-events-none/.test(ligne!),
+    "l oeil est redevenu traversable : il ne recoit plus son propre clic");
+
+  /* Le bouton de l oeil doit rester FRERE de celui de la carte, jamais imbrique : un
+     bouton dans un bouton est invalide en HTML, et le clic partirait deux fois.
+     On verifie que les balises s ouvrent et se ferment en ALTERNANCE dans NotifCard :
+     une ouverture qui suit une ouverture, c est une imbrication. */
+  const debutCarte = code.indexOf("function NotifCard");
+  assert.ok(debutCarte > 0, "la fonction NotifCard n a pas ete trouvee");
+  const corps = code.slice(debutCarte);
+
+  const balises: string[] = [];
+  const motif = /<button\b|<\/button>/g;
+  let m: RegExpExecArray | null;
+  while ((m = motif.exec(corps)) !== null) balises.push(m[0]);
+
+  let profondeur = 0;
+  for (const b of balises) {
+    if (b === "</button>") { profondeur -= 1; continue; }
+    profondeur += 1;
+    assert.ok(profondeur <= 1,
+      "un <button> est imbrique dans un autre dans NotifCard : le clic partirait deux fois");
+  }
+  assert.equal(profondeur, 0, "les balises <button> de NotifCard ne sont pas equilibrees");
+  assert.ok(balises.length >= 4,
+    "NotifCard devrait porter DEUX boutons : celui de la carte et celui de l oeil");
 });
 
 test("le message de refus est comprehensible, pas un code Postgres", () => {

@@ -203,21 +203,41 @@ function NotifCard({ card, tokens: t, onClick, isHidden, hideEditMode, onToggleH
       </button>
       {hideEditMode && (
         /*
-          pointer-events-none : cet indicateur est pose PAR-DESSUS le bouton de la carte.
-          Sans lui, cliquer sur l oeil — le geste naturel, il ressemble a la commande —
-          atterrit sur ce div, qui n a aucun gestionnaire : rien ne se passe, et il faut
-          deviner qu il faut viser a cote.
+          L OEIL EST UN VRAI BOUTON, et non un decor pose par-dessus.
+
+          Il etait un <div> en position absolue au-dessus du bouton de la carte. Cliquer
+          dessus — le geste naturel, il RESSEMBLE a la commande — atterrissait sur ce div,
+          qui n avait aucun gestionnaire : rien ne se passait, et il fallait deviner qu il
+          faut viser a cote.
+
+          Le rendre traversable (pointer-events: none) marchait, mais par ricochet : le clic
+          tombait sur ce qui se trouvait DESSOUS, c est-a-dire le libelle de la carte. Mesure
+          faite sur le composant reel : document.elementFromPoint au centre de l oeil rendait
+          le <p> du libelle. Ca fonctionne tant que rien ne s intercale — autrement dit, ca
+          tient a la chance.
+
+          Un bouton, lui, recoit son propre clic. Il est atteignable au clavier, il annonce
+          son etat (aria-pressed), et il porte une infobulle qui dit ce qu il fait. Il est
+          FRERE du bouton de la carte, pas enfant : aucun double declenchement possible.
         */
-        <div className="absolute top-1.5 right-1.5 flex items-center gap-1 pointer-events-none">
+        <button
+          type="button"
+          onClick={onToggleHide}
+          title={isHidden ? 'Afficher cette carte' : 'Masquer cette carte'}
+          aria-label={isHidden ? `Afficher ${card.label}` : `Masquer ${card.label}`}
+          aria-pressed={!!isHidden}
+          data-testid={`notif-card-oeil-${card.key}`}
+          className="absolute top-1.5 right-1.5 flex items-center gap-1 rounded-md transition-transform duration-150 hover:scale-110"
+        >
           {isHidden && (
             <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold"
               style={{ background: 'rgba(239,68,68,0.12)', color: '#ef4444' }}>Masque</span>
           )}
-          <div className="w-5 h-5 rounded-md flex items-center justify-center"
+          <span className="w-5 h-5 rounded-md flex items-center justify-center"
             style={{ background: isHidden ? 'rgba(239,68,68,0.12)' : 'rgba(34,197,94,0.10)', color: isHidden ? '#ef4444' : '#22c55e' }}>
             {isHidden ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
-          </div>
-        </div>
+          </span>
+        </button>
       )}
     </div>
   );
