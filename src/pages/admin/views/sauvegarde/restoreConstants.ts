@@ -157,17 +157,22 @@ export interface FkRule {
 
 export const FK_RULES: Record<string, FkRule[]> = {
   /*
-   * Un commentaire dont le dossier n'est pas restaure est ABANDONNE, pas fatal.
+   * CRM IMMO — les deux tables filles d'un dossier.
    *
-   * Le cas n'est pas theorique : la restauration laisse choisir les tables une par une.
-   * Restaurer les commentaires sans les dossiers, sans cette regle, ferait echouer
-   * l'insertion en 23503 et le rapport afficherait une erreur Postgres brute.
+   * Une ligne dont le dossier n'est pas restaure est ECARTEE, proprement, et comptee dans
+   * le rapport. Le cas n'est pas theorique : la restauration laisse choisir les tables une
+   * par une, donc on peut restaurer les etats sans les dossiers.
    *
-   * crm_immo_etats n'a PAS cette regle, et s'expose donc au meme echec. C'est un ecart
-   * anterieur a ce chantier, signale a David, volontairement non corrige ici : changer
-   * le comportement de restauration d'une autre table n'est pas le sujet.
+   * ATTENTION, CE QUE CES REGLES FONT A CHANGE. Jusqu'au 20 octobre 2026, FK_RULES ne
+   * servait qu'a PREVENIR : validateFkCoherence fabriquait des avertissements, et la
+   * boucle d'insertion envoyait les lignes telles quelles — donc un 23503. Et comme
+   * l'envoi se fait par LOTS, une seule orpheline emportait jusqu'a cent lignes valides
+   * avec elle. Les lignes sont desormais ECARTEES avant l'envoi, par ecarterOrphelins.
    */
   crm_immo_commentaires: [
+    { column: 'dossier_id', referencedTable: 'crm_immo_dossiers', referencedColumn: 'id' },
+  ],
+  crm_immo_etats: [
     { column: 'dossier_id', referencedTable: 'crm_immo_dossiers', referencedColumn: 'id' },
   ],
   leads: [

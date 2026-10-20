@@ -7,6 +7,7 @@ import {
   FK_RULES,
   BATCH_SIZE,
 } from './restoreConstants';
+import { ecarterOrphelins, valeursAVerifier } from '../../../../lib/restaureOrphelins';
 import type { ImportedBackup } from './types';
 
 const TABLES_WITH_COMPANY_ID = new Set([
@@ -30,6 +31,15 @@ export interface TableResult {
   inserted: number;
   errors: string[];
   skipped: boolean;
+  /**
+   * Les lignes ECARTEES parce que leur parent n'existe pas a destination.
+   *
+   * Facultatif : les resultats fabriques ailleurs (table vide, table absente, simulation)
+   * n'ont rien a ecarter, et leur imposer un zero explicite n'apprendrait rien.
+   */
+  ignored?: number;
+  /** Les identifiants parents introuvables, pour que l'ecart s'explique. */
+  missingParents?: string[];
 }
 
 export interface FkWarning {
@@ -210,9 +220,51 @@ export function useRestoreCrm() {
       setCurrentTable(table);
       setProgress(Math.round(((i + 1) / totalTables) * 100));
 
-      const rows = backup.data[table] as Record<string, unknown>[];
+      const toutes = backup.data[table] as Record<string, unknown>[];
       const pk = TABLE_PRIMARY_KEYS[table] ?? 'id';
-      const result: TableResult = { table, rows: rows.length, inserted: 0, errors: [], skipped: false };
+
+      /*
+       * ECARTER LES ORPHELINES AVANT D'ENVOYER.
+       *
+       * On interroge la DESTINATION, pas le fichier : une restauration partielle pose des
+       * etats sur des dossiers deja en place, et les juger sur le contenu de la sauvegarde
+       * les declarerait orphelins a tort. Les dossiers restaures dans ce meme passage sont
+       * deja en base quand leur tour arrive — RESTORE_ORDER le garantit.
+       */
+      const regles = FK_RULES[table] ?? [];
+      let rows = toutes;
+      let ignorees = 0;
+      let parentsManquants: string[] = [];
+      if (regles.length > 0 && toutes.length > 0) {
+        const aVerifier = valeursAVerifier(toutes, regles);
+        const presents: Record<string, Set<string>> = {};
+        for (const [tableParente, ids] of Object.entries(aVerifier)) {
+          const colonne = regles.find(r => r.referencedTable === tableParente)?.referencedColumn ?? 'id';
+          const trouves = new Set<string>();
+          /* Par tranches : une clause IN de plusieurs milliers d'identifiants depasse la
+             longueur d'URL que PostgREST accepte. */
+          for (let i = 0; i < ids.length; i += 200) {
+            const tranche = ids.slice(i, i + 200);
+            const { data, error } = await supabase.from(tableParente).select(colonne).in(colonne, tranche);
+            /* Une lecture qui echoue ne doit pas faire jeter des lignes valides : on
+               renonce a trier plutot que de trier a l'aveugle. */
+            if (error) { trouves.clear(); break; }
+            /* `as unknown` d'abord : PostgREST type un select dynamique en GenericStringError
+               quand la colonne n'est pas connue statiquement. */
+            for (const l of (data ?? []) as unknown as Record<string, unknown>[]) trouves.add(String(l[colonne]));
+          }
+          if (trouves.size > 0 || ids.length === 0) presents[tableParente] = trouves;
+        }
+        const tri = ecarterOrphelins(toutes, regles, presents);
+        rows = tri.gardees;
+        ignorees = tri.ignorees.length;
+        parentsManquants = tri.parentsManquants;
+      }
+
+      const result: TableResult = {
+        table, rows: toutes.length, inserted: 0, errors: [], skipped: false,
+        ignored: ignorees, missingParents: parentsManquants,
+      };
 
       for (let batch = 0; batch < rows.length; batch += BATCH_SIZE) {
         if (abortRef.current) break;

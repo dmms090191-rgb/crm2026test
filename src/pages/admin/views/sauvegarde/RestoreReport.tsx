@@ -170,6 +170,20 @@ export function RestoreReportPanel({ report, onClose, tokens: t }: Props) {
                   <CheckCircle className="w-3.5 h-3.5 flex-shrink-0" style={{ color: t.success.text }} />
                 )}
                 <span className="text-xs font-mono flex-1 min-w-0 truncate" style={{ color: t.text.primary }}>{tr.table}</span>
+                {/*
+                  Les lignes ECARTEES sont nommees, jamais tues. Une restauration qui dit
+                  << 120 lignes >> alors qu'elle en a pose 118 est un rapport qui ment, et
+                  l'ecart ne se decouvrirait qu'en cherchant une donnee absente.
+                */}
+                {(tr.ignored ?? 0) > 0 && (
+                  <span className="text-[11px] flex-shrink-0 whitespace-nowrap px-1.5 py-0.5 rounded"
+                    title={tr.missingParents && tr.missingParents.length > 0
+                      ? `Parent introuvable : ${tr.missingParents.slice(0, 3).join(', ')}`
+                      : 'Parent introuvable'}
+                    style={{ background: t.warning.bg, color: t.warning.text }}>
+                    {tr.ignored} ecartee{(tr.ignored ?? 0) > 1 ? 's' : ''}
+                  </span>
+                )}
                 <span className="text-[11px] flex-shrink-0 whitespace-nowrap" style={{ color: t.text.tertiary }}>
                   {tr.rows.toLocaleString('fr-FR')} ligne{tr.rows > 1 ? 's' : ''}
                 </span>
