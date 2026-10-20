@@ -4,6 +4,43 @@
 > pas de mémoire. La couche base est fermée : 4 migrations appliquées,
 > fichiers locaux byte-identiques au ledger.
 
+---
+
+## ⚠ RÉVISION DU 20 OCTOBRE 2026 — une décision de ce plan a été annulée
+
+Ce document enregistre le plan du **19 octobre 2026**, et il est conservé tel quel :
+un document daté ne se corrige pas, il se complète. Mais une de ses décisions
+centrales a été **annulée le 20 octobre 2026** par David.
+
+**Ce que ce plan dit, et qui n'est plus vrai :**
+
+> « CRM Immo ne doit jamais apparaître dans la cloche générale. »
+
+L'isolation des deux cloches était le premier des trois garde-fous non négociables.
+Elle était prouvée par `scripts/crm-immo/clocheIsolation.test.ts`, par arités
+(exactement neuf catégories dans quatre listes) et par interdictions de motif.
+
+**La décision en vigueur :**
+
+Les alertes CRM Immo sont la **dixième catégorie du hub Notifications général**, et
+elles n'y apparaissent **que pour les Sociétés qui possèdent réellement le module**.
+La cloche locale du module est **conservée** — exigence explicite de David — avec ses
+filtres, ses actions lire / traiter et son historique. Les deux surfaces lisent la
+**même source unique** : un seul appel réseau, un seul calcul de badge.
+
+Ce qui n'a **pas** changé : le sens inverse. Le module ne lit rien des notifications
+générales, n'ouvre aucun canal Realtime, et son code reste dans son dossier.
+
+**Le garde-fou a été retourné, pas supprimé.** Le fichier a été renommé
+`scripts/crm-immo/alertesDansNotifications.test.ts` (`git mv`, histoire conservée) et
+prouve maintenant la nouvelle règle en 23 assertions — dont une section G qui **casse
+si quelqu'un restaure l'ancienne règle**, par retrait comme par réaffirmation.
+
+Toute mention de `clocheIsolation.test.ts` ou de l'isolation des cloches dans la suite
+de ce document doit se lire à la lumière de cette révision.
+
+---
+
 ## Le plan en trois phrases
 
 Le droit d'accès, pas le drapeau hidden : l'onglet n'est émis dans la sidebar que si has_crm_immo_access(useCompanyId()) répond oui, et la vraie garde vit dans un case explicite du switch de AdminViewRenderer, confié à une Porte qui rend trois états — chargement, module, refus NOMMÉ — parce que le default: ligne 119 ouvre le Dashboard sans un mot et qu'un retour null serait indiscernable d'un bug d'affichage. L'ordre des étapes fait descendre le risque : on relève d'abord la ligne de base du typecheck (196 erreurs, mesurée), on écrit la Porte et on la prouve par un forçage sessionStorage AVANT que l'onglet n'existe, on teste le bouton « Par défaut » chez Bellisimmo avant d'écrire une ligne du module, puis seulement on construit tableau, écritures, colonnes, cloche, mobile, et Talixy en dernier. Trois garde-fous sont non négociables et vivent sous scripts/, jamais sous src/ : l'isolation des deux cloches par arités et interdictions de motif, l'arithmétique des alertes (février, J-30, fuseau) dans un modèle pur à horloge injectée, et le déterminisme de l'ordre des colonnes.

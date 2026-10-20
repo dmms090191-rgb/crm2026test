@@ -51,12 +51,21 @@ export default function CrmImmoColonneRow({
       <div className="flex flex-col shrink-0">
         <button type="button" onClick={onMonter} disabled={premier} title="Monter"
           data-testid={`crm-immo-colonne-monter-${cle}`}
-          className="p-0.5 rounded disabled:opacity-25" style={{ color: t.label.muted }}>
+          /* Mesure a 375 px : 18 x 18 — la plus petite cible de tout le module, alors que
+             ces deux chevrons sont le SEUL moyen de reordonner a une main. Le rembourrage
+             les porte a 30 x 30, et un ::before horizontal a 46 de large.
+
+             Pourquoi pas 44 de HAUT : ils sont empiles. Deux zones de 44 dans une ligne
+             de 60 px se chevaucheraient au milieu, et << descendre >> declencherait
+             << monter >>. 44 de haut chacun exigerait une ligne de 88 px. */
+          className="relative p-0.5 max-md:p-2 rounded disabled:opacity-25 max-md:before:absolute max-md:before:content-[''] max-md:before:-inset-x-2 max-md:before:inset-y-0"
+          style={{ color: t.label.muted }}>
           <ChevronUp className="w-3.5 h-3.5" />
         </button>
         <button type="button" onClick={onDescendre} disabled={dernier} title="Descendre"
           data-testid={`crm-immo-colonne-descendre-${cle}`}
-          className="p-0.5 rounded disabled:opacity-25" style={{ color: t.label.muted }}>
+          className="relative p-0.5 max-md:p-2 rounded disabled:opacity-25 max-md:before:absolute max-md:before:content-[''] max-md:before:-inset-x-2 max-md:before:inset-y-0"
+          style={{ color: t.label.muted }}>
           <ChevronDown className="w-3.5 h-3.5" />
         </button>
       </div>
@@ -69,16 +78,19 @@ export default function CrmImmoColonneRow({
               onChange={e => setBrouillon(e.target.value)}
               autoFocus
               data-testid={`crm-immo-colonne-nom-${cle}`}
-              className="flex-1 min-w-0 px-2 py-1 rounded text-sm outline-none"
+              className="flex-1 min-w-0 px-2 py-1 max-md:py-2 rounded text-sm max-md:text-base outline-none"
               style={{ background: t.input.bg, border: `1px solid ${t.input.borderFocus}`, color: t.input.text }}
             />
             <button type="button" onClick={() => { onRenommer(brouillon); setEdition(false); }}
               title="Valider" data-testid={`crm-immo-colonne-renommer-ok-${cle}`}
-              className="p-1 rounded" style={{ color: t.success.text }}>
+              /* Mesure : 24 x 24 px, les plus petites cibles de la surface — et c est
+                 litteralement la paire valider / annuler. 14 px de rembourrage les
+                 portent a 44. */
+              className="p-1 max-md:p-[14px] rounded" style={{ color: t.success.text }}>
               <Check className="w-4 h-4" />
             </button>
             <button type="button" onClick={() => { setBrouillon(colonne.nom); setEdition(false); }}
-              title="Annuler" className="p-1 rounded" style={{ color: t.label.muted }}>
+              title="Annuler" className="p-1 max-md:p-[14px] rounded" style={{ color: t.label.muted }}>
               <X className="w-4 h-4" />
             </button>
           </div>
@@ -104,7 +116,10 @@ export default function CrmImmoColonneRow({
           <button type="button" onClick={onBasculerMasquage}
             title={colonne.masquee ? 'Afficher' : 'Masquer'}
             data-testid={`crm-immo-colonne-masquer-${cle}`}
-            className="p-1.5 rounded" style={{ color: t.label.muted }}>
+            /* Mesure a 375 px : 28 x 28, et trois de ces boutons se suivent a 2 px.
+               Un ::before les ferait se chevaucher — on agrandit donc le bouton lui-meme.
+               15 px de rembourrage autour d une icone de 14 donnent 44 x 44 pleins. */
+            className="p-1.5 max-md:p-[15px] rounded" style={{ color: t.label.muted }}>
             {colonne.masquee ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
           </button>
         )}
@@ -112,7 +127,7 @@ export default function CrmImmoColonneRow({
         {!systeme && !edition && (
           <button type="button" onClick={() => { setBrouillon(colonne.nom); setEdition(true); }}
             title="Renommer" data-testid={`crm-immo-colonne-editer-${cle}`}
-            className="p-1.5 rounded" style={{ color: t.table.cellIcon }}>
+            className="p-1.5 max-md:p-[15px] rounded" style={{ color: t.table.cellIcon }}>
             <Pencil className="w-4 h-4" />
           </button>
         )}
@@ -123,19 +138,19 @@ export default function CrmImmoColonneRow({
             <div className="flex items-center gap-1">
               <button type="button" onClick={onSupprimer}
                 data-testid={`crm-immo-colonne-supprimer-ok-${cle}`}
-                className="px-2 py-1 rounded text-[11px] font-semibold"
+                className="px-2 py-1 max-md:py-3 rounded text-[11px] font-semibold"
                 style={{ background: t.danger.text, color: t.text.inverse }}>
                 Supprimer
               </button>
               <button type="button" onClick={() => setConfirme(false)}
-                className="px-2 py-1 rounded text-[11px]" style={{ color: t.label.muted }}>
+                className="px-2 py-1 max-md:px-3 max-md:py-3 rounded text-[11px]" style={{ color: t.label.muted }}>
                 Non
               </button>
             </div>
           ) : (
             <button type="button" onClick={() => setConfirme(true)}
               title="Supprimer" data-testid={`crm-immo-colonne-supprimer-${cle}`}
-              className="p-1.5 rounded" style={{ color: t.danger.text }}>
+              className="p-1.5 max-md:p-[15px] rounded" style={{ color: t.danger.text }}>
               <Trash2 className="w-4 h-4" />
             </button>
           )

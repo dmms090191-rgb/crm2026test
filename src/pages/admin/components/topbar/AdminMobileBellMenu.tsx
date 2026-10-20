@@ -2,7 +2,9 @@ import type { SuperAdminNotifEntry } from '../../../../hooks/useUnreadFromSuperA
 import { BubbleRow } from '../../../../components/notifications/MessageBubblePopover';
 import { useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { MessageSquareText, CalendarDays, CalendarClock, CalendarCheck, ChevronRight, Bell, Shield, RefreshCw } from 'lucide-react';
+import { MessageSquareText, CalendarDays, CalendarClock, CalendarCheck, ChevronRight, Bell, Shield, RefreshCw, Building2 } from 'lucide-react';
+import { CrmImmoNotifItem } from './AdminNotificationDetail';
+import type { Alerte as AlerteImmo } from '../../../../lib/crmImmoAlertes';
 import { ClientNotifItem, AgendaNotifItem, AgendaEquipeNotifItem, ProposalNotifItem, ConfirmedProposalItem, DropdownEmpty } from './index';
 import { RescheduleResponseItem, RescheduleRequestItem, SuperAdminNotifItem } from './NotificationItems';
 import type { ClientNotifEntry, VendorNotifEntry, ConfirmedProposalEntry } from '../../TopBar';
@@ -13,6 +15,12 @@ import type { ThemeTokens } from '../../../../lib/themeTokensTypes';
 import { formatTodayInTz } from '../../../../lib/timezone';
 
 interface Props {
+  /* CRM Immo, dixieme categorie. La ligne n est ajoutee que si le DROIT est accorde :
+     jamais masquee, jamais desactivee, simplement absente. */
+  crmImmoActif?: boolean;
+  crmImmoCount?: number;
+  crmImmoEntries?: AlerteImmo[];
+  onCrmImmoEntryClick?: (dossierId: string) => void;
   open: boolean;
   setOpen: (v: boolean | ((p: boolean) => boolean)) => void;
   category: string | null;
@@ -61,6 +69,7 @@ interface Props {
 }
 
 export default function AdminMobileBellMenu({
+  crmImmoActif, crmImmoCount = 0, crmImmoEntries = [], onCrmImmoEntryClick,
   open, setOpen, category, setCategory, totalNotifCount,
   unreadClientCount, unreadClientEntries, onClientEntryClick,
   unreadVendorCount, unreadVendorEntries, onVendorEntryClick,
@@ -128,6 +137,10 @@ export default function AdminMobileBellMenu({
                   { key: 'decalages', icon: <RefreshCw className="w-4 h-4" />, label: 'Decalages', count: rescheduleCount },
                   { key: 'demandes-decalage', icon: <RefreshCw className="w-4 h-4" />, label: 'Demandes decalage', count: rescheduleRequestCount },
                 ];
+                /* CRM Immo n entre dans la liste que si la Societe a le module. */
+                if (crmImmoActif) {
+                  defaultItems.push({ key: 'crm-immo', icon: <Building2 className="w-4 h-4" />, label: 'CRM Immo', count: crmImmoCount });
+                }
                 const itemMap = new Map(defaultItems.map(i => [i.key, i]));
                 const keys = notifCardOrder && notifCardOrder.length > 0 ? notifCardOrder : defaultItems.map(i => i.key);
                 return keys
@@ -173,9 +186,24 @@ export default function AdminMobileBellMenu({
                   {category === 'rdv' && 'RDV Confirmes'}
                   {category === 'decalages' && 'Reponses decalages'}
                   {category === 'demandes-decalage' && 'Demandes de decalage'}
+                  {category === 'crm-immo' && 'CRM Immo'}
                 </p>
               </div>
               <div className="max-h-64 overflow-y-auto">
+                {category === 'crm-immo' && (
+                  crmImmoEntries.length === 0 ? (
+                    <DropdownEmpty text="Aucune echeance immobiliere" tokens={t} />
+                  ) : (
+                    crmImmoEntries.map(a => (
+                      <CrmImmoNotifItem
+                        key={a.dossier_id + '|' + a.genre + '|' + a.periode}
+                        alerte={a}
+                        tokens={t.dropdown}
+                        onClick={() => { onCrmImmoEntryClick?.(a.dossier_id); setOpen(false); setCategory(null); }}
+                      />
+                    ))
+                  )
+                )}
                 {category === 'client' && (
                   unreadClientEntries.length === 0 ? (
                     <DropdownEmpty text="Aucun nouveau message" tokens={t} />

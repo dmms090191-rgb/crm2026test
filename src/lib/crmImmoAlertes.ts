@@ -231,6 +231,58 @@ export function deriverAlertes(params: {
  * ferait diverger l'interface et sa documentation.
  * ------------------------------------------------------------------------- */
 
+/** 'AAAA-MM-JJ' en jj/mm/aaaa. Sans toLocaleDateString : la locale du poste varie. */
+export function enDateFrancaise(iso: string): string {
+  const j = lireJour(iso);
+  return j ? DEUX(j.jour) + '/' + DEUX(j.mois) + '/' + j.annee : '—';
+}
+
+/**
+ * La phrase d une alerte — LA MEME partout.
+ *
+ * Le hub Notifications general et la cloche locale du module affichent le meme texte,
+ * parce qu ils parlent de la meme chose. Deux formulations pour un meme evenement, et
+ * l utilisateur se demanderait s il s agit de deux alertes.
+ *
+ * Elle porte TOUJOURS les quatre informations que David exige : le type d alerte, le
+ * locataire, le proprietaire et la date.
+ */
+export function libelleAlerte(a: Alerte): string {
+  return titreAlerte(a) + ' — ' + detailAlerte(a);
+}
+
+/**
+ * Le TITRE de l alerte : son premier segment, celui qui dit de quoi il s agit.
+ */
+export function titreAlerte(a: Alerte): string {
+  return a.genre === 'fin_contrat' ? 'Contrat bientôt terminé' : 'Loyer à encaisser';
+}
+
+/**
+ * Le RESTE de la phrase, sans son titre.
+ *
+ * Pourquoi cette troisieme fonction. Une ligne du hub general affiche un titre en gras
+ * puis un detail en dessous — comme les neuf autres categories. En y mettant la phrase
+ * ENTIERE, le titre apparaissait deux fois :
+ *
+ *   Contrat bientôt terminé
+ *   Contrat bientôt terminé — Jean Dupont — propriétaire Sarah Cohen — échéance le 15/12/2026
+ *
+ * Mesure faite a 375 px sur le composant reel : la repetition poussait la ligne a deux
+ * lignes de texte et volait la largeur dont un nom long a besoin.
+ *
+ * On ne change PAS la phrase pour autant. libelleAlerte est desormais DEFINIE comme
+ * titre + detail : la cloche du module affiche toujours la phrase exacte que David a
+ * specifiee, et le hub en typographie les deux moities. Un seul texte, impossible a
+ * faire diverger — il n existe plus deux endroits ou l ecrire.
+ */
+export function detailAlerte(a: Alerte): string {
+  const quand = enDateFrancaise(a.echeance);
+  return a.genre === 'fin_contrat'
+    ? `${a.locataire} — propriétaire ${a.proprietaire} — échéance le ${quand}`
+    : `${a.locataire} — pour ${a.proprietaire} — échéance le ${quand}`;
+}
+
 export type FiltreAlertes = 'actives' | 'traitees' | 'toutes';
 
 /** Traitee = retiree des actives, mais conservee. */

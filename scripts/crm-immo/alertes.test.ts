@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import {
   journeeDeReference, dernierJourDuMois, jourRabattu, periodeLoyer, lireJour, joursEntre,
   deriverAlertes, filtrer, compteBadge, PREAVIS_FIN_CONTRAT,
+  libelleAlerte, titreAlerte, detailAlerte, enDateFrancaise,
   type DossierPourAlertes, type EtatConnu, type Alerte,
 } from "../../src/lib/crmImmoAlertes.ts";
 
@@ -282,4 +283,73 @@ test("l affichage porte TOUJOURS locataire, proprietaire et echeance", () => {
     assert.match(x.echeance, MOTIF_FIN, "l echeance est toujours une date affichable");
   }
   assert.equal(a[0].locataire, "Jean Dupont", "a defaut de locataire, le nom du client");
+});
+
+/* -------------------------------------------------------------------------
+ * LA PHRASE : une seule, en deux moities
+ * ------------------------------------------------------------------------- */
+
+test("la phrase de David, au caractere pres, pour les deux genres", () => {
+  /*
+   * Exigence litterale : << Contrat bientot termine — {locataire} — proprietaire
+   * {proprietaire} — echeance le {date} >> et << Loyer a encaisser — {locataire} —
+   * pour {proprietaire} — echeance le {date} >>.
+   *
+   * Ce test est volontairement ecrit en DUR, sans reutiliser les constantes du module :
+   * un test qui derive sa valeur attendue de la source ne verifie plus rien.
+   */
+  const a = deriverAlertes({
+    dossiers: [dossier({ jour_encaissement: 5, date_fin_contrat: "2026-12-15" })],
+    etats: [], aujourdhui: "2026-11-19",
+  });
+  const fin = a.find(x => x.genre === "fin_contrat")!;
+  const loyer = a.find(x => x.genre === "loyer")!;
+
+  assert.equal(
+    libelleAlerte(fin),
+    "Contrat bientôt terminé — Jean Dupont — propriétaire Sarah Cohen — échéance le 15/12/2026",
+  );
+  assert.equal(
+    libelleAlerte(loyer),
+    /* Le 19 novembre, le loyer courant est celui de NOVEMBRE : l alerte reste visible
+       tout le mois, meme apres le 5. Ce n est pas le loyer de decembre. */
+    "Loyer à encaisser — Jean Dupont — pour Sarah Cohen — échéance le 05/11/2026",
+  );
+});
+
+test("titre + detail redonnent EXACTEMENT la phrase entiere", () => {
+  /*
+   * Le hub general affiche le titre en gras puis le detail en dessous ; la cloche du
+   * module affiche la phrase entiere. Si les trois textes pouvaient diverger, le meme
+   * evenement se lirait differemment selon la surface — et l utilisateur se demanderait
+   * s il s agit de deux alertes.
+   *
+   * libelleAlerte EST definie comme titre + separateur + detail. Ce test fige l identite
+   * pour que personne ne reecrive l une des trois a la main.
+   */
+  const a = deriverAlertes({
+    dossiers: [
+      dossier({ jour_encaissement: 31, date_fin_contrat: "2026-02-28" }),
+      dossier({ id: "d2", locataire: "Marie-Antoinette Vandenbergheimerstein",
+                proprietaire: "Jean-Baptiste de la Rochefoucauld", jour_encaissement: 1,
+                date_fin_contrat: "2027-01-03" }),
+    ],
+    etats: [], aujourdhui: "2026-02-01",
+  });
+  assert.ok(a.length >= 2, "le jeu d epreuve ne produit pas assez d alertes");
+  for (const x of a) {
+    assert.equal(libelleAlerte(x), titreAlerte(x) + " — " + detailAlerte(x),
+      "la phrase ne se recompose pas depuis ses deux moities : " + libelleAlerte(x));
+    /* Et le detail ne doit PAS recommencer par le titre : c est le defaut mesure a
+       375 px, ou le titre apparaissait deux fois dans la ligne du hub. */
+    assert.ok(!detailAlerte(x).startsWith(titreAlerte(x)),
+      "le detail repete le titre : " + detailAlerte(x));
+  }
+});
+
+test("une date est toujours jj/mm/aaaa, jamais la locale du poste", () => {
+  /* toLocaleDateString rendrait 12/15/2026 sur un poste en anglais. */
+  assert.equal(enDateFrancaise("2026-12-15"), "15/12/2026");
+  assert.equal(enDateFrancaise("2026-01-05"), "05/01/2026");
+  assert.equal(enDateFrancaise("pas-une-date"), "—");
 });

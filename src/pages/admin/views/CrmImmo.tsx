@@ -8,7 +8,7 @@ import { journeeDeReference, fuseauLocal } from '../../../lib/crmImmoAlertes';
 import { COLONNES_SYSTEME, type DossierImmo, type SaisieDossier } from './crm-immo/crmImmoTypes';
 import { useCrmImmoDossiers } from './crm-immo/useCrmImmoDossiers';
 import { useCrmImmoColonnes } from './crm-immo/useCrmImmoColonnes';
-import { useCrmImmoAlertes } from './crm-immo/useCrmImmoAlertes';
+import { useAlertesImmoPartagees } from '../../../contexts/CrmImmoAlertesContext';
 import CrmImmoFilters from './crm-immo/CrmImmoFilters';
 import CrmImmoTable from './crm-immo/CrmImmoTable';
 import CrmImmoCards from './crm-immo/CrmImmoCards';
@@ -52,7 +52,19 @@ export default function CrmImmo() {
   const tx = useTalixy();
   const dos = useCrmImmoDossiers();
   const col = useCrmImmoColonnes();
-  const alertes = useCrmImmoAlertes();
+  /*
+   * ---------- LA SOURCE UNIQUE ----------
+   *
+   * Les alertes ne sont PLUS chargees ici. Elles le sont une seule fois dans
+   * AdminDashboard, et servent a la fois le hub Notifications general et cette page.
+   *
+   * Deux appels donneraient deux verites : traiter une alerte dans la cloche ci-dessous
+   * ne decrementerait pas le compteur du hub, et l utilisateur ne saurait pas lequel
+   * croire. La cloche locale garde en revanche tout son role — filtres Actives /
+   * Traitees / Toutes, marquer lu, traiter, historique — que le hub general n a pas.
+   */
+  const partage = useAlertesImmoPartagees();
+  const alertes = partage?.etat ?? null;
 
   const [terme, setTerme] = useState('');
   const [filtre, setFiltre] = useState<FiltreDossiers>('tous');
@@ -109,6 +121,25 @@ export default function CrmImmo() {
     setErreurFormulaire('');
   }, [dos.dossiers]);
 
+  /*
+   * LE CLIC DEPUIS LE HUB GENERAL.
+   *
+   * Le hub vit dans la barre du haut, cette page dans la zone principale : ils ne se
+   * connaissent pas. Le hub depose donc une demande d ouverture dans le contexte, et
+   * cette page la consomme des que ses dossiers sont charges.
+   *
+   * La garde sur `dos.loading` est essentielle : au moment du clic, la vue vient a
+   * peine d etre montee et sa liste est VIDE. Consommer la demande tout de suite ne
+   * trouverait rien et la perdrait, en silence.
+   */
+  useEffect(() => {
+    const vise = partage?.dossierAOuvrir;
+    if (!vise || dos.loading) return;
+    const d = dos.dossiers.find(x => x.id === vise);
+    partage?.ouvertureConsommee();
+    if (d) { setEdite(d); setErreurFormulaire(''); }
+  }, [partage, dos.dossiers, dos.loading]);
+
   async function validerDossier(s: SaisieDossier) {
     setEnCours(true);
     setErreurFormulaire('');
@@ -117,8 +148,9 @@ export default function CrmImmo() {
     if (r.error) { setErreurFormulaire(r.error); return; }
     setEdite(null);
     setCreation(false);
-    /* Les echeances ont pu changer : la cloche doit en tenir compte tout de suite. */
-    void alertes.recharger();
+    /* Les echeances ont pu changer : la cloche ET le hub general doivent en tenir
+       compte tout de suite — ils lisent la meme source. */
+    void alertes?.recharger();
   }
 
   async function confirmerSuppression() {
@@ -129,7 +161,7 @@ export default function CrmImmo() {
     setEnCours(false);
     if (r.error) { setErreurSuppression(r.error); return; }
     setASupprimer(null);
-    void alertes.recharger();
+    void alertes?.recharger();
   }
 
   /*
@@ -162,18 +194,27 @@ export default function CrmImmo() {
         )}
 
         <div className="flex items-center gap-2 shrink-0 ml-auto">
-          <CrmImmoCloche
-            alertes={alertes.alertes}
-            badge={alertes.badge}
-            filtre={alertes.filtre}
-            onFiltre={alertes.setFiltre}
-            chargement={alertes.chargement}
-            erreur={alertes.erreur}
-            onRecharger={() => { void alertes.recharger(); }}
-            onMarquerLue={(a) => { void alertes.marquerLue(a); }}
-            onMarquerTraitee={(a) => { void alertes.marquerTraitee(a); }}
-            onOuvrirDossier={ouvrirDepuisAlerte}
-          />
+          {/*
+            La cloche LOCALE reste, et elle garde son role propre : filtres Actives /
+            Traitees / Toutes, marquer lu, traiter, historique. Le hub general, lui, ne
+            fait que signaler et ouvrir le dossier — aucune des dix categories n y porte
+            d action. Les deux lisent la MEME source, donc traiter ici decremente le
+            compteur du hub dans le meme rendu.
+          */}
+          {alertes && (
+            <CrmImmoCloche
+              alertes={alertes.alertes}
+              badge={alertes.badge}
+              filtre={alertes.filtre}
+              onFiltre={alertes.setFiltre}
+              chargement={alertes.chargement}
+              erreur={alertes.erreur}
+              onRecharger={() => { void alertes.recharger(); }}
+              onMarquerLue={(a) => { void alertes.marquerLue(a); }}
+              onMarquerTraitee={(a) => { void alertes.marquerTraitee(a); }}
+              onOuvrirDossier={ouvrirDepuisAlerte}
+            />
+          )}
           <button type="button" onClick={() => { setCreation(true); setErreurFormulaire(''); }}
             data-testid="crm-immo-ajouter"
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-all hover:scale-105"

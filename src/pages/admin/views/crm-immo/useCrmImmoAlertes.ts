@@ -7,15 +7,27 @@ import {
 } from '../../../../lib/crmImmoAlertes';
 
 /**
- * L'etat de la cloche CRM IMMO — locale au module, sans Realtime.
+ * L'etat des alertes CRM IMMO — la SOURCE UNIQUE, sans Realtime.
  *
- * ---------- CE QU'ELLE N'EST PAS ----------
+ * ---------- CE QU'IL SERT, DEPUIS LE 20 OCTOBRE 2026 ----------
  *
- * Elle ne touche NI TopBar, NI les cartes du NotifHub general, NI aucune somme de
- * compteurs. Elle est montee par la vue du module, elle vit dans son dossier, et aucun
- * chiffre n'en sort. L'inverse est vrai aussi : elle ne lit rien des notifications
- * generales. scripts/crm-immo/clocheIsolation.test.ts le prouve, et casse si quelqu'un
- * branche un jour l'un sur l'autre.
+ * DEUX surfaces, un seul etat :
+ *   - le hub Notifications GENERAL : la dixieme categorie, sa pastille et sa liste ;
+ *   - la page du module : la cloche locale, ses filtres, ses actions lire / traiter.
+ *
+ * La decision a change. Ce hook etait auparavant cloisonne : il ne devait toucher ni
+ * TopBar ni les cartes du hub, et un test interdisait tout chemin entre les deux. Le
+ * cloisonnement est leve DANS CE SENS — le compteur remonte maintenant jusqu'a la
+ * pastille generale, mais UNIQUEMENT pour les Societes qui possedent le module.
+ *
+ * Ce qui n'a PAS change : ce hook ne lit rien des notifications generales. Le general
+ * descend vers le module, jamais l'inverse.
+ *
+ * Il est appele UNE SEULE FOIS, dans AdminDashboard, et son resultat se partage par
+ * CrmImmoAlertesContext. Deux appels, c'est deux etats React : le hub et la page
+ * divergeraient des qu'une alerte serait traitee d'un cote.
+ * scripts/crm-immo/alertesDansNotifications.test.ts le prouve, et casse si quelqu'un
+ * rouvre un second chemin — ou s'il restaure l'ancienne regle.
  *
  * ---------- DEUX RYTHMES, ET UN SEUL COUTE DU RESEAU ----------
  *
@@ -38,7 +50,18 @@ const CHAMPS_DOSSIER = 'id,nom,prenom,locataire,proprietaire,date_fin_contrat,jo
 const RYTHME_DERIVATION = 60_000;
 const RYTHME_RESEAU = 300_000;
 
-export function useCrmImmoAlertes() {
+/**
+ * @param actif  Vrai seulement si la Societe possede REELLEMENT le module.
+ *
+ * Ce hook est desormais appele UNE SEULE FOIS, dans AdminDashboard, pour servir a la
+ * fois le hub Notifications general et la page du module. Mais AdminDashboard est monte
+ * pour TOUTES les Societes de Talvex, et la plupart n ont pas CRM Immo : sans ce
+ * drapeau, chacune paierait deux requetes inutiles a chaque ouverture de panel.
+ *
+ * La RLS rendrait bien 0 ligne — ce n est pas une question de securite, c est une
+ * question de ne pas demander ce qu on sait absent.
+ */
+export function useCrmImmoAlertes(actif: boolean) {
   const companyId = useCompanyId();
   const [dossiers, setDossiers] = useState<DossierPourAlertes[]>([]);
   const [etats, setEtats] = useState<EtatConnu[]>([]);
@@ -52,7 +75,7 @@ export function useCrmImmoAlertes() {
   const [aujourdhui, setAujourdhui] = useState(() => journeeDeReference(new Date(), fuseau));
 
   const recharger = useCallback(async () => {
-    if (!companyId) { setDossiers([]); setEtats([]); setChargement(false); return; }
+    if (!actif || !companyId) { setDossiers([]); setEtats([]); setChargement(false); return; }
     const [d, e] = await Promise.all([
       supabase.from('crm_immo_dossiers').select(CHAMPS_DOSSIER).eq('company_id', companyId),
       supabase.from('crm_immo_etats').select('dossier_id,genre,periode,lue_le,traitee_le').eq('company_id', companyId),
@@ -69,26 +92,28 @@ export function useCrmImmoAlertes() {
        navigateur en arriere-plan. */
     setAujourdhui(journeeDeReference(new Date(), fuseau));
     setChargement(false);
-  }, [companyId, fuseau]);
+  }, [actif, companyId, fuseau]);
 
   useEffect(() => { void recharger(); }, [recharger]);
 
   /* Battement local : aucune requete, seulement la date qui avance. */
   useEffect(() => {
+    if (!actif) return;
     const t = setInterval(() => setAujourdhui(journeeDeReference(new Date(), fuseau)), RYTHME_DERIVATION);
     return () => clearInterval(t);
-  }, [fuseau]);
+  }, [actif, fuseau]);
 
   /* Reseau : periodique, et au retour de visibilite. */
   const rechargerRef = useRef(recharger);
   useEffect(() => { rechargerRef.current = recharger; }, [recharger]);
 
   useEffect(() => {
+    if (!actif) return;
     const t = setInterval(() => { void rechargerRef.current(); }, RYTHME_RESEAU);
     const auRetour = () => { if (document.visibilityState === 'visible') void rechargerRef.current(); };
     document.addEventListener('visibilitychange', auRetour);
     return () => { clearInterval(t); document.removeEventListener('visibilitychange', auRetour); };
-  }, []);
+  }, [actif]);
 
   const toutes = useMemo(
     () => deriverAlertes({ dossiers, etats, aujourdhui }),
@@ -97,6 +122,21 @@ export function useCrmImmoAlertes() {
 
   const affichees = useMemo(() => filtrer(toutes, filtre), [toutes, filtre]);
   const badge = useMemo(() => compteBadge(toutes), [toutes]);
+
+  /*
+   * Les ACTIVES, independamment du filtre de la page.
+   *
+   * `affichees` suit le selecteur Actives / Traitees / Toutes de la page du module. Le
+   * hub Notifications general, lui, n a pas ce selecteur : s il affichait `affichees`,
+   * choisir << Traitees >> sur la page du module changerait la liste du hub general, qui
+   * montrerait des echeances deja traitees pendant que sa pastille, elle, compte les
+   * actives. Liste et chiffre se contrediraient, et l utilisateur n aurait aucun moyen de
+   * comprendre pourquoi.
+   *
+   * On derive donc de `toutes` — la meme source, un calcul de plus au meme endroit, et
+   * non une seconde verite ailleurs.
+   */
+  const actives = useMemo(() => filtrer(toutes, 'actives'), [toutes]);
 
   /**
    * Marque une alerte lue ou traitee.
@@ -143,8 +183,11 @@ export function useCrmImmoAlertes() {
   const marquerTraitee = useCallback((a: Alerte) => marquer(a, 'traitee'), [marquer]);
 
   return {
-    alertes: affichees, toutes, badge, filtre, setFiltre,
+    alertes: affichees, toutes, actives, badge, filtre, setFiltre,
     chargement, erreur, aujourdhui,
     recharger, marquerLue, marquerTraitee,
   };
 }
+
+/** Ce que le hook rend : la SEULE source de verite des alertes du module. */
+export type EtatAlertesImmo = ReturnType<typeof useCrmImmoAlertes>;

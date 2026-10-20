@@ -14,7 +14,9 @@ import { session, rest, type Session } from './helpers/boutique3d';
  *   4. la suppression demande confirmation et supprime — verifie en base ;
  *   5. recherche, tri et filtres reduisent la liste sans la casser ;
  *   6. une colonne personnalisee se cree, se renomme, et sa valeur SURVIT au renommage ;
- *   7. la cloche du module compte, pendant que la cloche GENERALE ne bouge pas.
+ *   7. la cloche du module compte, et la pastille GENERALE compte avec elle — les
+ *      alertes CRM Immo sont la dixieme categorie du hub Notifications depuis le
+ *      20 octobre 2026, pour les Societes qui possedent le module.
  *
  * ---------- POURQUOI LE COMPTE N'EST PAS DANS LE DEPOT ----------
  *
@@ -260,7 +262,7 @@ test('une colonne personnalisee se cree, se renomme, et sa valeur SURVIT au reno
     'renommer la colonne a reecrit le dossier : la cle du jsonb doit etre l ID').toBe('850');
 });
 
-test('la cloche du module compte, et la cloche GENERALE ne bouge pas', async ({ page }) => {
+test('la cloche du module compte, et la cloche GENERALE compte avec elle', async ({ page }) => {
   await loginWith(page, IMMO_EMAIL, IMMO_PIN);
   await allerAuCrmImmo(page);
 
@@ -280,14 +282,32 @@ test('la cloche du module compte, et la cloche GENERALE ne bouge pas', async ({ 
   await expect(panneau).toContainText('Cohen');
   await page.screenshot({ path: `${CAPTURES}/5-cloche.png` });
 
-  /* L'ISOLATION, a l'ecran : la cloche GENERALE de la barre du haut n'a pas bouge. Le
-     test de source (scripts/crm-immo/clocheIsolation.test.ts) prouve qu'aucun chiffre ne
-     peut remonter ; celui-ci verifie qu'en pratique il n'a pas remonte. */
+  /*
+   * DECISION REVISEE LE 20 OCTOBRE 2026.
+   *
+   * Ce bloc affirmait l'inverse : que la cloche GENERALE ne devait pas bouger. Les
+   * alertes CRM Immo sont desormais la dixieme categorie du hub Notifications general,
+   * pour les Societes qui possedent le module — et Bellisimmo, le compte de ce test,
+   * le possede.
+   *
+   * L'assertion tient sans ajouter de data-testid a la barre du haut : la pastille
+   * generale est une SOMME de dix compteurs tous positifs ou nuls. Si le compteur du
+   * module en fait partie, la pastille lui est superieure ou egale. Si on le retirait
+   * — l'ancienne regle restauree — une Societe sans autre notification afficherait une
+   * pastille absente, ou plus petite que le chiffre du module.
+   *
+   * Le detail — carte presente seulement avec le droit, compteur identique, pas de
+   * doublon, clic vers le bon dossier — est prouve par
+   * scripts/crm-immo/alertesDansNotifications.test.ts, qui lit la source.
+   */
   const clocheGenerale = page.locator('header [class*="rounded-full"]').filter({ hasText: /^\d+$/ });
-  const chiffresGeneraux = await clocheGenerale.allTextContents();
-  for (const c of chiffresGeneraux) {
-    expect(Number(c), 'la cloche generale affiche le chiffre du module').not.toBe(chiffreModule);
-  }
+  const chiffresGeneraux = (await clocheGenerale.allTextContents()).map(c => Number(c.trim()));
+  expect(chiffresGeneraux.length,
+    'la cloche generale n affiche aucun chiffre alors que le module en compte ' + chiffreModule)
+    .toBeGreaterThan(0);
+  expect(Math.max(...chiffresGeneraux),
+    'la pastille generale est plus petite que le compteur du module : les alertes CRM Immo n y entrent pas')
+    .toBeGreaterThanOrEqual(chiffreModule);
 
   /* « Traiter » retire l'alerte des actives ET du badge, mais la CONSERVE. */
   const dossier = (await dossiersEnBase(s!)).find(d => String(d.nom).includes('Dupont'))!;

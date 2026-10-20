@@ -93,7 +93,7 @@ export default function CrmImmoColonnesModal({
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
       style={{ background: t.modal.overlayBg }} data-testid="crm-immo-colonnes-modal">
-      <div className="w-full sm:max-w-lg max-h-[92vh] flex flex-col rounded-t-2xl sm:rounded-2xl overflow-hidden"
+      <div className="w-full sm:max-w-lg max-h-[92dvh] flex flex-col rounded-t-2xl sm:rounded-2xl overflow-hidden"
         style={{ background: t.modal.bg, border: `1px solid ${t.modal.border}`, boxShadow: t.modal.shadow }}>
 
         <div className="flex items-center justify-between px-4 py-3 shrink-0"
@@ -106,14 +106,16 @@ export default function CrmImmoColonnesModal({
           </div>
           <button type="button" onClick={onFermer} title="Fermer"
             data-testid="crm-immo-colonnes-fermer"
-            className="p-1.5 rounded-lg" style={{ background: t.modal.closeBtnBg, color: t.modal.closeBtnText }}>
+            /* Mesure a 375 px : 28 x 28. Meme traitement que la modale Dossier. */
+            className="relative p-1.5 rounded-lg max-md:before:absolute max-md:before:content-[''] max-md:before:-inset-2"
+            style={{ background: t.modal.closeBtnBg, color: t.modal.closeBtnText }}>
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="flex-1 min-h-0 overflow-y-auto">
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
           {erreur !== '' && (
-            <p className="text-xs m-3 px-3 py-2 rounded-lg" data-testid="crm-immo-colonnes-erreur"
+            <p className="text-xs m-3 px-3 py-2 rounded-lg break-words" data-testid="crm-immo-colonnes-erreur"
               style={{ background: t.danger.bg, border: `1px solid ${t.danger.border}`, color: t.danger.text }}>
               {erreur}
             </p>
@@ -153,21 +155,24 @@ export default function CrmImmoColonnesModal({
           ))}
         </div>
 
-        <div className="px-3 py-3 shrink-0 flex flex-col gap-2" style={{ borderTop: `1px solid ${t.modal.border}` }}>
+        <div className="px-3 py-3 shrink-0 flex flex-col gap-2"
+          style={{ borderTop: `1px solid ${t.modal.border}`, paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}>
           <div className="flex flex-col sm:flex-row gap-2">
             <input
               value={nouveauNom}
               onChange={e => setNouveauNom(e.target.value)}
               placeholder="Nom de la colonne"
               data-testid="crm-immo-colonne-nouveau-nom"
-              className="flex-1 min-w-0 px-3 py-2 rounded-lg text-sm outline-none"
+              /* 16 px sous 768 px : sous ce seuil, iOS Safari agrandit la page au
+                 toucher du champ, et la modale deborde a droite. */
+              className="flex-1 min-w-0 px-3 py-2 rounded-lg text-sm max-md:text-base outline-none"
               style={{ background: t.input.bg, border: `1px solid ${t.input.border}`, color: t.input.text }}
             />
             <select
               value={nouveauType}
               onChange={e => setNouveauType(e.target.value as TypeColonne)}
               data-testid="crm-immo-colonne-nouveau-type"
-              className="px-3 py-2 rounded-lg text-sm outline-none shrink-0"
+              className="px-3 py-2 rounded-lg text-sm max-md:text-base outline-none shrink-0"
               style={{ background: t.selectBg, border: `1px solid ${t.input.border}`, color: t.input.text }}>
               {TYPES_COLONNE.map(x => <option key={x.valeur} value={x.valeur}>{x.libelle}</option>)}
             </select>
@@ -175,7 +180,8 @@ export default function CrmImmoColonnesModal({
               onClick={() => { onAjouter(nouveauNom, nouveauType); setNouveauNom(''); }}
               disabled={nouveauNom.trim() === '' || problemeNom !== ''}
               data-testid="crm-immo-colonne-ajouter"
-              className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold shrink-0 disabled:opacity-50"
+              /* Mesure a 375 px : 349 x 36. Large, mais trop court au doigt. */
+              className="inline-flex items-center justify-center gap-1.5 px-4 py-2 max-md:py-3 rounded-lg text-sm font-semibold shrink-0 disabled:opacity-50"
               style={{ background: t.accent.solid, color: t.text.inverse }}>
               <Plus className="w-4 h-4" />
               Ajouter

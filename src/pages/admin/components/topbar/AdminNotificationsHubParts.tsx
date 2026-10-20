@@ -22,6 +22,7 @@ const CATEGORY_LABELS: Record<NotifCategory, string> = {
   rdv: 'RDV Confirmes',
   decalages: 'Reponses decalages',
   'demandes-decalage': 'Demandes de decalage',
+  'crm-immo': 'CRM Immo',
 };
 
 export { CATEGORY_LABELS };

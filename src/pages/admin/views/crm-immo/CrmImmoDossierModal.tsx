@@ -92,7 +92,9 @@ export default function CrmImmoDossierModal({
       value: saisie[cle] as string,
       onChange: (e: { target: { value: string } }) => poser(cle, e.target.value),
       'data-testid': `crm-immo-champ-${cle}`,
-      className: 'w-full px-3 py-2 rounded-lg text-sm outline-none',
+      /* max-md:text-base : 16 px sous 768 px, le seuil en dessous duquel iOS Safari
+         agrandit la page des qu on touche le champ. Voir l en-tete de ce chantier. */
+      className: 'w-full px-3 py-2 rounded-lg text-sm max-md:text-base outline-none',
       style: { background: t.modal.fieldBg, border: `1px solid ${t.modal.fieldBorder}`, color: t.modal.fieldValue },
     };
     return (
@@ -115,7 +117,9 @@ export default function CrmImmoDossierModal({
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
       style={{ background: t.modal.overlayBg }} data-testid="crm-immo-dossier-modal">
-      <div className="w-full sm:max-w-2xl max-h-[92vh] flex flex-col rounded-t-2xl sm:rounded-2xl overflow-hidden"
+      {/* dvh et non vh : le clavier mobile ne change pas vh, et la barre des boutons
+          passerait dessous. */}
+      <div className="w-full sm:max-w-2xl max-h-[92dvh] flex flex-col rounded-t-2xl sm:rounded-2xl overflow-hidden"
         style={{ background: t.modal.bg, border: `1px solid ${t.modal.border}`, boxShadow: t.modal.shadow }}>
 
         <div className="flex items-center justify-between px-4 py-3 shrink-0"
@@ -130,13 +134,16 @@ export default function CrmImmoDossierModal({
           </div>
           <button type="button" onClick={onFermer} disabled={enCours} title="Fermer"
             data-testid="crm-immo-dossier-fermer"
-            className="p-1.5 rounded-lg disabled:opacity-50"
+            /* Mesure a 375 px : 28 x 28. Un ::before de -8px porte la zone a 44 x 44.
+               Le bouton est seul dans son coin — son voisin est le bloc de titre, qui
+               n est pas cliquable : aucune collision possible. */
+            className="relative p-1.5 rounded-lg disabled:opacity-50 max-md:before:absolute max-md:before:content-[''] max-md:before:-inset-2"
             style={{ background: t.modal.closeBtnBg, color: t.modal.closeBtnText }}>
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4">
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 py-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {COLONNES_SYSTEME.map(d => champ(d.cle))}
           </div>
@@ -149,13 +156,15 @@ export default function CrmImmoDossierModal({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {colonnesPerso.map(c => (
                   <label key={c.id}>
-                    <span className="block text-xs mb-1" style={{ color: t.modal.fieldLabel }}>{c.nom}</span>
+                    {/* break-words : ce libelle est saisi dans la modale Colonnes, rien
+                        ne borne sa longueur ni ne garantit qu il contient un espace. */}
+                    <span className="block text-xs mb-1 break-words" style={{ color: t.modal.fieldLabel }}>{c.nom}</span>
                     {c.type === 'oui_non' ? (
                       <select
                         value={saisie.valeurs[c.id] ?? ''}
                         onChange={e => poserValeur(c.id, e.target.value)}
                         data-testid={`crm-immo-champ-perso-${c.id}`}
-                        className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                        className="w-full px-3 py-2 rounded-lg text-sm max-md:text-base outline-none"
                         style={{ background: t.selectBg, border: `1px solid ${t.modal.fieldBorder}`, color: t.modal.fieldValue }}>
                         <option value="">—</option>
                         <option value="Oui">Oui</option>
@@ -167,7 +176,7 @@ export default function CrmImmoDossierModal({
                         value={saisie.valeurs[c.id] ?? ''}
                         onChange={e => poserValeur(c.id, e.target.value)}
                         data-testid={`crm-immo-champ-perso-${c.id}`}
-                        className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                        className="w-full px-3 py-2 rounded-lg text-sm max-md:text-base outline-none"
                         style={{ background: t.modal.fieldBg, border: `1px solid ${t.modal.fieldBorder}`, color: t.modal.fieldValue }}
                       />
                     )}
@@ -181,7 +190,10 @@ export default function CrmImmoDossierModal({
           )}
         </div>
 
-        <div className="px-4 py-3 shrink-0 flex flex-col gap-2" style={{ borderTop: `1px solid ${t.modal.border}` }}>
+        {/* Le rembourrage bas ajoute la zone sure : sans lui, les boutons tombent dans
+            la barre de geste des telephones sans bouton d accueil. */}
+        <div className="px-4 py-3 shrink-0 flex flex-col gap-2"
+          style={{ borderTop: `1px solid ${t.modal.border}`, paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}>
           {/* Le probleme local d'abord, l'erreur serveur ensuite : la premiere empeche
               d'envoyer, la seconde raconte ce que la base a refuse. */}
           {probleme !== '' && (
@@ -191,21 +203,22 @@ export default function CrmImmoDossierModal({
             </p>
           )}
           {erreur !== '' && (
-            <p className="text-xs px-3 py-2 rounded-lg" data-testid="crm-immo-dossier-erreur"
+            <p className="text-xs px-3 py-2 rounded-lg break-words" data-testid="crm-immo-dossier-erreur"
               style={{ background: t.danger.bg, border: `1px solid ${t.danger.border}`, color: t.danger.text }}>
               {erreur}
             </p>
           )}
           <div className="flex justify-end gap-2">
             <button type="button" onClick={onFermer} disabled={enCours}
-              className="px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50"
+              /* Mesure a 375 px : 38 px de haut. max-md:py-3 porte a 46. */
+              className="px-4 py-2 max-md:py-3 rounded-lg text-sm font-semibold disabled:opacity-50"
               style={{ background: t.surface.secondary, border: `1px solid ${t.surface.border}`, color: t.text.secondary }}>
               Annuler
             </button>
             <button type="button" onClick={() => onValider(saisie)}
               disabled={enCours || probleme !== ''}
               data-testid="crm-immo-dossier-valider"
-              className="px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50"
+              className="px-4 py-2 max-md:py-3 rounded-lg text-sm font-semibold disabled:opacity-50"
               style={{ background: t.accent.solid, color: t.text.inverse }}>
               {enCours ? 'Enregistrement…' : dossier ? 'Enregistrer' : 'Ajouter'}
             </button>

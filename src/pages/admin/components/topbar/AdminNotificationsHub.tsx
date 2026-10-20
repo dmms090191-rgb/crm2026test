@@ -9,6 +9,7 @@ import type { ProposalNotifEntry } from '../../dashboard/useAdminProposalNotifs'
 import type { AgendaNotifEntry } from '../../../../hooks/useAgendaNotifications';
 import type { AgendaEquipeNotifEntry } from '../../../../hooks/useAgendaEquipeNotifications';
 import type { ThemeTokens } from '../../../../lib/themeTokensTypes';
+import type { Alerte as AlerteImmo } from '../../../../lib/crmImmoAlertes';
 
 export interface NotificationsHubProps {
   unreadClientCount: number;
@@ -59,6 +60,24 @@ export interface NotificationsHubProps {
   onMoveNotifDraft?: (from: number, to: number) => void;
   onRenameNotifDraft?: (key: string, newLabel: string) => void;
   onResetNotifDefault?: () => void;
+  /*
+   * ---------- CRM IMMO, DIXIEME CATEGORIE ----------
+   *
+   * `crmImmoActif` est le DROIT, pas un reglage d affichage : il vient de
+   * has_crm_immo_access(company_id), via l unique appel de useCrmImmoAccess dans
+   * AdminDashboard. Quand il est faux, la carte n est pas masquee — elle n est pas
+   * EMISE. Meme principe que l onglet de la barre laterale, et pour la meme raison :
+   * un droit n a rien a faire dans un reglage de visibilite que l utilisateur peut
+   * remettre a zero.
+   *
+   * Les alertes viennent de la SOURCE UNIQUE (useCrmImmoAlertes, appele une seule fois
+   * dans AdminDashboard) : le hub et la cloche du module montrent exactement la meme
+   * chose, et un traitement d un cote se voit immediatement de l autre.
+   */
+  crmImmoActif?: boolean;
+  crmImmoCount?: number;
+  crmImmoEntries?: AlerteImmo[];
+  onCrmImmoEntryClick?: (dossierId: string) => void;
 }
 
 /** Compteur reel de chaque categorie. Aucune valeur fabriquee. */
@@ -75,6 +94,9 @@ function countOf(key: NotifCategory, p: NotificationsHubProps): number {
     case 'rdv': return p.confirmedCount;
     case 'decalages': return p.rescheduleCount;
     case 'demandes-decalage': return p.rescheduleRequestCount;
+    // Alertes CRM Immo non lues ET non traitees — le predicat du badge, fige dans
+    // src/lib/crmImmoAlertes.ts et documente en base sur crm_immo_etats.
+    case 'crm-immo': return p.crmImmoCount ?? 0;
   }
 }
 
@@ -87,7 +109,14 @@ function countOf(key: NotifCategory, p: NotificationsHubProps): number {
  * et le rendu de leur detail.
  */
 export default function AdminNotificationsHub(props: NotificationsHubProps) {
-  const cards: HubCardDef[] = CARDS.map(c => ({ ...c, count: countOf(c.key, props) }));
+  /*
+   * Pas de carte fantome, pas de carte desactivee : sans le droit, l entree ne sort
+   * pas de ce filtre. Les neuf autres categories ne sont jamais filtrees — elles
+   * existent pour toutes les Societes.
+   */
+  const cards: HubCardDef[] = CARDS
+    .filter(c => c.key !== 'crm-immo' || props.crmImmoActif === true)
+    .map(c => ({ ...c, count: countOf(c.key, props) }));
 
   return (
     <NotifHubShell

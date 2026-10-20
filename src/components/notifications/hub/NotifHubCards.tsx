@@ -227,7 +227,28 @@ function NotifCard({ card, tokens: t, onClick, isHidden, hideEditMode, onToggleH
           aria-label={isHidden ? `Afficher ${card.label}` : `Masquer ${card.label}`}
           aria-pressed={!!isHidden}
           data-testid={`notif-card-oeil-${card.key}`}
-          className="absolute top-1.5 right-1.5 flex items-center gap-1 rounded-md transition-transform duration-150 hover:scale-110"
+          /*
+            LA CIBLE TACTILE FAIT 44 x 44 px AU DOIGT, L ICONE RESTE PETITE.
+
+            Mesure dans un navigateur, a 375 px, sur le composant reel : le bouton rendu
+            fait 20 x 20 px. Au doigt, c est trop petit — la recommandation usuelle est
+            44 x 44, et c est exactement ce qui faisait croire que l oeil ne repondait pas
+            sur telephone. Il repondait ; il fallait le viser au pixel.
+
+            On ne grossit pas l icone : un ::before absolu en -14px de chaque cote porte
+            la zone cliquable a 48 x 48 (20 + 2 x 14) sans rien deplacer ni rien repeindre.
+            Mesure de controle : les cinq points de cette zone — centre et quatre coins —
+            atterrissent tous sur ce bouton.
+
+            Il n est pose QUE sous 768 px (max-md). Mesure a 1280 px : le ::before n est
+            pas rendu, et un point a 10 px a gauche de l oeil appartient bien a la carte.
+            Sans cette limite, une zone de 48 px dans le coin volerait a la souris des
+            clics destines au corps de la carte.
+
+            Le debordement sur la carte est sans consequence : en mode edition le bouton de
+            la carte appelle lui aussi onToggleHide. Les deux font la meme chose.
+          */
+          className="absolute top-1.5 right-1.5 flex items-center gap-1 rounded-md transition-transform duration-150 hover:scale-110 max-md:before:absolute max-md:before:-inset-3.5 max-md:before:content-['']"
         >
           {isHidden && (
             <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold"

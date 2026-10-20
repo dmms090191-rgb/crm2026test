@@ -59,6 +59,13 @@ async function saveToDb(userId: string, concept: string, saveData: NotifCardOrde
 const DEFAULT_KEYS = [
   'client', 'vendeur', 'agenda', 'propositions', 'rdv',
   'super-admin', 'equipe', 'decalages', 'demandes-decalage',
+  /*
+   * CRM Immo. Elle figure dans l ORDRE pour toutes les Societes, mais la carte
+   * elle-meme n est emise que pour celles qui ont le module : une cle d ordre sans
+   * carte correspondante est simplement ignoree au rendu (orderedKeys filtre sur les
+   * cartes connues). L inverse — une carte sans cle — la rangerait en fin de liste.
+   */
+  'crm-immo',
 ];
 
 /**

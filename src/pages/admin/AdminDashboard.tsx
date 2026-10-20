@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import Sidebar from './Sidebar';
 import TopBar from './TopBar';
 import type { ChatLead } from './views/Crm';
@@ -10,6 +10,9 @@ import { useThemeTokens } from '../../hooks/useThemeTokens';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useCompanyId } from '../../hooks/useCompanyId';
 import { useCrmImmoAccess } from '../../hooks/useCrmImmoAccess';
+import { useCrmImmoAlertes } from './views/crm-immo/useCrmImmoAlertes';
+import { CrmImmoAlertesProvider } from '../../contexts/CrmImmoAlertesContext';
+import { peutOuvrirCrmImmo } from '../../lib/crmImmoAccess';
 import { useActiveLogo } from '../../hooks/useActiveLogo';
 import { useAppIcon } from '../../hooks/useAppIcon';
 import { useUnreadClientMessages } from '../../hooks/useUnreadClientMessages';
@@ -62,6 +65,29 @@ function AdminDashboardInner({ onLogout, onConnectAsVendor, onConnectAsClient, i
    * chez qui Talvex ou un Groupe entre, sans une ligne de code en plus.
    */
   const { etat: crmImmoAcces, recharger: rechargerCrmImmoAcces } = useCrmImmoAccess(companyId);
+  /*
+   * ---------- LA SOURCE UNIQUE DES ALERTES CRM IMMO ----------
+   *
+   * Un seul chargement, ici, qui sert DEUX surfaces : la carte CRM Immo du hub
+   * Notifications general (via TopBar) et la cloche de la page du module (via le
+   * contexte). Deux appels donneraient deux compteurs qui divergeraient des qu une
+   * alerte serait traitee d un cote.
+   *
+   * Le drapeau est le DROIT, pas un reglage : sans lui, chaque Societe de Talvex —
+   * et la plupart n ont pas le module — paierait deux requetes inutiles a chaque
+   * ouverture de panel.
+   */
+  const crmImmoOuvert = peutOuvrirCrmImmo(crmImmoAcces);
+  const alertesImmo = useCrmImmoAlertes(crmImmoOuvert);
+  /* Le dossier que le hub demande d ouvrir. Le hub est dans la barre du haut, la page
+     dans la zone principale : ils ne se connaissent pas, le contexte les relie. */
+  const [dossierImmoAOuvrir, setDossierImmoAOuvrir] = useState<string | null>(null);
+  const alertesImmoPartagees = useMemo(() => ({
+    etat: crmImmoOuvert ? alertesImmo : null,
+    dossierAOuvrir: dossierImmoAOuvrir,
+    demanderOuverture: (id: string) => setDossierImmoAOuvrir(id),
+    ouvertureConsommee: () => setDossierImmoAOuvrir(null),
+  }), [crmImmoOuvert, alertesImmo, dossierImmoAOuvrir]);
   const { url: activeLogoUrl } = useActiveLogo(companyId);
   const { appIconUrl: configIconUrl, appName: configAppName } = useAppIcon(companyId, 'company');
   const [companyName, setCompanyName] = useState('');
@@ -238,6 +264,10 @@ function AdminDashboardInner({ onLogout, onConnectAsVendor, onConnectAsClient, i
           topbarRef={topbarZoneRef}
           editorZone3Bg={zone3Bg}
           canHideNotifCards={peutMasquerLesCartes}
+          crmImmoActif={crmImmoOuvert}
+          crmImmoCount={alertesImmo.badge}
+          crmImmoEntries={alertesImmo.actives}
+          onCrmImmoEntryClick={(dossierId) => { setDossierImmoAOuvrir(dossierId); setActiveView('crm-immo'); }}
           hiddenNotifCards={hiddenNotifCards}
           hiddenNotifCardsLoaded={hiddenNotifCardsLoaded}
           onToggleNotifCard={toggleNotifCard}
@@ -275,6 +305,7 @@ function AdminDashboardInner({ onLogout, onConnectAsVendor, onConnectAsClient, i
             ...(!bgImageUrl && zone4Bg ? { background: zone4Bg } : {}),
           }}
         >
+          <CrmImmoAlertesProvider valeur={alertesImmoPartagees}>
           <AdminViewRenderer
             activeView={activeView}
             chatLead={chatLead}
@@ -306,6 +337,7 @@ function AdminDashboardInner({ onLogout, onConnectAsVendor, onConnectAsClient, i
             onVendorViewed={handleVendorViewed}
             markSuperAdminRead={markSuperAdminRead}
           />
+          </CrmImmoAlertesProvider>
         </main>
       </div>
 

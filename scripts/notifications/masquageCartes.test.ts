@@ -52,6 +52,26 @@ function codeSeul(src: string): string {
   return out;
 }
 
+/**
+ * La ligne de classes du bouton de l'OEIL, et de lui seul.
+ *
+ * Piege : la pastille du compteur porte la MEME position — « absolute top-1.5 right-1.5 »
+ * — et elle vient avant dans le fichier. Chercher cette position rendait donc la pastille,
+ * et les assertions passaient en examinant le mauvais element. On ancre sur le
+ * data-testid de l'oeil, qui n'appartient qu'a lui, puis on prend la premiere ligne de
+ * classes qui suit. Les commentaires sont retires : ils parlent de ces classes.
+ */
+function classeDeLOeil(): string {
+  const code = lire("src/components/notifications/hub/NotifHubCards.tsx");
+  const i = code.indexOf("notif-card-oeil-");
+  assert.ok(i > 0, "le bouton de l oeil n a pas de data-testid : il est introuvable");
+  const apres = codeSeul(code.slice(i));
+  const ligne = apres.split("\n").find(l => /className="/.test(l));
+  assert.ok(ligne, "aucune ligne de classes apres le data-testid de l oeil");
+  assert.match(ligne!, /absolute/, "la ligne trouvee n est pas celle du bouton de l oeil : " + ligne!.trim());
+  return ligne!;
+}
+
 test("le retrait des commentaires ne vide pas les fichiers examines", () => {
   for (const f of [
     "src/pages/admin/AdminDashboard.tsx",
@@ -165,9 +185,7 @@ test("DEFAUT 3 — l oeil est un VRAI bouton, qui recoit son propre clic", () =>
   assert.ok(/title=/.test(bloc), "le bouton de l oeil n a pas d infobulle");
 
   /* Et il ne doit PAS redevenir traversable : ce serait revenir au ricochet. */
-  const ligne = bloc.split("\n").find(l => /absolute top-1\.5 right-1\.5/.test(l));
-  assert.ok(ligne, "le conteneur de l oeil n a pas ete trouve");
-  assert.ok(!/pointer-events-none/.test(ligne!),
+  assert.ok(!/pointer-events-none/.test(classeDeLOeil()),
     "l oeil est redevenu traversable : il ne recoit plus son propre clic");
 
   /* Le bouton de l oeil doit rester FRERE de celui de la carte, jamais imbrique : un
@@ -193,6 +211,47 @@ test("DEFAUT 3 — l oeil est un VRAI bouton, qui recoit son propre clic", () =>
   assert.equal(profondeur, 0, "les balises <button> de NotifCard ne sont pas equilibrees");
   assert.ok(balises.length >= 4,
     "NotifCard devrait porter DEUX boutons : celui de la carte et celui de l oeil");
+});
+
+test("DEFAUT 3 bis — la cible tactile de l oeil fait 44 px au doigt, et seulement au doigt", () => {
+  const ligne = classeDeLOeil();
+
+  /*
+   * MESURE, dans un navigateur, sur le composant reel monte a 375 px :
+   *   le bouton rendu                 20 x 20 px
+   *   la zone cliquable avec ::before 48 x 48 px
+   *   les cinq points testes (centre + quatre coins) atterrissent tous sur l oeil
+   *   la bascule fonctionne : aria-pressed passe de false a true
+   *
+   * 20 px, c est la taille d une icone, pas celle d un doigt. C est exactement ce qui
+   * faisait croire que l oeil ne repondait pas sur telephone : il repondait, mais il
+   * fallait le viser au pixel.
+   *
+   * On ne grossit pas l icone — un ::before absolu en inset negatif etend la zone sans
+   * rien deplacer ni repeindre.
+   */
+  assert.match(ligne, /max-md:before:absolute/,
+    "l oeil n a plus de zone tactile etendue : il redevient une cible de 20 px au doigt");
+  assert.match(ligne, /max-md:before:content-\[/,
+    "le ::before n a pas de contenu : sans contenu il n est pas rendu, donc il n agrandit rien");
+
+  /* L inset doit porter la zone a 44 px au moins : (44 - 20) / 2 = 12 px de chaque cote. */
+  const m = ligne.match(/max-md:before:-inset-([\d.]+)/);
+  assert.ok(m, "le ::before n a pas d inset negatif : il ne depasse pas du bouton");
+  const px = parseFloat(m![1]) * 4; // l echelle Tailwind : 1 unite = 0.25rem = 4 px
+  assert.ok(20 + 2 * px >= 44,
+    "la zone tactile mesure " + (20 + 2 * px) + " px, moins que les 44 px attendus au doigt");
+
+  /*
+   * Et UNIQUEMENT sous 768 px. Sur desktop, une zone de 48 px dans le coin de la carte
+   * volerait des clics destines au corps de la carte — mesure faite a 1280 px : le
+   * ::before n est pas rendu (content: none), et un point a 10 px a gauche de l oeil
+   * appartient bien a la carte.
+   */
+  const etendues = (ligne.match(/before:-inset-/g) ?? []).length;
+  const sousMd = (ligne.match(/max-md:before:-inset-/g) ?? []).length;
+  assert.equal(etendues, sousMd,
+    "la zone etendue n est pas limitee a max-md : sur desktop elle volerait des clics a la carte");
 });
 
 test("le message de refus est comprehensible, pas un code Postgres", () => {
