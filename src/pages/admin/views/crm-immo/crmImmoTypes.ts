@@ -100,7 +100,7 @@ export const COLONNES_SYSTEME: DefinitionSysteme[] = [
   { cle: 'date_entree', libelle: "Date d'entrée", type: 'date', masquable: true },
   { cle: 'date_fin_contrat', libelle: 'Fin de contrat', type: 'date', masquable: true },
   /*
-   * << N/L >> — Nom / Lieu, le vocabulaire metier de David. Ce sont des LIBELLES
+   * << N/P >> — Nom / Prénom, le vocabulaire metier de David. Ce sont des LIBELLES
    * d'affichage : les colonnes de la base restent `locataire` et `proprietaire`.
    * Renommer en SQL couterait une migration, casserait les sauvegardes existantes et
    * ne changerait rien a ce que l'utilisateur lit.
@@ -109,8 +109,8 @@ export const COLONNES_SYSTEME: DefinitionSysteme[] = [
    * dossier et l'organisateur de colonnes — parce que tous les trois lisent `d.libelle`
    * via toutesLesColonnes(). Les changer ici les change partout, ensemble.
    */
-  { cle: 'locataire', libelle: 'N/L Locataire', type: 'texte', masquable: true },
-  { cle: 'proprietaire', libelle: 'N/L Propriétaire', type: 'texte', masquable: true },
+  { cle: 'locataire', libelle: 'N/P Locataire', type: 'texte', masquable: true },
+  { cle: 'proprietaire', libelle: 'N/P Propriétaire', type: 'texte', masquable: true },
   { cle: 'jour_encaissement', libelle: 'Encaissement loyer', type: 'nombre', masquable: true },
   { cle: 'commentaire', libelle: 'Commentaire', type: 'texte', masquable: true },
 ];

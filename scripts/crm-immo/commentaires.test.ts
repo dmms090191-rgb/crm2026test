@@ -296,10 +296,10 @@ test("C7 — la suppression d un commentaire demande confirmation", () => {
 });
 
 // ===========================================================================
-// D — LES LIBELLES N/L
+// D — LES LIBELLES N/P
 // ===========================================================================
 
-test("D1 — N/L Locataire et N/L Proprietaire, sans toucher aux colonnes SQL", () => {
+test("D1 — N/P Locataire et N/P Proprietaire, sans toucher aux colonnes SQL", () => {
   /*
    * David : << pour l instant je demande seulement de changer les libelles affiches.
    * Ne renomme pas automatiquement les colonnes SQL. >>
@@ -308,10 +308,10 @@ test("D1 — N/L Locataire et N/L Proprietaire, sans toucher aux colonnes SQL", 
    * du tableau, le formulaire et l organisateur de colonnes. Les trois changent ensemble.
    */
   const types = lire(D + "crmImmoTypes.ts");
-  assert.match(types, /cle: 'locataire', libelle: 'N\/L Locataire'/,
-    "le libelle de locataire n est plus N/L Locataire");
-  assert.match(types, /cle: 'proprietaire', libelle: 'N\/L Propriétaire'/,
-    "le libelle de proprietaire n est plus N/L Propriétaire");
+  assert.match(types, /cle: 'locataire', libelle: 'N\/P Locataire'/,
+    "le libelle de locataire n est plus N/P Locataire");
+  assert.match(types, /cle: 'proprietaire', libelle: 'N\/P Propriétaire'/,
+    "le libelle de proprietaire n est plus N/P Propriétaire");
 
   /* Les CLES, elles, ne bougent pas : ce sont les colonnes de la base. */
   assert.match(types, /cle: 'locataire'/, "la cle SQL locataire a ete renommee");
