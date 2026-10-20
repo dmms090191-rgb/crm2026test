@@ -14,6 +14,12 @@ const TABLES_WITH_COMPANY_ID = new Set([
   'rdv_proposals', 'client_messages', 'vendor_admin_messages', 'conversations',
   'crm_notes', 'crm_tasks', 'crm_documentation', 'doc_tab_labels',
   'crm_custom_pages', 'crm_page_checklist_items', 'sidebar_order', 'vendor_comments',
+  /* CRM Immo : les trois portent company_id NOT NULL. Les oublier ici ferait
+     remonter leurs lignes avec le company_id d'origine, que la RLS refuserait en
+     42501 — bruyant, donc pas le pire. Le pire serait de restaurer les dossiers
+     SANS les colonnes : le tableau perdrait ses colonnes personnalisees alors que
+     leurs valeurs seraient toujours dans le jsonb, inertes. */
+  'crm_immo_dossiers', 'crm_immo_colonnes', 'crm_immo_etats',
 ]);
 
 export type RestoreStatus = 'idle' | 'simulating' | 'restoring' | 'done' | 'error';

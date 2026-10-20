@@ -3,6 +3,7 @@ import { ChevronDown, ChevronUp, Mail, Phone, Calendar, MoreHorizontal, Eye, Meg
 import CopyButton from '../../../../components/CopyButton';
 import SAAdminsAccessSwitch from './SAAdminsAccessSwitch';
 import SAAdminsAiSwitch from './SAAdminsAiSwitch';
+import SAAdminsCrmImmoSwitch from './SAAdminsCrmImmoSwitch';
 import ActionModal from '../../../../components/action-menu/ActionModal';
 import type { ActionSectionDef } from '../../../../components/action-menu/ActionModal';
 import type { AdminUser } from '../SAAdmins';
@@ -24,6 +25,8 @@ interface Props {
   onSite: (a: AdminUser) => void;
   onDomain: (a: AdminUser) => void;
   onAccessToggled: () => void;
+  crmImmoActives: Set<string>;
+  onCrmImmoToggled: () => void;
   formatDate: (d: string | null) => string;
   tokens: ReturnType<typeof import('../../../../hooks/useThemeTokens').useThemeTokens>;
 }
@@ -31,6 +34,7 @@ interface Props {
 export default function SAAdminMobileCard({
   admin, idx, total, isSelf, selectionMode, selected,
   onToggleSelect, onMove, reorderMode, onDetail, onHomePage, onChat, onConnect, onSite, onDomain, onAccessToggled,
+  crmImmoActives, onCrmImmoToggled,
   formatDate, tokens,
 }: Props) {
   const [actionsOpen, setActionsOpen] = useState(false);
@@ -90,6 +94,7 @@ export default function SAAdminMobileCard({
             <div className="flex items-center gap-1"><Calendar className="w-3 h-3" style={{ color: tokens.table.cellIcon }} /><span className="text-[11px]" style={{ color: tokens.table.cellTextMuted }}>{formatDate(admin.created_at)}</span></div>
             <SAAdminsAccessSwitch adminId={admin.id} enabled={admin.access_enabled} onToggled={onAccessToggled} />
             <SAAdminsAiSwitch companyId={admin.company_id} enabled={admin.ai_enabled} onToggled={onAccessToggled} />
+            <SAAdminsCrmImmoSwitch companyId={admin.company_id} enabled={crmImmoActives.has(admin.company_id)} onToggled={onCrmImmoToggled} />
           </div>
         </div>
       </div>

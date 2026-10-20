@@ -37,6 +37,18 @@ export const CRM_BACKUP_TABLES: BackupTableConfig[] = [
   { name: 'crm_system_categories', label: 'Categories systeme', category: 'crm' },
   { name: 'crm_system_statuses', label: 'Statuts systeme', category: 'crm' },
   { name: 'crm_system_items', label: 'Elements systeme', category: 'crm' },
+  /*
+   * CRM IMMO — les trois tables de DONNEES, et SEULEMENT elles.
+   *
+   * crm_immo_acces est VOLONTAIREMENT absente, et c'est une regle de securite, pas
+   * un oubli : useRestoreCrm REECRIT company_id avec la Societe de destination sur
+   * chaque ligne restauree. Une sauvegarde de la Societe A restauree chez la Societe
+   * B accorderait donc le module a B. Le droit d'utiliser CRM Immo appartient a
+   * Talvex, pas aux donnees metier d'une Societe.
+   */
+  { name: 'crm_immo_dossiers', label: 'CRM Immo - dossiers', category: 'crm' },
+  { name: 'crm_immo_colonnes', label: 'CRM Immo - colonnes', category: 'crm' },
+  { name: 'crm_immo_etats', label: 'CRM Immo - etats des alertes', category: 'crm' },
 ];
 
 export const CRM_TABLE_NAMES = CRM_BACKUP_TABLES.map((t) => t.name);
@@ -76,6 +88,20 @@ export const RESTORE_ORDER = [
   'crm_system_categories',
   'crm_system_statuses',
   'crm_system_items',
+  /*
+   * L'ORDRE COMPTE ICI, et il n'est pas negociable : crm_immo_etats porte une cle
+   * etrangere COMPOSEE (dossier_id, company_id) vers crm_immo_dossiers(id,
+   * company_id). Restaurer les etats avant les dossiers echoue en 23503.
+   *
+   * Et cette liste est maintenue A LA MAIN, separement de CRM_BACKUP_TABLES :
+   * l'export boucle sur CRM_TABLE_NAMES, la restauration sur RESTORE_ORDER. Une
+   * table ajoutee a la premiere et oubliee dans la seconde serait SAUVEGARDEE puis
+   * JAMAIS RESTAUREE, sans que le rapport la mentionne : la sauvegarde paraitrait
+   * complete et CRM Immo reviendrait vide.
+   */
+  'crm_immo_dossiers',
+  'crm_immo_colonnes',
+  'crm_immo_etats',
 ] as const;
 
 export const TABLE_PRIMARY_KEYS: Record<string, string> = {

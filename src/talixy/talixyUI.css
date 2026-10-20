@@ -2361,6 +2361,31 @@ html[data-theme="talixy"] [data-tx-miniarc-compartiment] {
   pointer-events: none;
 }
 
+/* ---------- CRM Immo : une page LARGE dans la coquille Talixy ---------- */
+
+/*
+ * La coquille .tx-page reserve une gouttiere droite de calc(40px + 17.5vw) pour la roue
+ * 3D du decor, et .tx-page-body plafonne a 660px. Les deux conviennent a une page de
+ * texte centre ; un tableau CRM a dix colonnes y serait etrangle.
+ *
+ * CRM Immo porte donc data-tx-immo : on rend la gouttiere a la page et on plafonne a
+ * 1120px centres, comme le fait deja [data-tx-sys]. Le tableau n'est volontairement PAS
+ * place dans .tx-page-body — il n'a rien a faire dans une colonne de 660px.
+ */
+html[data-theme="talixy"] .tx-page[data-tx-immo] {
+  padding-right: 40px;
+}
+html[data-theme="talixy"] [data-tx-immo] .tx-immo-corps {
+  max-width: 1120px;
+  margin: 0 auto;
+  width: 100%;
+}
+/* L'en-tete de page reste centre, mais sans les 52px de respiration d'une page de texte :
+   un outil professionnel met sa barre de recherche a portee, pas apres un demi-ecran. */
+html[data-theme="talixy"] [data-tx-immo] .tx-page-head {
+  margin-bottom: 28px;
+}
+
 /* ---------- Mobile : la coquille et le Dashboard ---------- */
 
 @media (max-width: 767px) {
@@ -2435,5 +2460,24 @@ html[data-theme="talixy"] [data-tx-miniarc-compartiment] {
   html[data-theme="talixy"] .tx-page {
     max-width: 100vw;
     overflow-x: hidden;
+  }
+
+  /*
+   * CRM Immo sur telephone : la coquille Talixy perd ses marges genereuses, sinon les
+   * fiches n'ont plus que la moitie de la largeur. Et aucun debordement horizontal :
+   * le tableau n'existe pas sous 768px, seules les fiches sont montees.
+   */
+  html[data-theme="talixy"] .tx-page[data-tx-immo] {
+    padding: 24px 16px 48px;
+  }
+  html[data-theme="talixy"] [data-tx-immo] .tx-page-head {
+    margin-bottom: 20px;
+    text-align: left;
+  }
+  html[data-theme="talixy"] [data-tx-immo] .tx-page-title {
+    font-size: 24px;
+  }
+  html[data-theme="talixy"] [data-tx-immo] .tx-immo-corps {
+    max-width: 100%;
   }
 }

@@ -9,6 +9,7 @@ import type { AdminDashboardProps, ActiveView } from './adminDashboardTypes';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useCompanyId } from '../../hooks/useCompanyId';
+import { useCrmImmoAccess } from '../../hooks/useCrmImmoAccess';
 import { useActiveLogo } from '../../hooks/useActiveLogo';
 import { useAppIcon } from '../../hooks/useAppIcon';
 import { useUnreadClientMessages } from '../../hooks/useUnreadClientMessages';
@@ -50,6 +51,17 @@ function AdminDashboardInner({ onLogout, onConnectAsVendor, onConnectAsClient, i
   const t = useThemeTokens();
   const companyId = useCompanyId();
   const adminScopeKey = companyId ? `co_${companyId}` : 'co_none';
+  /*
+   * Le droit d'ouvrir CRM Immo, demande UNE SEULE FOIS ici, puis descendu a la
+   * barre laterale ET au renderer. Deux appels donneraient deux verites : selon
+   * lequel repond le premier, l'onglet existerait sans que la vue s'ouvre, ou
+   * l'inverse — une panne intermittente, donc indiagnosticable.
+   *
+   * companyId est celui de la Societe VISITEE (CompanyIdContext rend
+   * overrideCompanyId ?? authCompanyId), donc la Visu suit le droit de la Societe
+   * chez qui Talvex ou un Groupe entre, sans une ligne de code en plus.
+   */
+  const { etat: crmImmoAcces, recharger: rechargerCrmImmoAcces } = useCrmImmoAccess(companyId);
   const { url: activeLogoUrl } = useActiveLogo(companyId);
   const { appIconUrl: configIconUrl, appName: configAppName } = useAppIcon(companyId, 'company');
   const [companyName, setCompanyName] = useState('');
@@ -169,6 +181,7 @@ function AdminDashboardInner({ onLogout, onConnectAsVendor, onConnectAsClient, i
           backLabel={backLabel}
           visuBadgeLabel={visuBadgeLabel}
           canHideTabs={canHideTabs}
+          crmImmoAcces={crmImmoAcces}
           hideTabsTargetName={hideTabsTargetName}
           hideTabsTargetUserId={hideTabsTargetUserId}
         />
@@ -256,6 +269,8 @@ function AdminDashboardInner({ onLogout, onConnectAsVendor, onConnectAsClient, i
             effectiveAdminId={effectiveAdminId}
             impersonatedAdmin={impersonatedAdmin}
             isSAViewing={isSAViewing}
+            crmImmoAcces={crmImmoAcces}
+            onReessayerCrmImmo={rechargerCrmImmoAcces}
             docInitialTab={docInitialTab}
             unreadClientConversations={unreadEntries.length}
             unreadVendorConversations={unreadVendorEntries.length}

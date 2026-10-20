@@ -12,6 +12,8 @@ import {
   SystemPage, AdminCerveauIA, AdminApplicationPage, EditeurIA, AdminCalquerLogo, AdminMesLogosRA,
   Boutiques, Cabinets,
 } from './adminLazyViews';
+import CrmImmoGate from './CrmImmoGate';
+import type { EtatAcces } from '../../../lib/crmImmoAccess';
 import { saveConnectReturnContext, saveChatReturnContext } from '../../../lib/connectReturnContext';
 import type { ImpersonatedClient } from '../views/Crm';
 
@@ -25,6 +27,13 @@ interface Props {
   effectiveAdminId: string | null;
   impersonatedAdmin?: ImpersonatedAdminInfo | null;
   isSAViewing?: boolean;
+  /*
+   * Le droit d'ouvrir CRM Immo, calcule UNE SEULE FOIS dans AdminDashboard et
+   * descendu aussi a la barre laterale. Deux appels donneraient deux verites.
+   * Le case 'crm-immo' existe toujours : c'est CrmImmoGate qui decide.
+   */
+  crmImmoAcces: EtatAcces;
+  onReessayerCrmImmo: () => void;
   docInitialTab?: string;
   unreadClientConversations: number;
   unreadVendorConversations: number;
@@ -54,7 +63,7 @@ interface Props {
 
 export default function AdminViewRenderer({
   activeView, chatLead, chatVendor, rdvLead, effectiveAdminId, chatInitialSuperAdminId = null,
-  impersonatedAdmin, isSAViewing, docInitialTab,
+  impersonatedAdmin, isSAViewing, crmImmoAcces, onReessayerCrmImmo, docInitialTab,
   unreadClientConversations, unreadVendorConversations,
   identityName = '', identityEmail = '', companyName = '', rdvCount = 0,
   pendingScrollRef,
@@ -115,6 +124,12 @@ export default function AdminViewRenderer({
           case 'mes-logos-ra': return <Suspense fallback={lazyFallback}><AdminMesLogosRA /></Suspense>;
           case 'boutique': return <Suspense fallback={lazyFallback}><Boutiques /></Suspense>;
           case 'cabinet': return <Suspense fallback={lazyFallback}><Cabinets /></Suspense>;
+          /*
+           * CRM Immo passe par une PORTE, et le case existe dans TOUS les etats du
+           * droit. Le rendre conditionnel le ferait retomber dans le `default:`
+           * ci-dessous, qui ouvre la Vue d'ensemble : un refus deguise en reussite.
+           */
+          case 'crm-immo': return <CrmImmoGate etat={crmImmoAcces} onReessayer={onReessayerCrmImmo} />;
           case 'tuto': return <div className="p-6"><p className="text-sm" style={{ color: 'inherit' }}>Tuto - Contenu a venir</p></div>;
           default: return <Suspense fallback={lazyFallback}><VueEnsemble unreadClientConversations={unreadClientConversations} unreadVendorConversations={unreadVendorConversations} fullName={identityName} companyName={companyName} email={identityEmail} rdvCount={rdvCount} /></Suspense>;
         }

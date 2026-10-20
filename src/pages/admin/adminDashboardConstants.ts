@@ -29,4 +29,5 @@ export const BREADCRUMB_LABELS: Record<ActiveView, string> = {
   'mes-logos-ra': 'Mes logos RA',
   'boutique': 'Boutiques',
   'cabinet': 'Cabinets',
+  'crm-immo': 'CRM Immo',
 };

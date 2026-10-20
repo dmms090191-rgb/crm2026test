@@ -3,6 +3,7 @@ import { ChevronDown, ChevronUp, GripVertical, MoreHorizontal, User, Mail, Build
 import CopyButton from '../../../../components/CopyButton';
 import SAAdminsAccessSwitch from './SAAdminsAccessSwitch';
 import SAAdminsAiSwitch from './SAAdminsAiSwitch';
+import SAAdminsCrmImmoSwitch from './SAAdminsCrmImmoSwitch';
 import type { AdminUser } from '../SAAdmins';
 import type { ColumnDef } from '../../../../components/table/useColumnOrder';
 
@@ -19,6 +20,11 @@ interface Props {
   reorderMode: boolean;
   onOpenActions: (id: string) => void;
   onAccessToggled: () => void;
+  /* Les Societes qui ont CRM Immo, lues en UNE requete par useCrmImmoAcces.
+     list-admins ne renvoie pas ce champ : l'attendre d'elle laisserait la bascule
+     a << desactive >> pour tout le monde, en silence. */
+  crmImmoActives: Set<string>;
+  onCrmImmoToggled: () => void;
   formatDate: (d: string | null) => string;
   tokens: ReturnType<typeof import('../../../../hooks/useThemeTokens').useThemeTokens>;
   actionsBtnRefs: React.MutableRefObject<Record<string, HTMLButtonElement | null>>;
@@ -41,7 +47,7 @@ const HEADER_LABELS: Record<string, string> = {
 export default function SAAdminsDesktopTable({
   admins, selectionMode, selectedIds, currentUserId, allSelected,
   onToggleSelectAll, onToggleSelect, onMoveAdmin, onReorderDrop, reorderMode,
-  onOpenActions, onAccessToggled, formatDate, tokens, actionsBtnRefs, columnOrder,
+  onOpenActions, onAccessToggled, crmImmoActives, onCrmImmoToggled, formatDate, tokens, actionsBtnRefs, columnOrder,
   customColumnDefs, getCustomValues, labelOverrides,
 }: Props) {
   const [dragIdx, setDragIdx] = useState<number | null>(null);
@@ -101,6 +107,7 @@ export default function SAAdminsDesktopTable({
       case 'cree_le': return <span className="text-xs tabular-nums font-medium whitespace-nowrap" style={{ color: tokens.table.cellTextMuted }}>{formatDate(admin.created_at)}</span>;
       case 'acces': return <SAAdminsAccessSwitch adminId={admin.id} enabled={admin.access_enabled} onToggled={onAccessToggled} />;
       case 'ia': return <SAAdminsAiSwitch companyId={admin.company_id} enabled={admin.ai_enabled} onToggled={onAccessToggled} />;
+      case 'crm-immo': return <SAAdminsCrmImmoSwitch companyId={admin.company_id} enabled={crmImmoActives.has(admin.company_id)} onToggled={onCrmImmoToggled} />;
       case 'actions': return (
         <button
           ref={el => { actionsBtnRefs.current[admin.id] = el; }}

@@ -15,6 +15,7 @@ import useColumnOrder from '../../../components/table/useColumnOrder';
 import useColumnOrderMobile from '../../../components/table/useColumnOrderMobile';
 import ColumnOrganizerModal from '../../../components/table/ColumnOrganizerModal';
 import { useCustomColumns } from '../../../hooks/useCustomColumns';
+import { useCrmImmoAcces } from './admins/useCrmImmoAcces';
 
 const SA_ADMINS_COLUMNS = [
   { key: 'prenom', label: 'Prenom' },
@@ -27,6 +28,7 @@ const SA_ADMINS_COLUMNS = [
   { key: 'acces', label: 'Acces', required: true },
   { key: 'actions', label: 'Actions', required: true },
   { key: 'ia', label: 'IA', required: true },
+  { key: 'crm-immo', label: 'CRM Immo', required: true },
 ];
 
 export interface AdminUser {
@@ -103,6 +105,8 @@ export default function SAAdmins({ onConnectAsAdmin, onOpenChat, cachedAdmins, r
   useEffect(() => { loadOrder(); }, [loadOrder]);
   useEffect(() => { supabase.auth.getUser().then(({ data: { user } }) => { if (user) setCurrentUserId(user.id); }); }, []);
 
+  /* Qui possede CRM Immo. Lu a part, parce que list-admins ne le renvoie pas. */
+  const { actives: crmImmoActives, recharger: rechargerCrmImmo } = useCrmImmoAcces();
   const fetchAdmins = useCallback(() => { onRefresh?.(); }, [onRefresh]);
   const handleUpdate = useCallback(() => { fetchAdmins(); }, [fetchAdmins]);
 
@@ -239,6 +243,7 @@ export default function SAAdmins({ onConnectAsAdmin, onOpenChat, cachedAdmins, r
               onToggleSelectAll={toggleSelectAll} onToggleSelect={toggleSelect}
               onMoveAdmin={moveAdmin} onReorderDrop={reorderDrop} reorderMode={reorderMode}
               onOpenActions={openActionsPopover} onAccessToggled={fetchAdmins}
+              crmImmoActives={crmImmoActives} onCrmImmoToggled={rechargerCrmImmo}
               formatDate={formatDate} tokens={tokens} actionsBtnRefs={actionsBtnRefs}
               columnOrder={colOrder.visibleOrderedKeys}
               customColumnDefs={cc.customDefs}
@@ -255,7 +260,8 @@ export default function SAAdmins({ onConnectAsAdmin, onOpenChat, cachedAdmins, r
                   onChat={a => onOpenChat?.(a)} onConnect={a => onConnectAsAdmin?.(a)}
                   onSite={a => { setActionsSourceAdmin(a); setSiteAdmin(a); }}
                   onDomain={a => { setActionsSourceAdmin(a); setDomainAdmin(a); }}
-                  onAccessToggled={fetchAdmins} formatDate={formatDate} tokens={tokens} />
+                  onAccessToggled={fetchAdmins} crmImmoActives={crmImmoActives} onCrmImmoToggled={rechargerCrmImmo}
+                  formatDate={formatDate} tokens={tokens} />
               ))}
             </div>
           </>

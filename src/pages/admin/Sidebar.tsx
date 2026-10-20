@@ -3,9 +3,11 @@ import {
   LayoutDashboard, Info, UserPlus, Upload, Users, Database, UserCheck, List,
   MessageCircle, MessageSquare, Shield, Calendar, CalendarRange, CalendarCheck,
   Settings, Globe, Brain, Image as ImageIcon, GraduationCap, Smartphone, Sparkles, CopySlash, Store,
-  Briefcase,
+  Briefcase, Building2,
 } from 'lucide-react';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
+import { peutOuvrirCrmImmo, accesResolu, type EtatAcces } from '../../lib/crmImmoAccess';
+import { sectionsAvecCrmImmo } from '../../lib/crmImmoSidebar';
 import SidebarLayoutControls from '../../components/sidebar-v2/SidebarLayoutControls';
 import { SidebarSkeleton, AdminItem } from './AdminSidebarItem';
 import SidebarFooterActions from '../../components/layout/SidebarFooterActions';
@@ -33,6 +35,12 @@ interface SidebarProps {
   backLabel?: string;
   visuBadgeLabel?: string;
   canHideTabs?: boolean;
+  /*
+   * Le droit d'ouvrir CRM Immo, calcule une seule fois dans AdminDashboard et
+   * partage avec le renderer. C'est LUI qui decide si l'entree existe, et non
+   * le drapeau `hidden` : voir le useMemo des sections.
+   */
+  crmImmoAcces?: EtatAcces;
   hideTabsTargetName?: string;
   hideTabsTargetUserId?: string | null;
 }
@@ -91,6 +99,7 @@ const ICONS: Record<string, React.ReactNode> = {
   'vue-ensemble': <LayoutDashboard className="w-4 h-4" />,
   'boutique': <Store className="w-4 h-4" />,
   'cabinet': <Briefcase className="w-4 h-4" />,
+  'crm-immo': <Building2 className="w-4 h-4" />,
   'site': <Globe className="w-4 h-4" />,
   'logo': <ImageIcon className="w-4 h-4" />,
   'calquer-logo': <CopySlash className="w-4 h-4" />,
@@ -114,7 +123,7 @@ const ICONS: Record<string, React.ReactNode> = {
   'tuto': <GraduationCap className="w-4 h-4" />,
 };
 
-export default function Sidebar({ activeView, onNavigate, collapsed, onCollapse, onLogout, editorZone1Bg, editorZone2Bg, logoZoneRef, sidebarBodyRef, onBackToRoisAdmin, backLabel, visuBadgeLabel, canHideTabs, hideTabsTargetUserId }: SidebarProps) {
+export default function Sidebar({ activeView, onNavigate, collapsed, onCollapse, onLogout, editorZone1Bg, editorZone2Bg, logoZoneRef, sidebarBodyRef, onBackToRoisAdmin, backLabel, visuBadgeLabel, canHideTabs, crmImmoAcces = 'inconnu', hideTabsTargetUserId }: SidebarProps) {
   const t = useThemeTokens();
   const editorCtx = useEditorModeSafe();
   const { customThemeOverrides } = useTheme();
@@ -128,7 +137,38 @@ export default function Sidebar({ activeView, onNavigate, collapsed, onCollapse,
   }, []);
 
 
-  const sections = useMemo(() => LAYOUT_SECTIONS, []);
+  /*
+   * ---------- L'ONGLET CRM IMMO VIENT DU DROIT, JAMAIS DE `hidden` ----------
+   *
+   * Il serait tentant de le declarer { id: 'crm-immo', hidden: true } ci-dessus et
+   * de laisser Talvex le demasquer. Ce serait un piege, mesure sur pieces :
+   *
+   *   - le bouton « Par defaut » de la reorganisation n'est garde par RIEN
+   *     (SidebarLayoutControls : son voisin l'est, lui non) ;
+   *   - resetToDefault remplace le brouillon par la DECLARATION, drapeaux `hidden`
+   *     compris (useSidebarLayout) ;
+   *   - confirmReorder enregistre le brouillon tel quel, « const next = draft »,
+   *     sans aucune fusion.
+   *
+   * Deux clics d'une Societe — « Par defaut » puis « Valider » — lui retireraient
+   * donc son propre module, en base, sans qu'elle comprenne pourquoi. Le droit ne
+   * doit pas vivre dans un reglage d'organisation visuelle.
+   *
+   * L'entree n'est donc pas masquee : elle n'est pas EMISE. Et `hidden` continue de
+   * servir a ce qu'il sert — ranger un onglet qu'on possede.
+   *
+   * Compartiment « Principal », a cote de Boutique et Cabinet : CRM Immo est un
+   * module metier autonome. Le ranger sous « Gestion des leads » contredirait a
+   * l'oeil la regle fondatrice du module — il ne se melange pas aux leads.
+   *
+   * La dependance est le seul BOOLEEN, pas l'etat a quatre valeurs : l'identite du
+   * tableau doit rester stable entre deux rendus, sinon `defaults` change a chaque
+   * fois et l'effet de chargement de useSidebarLayout se relance en boucle — une
+   * panne invisible a l'ecran, visible seulement au reseau.
+   */
+  const crmImmoOuvert = peutOuvrirCrmImmo(crmImmoAcces);
+  const crmImmoResolu = accesResolu(crmImmoAcces);
+  const sections = useMemo(() => sectionsAvecCrmImmo(LAYOUT_SECTIONS, crmImmoOuvert), [crmImmoOuvert]);
   // Entite REELLE : la Societe visualisee en Visu, sinon la Societe connectee.
   const effectiveUserId = hideTabsTargetUserId ?? userId;
   const layout = useSidebarLayout({ panel: 'admin', entityUserId: effectiveUserId, sections });
@@ -176,7 +216,15 @@ export default function Sidebar({ activeView, onNavigate, collapsed, onCollapse,
         className="flex-1 flex flex-col min-h-0"
         style={{ background: editorZone2Bg || t.sidebar.bg }}
       >
-        {!layout.loaded ? (
+        {/*
+          On attend AUSSI que le droit soit resolu, et pas seulement le layout.
+          Valider un ordre d'onglets pendant que `crm-immo` n'existe pas encore dans
+          `sections` ecrirait un blob SANS lui ; reconcileLayout le re-ajouterait
+          ensuite en FIN de liste, hors de son compartiment, et la Societe ne saurait
+          pas pourquoi son onglet a demenage. La RPC part en parallele du chargement
+          du layout, qui interroge deja la base : le cout est de l'ordre du bruit.
+        */}
+        {!layout.loaded || !crmImmoResolu ? (
           <SidebarSkeleton collapsed={collapsed} tokens={t} />
         ) : (
         <SidebarLayoutControls

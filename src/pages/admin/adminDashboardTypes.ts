@@ -52,4 +52,5 @@ export type ActiveView =
   | 'calquer-logo'
   | 'mes-logos-ra'
   | 'boutique'
-  | 'cabinet';
+  | 'cabinet'
+  | 'crm-immo';
