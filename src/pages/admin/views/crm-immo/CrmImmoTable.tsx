@@ -95,13 +95,17 @@ export default function CrmImmoTable({
                 <td className="px-3 py-2.5 text-right whitespace-nowrap">
                   <div className="inline-flex items-center gap-1">
                     <button type="button" onClick={() => onModifier(d)}
-                      title="Modifier" data-testid={`crm-immo-modifier-${d.id}`}
+                      title="Modifier"
+                      aria-label={`Modifier le dossier de ${[d.prenom, d.nom].filter(Boolean).join(' ').trim() || d.nom}`}
+                      data-testid={`crm-immo-modifier-${d.id}`}
                       className="p-1.5 rounded-lg transition-colors"
                       style={{ color: t.table.cellIcon }}>
                       <Pencil className="w-4 h-4" />
                     </button>
                     <button type="button" onClick={() => onSupprimer(d)}
-                      title="Supprimer" data-testid={`crm-immo-supprimer-${d.id}`}
+                      title="Supprimer"
+                      aria-label={`Supprimer le dossier de ${[d.prenom, d.nom].filter(Boolean).join(' ').trim() || d.nom}`}
+                      data-testid={`crm-immo-supprimer-${d.id}`}
                       className="p-1.5 rounded-lg transition-colors"
                       style={{ color: t.danger.text }}>
                       <Trash2 className="w-4 h-4" />

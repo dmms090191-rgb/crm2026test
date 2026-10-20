@@ -50,6 +50,7 @@ export default function CrmImmoColonneRow({
 
       <div className="flex flex-col shrink-0">
         <button type="button" onClick={onMonter} disabled={premier} title="Monter"
+          aria-label={`Monter la colonne ${colonne.nom}`}
           data-testid={`crm-immo-colonne-monter-${cle}`}
           /* Mesure a 375 px : 18 x 18 — la plus petite cible de tout le module, alors que
              ces deux chevrons sont le SEUL moyen de reordonner a une main. Le rembourrage
@@ -63,6 +64,7 @@ export default function CrmImmoColonneRow({
           <ChevronUp className="w-3.5 h-3.5" />
         </button>
         <button type="button" onClick={onDescendre} disabled={dernier} title="Descendre"
+          aria-label={`Descendre la colonne ${colonne.nom}`}
           data-testid={`crm-immo-colonne-descendre-${cle}`}
           className="relative p-0.5 max-md:p-2 rounded disabled:opacity-25 max-md:before:absolute max-md:before:content-[''] max-md:before:-inset-x-2 max-md:before:inset-y-0"
           style={{ color: t.label.muted }}>
@@ -82,7 +84,9 @@ export default function CrmImmoColonneRow({
               style={{ background: t.input.bg, border: `1px solid ${t.input.borderFocus}`, color: t.input.text }}
             />
             <button type="button" onClick={() => { onRenommer(brouillon); setEdition(false); }}
-              title="Valider" data-testid={`crm-immo-colonne-renommer-ok-${cle}`}
+              title="Valider"
+              aria-label={`Valider le nouveau nom de la colonne ${colonne.nom}`}
+              data-testid={`crm-immo-colonne-renommer-ok-${cle}`}
               /* Mesure : 24 x 24 px, les plus petites cibles de la surface — et c est
                  litteralement la paire valider / annuler. 14 px de rembourrage les
                  portent a 44. */
@@ -90,7 +94,9 @@ export default function CrmImmoColonneRow({
               <Check className="w-4 h-4" />
             </button>
             <button type="button" onClick={() => { setBrouillon(colonne.nom); setEdition(false); }}
-              title="Annuler" className="p-1 max-md:p-[14px] rounded" style={{ color: t.label.muted }}>
+              title="Annuler"
+              aria-label={`Annuler le renommage de la colonne ${colonne.nom}`}
+              className="p-1 max-md:p-[14px] rounded" style={{ color: t.label.muted }}>
               <X className="w-4 h-4" />
             </button>
           </div>
@@ -115,6 +121,12 @@ export default function CrmImmoColonneRow({
         {peutMasquer(colonne) && (
           <button type="button" onClick={onBasculerMasquage}
             title={colonne.masquee ? 'Afficher' : 'Masquer'}
+            /* Le libelle PORTE l etat : un lecteur d ecran annonce alors l action
+               disponible, pas seulement le nom du bouton. aria-pressed le redit sous une
+               forme que les technologies d assistance savent restituer comme un
+               interrupteur. */
+            aria-label={colonne.masquee ? `Afficher la colonne ${colonne.nom}` : `Masquer la colonne ${colonne.nom}`}
+            aria-pressed={colonne.masquee}
             data-testid={`crm-immo-colonne-masquer-${cle}`}
             /* Mesure a 375 px : 28 x 28, et trois de ces boutons se suivent a 2 px.
                Un ::before les ferait se chevaucher — on agrandit donc le bouton lui-meme.
@@ -126,7 +138,9 @@ export default function CrmImmoColonneRow({
 
         {!systeme && !edition && (
           <button type="button" onClick={() => { setBrouillon(colonne.nom); setEdition(true); }}
-            title="Renommer" data-testid={`crm-immo-colonne-editer-${cle}`}
+            title="Renommer"
+            aria-label={`Renommer la colonne ${colonne.nom}`}
+            data-testid={`crm-immo-colonne-editer-${cle}`}
             className="p-1.5 max-md:p-[15px] rounded" style={{ color: t.table.cellIcon }}>
             <Pencil className="w-4 h-4" />
           </button>
@@ -149,7 +163,9 @@ export default function CrmImmoColonneRow({
             </div>
           ) : (
             <button type="button" onClick={() => setConfirme(true)}
-              title="Supprimer" data-testid={`crm-immo-colonne-supprimer-${cle}`}
+              title="Supprimer"
+              aria-label={`Supprimer la colonne ${colonne.nom}`}
+              data-testid={`crm-immo-colonne-supprimer-${cle}`}
               className="p-1.5 max-md:p-[15px] rounded" style={{ color: t.danger.text }}>
               <Trash2 className="w-4 h-4" />
             </button>

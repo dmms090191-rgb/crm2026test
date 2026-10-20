@@ -7,6 +7,7 @@ import {
 } from '../../../../lib/crmImmoColonnes';
 import { COLONNES_SYSTEME, TYPES_COLONNE, type ColonneImmo, type TypeColonne } from './crmImmoTypes';
 import CrmImmoColonneRow from './CrmImmoColonneRow';
+import { useFermetureModale } from './useFermetureModale';
 
 /**
  * L'organisateur de colonnes du module.
@@ -90,9 +91,17 @@ export default function CrmImmoColonnesModal({
     onReordonnerPerso(ids.map(id => parId.get(id)!).filter(Boolean));
   }
 
+  /*
+   * Tout ce qui est fait dans cette modale part en base immediatement : ajouter,
+   * renommer, masquer, reordonner. Le seul etat qui vivrait une fermeture est le nom
+   * en cours de frappe — d ou le second geste quand le champ n est pas vide.
+   */
+  const fermeture = useFermetureModale({ onFermer, aPerdre: nouveauNom.trim() !== '' });
+
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
-      style={{ background: t.modal.overlayBg }} data-testid="crm-immo-colonnes-modal">
+      style={{ background: t.modal.overlayBg }} data-testid="crm-immo-colonnes-modal"
+      {...fermeture.proprietesDuFond}>
       <div className="w-full sm:max-w-lg max-h-[92dvh] flex flex-col rounded-t-2xl sm:rounded-2xl overflow-hidden"
         style={{ background: t.modal.bg, border: `1px solid ${t.modal.border}`, boxShadow: t.modal.shadow }}>
 
@@ -105,6 +114,7 @@ export default function CrmImmoColonnesModal({
             </p>
           </div>
           <button type="button" onClick={onFermer} title="Fermer"
+            aria-label="Fermer les colonnes du tableau"
             data-testid="crm-immo-colonnes-fermer"
             /* Mesure a 375 px : 28 x 28. Meme traitement que la modale Dossier. */
             className="relative p-1.5 rounded-lg max-md:before:absolute max-md:before:content-[''] max-md:before:-inset-2"
@@ -160,7 +170,7 @@ export default function CrmImmoColonnesModal({
           <div className="flex flex-col sm:flex-row gap-2">
             <input
               value={nouveauNom}
-              onChange={e => setNouveauNom(e.target.value)}
+              onChange={e => { setNouveauNom(e.target.value); fermeture.reinitialiser(); }}
               placeholder="Nom de la colonne"
               data-testid="crm-immo-colonne-nouveau-nom"
               /* 16 px sous 768 px : sous ce seuil, iOS Safari agrandit la page au
@@ -187,6 +197,12 @@ export default function CrmImmoColonnesModal({
               Ajouter
             </button>
           </div>
+          {fermeture.confirmationDemandee && (
+            <p className="text-xs px-3 py-2 rounded-lg break-words" data-testid="crm-immo-colonnes-confirmer-fermeture"
+              style={{ background: t.warning.bg, border: `1px solid ${t.warning.border}`, color: t.warning.text }}>
+              Le nom que vous tapez sera perdu. Appuyez de nouveau sur Échap, ou cliquez de nouveau à côté, pour fermer.
+            </p>
+          )}
           {problemeNom !== '' && (
             <p className="text-xs px-3 py-2 rounded-lg" data-testid="crm-immo-colonne-probleme"
               style={{ background: t.warning.bg, border: `1px solid ${t.warning.border}`, color: t.warning.text }}>

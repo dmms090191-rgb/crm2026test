@@ -52,6 +52,7 @@ export default function CrmImmoFilters({
           />
           {terme !== '' && (
             <button type="button" onClick={() => onTerme('')} title="Effacer"
+              aria-label="Effacer la recherche"
               data-testid="crm-immo-recherche-effacer"
               className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded"
               style={{ color: t.label.muted }}>

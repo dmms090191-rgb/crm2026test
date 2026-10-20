@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { X } from 'lucide-react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
+import { useFermetureModale } from './useFermetureModale';
 import {
   COLONNES_SYSTEME, TYPES_COLONNE, SAISIE_VIDE,
   type DossierImmo, type ColonneImmo, type SaisieDossier, type ChampSysteme,
@@ -64,9 +65,36 @@ export default function CrmImmoDossierModal({
     setSaisie(dossier ? versSaisie(dossier) : SAISIE_VIDE);
   }, [dossier]);
 
-  const poser = (cle: keyof SaisieDossier, v: string) => setSaisie(p => ({ ...p, [cle]: v }));
-  const poserValeur = (id: string, v: string) =>
+  /*
+   * Le formulaire a-t-il ete touche ? On compare a l etat du depart plutot que de poser
+   * un drapeau a chaque frappe : revenir soi-meme sur ses pas rend le formulaire intact,
+   * et la modale se referme alors d un seul geste.
+   */
+  const depart = useMemo(
+    () => JSON.stringify(dossier ? versSaisie(dossier) : SAISIE_VIDE),
+    [dossier],
+  );
+  const modifie = JSON.stringify(saisie) !== depart;
+
+  /*
+   * Echap et le clic sur le fond ferment — mais pas au prix d une saisie.
+   *
+   * Sur telephone, la feuille occupe presque tout l ecran : le fond se reduit a une
+   * bande de soixante-cinq pixels en haut, exactement la ou le pouce passe en tenant
+   * l appareil. Un formulaire de dix champs ne doit pas partir sur ce geste-la. Quand
+   * quelque chose a ete saisi, le premier geste ARME et le second ferme — la convention
+   * du module, deja celle du bouton Supprimer d une colonne.
+   */
+  const fermeture = useFermetureModale({ onFermer, bloquee: enCours, aPerdre: modifie });
+
+  const poser = (cle: keyof SaisieDossier, v: string) => {
+    fermeture.reinitialiser();
+    setSaisie(p => ({ ...p, [cle]: v }));
+  };
+  const poserValeur = (id: string, v: string) => {
+    fermeture.reinitialiser();
     setSaisie(p => ({ ...p, valeurs: { ...p.valeurs, [id]: v } }));
+  };
 
   /* Les memes regles que les CHECK de la base, dans le meme ordre. */
   const probleme = useMemo(() => {
@@ -116,7 +144,8 @@ export default function CrmImmoDossierModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
-      style={{ background: t.modal.overlayBg }} data-testid="crm-immo-dossier-modal">
+      style={{ background: t.modal.overlayBg }} data-testid="crm-immo-dossier-modal"
+      {...fermeture.proprietesDuFond}>
       {/* dvh et non vh : le clavier mobile ne change pas vh, et la barre des boutons
           passerait dessous. */}
       <div className="w-full sm:max-w-2xl max-h-[92dvh] flex flex-col rounded-t-2xl sm:rounded-2xl overflow-hidden"
@@ -133,6 +162,7 @@ export default function CrmImmoDossierModal({
             </p>
           </div>
           <button type="button" onClick={onFermer} disabled={enCours} title="Fermer"
+            aria-label={dossier ? 'Fermer la fiche sans enregistrer' : 'Fermer le formulaire sans enregistrer'}
             data-testid="crm-immo-dossier-fermer"
             /* Mesure a 375 px : 28 x 28. Un ::before de -8px porte la zone a 44 x 44.
                Le bouton est seul dans son coin — son voisin est le bloc de titre, qui
@@ -196,6 +226,12 @@ export default function CrmImmoDossierModal({
           style={{ borderTop: `1px solid ${t.modal.border}`, paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}>
           {/* Le probleme local d'abord, l'erreur serveur ensuite : la premiere empeche
               d'envoyer, la seconde raconte ce que la base a refuse. */}
+          {fermeture.confirmationDemandee && (
+            <p className="text-xs px-3 py-2 rounded-lg break-words" data-testid="crm-immo-dossier-confirmer-fermeture"
+              style={{ background: t.warning.bg, border: `1px solid ${t.warning.border}`, color: t.warning.text }}>
+              Vos modifications seront perdues. Appuyez de nouveau sur Échap, ou cliquez de nouveau à côté, pour fermer sans enregistrer.
+            </p>
+          )}
           {probleme !== '' && (
             <p className="text-xs px-3 py-2 rounded-lg" data-testid="crm-immo-dossier-probleme"
               style={{ background: t.warning.bg, border: `1px solid ${t.warning.border}`, color: t.warning.text }}>

@@ -1,5 +1,6 @@
 import { AlertTriangle } from 'lucide-react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
+import { useFermetureModale } from './useFermetureModale';
 
 /**
  * Confirmation de suppression d'un dossier.
@@ -21,9 +22,21 @@ interface Props {
 export default function CrmImmoDeleteModal({ nom, enCours, erreur, onAnnuler, onConfirmer }: Props) {
   const t = useThemeTokens();
 
+  /*
+   * Echap et le clic sur le fond ANNULENT. Ils ne suppriment jamais : le seul chemin
+   * vers la suppression est le bouton qui porte le mot, et aucun geste de sortie ne
+   * passe par onConfirmer. Un seul geste suffit — il n y a rien a perdre ici, et exiger
+   * une confirmation pour ANNULER une confirmation serait absurde.
+   *
+   * Pendant l ecriture (enCours), aucun geste ne ferme : la suppression est partie, la
+   * refermer ne l arreterait pas et ferait croire le contraire.
+   */
+  const fermeture = useFermetureModale({ onFermer: onAnnuler, bloquee: enCours });
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: t.modal.overlayBg }} data-testid="crm-immo-delete-modal">
+      style={{ background: t.modal.overlayBg }} data-testid="crm-immo-delete-modal"
+      {...fermeture.proprietesDuFond}>
       {/* Une hauteur maximale et un corps defilant : le nom du dossier vient de
           l utilisateur, rien ne borne sa longueur, et cette modale n avait aucun des
           deux. Sur un petit ecran avec le clavier ouvert, un nom tres long aurait

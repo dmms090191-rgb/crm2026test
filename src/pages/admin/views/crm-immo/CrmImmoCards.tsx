@@ -76,11 +76,13 @@ export default function CrmImmoCards({ dossiers, colonnes, loading, onModifier, 
               </h3>
               <div className="flex items-center gap-1 shrink-0">
                 <button type="button" onClick={() => onModifier(d)} title="Modifier"
+                  aria-label={`Modifier le dossier de ${titre}`}
                   data-testid={`crm-immo-carte-modifier-${d.id}`}
                   className="p-2 rounded-lg" style={{ color: t.table.cellIcon, background: t.surface.secondary }}>
                   <Pencil className="w-4 h-4" />
                 </button>
                 <button type="button" onClick={() => onSupprimer(d)} title="Supprimer"
+                  aria-label={`Supprimer le dossier de ${titre}`}
                   data-testid={`crm-immo-carte-supprimer-${d.id}`}
                   className="p-2 rounded-lg" style={{ color: t.danger.text, background: t.danger.bg }}>
                   <Trash2 className="w-4 h-4" />

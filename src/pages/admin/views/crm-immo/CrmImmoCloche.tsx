@@ -88,6 +88,15 @@ export default function CrmImmoCloche({
     <div className="relative" ref={zone} data-testid="crm-immo-cloche">
       <button type="button" onClick={basculer}
         title="Alertes CRM Immo"
+        /*
+         * Le mot << Alertes >> est en hidden sm:inline : sous 640 px ce bouton n est
+         * qu une cloche dessinee. Le libelle porte donc aussi le COMPTE, qui n est
+         * visible que sous forme de pastille coloree.
+         */
+        aria-label={badge > 0
+          ? `Alertes CRM Immo, ${badge} non ${badge > 1 ? 'lues' : 'lue'}`
+          : 'Alertes CRM Immo'}
+        aria-expanded={ouvert}
         data-testid="crm-immo-cloche-bouton"
         className="relative inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold transition-all hover:scale-105"
         style={{ background: t.surface.secondary, border: `1px solid ${t.surface.border}`, color: t.text.secondary }}>
@@ -114,6 +123,7 @@ export default function CrmImmoCloche({
             <h3 className="text-sm font-bold" style={{ color: t.heading.primary }}>Alertes CRM Immo</h3>
             <div className="flex items-center gap-1">
               <button type="button" onClick={onRecharger} title="Actualiser"
+                aria-label="Actualiser les alertes"
                 data-testid="crm-immo-cloche-actualiser"
                 /* Mesure a 375 px : 26 x 26, et ce bouton touche celui de fermeture a
                    4 px. Deux ::before voisins se chevaucheraient : on agrandit donc les
@@ -122,6 +132,8 @@ export default function CrmImmoCloche({
                 <RefreshCw className={`w-3.5 h-3.5 ${chargement ? 'animate-spin' : ''}`} />
               </button>
               <button type="button" onClick={() => setOuvert(false)} title="Fermer"
+                aria-label="Fermer les alertes"
+                data-testid="crm-immo-cloche-fermer"
                 className="p-1.5 max-md:p-[15px] rounded-lg" style={{ color: t.label.muted }}>
                 <X className="w-3.5 h-3.5" />
               </button>
