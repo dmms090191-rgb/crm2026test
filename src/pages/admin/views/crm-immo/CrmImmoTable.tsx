@@ -115,7 +115,34 @@ export default function CrmImmoTable({
                   </th>
                 );
               })}
-              <th className="text-right px-3 py-2.5 font-semibold whitespace-nowrap" style={{ color: t.table.headerText }}>
+              {/*
+                LA COLONNE ACTIONS EST EPINGLEE A DROITE.
+
+                Mesure a 1280 px, avec les dix colonnes systeme visibles : la table fait
+                1542 px dans un conteneur de 1262, soit 280 px de debordement. La colonne
+                Actions commencait a x = 1384 — ENTIEREMENT hors de l'ecran. Le bouton
+                Details, le crayon et la poubelle etaient donc invisibles, et il fallait
+                deviner qu'un defilement horizontal existe A L'INTERIEUR du tableau.
+
+                Le defaut n'est pas nouveau pour le crayon et la poubelle ; il s'est
+                aggrave en ajoutant Details et en donnant une largeur fixe a la colonne
+                Commentaire, devenue un bouton.
+
+                Epingler plutot qu'elargir : avec des colonnes personnalisees, le tableau
+                peut depasser n'importe quelle largeur d'ecran. Seul l'epinglage garantit
+                que les actions restent atteignables, quel que soit leur nombre.
+
+                Le fond est OPAQUE (main.bg) : sans lui, les colonnes defilantes se
+                verraient a travers. L'ombre a gauche dit que la colonne est posee
+                par-dessus, et non collee au bord par hasard.
+              */}
+              <th className="text-right px-3 py-2.5 font-semibold whitespace-nowrap sticky right-0 z-10"
+                style={{
+                  color: t.table.headerText,
+                  background: `linear-gradient(${t.table.headerBg}, ${t.table.headerBg}), ${t.main.bg}`,
+                  borderLeft: `1px solid ${t.table.headerBorder}`,
+                  boxShadow: `-8px 0 12px -8px ${t.table.headerBorder}`,
+                }}>
                 Actions
               </th>
             </tr>
@@ -150,7 +177,12 @@ export default function CrmImmoTable({
                       : cellule(d, c)}
                   </td>
                 ))}
-                <td className="px-3 py-2.5 text-right whitespace-nowrap">
+                <td className="px-3 py-2.5 text-right whitespace-nowrap sticky right-0 z-10"
+                  style={{
+                    background: t.main.bg,
+                    borderLeft: `1px solid ${t.table.colSep}`,
+                    boxShadow: `-8px 0 12px -8px ${t.table.rowBorder}`,
+                  }}>
                   <div className="inline-flex items-center gap-1">
                     {/* En toutes lettres, pas une icone : c est l action principale de la
                         ligne, et un oeil seul ne dit pas qu on peut aussi MODIFIER

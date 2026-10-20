@@ -396,3 +396,70 @@ test("F2 — l en-tete Commentaire ne trie plus", () => {
     "l en-tete Commentaire est redevenu un bouton de tri");
   assert.match(t, /if \(!triable\) \{/, "la branche non triable a disparu");
 });
+
+// ===========================================================================
+// G — LA COLONNE ACTIONS RESTE ATTEIGNABLE
+// ===========================================================================
+
+test("G1 — la colonne Actions est EPINGLEE a droite, en-tete et cellule", () => {
+  /*
+   * MESURE A 1280 px, avec les dix colonnes systeme visibles et un vrai dossier :
+   *   table 1542 px dans un conteneur de 1262  ->  280 px de debordement
+   *   la colonne Actions commencait a x = 1384  ->  ENTIEREMENT hors de l ecran
+   *
+   * Le bouton Details, le crayon et la poubelle etaient donc invisibles, et il fallait
+   * deviner qu un defilement horizontal existe A L INTERIEUR du tableau. Apres
+   * epinglage, le bouton Details se tient a x = 1195, visible sans rien faire, et il
+   * recoit son propre clic — y compris une fois le tableau defile a fond.
+   *
+   * Le defaut n est pas nouveau pour le crayon et la poubelle. Il s est aggrave en
+   * ajoutant Details et en donnant une largeur fixe a la colonne Commentaire.
+   *
+   * Pourquoi EPINGLER et non elargir : avec des colonnes personnalisees, le tableau peut
+   * depasser n importe quelle largeur d ecran. Seul l epinglage garantit que les actions
+   * restent atteignables, quel que soit leur nombre.
+   */
+  const t = lire(D + "CrmImmoTable.tsx");
+
+  /* On ancre sur la BALISE, pas sur le mot : le commentaire qui explique la mesure
+     contient lui aussi le mot << Actions >>, et chercher le mot rendait le commentaire. */
+  const entete = t.indexOf('<th className="text-right');
+  assert.ok(entete > 0, "l en-tete Actions a disparu");
+  const blocEntete = t.slice(entete, entete + 500);
+  assert.match(blocEntete, /sticky right-0 z-10/,
+    "l en-tete Actions n est plus epingle : il repart hors de l ecran des que le tableau deborde");
+
+  const cellule = t.indexOf('className="px-3 py-2.5 text-right whitespace-nowrap');
+  assert.ok(cellule > 0, "la cellule Actions a disparu");
+  const blocCellule = t.slice(cellule, cellule + 400);
+  assert.match(blocCellule, /sticky right-0 z-10/,
+    "la cellule Actions n est plus epinglee : les boutons repartent hors de l ecran");
+
+  /*
+   * Un fond OPAQUE, sinon les colonnes defilantes se voient a travers. main.bg est le
+   * fond de la page, celui sur lequel le corps du tableau repose.
+   */
+  assert.match(blocCellule, /background: t\.main\.bg/,
+    "la cellule epinglee n a plus de fond opaque : le contenu defilant la traverserait");
+  assert.match(blocEntete, /t\.main\.bg/,
+    "l en-tete epingle n a plus de fond opaque");
+});
+
+test("G2 — les deux portes d entree portent un TEXTE, pas une icone seule", () => {
+  /*
+   * Exigence de David : << le bouton doit etre clairement lisible, pas seulement une
+   * icone >>. Mesure sur le composant reel : << Details >> 79 x 30 au tableau,
+   * 161 x 42 sur la fiche mobile ; << Commentaires (2) >> 139 x 30 et 161 x 42.
+   */
+  const table = lire(D + "CrmImmoTable.tsx");
+  const cartes = lire(D + "CrmImmoCards.tsx");
+  for (const [nom, src] of [["le tableau", table], ["les fiches mobiles", cartes]] as [string, string][]) {
+    assert.match(src, />\s*Détails\s*</,
+      nom + " : le bouton Details n affiche plus son texte");
+    assert.match(src, /Commentaires/,
+      nom + " : le bouton Commentaires n affiche plus son texte");
+  }
+  /* Et la fiche mobile a bien SON bouton Details, distinct de celui du tableau. */
+  assert.match(cartes, /crm-immo-carte-details-/,
+    "les fiches mobiles n ont plus de bouton Details");
+});
