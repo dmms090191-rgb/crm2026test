@@ -73,6 +73,20 @@ function AdminDashboardInner({ onLogout, onConnectAsVendor, onConnectAsClient, i
   const effectiveAdminId = impersonatedAdmin?.id ?? adminAuthId;
   const notifTargetUserId = hideTabsTargetUserId ?? effectiveAdminId ?? null;
   const { hiddenTabs: hiddenNotifCards, loaded: hiddenNotifCardsLoaded, toggle: toggleNotifCard } = useHiddenNotifCards(companyId, notifTargetUserId);
+  /*
+   * MASQUER une carte decide de ce qui EXISTE, et pilotera les forfaits : la RLS de
+   * panel_hidden_tabs reserve INSERT / UPDATE / DELETE au seul super_admin. Mesure faite
+   * role par role : Talvex ACCEPTE, un Groupe en Visu prend 42501, une Societe aussi.
+   *
+   * `isSAViewing` etait trop large : il vaut pour N IMPORTE QUELLE Visu, Groupe compris.
+   * Le bouton apparaissait donc a qui la base allait refuser — et comme l ecriture
+   * echouait en SILENCE, les cartes revenaient au rechargement sans que personne sache
+   * pourquoi.
+   *
+   * `canHideTabs` est la regle deja employee par la barre laterale (Sidebar) et par le
+   * panel Commercial (useVendorNotifPrefs : « Talvex seul »).
+   */
+  const peutMasquerLesCartes = canHideTabs === true;
   const notifCardOrderHook = useNotifCardOrder(notifTargetUserId, companyId);
   const { notifications: agendaNotifs, count: agendaPersoCount, markAsSeen: markAgendaSeen } = useAgendaNotifications('admin', adminAuthId);
   const { notifications: agendaEquipeNotifs, count: agendaEquipeCount, markAsSeen: markAgendaEquipeSeen } = useAgendaEquipeNotifications(adminAuthId);
@@ -223,7 +237,7 @@ function AdminDashboardInner({ onLogout, onConnectAsVendor, onConnectAsClient, i
           appName={configAppName || companyName || undefined}
           topbarRef={topbarZoneRef}
           editorZone3Bg={zone3Bg}
-          canHideNotifCards={!!isSAViewing}
+          canHideNotifCards={peutMasquerLesCartes}
           hiddenNotifCards={hiddenNotifCards}
           hiddenNotifCardsLoaded={hiddenNotifCardsLoaded}
           onToggleNotifCard={toggleNotifCard}

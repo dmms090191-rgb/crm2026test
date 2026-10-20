@@ -202,7 +202,13 @@ function NotifCard({ card, tokens: t, onClick, isHidden, hideEditMode, onToggleH
         )}
       </button>
       {hideEditMode && (
-        <div className="absolute top-1.5 right-1.5 flex items-center gap-1">
+        /*
+          pointer-events-none : cet indicateur est pose PAR-DESSUS le bouton de la carte.
+          Sans lui, cliquer sur l oeil — le geste naturel, il ressemble a la commande —
+          atterrit sur ce div, qui n a aucun gestionnaire : rien ne se passe, et il faut
+          deviner qu il faut viser a cote.
+        */
+        <div className="absolute top-1.5 right-1.5 flex items-center gap-1 pointer-events-none">
           {isHidden && (
             <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold"
               style={{ background: 'rgba(239,68,68,0.12)', color: '#ef4444' }}>Masque</span>
