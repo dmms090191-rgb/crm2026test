@@ -1,4 +1,4 @@
-import { Pencil, Trash2, CalendarClock, Coins } from 'lucide-react';
+import { Pencil, Trash2, CalendarClock, Coins, Eye, MessageSquare } from 'lucide-react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 import { cleColonne, type Colonne } from '../../../../lib/crmImmoColonnes';
 import { valeurAffichee } from '../../../../lib/crmImmoRecherche';
@@ -33,9 +33,14 @@ interface Props {
   loading: boolean;
   onModifier: (d: DossierImmo) => void;
   onSupprimer: (d: DossierImmo) => void;
+  /** Ouvre la modale Details sur l onglet demande. La MEME que sur desktop. */
+  onDetails: (d: DossierImmo, onglet: 'informations' | 'commentaires') => void;
+  nombreCommentaires: Record<string, number>;
 }
 
-export default function CrmImmoCards({ dossiers, colonnes, loading, onModifier, onSupprimer }: Props) {
+export default function CrmImmoCards({
+  dossiers, colonnes, loading, onModifier, onSupprimer, onDetails, nombreCommentaires,
+}: Props) {
   const t = useThemeTokens();
 
   /* Le nom tient l'entete ; les deux echeances tiennent le bandeau. Le reste va dans la
@@ -64,7 +69,15 @@ export default function CrmImmoCards({ dossiers, colonnes, loading, onModifier, 
 
       {!loading && dossiers.map(d => {
         const titre = [d.prenom, d.nom].filter(Boolean).join(' ').trim() || d.nom;
-        const reste = colonnes.filter(c => !(c.famille === 'systeme' && DANS_L_ENTETE.has(c.cle)));
+        /*
+         * Le commentaire sort des paires libelle/valeur, comme il sort des cellules du
+         * tableau : plusieurs lignes de texte dans une demi-colonne de 170 px rendaient
+         * la fiche illisible. Il a son bouton, en bas.
+         */
+        const reste = colonnes.filter(c =>
+          !(c.famille === 'systeme' && (DANS_L_ENTETE.has(c.cle) || c.cle === 'commentaire')));
+        const commentaireVisible = colonnes.some(c => c.famille === 'systeme' && c.cle === 'commentaire');
+        const nbCommentaires = nombreCommentaires[d.id] ?? 0;
         return (
           <article key={d.id} data-testid={`crm-immo-carte-${d.id}`}
             className="rounded-xl p-3.5"
@@ -119,6 +132,37 @@ export default function CrmImmoCards({ dossiers, colonnes, loading, onModifier, 
                 ))}
               </dl>
             )}
+
+            {/*
+              Les deux boutons en PIED de fiche, pleine largeur, et non en haut a droite
+              avec le crayon et la poubelle. A 375 px, quatre cibles de 44 px dans l en-tete
+              ne laisseraient plus de place au nom — et ce sont les deux actions qu on vient
+              chercher le plus souvent. py-2.5 : 44 px de haut au doigt.
+            */}
+            <div className="flex items-stretch gap-2 mt-3 pt-3"
+              style={{ borderTop: `1px solid ${t.surface.borderLight}` }}>
+              <button type="button" onClick={() => onDetails(d, 'informations')}
+                data-testid={`crm-immo-carte-details-${d.id}`}
+                className="flex-1 min-w-0 inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg text-sm font-semibold"
+                style={{ background: t.surface.secondary, border: `1px solid ${t.surface.border}`, color: t.text.secondary }}>
+                <Eye className="w-4 h-4 shrink-0" />
+                Détails
+              </button>
+              {commentaireVisible && (
+                <button type="button" onClick={() => onDetails(d, 'commentaires')}
+                  data-testid={`crm-immo-carte-commentaires-${d.id}`}
+                  aria-label={nbCommentaires > 0
+                    ? `Voir les ${nbCommentaires} commentaires du dossier de ${titre}`
+                    : `Ajouter un commentaire au dossier de ${titre}`}
+                  className="flex-1 min-w-0 inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg text-sm font-semibold"
+                  style={nbCommentaires > 0
+                    ? { background: t.accent.bg, border: `1px solid ${t.accent.border}`, color: t.accent.text }
+                    : { background: t.surface.secondary, border: `1px solid ${t.surface.border}`, color: t.label.muted }}>
+                  <MessageSquare className="w-4 h-4 shrink-0" />
+                  <span className="truncate">Commentaires{nbCommentaires > 0 ? ` (${nbCommentaires})` : ''}</span>
+                </button>
+              )}
+            </div>
           </article>
         );
       })}

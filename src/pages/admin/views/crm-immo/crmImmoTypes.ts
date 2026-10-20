@@ -99,11 +99,39 @@ export const COLONNES_SYSTEME: DefinitionSysteme[] = [
   { cle: 'telephone', libelle: 'Téléphone', type: 'texte', masquable: true },
   { cle: 'date_entree', libelle: "Date d'entrée", type: 'date', masquable: true },
   { cle: 'date_fin_contrat', libelle: 'Fin de contrat', type: 'date', masquable: true },
-  { cle: 'locataire', libelle: 'Locataire', type: 'texte', masquable: true },
-  { cle: 'proprietaire', libelle: 'Propriétaire', type: 'texte', masquable: true },
+  /*
+   * << N/L >> — Nom / Lieu, le vocabulaire metier de David. Ce sont des LIBELLES
+   * d'affichage : les colonnes de la base restent `locataire` et `proprietaire`.
+   * Renommer en SQL couterait une migration, casserait les sauvegardes existantes et
+   * ne changerait rien a ce que l'utilisateur lit.
+   *
+   * Ce libelle sert a TROIS endroits a la fois — l'en-tete du tableau, le formulaire du
+   * dossier et l'organisateur de colonnes — parce que tous les trois lisent `d.libelle`
+   * via toutesLesColonnes(). Les changer ici les change partout, ensemble.
+   */
+  { cle: 'locataire', libelle: 'N/L Locataire', type: 'texte', masquable: true },
+  { cle: 'proprietaire', libelle: 'N/L Propriétaire', type: 'texte', masquable: true },
   { cle: 'jour_encaissement', libelle: 'Encaissement loyer', type: 'nombre', masquable: true },
   { cle: 'commentaire', libelle: 'Commentaire', type: 'texte', masquable: true },
 ];
+
+/**
+ * Ligne de `crm_immo_commentaires`. Miroir exact du schema.
+ *
+ * Un commentaire ne se MODIFIE pas : on en ajoute, on en supprime. C'est ce qui en fait
+ * un historique plutot qu'une note. Il n'y a donc ni `updated_at` ni formulaire d'edition.
+ */
+export interface CommentaireImmo {
+  id: string;
+  company_id: string;
+  dossier_id: string;
+  contenu: string;
+  created_at: string;
+  created_by: string | null;
+}
+
+/** La borne du CHECK `crm_immo_commentaires_contenu_borne`, pour l'annoncer AVANT le refus. */
+export const COMMENTAIRE_MAX = 5000;
 
 /** Ce que le formulaire renvoie : les 10 champs systeme, plus les valeurs personnalisees. */
 export interface SaisieDossier {
@@ -119,6 +147,39 @@ export interface SaisieDossier {
   jour_encaissement: string;
   commentaire: string;
   valeurs: Record<string, string>;
+}
+
+/**
+ * Les memes regles que les CHECK de la base, dans le meme ordre.
+ *
+ * Valider deux fois n'est pas une redondance : la base refuse de toute facon — on ne peut
+ * donc pas contourner la regle — mais son refus revient sous la forme d'un message
+ * Postgres que personne ne comprend. Valider ici offre une phrase SANS perdre la garantie.
+ *
+ * Partagee par les DEUX modales qui montrent un dossier. Une seconde copie finirait par
+ * diverger des contraintes qu'elle est censee annoncer.
+ */
+export function problemeDeSaisie(s: SaisieDossier): string {
+  if (s.nom.trim() === '') return 'Le nom du client est obligatoire.';
+  const j = s.jour_encaissement.trim();
+  if (j !== '') {
+    const n = Number(j);
+    if (!Number.isInteger(n) || n < 1 || n > 31) {
+      return "Le jour d'encaissement doit être un entier entre 1 et 31.";
+    }
+  }
+  if (s.date_entree && s.date_fin_contrat && s.date_fin_contrat < s.date_entree) {
+    return "La fin de contrat ne peut pas précéder la date d'entrée.";
+  }
+  return '';
+}
+
+/** Un instant ISO en « 03/03/2026 à 14:32 », sans dependre de la locale du poste. */
+export function dateEtHeure(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '—';
+  const DEUX = (n: number) => String(n).padStart(2, '0');
+  return `${DEUX(d.getDate())}/${DEUX(d.getMonth() + 1)}/${d.getFullYear()} à ${DEUX(d.getHours())}:${DEUX(d.getMinutes())}`;
 }
 
 export const SAISIE_VIDE: SaisieDossier = {

@@ -1,4 +1,4 @@
-import { ArrowUp, ArrowDown, Pencil, Trash2 } from 'lucide-react';
+import { ArrowUp, ArrowDown, Pencil, Trash2, Eye, MessageSquare } from 'lucide-react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 import { cleColonne, type Colonne } from '../../../../lib/crmImmoColonnes';
 import { valeurAffichee, type Sens } from '../../../../lib/crmImmoRecherche';
@@ -26,10 +26,43 @@ interface Props {
   onTrier: (cle: string) => void;
   onModifier: (d: DossierImmo) => void;
   onSupprimer: (d: DossierImmo) => void;
+  /** Ouvre la modale Details sur l onglet demande. UNE modale, deux portes d entree. */
+  onDetails: (d: DossierImmo, onglet: 'informations' | 'commentaires') => void;
+  /** Le nombre de commentaires par dossier, pour << Commentaires (3) >>. */
+  nombreCommentaires: Record<string, number>;
+}
+
+/**
+ * Le bouton qui remplace le texte du commentaire.
+ *
+ * Il porte le NOMBRE quand il y en a : << Commentaires (3) >>. Sans le chiffre, il
+ * faudrait ouvrir la modale pour savoir s il y a quelque chose a lire — sur un tableau
+ * de cent lignes, c est cent ouvertures pour trouver les trois dossiers annotes.
+ */
+function BoutonCommentaires({ dossier, nombre, onOuvrir }: {
+  dossier: DossierImmo; nombre: number; onOuvrir: () => void;
+}) {
+  const t = useThemeTokens();
+  const nom = [dossier.prenom, dossier.nom].filter(Boolean).join(' ').trim() || dossier.nom;
+  return (
+    <button type="button" onClick={onOuvrir}
+      data-testid={`crm-immo-commentaires-${dossier.id}`}
+      aria-label={nombre > 0
+        ? `Voir les ${nombre} commentaires du dossier de ${nom}`
+        : `Ajouter un commentaire au dossier de ${nom}`}
+      className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors"
+      style={nombre > 0
+        ? { background: t.accent.bg, border: `1px solid ${t.accent.border}`, color: t.accent.text }
+        : { background: t.surface.secondary, border: `1px solid ${t.surface.border}`, color: t.label.muted }}>
+      <MessageSquare className="w-3.5 h-3.5" />
+      {nombre > 0 ? `Commentaires (${nombre})` : 'Commentaires'}
+    </button>
+  );
 }
 
 export default function CrmImmoTable({
   dossiers, colonnes, loading, triSur, sens, onTrier, onModifier, onSupprimer,
+  onDetails, nombreCommentaires,
 }: Props) {
   const t = useThemeTokens();
 
@@ -51,6 +84,22 @@ export default function CrmImmoTable({
               {colonnes.map(c => {
                 const cle = cleColonne(c);
                 const actif = triSur === cle;
+                /*
+                 * La colonne Commentaire ne se TRIE plus. Sa cellule affiche un bouton,
+                 * pas un texte : trier dessus reordonnerait les lignes selon une valeur
+                 * que personne ne voit — et selon l'ANCIEN champ unique, que l'interface
+                 * n'alimente plus. Un en-tete cliquable qui produit un ordre
+                 * incomprehensible est pire qu'un en-tete inerte.
+                 */
+                const triable = !(c.famille === 'systeme' && c.cle === 'commentaire');
+                if (!triable) {
+                  return (
+                    <th key={cle} className="text-left px-3 py-2.5 font-semibold whitespace-nowrap"
+                      style={{ color: t.table.headerText, borderRight: `1px solid ${t.table.colSep}` }}>
+                      {c.nom}
+                    </th>
+                  );
+                }
                 return (
                   <th key={cle} className="text-left px-3 py-2.5 font-semibold whitespace-nowrap"
                     style={{ color: t.table.headerText, borderRight: `1px solid ${t.table.colSep}` }}>
@@ -89,11 +138,30 @@ export default function CrmImmoTable({
                 {colonnes.map(c => (
                   <td key={cleColonne(c)} className="px-3 py-2.5 align-top"
                     style={{ color: t.table.cellText, borderRight: `1px solid ${t.table.colSep}` }}>
-                    {cellule(d, c)}
+                    {/*
+                      La colonne Commentaire n affiche plus son texte. Un commentaire de
+                      CRM fait souvent plusieurs lignes : etale dans une cellule, il
+                      ecrasait toutes les autres colonnes. Elle porte desormais un bouton
+                      qui ouvre la MEME modale Details, sur son onglet.
+                    */}
+                    {c.famille === 'systeme' && c.cle === 'commentaire'
+                      ? <BoutonCommentaires dossier={d} nombre={nombreCommentaires[d.id] ?? 0}
+                          onOuvrir={() => onDetails(d, 'commentaires')} />
+                      : cellule(d, c)}
                   </td>
                 ))}
                 <td className="px-3 py-2.5 text-right whitespace-nowrap">
                   <div className="inline-flex items-center gap-1">
+                    {/* En toutes lettres, pas une icone : c est l action principale de la
+                        ligne, et un oeil seul ne dit pas qu on peut aussi MODIFIER
+                        depuis la fiche. */}
+                    <button type="button" onClick={() => onDetails(d, 'informations')}
+                      data-testid={`crm-immo-details-${d.id}`}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors"
+                      style={{ background: t.surface.secondary, border: `1px solid ${t.surface.border}`, color: t.text.secondary }}>
+                      <Eye className="w-3.5 h-3.5" />
+                      Détails
+                    </button>
                     <button type="button" onClick={() => onModifier(d)}
                       title="Modifier"
                       aria-label={`Modifier le dossier de ${[d.prenom, d.nom].filter(Boolean).join(' ').trim() || d.nom}`}

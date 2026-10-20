@@ -15,6 +15,8 @@ import CrmImmoCards from './crm-immo/CrmImmoCards';
 import CrmImmoDossierModal from './crm-immo/CrmImmoDossierModal';
 import CrmImmoDeleteModal from './crm-immo/CrmImmoDeleteModal';
 import CrmImmoColonnesModal from './crm-immo/CrmImmoColonnesModal';
+import CrmImmoDetailsModal, { type OngletDetails } from './crm-immo/CrmImmoDetailsModal';
+import { useCrmImmoNombreCommentaires } from './crm-immo/useCrmImmoCommentaires';
 import CrmImmoCloche from './crm-immo/CrmImmoCloche';
 
 /**
@@ -75,6 +77,18 @@ export default function CrmImmo() {
   const [creation, setCreation] = useState(false);
   const [aSupprimer, setASupprimer] = useState<DossierImmo | null>(null);
   const [colonnesOuvertes, setColonnesOuvertes] = useState(false);
+
+  /*
+   * UNE seule modale Details, DEUX portes d entree : le bouton Details l ouvre sur
+   * Informations, le bouton Commentaires sur Commentaires. L onglet de depart est donc
+   * un etat du parent, pas une seconde modale.
+   */
+  const [details, setDetails] = useState<{ dossier: DossierImmo; onglet: OngletDetails } | null>(null);
+  const commentairesParDossier = useCrmImmoNombreCommentaires();
+  const ouvrirDetails = (d: DossierImmo, onglet: OngletDetails) => {
+    setDetails({ dossier: d, onglet });
+    setErreurFormulaire('');
+  };
 
   const [enCours, setEnCours] = useState(false);
   const [erreurFormulaire, setErreurFormulaire] = useState('');
@@ -150,6 +164,29 @@ export default function CrmImmo() {
     setCreation(false);
     /* Les echeances ont pu changer : la cloche ET le hub general doivent en tenir
        compte tout de suite — ils lisent la meme source. */
+    void alertes?.recharger();
+  }
+
+  /**
+   * Enregistrer depuis la modale Details.
+   *
+   * Le meme chemin que le formulaire : dos.modifier, qui demande ses lignes en retour et
+   * traite ZERO ligne comme le refus que c est — supabase-js rend { error: null } quand
+   * la RLS refuse un UPDATE.
+   *
+   * La modale RESTE OUVERTE apres un enregistrement reussi, contrairement au formulaire
+   * de creation qui se ferme. On vient d y consulter une fiche : la refermer obligerait
+   * a la rouvrir pour verifier ce qu on vient d ecrire. Elle repasse simplement en
+   * lecture, et la ligne vivante qu elle recoit en prop montre l etat de la base.
+   */
+  async function enregistrerDepuisDetails(s: SaisieDossier) {
+    if (!details) return;
+    setEnCours(true);
+    setErreurFormulaire('');
+    const r = await dos.modifier(details.dossier.id, s);
+    setEnCours(false);
+    if (r.error) { setErreurFormulaire(r.error); return; }
+    /* Les echeances ont pu changer : la cloche ET le hub general lisent la meme source. */
     void alertes?.recharger();
   }
 
@@ -246,11 +283,15 @@ export default function CrmImmo() {
           triSur={triSur} sens={sens} onTrier={basculerTri}
           onModifier={(d) => { setEdite(d); setErreurFormulaire(''); }}
           onSupprimer={(d) => { setASupprimer(d); setErreurSuppression(''); }}
+          onDetails={ouvrirDetails}
+          nombreCommentaires={commentairesParDossier.parDossier}
         />
         <CrmImmoCards
           dossiers={lignes} colonnes={visibles} loading={dos.loading}
           onModifier={(d) => { setEdite(d); setErreurFormulaire(''); }}
           onSupprimer={(d) => { setASupprimer(d); setErreurSuppression(''); }}
+          onDetails={ouvrirDetails}
+          nombreCommentaires={commentairesParDossier.parDossier}
         />
       </div>
 
@@ -262,6 +303,28 @@ export default function CrmImmo() {
           erreur={erreurFormulaire}
           onFermer={() => { if (!enCours) { setEdite(null); setCreation(false); } }}
           onValider={(s) => { void validerDossier(s); }}
+        />
+      )}
+
+      {details && (
+        <CrmImmoDetailsModal
+          /* La ligne VIVANTE, pas celle capturee a l ouverture : apres un enregistrement,
+             la liste a change et la modale doit montrer ce qui est en base. Si le dossier
+             a disparu entre-temps, on retombe sur la capture plutot que de planter. */
+          dossier={dos.dossiers.find(x => x.id === details.dossier.id) ?? details.dossier}
+          colonnesPerso={col.colonnes.filter(c => !c.masquee)}
+          ongletInitial={details.onglet}
+          enCours={enCours}
+          erreur={erreurFormulaire}
+          onFermer={() => {
+            if (enCours) return;
+            setDetails(null);
+            /* Le compte du tableau se rafraichit a la FERMETURE : c est le seul moment
+               ou il a pu changer, et le recalculer a chaque frappe serait une requete
+               par caractere. */
+            void commentairesParDossier.recharger();
+          }}
+          onEnregistrer={(s) => { void enregistrerDepuisDetails(s); }}
         />
       )}
 

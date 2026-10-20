@@ -2,9 +2,10 @@ import { useState, useEffect, useMemo } from 'react';
 import { X } from 'lucide-react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 import { useFermetureModale } from './useFermetureModale';
+import CrmImmoChampsDossier from './CrmImmoChampsDossier';
 import {
-  COLONNES_SYSTEME, TYPES_COLONNE, SAISIE_VIDE,
-  type DossierImmo, type ColonneImmo, type SaisieDossier, type ChampSysteme,
+  problemeDeSaisie, SAISIE_VIDE,
+  type DossierImmo, type ColonneImmo, type SaisieDossier,
 } from './crmImmoTypes';
 
 /**
@@ -47,14 +48,6 @@ function versSaisie(d: DossierImmo): SaisieDossier {
   };
 }
 
-/** Le type de champ HTML qui convient a une colonne systeme. */
-const TYPE_HTML: Record<ChampSysteme, string> = {
-  nom: 'text', prenom: 'text', email: 'email', telephone: 'tel',
-  date_entree: 'date', date_fin_contrat: 'date',
-  locataire: 'text', proprietaire: 'text',
-  jour_encaissement: 'number', commentaire: 'textarea',
-};
-
 export default function CrmImmoDossierModal({
   dossier, colonnesPerso, enCours, erreur, onFermer, onValider,
 }: Props) {
@@ -96,51 +89,9 @@ export default function CrmImmoDossierModal({
     setSaisie(p => ({ ...p, valeurs: { ...p.valeurs, [id]: v } }));
   };
 
-  /* Les memes regles que les CHECK de la base, dans le meme ordre. */
-  const probleme = useMemo(() => {
-    if (saisie.nom.trim() === '') return 'Le nom du client est obligatoire.';
-    const j = saisie.jour_encaissement.trim();
-    if (j !== '') {
-      const n = Number(j);
-      if (!Number.isInteger(n) || n < 1 || n > 31) {
-        return "Le jour d'encaissement doit être un entier entre 1 et 31.";
-      }
-    }
-    if (saisie.date_entree && saisie.date_fin_contrat
-      && saisie.date_fin_contrat < saisie.date_entree) {
-      return "La fin de contrat ne peut pas précéder la date d'entrée.";
-    }
-    return '';
-  }, [saisie]);
-
-  const champ = (cle: ChampSysteme) => {
-    const def = COLONNES_SYSTEME.find(d => d.cle === cle)!;
-    const type = TYPE_HTML[cle];
-    const commun = {
-      value: saisie[cle] as string,
-      onChange: (e: { target: { value: string } }) => poser(cle, e.target.value),
-      'data-testid': `crm-immo-champ-${cle}`,
-      /* max-md:text-base : 16 px sous 768 px, le seuil en dessous duquel iOS Safari
-         agrandit la page des qu on touche le champ. Voir l en-tete de ce chantier. */
-      className: 'w-full px-3 py-2 rounded-lg text-sm max-md:text-base outline-none',
-      style: { background: t.modal.fieldBg, border: `1px solid ${t.modal.fieldBorder}`, color: t.modal.fieldValue },
-    };
-    return (
-      <label key={cle} className={type === 'textarea' ? 'sm:col-span-2' : ''}>
-        <span className="block text-xs mb-1" style={{ color: t.modal.fieldLabel }}>
-          {def.libelle}{cle === 'nom' && ' *'}
-        </span>
-        {type === 'textarea'
-          ? <textarea {...commun} rows={3} />
-          : <input {...commun} type={type} {...(cle === 'jour_encaissement' ? { min: 1, max: 31, step: 1 } : {})} />}
-        {cle === 'jour_encaissement' && (
-          <span className="block text-[11px] mt-1" style={{ color: t.label.hint }}>
-            Jour du mois. « 5 » = le 5 de chaque mois ; « 31 » est ramené au dernier jour des mois plus courts.
-          </span>
-        )}
-      </label>
-    );
-  };
+  /* La meme regle que les CHECK de la base. Partagee avec la modale Details :
+     deux copies finiraient par diverger des contraintes qu elles annoncent. */
+  const probleme = useMemo(() => problemeDeSaisie(saisie), [saisie]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
@@ -174,54 +125,14 @@ export default function CrmImmoDossierModal({
         </div>
 
         <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 py-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {COLONNES_SYSTEME.map(d => champ(d.cle))}
-          </div>
-
-          {colonnesPerso.length > 0 && (
-            <div className="mt-5 pt-4" style={{ borderTop: `1px solid ${t.surface.borderLight}` }}>
-              <h3 className="text-xs font-semibold uppercase tracking-wide mb-3" style={{ color: t.label.hint }}>
-                Vos colonnes
-              </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {colonnesPerso.map(c => (
-                  <label key={c.id}>
-                    {/* break-words : ce libelle est saisi dans la modale Colonnes, rien
-                        ne borne sa longueur ni ne garantit qu il contient un espace. */}
-                    <span className="block text-xs mb-1 break-words" style={{ color: t.modal.fieldLabel }}>{c.nom}</span>
-                    {c.type === 'oui_non' ? (
-                      <select
-                        value={saisie.valeurs[c.id] ?? ''}
-                        onChange={e => poserValeur(c.id, e.target.value)}
-                        data-testid={`crm-immo-champ-perso-${c.id}`}
-                        className="w-full px-3 py-2 rounded-lg text-sm max-md:text-base outline-none"
-                        style={{ background: t.selectBg, border: `1px solid ${t.modal.fieldBorder}`, color: t.modal.fieldValue }}>
-                        <option value="">—</option>
-                        <option value="Oui">Oui</option>
-                        <option value="Non">Non</option>
-                      </select>
-                    ) : (
-                      <input
-                        type={c.type === 'nombre' ? 'number' : c.type === 'date' ? 'date' : 'text'}
-                        value={saisie.valeurs[c.id] ?? ''}
-                        onChange={e => poserValeur(c.id, e.target.value)}
-                        data-testid={`crm-immo-champ-perso-${c.id}`}
-                        className="w-full px-3 py-2 rounded-lg text-sm max-md:text-base outline-none"
-                        style={{ background: t.modal.fieldBg, border: `1px solid ${t.modal.fieldBorder}`, color: t.modal.fieldValue }}
-                      />
-                    )}
-                    <span className="block text-[11px] mt-1" style={{ color: t.label.hint }}>
-                      {TYPES_COLONNE.find(x => x.valeur === c.type)?.libelle}
-                    </span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          )}
+          <CrmImmoChampsDossier
+            saisie={saisie}
+            colonnesPerso={colonnesPerso}
+            onPoser={poser}
+            onPoserValeur={poserValeur}
+          />
         </div>
 
-        {/* Le rembourrage bas ajoute la zone sure : sans lui, les boutons tombent dans
-            la barre de geste des telephones sans bouton d accueil. */}
         <div className="px-4 py-3 shrink-0 flex flex-col gap-2"
           style={{ borderTop: `1px solid ${t.modal.border}`, paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}>
           {/* Le probleme local d'abord, l'erreur serveur ensuite : la premiere empeche

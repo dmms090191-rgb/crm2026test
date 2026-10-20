@@ -115,9 +115,21 @@ test("le nom d une colonne personnalisee est refuse AVANT l aller-retour", () =>
   assert.equal(nomDejaPris("Garantie", existantes, "c1"), false, "se renommer soi-meme est permis");
   assert.equal(nomDejaPris("", existantes), false, "le vide est traite par la validation du champ");
 
-  /* Et le heurt avec un libelle systeme : la base ne l interdit pas, l interface doit. */
-  assert.equal(nomHeurteSysteme("Locataire", COLONNES_SYSTEME), true);
-  assert.equal(nomHeurteSysteme("  locataire ", COLONNES_SYSTEME), true);
+  /*
+   * Et le heurt avec un libelle systeme : la base ne l interdit pas, l interface doit.
+   *
+   * ATTENTION AU PIEGE : ce heurt porte sur le LIBELLE AFFICHE, pas sur le nom de la
+   * colonne SQL. Depuis que David a demande << N/L Locataire >>, la colonne de la base
+   * s appelle toujours `locataire` mais son libelle a change — et c est le libelle qui
+   * ferait deux en-tetes identiques dans le tableau.
+   *
+   * Consequence assumee : une Societe peut desormais creer une colonne personnalisee
+   * nommee << Locataire >>. Elle n en aurait aucune raison, et rien ne casse : les deux
+   * en-tetes seraient alors distincts a l ecran.
+   */
+  assert.equal(nomHeurteSysteme("N/L Locataire", COLONNES_SYSTEME), true);
+  assert.equal(nomHeurteSysteme("  n/l locataire ", COLONNES_SYSTEME), true);
+  assert.equal(nomHeurteSysteme("N/L Propriétaire", COLONNES_SYSTEME), true);
   assert.equal(nomHeurteSysteme("Adresse du bien", COLONNES_SYSTEME), false);
 });
 

@@ -20,9 +20,20 @@ import { CRM_BACKUP_TABLES, CRM_TABLE_NAMES, RESTORE_ORDER } from "../../src/pag
  * accorderait le module.
  */
 
-const TABLES_DONNEES = ["crm_immo_dossiers", "crm_immo_colonnes", "crm_immo_etats"];
+/*
+ * QUATRE tables de donnees depuis le 20 octobre 2026. crm_immo_commentaires porte
+ * l historique des commentaires d un dossier, qui etait auparavant un champ texte unique
+ * ecrase a chaque modification.
+ *
+ * Ajouter un nom ici fait echouer les tests qui suivent, et chaque echec DESIGNE le
+ * fichier:ligne a corriger. C est le seul endroit a modifier en premier : c est lui qui
+ * mene aux quatre autres.
+ */
+const TABLES_DONNEES = [
+  "crm_immo_dossiers", "crm_immo_colonnes", "crm_immo_etats", "crm_immo_commentaires",
+];
 
-test("les trois tables de donnees sont dans la liste de sauvegarde", () => {
+test("les quatre tables de donnees sont dans la liste de sauvegarde", () => {
   for (const nom of TABLES_DONNEES) {
     const entree = CRM_BACKUP_TABLES.find(t => t.name === nom);
     assert.ok(entree, nom + " manque dans CRM_BACKUP_TABLES : elle ne serait pas sauvegardee");
@@ -65,7 +76,7 @@ test("L ORDRE respecte la cle etrangere composee : dossiers AVANT etats", () => 
     "crm_immo_etats est restauree AVANT crm_immo_dossiers : la cle etrangere echouerait en 23503");
 });
 
-test("les trois tables portent company_id pour la reecriture", () => {
+test("les quatre tables portent company_id pour la reecriture", () => {
   const src = readFileSync("src/pages/admin/views/sauvegarde/useRestoreCrm.ts", "utf8");
   const debut = src.indexOf("const TABLES_WITH_COMPANY_ID");
   assert.ok(debut > 0, "TABLES_WITH_COMPANY_ID n a pas ete trouve");

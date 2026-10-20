@@ -28,6 +28,15 @@ const D = "src/pages/admin/views/crm-immo/";
 
 const MODALES = [
   D + "CrmImmoDossierModal.tsx",
+  /*
+   * Le rendu des champs a DEMENAGE : les deux modales qui montrent un dossier — celle qui
+   * le cree et celle qui l affiche en detail — partagent desormais CrmImmoChampsDossier.
+   * C est lui qui porte la regle des 16 px sur mobile. L oublier ici aurait laisse cette
+   * regle sans garde, alors meme que les tests restaient verts.
+   */
+  D + "CrmImmoChampsDossier.tsx",
+  D + "CrmImmoDetailsModal.tsx",
+  D + "CrmImmoCommentaires.tsx",
   D + "CrmImmoColonnesModal.tsx",
   D + "CrmImmoDeleteModal.tsx",
   D + "CrmImmoColonneRow.tsx",
@@ -140,6 +149,16 @@ const CIBLES: { fichier: string; repere: string; avant: string; apres: string; c
     avant: "75 x 17", apres: "75 x 45", classe: /max-md:py-3\.5/ },
   { fichier: D + "CrmImmoCloche.tsx", repere: "crm-immo-alerte-traitee-",
     avant: "45 x 17", apres: "45 x 45", classe: /max-md:py-3\.5/ },
+
+  /* La modale Details et l historique des commentaires, mesures le 20 octobre 2026. */
+  { fichier: D + "CrmImmoDetailsModal.tsx", repere: 'data-testid="crm-immo-details-fermer"',
+    avant: "28 x 28", apres: "44 x 44", classe: /max-md:before:-inset-2/ },
+  { fichier: D + "CrmImmoCommentaires.tsx", repere: "crm-immo-commentaire-supprimer-${c.id}",
+    avant: "28 x 28", apres: "44 x 44", classe: /max-md:p-\[15px\]/ },
+  { fichier: D + "CrmImmoCommentaires.tsx", repere: "crm-immo-commentaire-supprimer-ok-",
+    avant: "86 x 37", apres: "86 x 45", classe: /max-md:py-\[14px\]/ },
+  { fichier: D + "CrmImmoCommentaires.tsx", repere: "crm-immo-commentaire-renoncer-",
+    avant: "63 x 37", apres: "63 x 45", classe: /max-md:py-\[14px\]/ },
 ];
 
 test("B1 — chaque cible mesuree garde ce qui l a agrandie", () => {
@@ -271,7 +290,9 @@ test("D1 — tout texte venant de l utilisateur ou de Postgres peut se couper", 
    */
   const SANS_BORNE: [string, string][] = [
     [D + "CrmImmoDossierModal.tsx", "crm-immo-dossier-erreur"],
-    [D + "CrmImmoDossierModal.tsx", "{c.nom}</span>"],
+    [D + "CrmImmoChampsDossier.tsx", "{c.nom}</span>"],
+    [D + "CrmImmoDetailsModal.tsx", "crm-immo-details-erreur"],
+    [D + "CrmImmoCommentaires.tsx", "crm-immo-commentaire-contenu-"],
     [D + "CrmImmoColonnesModal.tsx", "crm-immo-colonnes-erreur"],
     [D + "CrmImmoDeleteModal.tsx", "crm-immo-delete-erreur"],
     /* Le nom du dossier que l on s apprete a supprimer. C est le texte le plus important

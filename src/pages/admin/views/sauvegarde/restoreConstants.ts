@@ -49,6 +49,7 @@ export const CRM_BACKUP_TABLES: BackupTableConfig[] = [
   { name: 'crm_immo_dossiers', label: 'CRM Immo - dossiers', category: 'crm' },
   { name: 'crm_immo_colonnes', label: 'CRM Immo - colonnes', category: 'crm' },
   { name: 'crm_immo_etats', label: 'CRM Immo - etats des alertes', category: 'crm' },
+  { name: 'crm_immo_commentaires', label: 'CRM Immo - commentaires des dossiers', category: 'crm' },
 ];
 
 export const CRM_TABLE_NAMES = CRM_BACKUP_TABLES.map((t) => t.name);
@@ -102,6 +103,10 @@ export const RESTORE_ORDER = [
   'crm_immo_dossiers',
   'crm_immo_colonnes',
   'crm_immo_etats',
+  /* crm_immo_commentaires porte la MEME cle etrangere composee que crm_immo_etats :
+     (dossier_id, company_id) vers crm_immo_dossiers(id, company_id). Elle vient donc
+     apres les dossiers, pour la meme raison, sous peine de 23503. */
+  'crm_immo_commentaires',
 ] as const;
 
 export const TABLE_PRIMARY_KEYS: Record<string, string> = {
@@ -137,6 +142,10 @@ export const TABLE_PRIMARY_KEYS: Record<string, string> = {
   crm_system_categories: 'id',
   crm_system_statuses: 'id',
   crm_system_items: 'id',
+  /* Le repli de useRestoreCrm est deja 'id' : cette ligne ne CHANGE rien, elle DIT.
+     Une table absente de cette carte se restaure quand meme, et on ne sait pas si c est
+     voulu ou oublie. */
+  crm_immo_commentaires: 'id',
 };
 
 export interface FkRule {
@@ -147,6 +156,20 @@ export interface FkRule {
 }
 
 export const FK_RULES: Record<string, FkRule[]> = {
+  /*
+   * Un commentaire dont le dossier n'est pas restaure est ABANDONNE, pas fatal.
+   *
+   * Le cas n'est pas theorique : la restauration laisse choisir les tables une par une.
+   * Restaurer les commentaires sans les dossiers, sans cette regle, ferait echouer
+   * l'insertion en 23503 et le rapport afficherait une erreur Postgres brute.
+   *
+   * crm_immo_etats n'a PAS cette regle, et s'expose donc au meme echec. C'est un ecart
+   * anterieur a ce chantier, signale a David, volontairement non corrige ici : changer
+   * le comportement de restauration d'une autre table n'est pas le sujet.
+   */
+  crm_immo_commentaires: [
+    { column: 'dossier_id', referencedTable: 'crm_immo_dossiers', referencedColumn: 'id' },
+  ],
   leads: [
     { column: 'vendor_id', referencedTable: 'vendors', referencedColumn: 'id', optional: true },
   ],

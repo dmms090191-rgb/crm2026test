@@ -48,6 +48,7 @@ const MODALES: { fichier: string; fermeture: string; quoi: string }[] = [
   { fichier: D + "CrmImmoDossierModal.tsx", fermeture: "onFermer", quoi: "Ajouter / Modifier un dossier" },
   { fichier: D + "CrmImmoColonnesModal.tsx", fermeture: "onFermer", quoi: "Colonnes personnalisees" },
   { fichier: D + "CrmImmoDeleteModal.tsx", fermeture: "onAnnuler", quoi: "Suppression" },
+  { fichier: D + "CrmImmoDetailsModal.tsx", fermeture: "onFermer", quoi: "Details du dossier" },
 ];
 
 const UTILITAIRE = D + "useFermetureModale.ts";
@@ -373,7 +374,16 @@ test("C1 — les cibles tactiles et les regles mobiles sont intactes", () => {
    * qu ajouter des attributs n a pas chasse une classe au passage.
    */
   const ATTENDU: [string, RegExp[]][] = [
-    [D + "CrmImmoDossierModal.tsx", [/max-md:text-base/, /max-h-\[92dvh\]/, /max-md:before:-inset-2/, /env\(safe-area-inset-bottom/]],
+    /*
+     * Le rendu des champs a DEMENAGE dans CrmImmoChampsDossier : les deux modales qui
+     * montrent un dossier le partagent. C est lui qui porte desormais la regle des
+     * 16 px sur mobile — la laisser pointee sur l ancienne modale aurait rendu ce test
+     * vert tout en cessant de garder quoi que ce soit.
+     */
+    [D + "CrmImmoChampsDossier.tsx", [/max-md:text-base/]],
+    [D + "CrmImmoDetailsModal.tsx", [/max-h-\[92dvh\]/, /max-md:before:-inset-2/, /env\(safe-area-inset-bottom/, /overscroll-contain/]],
+    [D + "CrmImmoCommentaires.tsx", [/max-md:text-base/, /max-md:p-\[15px\]/, /break-words/]],
+    [D + "CrmImmoDossierModal.tsx", [/max-h-\[92dvh\]/, /max-md:before:-inset-2/, /env\(safe-area-inset-bottom/]],
     [D + "CrmImmoColonnesModal.tsx", [/max-md:text-base/, /max-h-\[92dvh\]/, /max-md:before:-inset-2/, /overscroll-contain/]],
     [D + "CrmImmoDeleteModal.tsx", [/max-h-\[92dvh\]/, /max-md:py-3/, /break-words/]],
     [D + "CrmImmoColonneRow.tsx", [/max-md:p-\[15px\]/, /max-md:p-\[14px\]/, /max-md:before:-inset-x-2/]],
@@ -394,9 +404,13 @@ test("C1 — les cibles tactiles et les regles mobiles sont intactes", () => {
    */
   /* Sur le CODE seul : les commentaires de ces fichiers citent les classes qu'ils
      expliquent, et les compter ferait passer un test qui ne verifie plus rien. */
-  const dossier = codeSeul(lire(D + "CrmImmoDossierModal.tsx"));
-  assert.equal((dossier.match(/max-md:text-base/g) ?? []).length, 3,
-    "les trois sortes de champs de la modale Dossier ne sont plus toutes a 16 px sur mobile");
+  /* Les trois sortes de champs vivent maintenant dans le fichier PARTAGE : les dix
+     champs systeme, le select des colonnes oui/non, et le champ des colonnes
+     personnalisees. Une seule des trois qui retomberait a 14 px suffirait a faire
+     zoomer iOS — et dans les DEUX modales a la fois. */
+  const champs = codeSeul(lire(D + "CrmImmoChampsDossier.tsx"));
+  assert.equal((champs.match(/max-md:text-base/g) ?? []).length, 3,
+    "les trois sortes de champs partages ne sont plus toutes a 16 px sur mobile");
   const row = codeSeul(lire(D + "CrmImmoColonneRow.tsx"));
   assert.equal((row.match(/max-md:p-\[15px\]/g) ?? []).length, 3,
     "les trois boutons d action d une ligne de colonne ne font plus tous 44 px");

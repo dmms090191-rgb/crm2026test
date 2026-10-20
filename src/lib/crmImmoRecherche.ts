@@ -50,8 +50,22 @@ export function rechercher(dossiers: DossierImmo[], terme: string, colonnes: Col
   const t = normaliser(terme);
   if (!t) return dossiers;
   const mots = t.split(/\s+/).filter(Boolean);
+  /*
+   * LE COMMENTAIRE SORT DU FOIN, depuis que sa colonne affiche un bouton.
+   *
+   * La regle de cette fonction est ecrite trois lignes plus haut : ne pas chercher dans
+   * ce qui n'est pas visible, parce qu'on trouverait une ligne sans voir pourquoi elle
+   * correspond. La colonne `commentaire` est devenue exactement ce cas : elle est encore
+   * dans la liste des colonnes visibles, mais sa cellule ne montre plus son texte.
+   *
+   * Et ce texte est doublement trompeur : c'est l'ANCIEN champ unique, que l'interface
+   * n'alimente plus. L'historique vit maintenant dans crm_immo_commentaires, une autre
+   * table, que cette recherche ne lit pas. Chercher le vieux champ reviendrait a filtrer
+   * sur une donnee morte en ignorant la vivante.
+   */
+  const cherchables = colonnes.filter(c => !(c.famille === 'systeme' && c.cle === 'commentaire'));
   return dossiers.filter(d => {
-    const foin = normaliser(colonnes.map(c => valeurAffichee(d, c)).join(' '));
+    const foin = normaliser(cherchables.map(c => valeurAffichee(d, c)).join(' '));
     /* Tous les mots doivent etre presents, pas forcement cote a cote : taper
        << dupont cohen >> trouve le dossier dont le locataire est Dupont et le
        proprietaire Cohen. */

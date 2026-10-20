@@ -19,7 +19,7 @@ const TABLES_WITH_COMPANY_ID = new Set([
      42501 — bruyant, donc pas le pire. Le pire serait de restaurer les dossiers
      SANS les colonnes : le tableau perdrait ses colonnes personnalisees alors que
      leurs valeurs seraient toujours dans le jsonb, inertes. */
-  'crm_immo_dossiers', 'crm_immo_colonnes', 'crm_immo_etats',
+  'crm_immo_dossiers', 'crm_immo_colonnes', 'crm_immo_etats', 'crm_immo_commentaires',
 ]);
 
 export type RestoreStatus = 'idle' | 'simulating' | 'restoring' | 'done' | 'error';
