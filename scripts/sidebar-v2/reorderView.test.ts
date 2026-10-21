@@ -5,9 +5,9 @@
  * Ce qui est verifie : le regroupement visuel ne change AUCUNE donnee, et la
  * traduction index affiche -> index reel fait toujours agir sur la bonne entree.
  */
-import { splitDisplayRows, flatRows, resolveDrop, hasHiddenItems } from '../../src/components/sidebar-v2/reorderView';
-import { defaultEntries, moveEntry, toggleHiddenEntry, visibleEntries } from '../../src/lib/sidebarLayout';
-import type { LayoutEntry, LayoutDefaultSection, LayoutItem } from '../../src/lib/sidebarLayout';
+import { splitDisplayRows, flatRows, resolveDrop, hasHiddenItems } from '../../src/components/sidebar-v2/reorderView.ts';
+import { defaultEntries, moveEntry, toggleHiddenEntry, visibleEntries } from '../../src/lib/sidebarLayout.ts';
+import type { LayoutEntry, LayoutDefaultSection, LayoutItem } from '../../src/lib/sidebarLayout.ts';
 
 let ko = 0, ok = 0;
 const t = (nom: string, cond: boolean) => {

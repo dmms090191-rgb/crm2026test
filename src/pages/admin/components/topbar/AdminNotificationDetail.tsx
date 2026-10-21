@@ -50,7 +50,16 @@ interface Props {
   /* CRM Immo : les alertes viennent de la SOURCE UNIQUE, partagee avec la cloche du
      module. Elles ne sont presentes que si la Societe possede le module. */
   crmImmoEntries?: AlerteImmo[];
-  onCrmImmoEntryClick?: (dossierId: string) => void;
+  /*
+   * L ALERTE ENTIERE, et non seulement son dossier.
+   *
+   * Un meme dossier peut porter DEUX alertes a la fois : une fin de contrat et un loyer.
+   * Avec le seul dossier_id, marquer lu ne pouvait designer aucune des deux en
+   * particulier — il aurait fallu marquer les deux parce que l utilisateur en a lu une.
+   * Le couple (dossier, genre, periode) est ce qui identifie une alerte, en base comme
+   * dans l historique.
+   */
+  onCrmImmoEntryClick?: (alerte: AlerteImmo) => void;
   tokens: ThemeTokens;
   onClose: () => void;
 }
@@ -157,7 +166,7 @@ export default function AdminNotificationDetail({ category, tokens: t, onClose, 
               key={`${a.dossier_id}|${a.genre}|${a.periode}`}
               alerte={a}
               tokens={d}
-              onClick={() => { p.onCrmImmoEntryClick?.(a.dossier_id); onClose(); }}
+              onClick={() => { p.onCrmImmoEntryClick?.(a); onClose(); }}
             />
           ))}</>;
   }

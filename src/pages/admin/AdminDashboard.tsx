@@ -22,6 +22,7 @@ import { useAgendaNotifications } from '../../hooks/useAgendaNotifications';
 import { useAgendaEquipeNotifications } from '../../hooks/useAgendaEquipeNotifications';
 import { BREADCRUMB_LABELS } from './adminDashboardConstants';
 import { useAdminProposalNotifs } from './dashboard/useAdminProposalNotifs';
+import { useHistoriqueNotifications } from './dashboard/useHistoriqueNotifications';
 import { useAdminNavHandlers } from './dashboard/useAdminNavHandlers';
 import { useAdminDashboardEffects } from './dashboard/useAdminDashboardEffects';
 import { useAdminIdentity } from './dashboard/useAdminIdentity';
@@ -114,9 +115,29 @@ function AdminDashboardInner({ onLogout, onConnectAsVendor, onConnectAsClient, i
    */
   const peutMasquerLesCartes = canHideTabs === true;
   const notifCardOrderHook = useNotifCardOrder(notifTargetUserId, companyId);
-  const { notifications: agendaNotifs, count: agendaPersoCount, markAsSeen: markAgendaSeen } = useAgendaNotifications('admin', adminAuthId);
-  const { notifications: agendaEquipeNotifs, count: agendaEquipeCount, markAsSeen: markAgendaEquipeSeen } = useAgendaEquipeNotifications(adminAuthId);
-  const { unreadCount: unreadSuperAdminCount, markAsRead: markSuperAdminRead } = useUnreadFromSuperAdmin(effectiveAdminId);
+  /*
+   * ---------- LE « DEJA VU » DES DEUX AGENDA ----------
+   *
+   * Le panel Societe est le SEUL ecran a demander la persistance en base, et seulement
+   * hors Visu. Partout ailleurs — Vendeur, Client, et ici pendant une Visu — le
+   * localStorage reste en place, inchange.
+   *
+   * Pourquoi la Visu est exclue : ces deux hooks recoivent `adminAuthId`, l identifiant
+   * du compte CONNECTE, et non `effectiveAdminId`, celui de l administrateur regarde.
+   * Persister reviendrait a ecrire, dans la Societe visitee, des notifications dont
+   * Talvex — ou le Groupe — serait declare destinataire. La RLS ne l arreterait pas :
+   * le role super_admin a FOR ALL sur la table.
+   *
+   * La decision elle-meme est dans `deciderPersistance`, en un seul endroit, prouvee
+   * sans navigateur pour les trois panels.
+   */
+  const persistanceAgenda = useMemo(
+    () => ({ persistanceEnBase: true, enVisu: Boolean(impersonatedAdmin) }),
+    [impersonatedAdmin],
+  );
+  const { notifications: agendaNotifs, count: agendaPersoCount, markAsSeen: markAgendaSeen } = useAgendaNotifications('admin', adminAuthId, persistanceAgenda);
+  const { notifications: agendaEquipeNotifs, count: agendaEquipeCount, markAsSeen: markAgendaEquipeSeen } = useAgendaEquipeNotifications(adminAuthId, persistanceAgenda);
+  const { unreadCount: unreadSuperAdminCount, entries: superAdminEntries, markAsRead: markSuperAdminRead } = useUnreadFromSuperAdmin(effectiveAdminId);
   const [activeView, setActiveView] = useState<ActiveView>('vue-ensemble');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -154,6 +175,66 @@ function AdminDashboardInner({ onLogout, onConnectAsVendor, onConnectAsClient, i
     setActiveView, setDocInitialTab,
     markClientRead, markVendorRead, markAgendaSeen, markAgendaEquipeSeen,
     pendingScrollRef,
+  });
+
+  /*
+   * ---------- L ALIMENTATION DE L HISTORIQUE ----------
+   *
+   * Les dix categories de la cloche, rassemblees pour etre inscrites dans
+   * notification_history. Mises en forme ici parce que c est ici, et nulle part
+   * ailleurs, que les dix sources coexistent.
+   *
+   * Les trois chats passent leur plus ancien message non lu (oldestAt) : c est l ancre
+   * de l EPISODE. Tant qu une conversation reste non lue, cette ancre ne bouge pas, donc
+   * trois messages de Jean produisent UNE entree et non trois.
+   */
+  const sourcesHistorique = useMemo(() => ({
+    client: unreadEntries.map(e => ({
+      interlocuteurId: e.clientAuthId,
+      nom: [e.prenom, e.nom].filter(Boolean).join(' ') || e.email,
+      count: e.count, oldestAt: e.oldestAt, preview: e.preview,
+    })),
+    vendeur: unreadVendorEntries.map(e => ({
+      interlocuteurId: e.vendorId,
+      nom: [e.firstName, e.lastName].filter(Boolean).join(' ') || e.email,
+      count: e.count, oldestAt: e.oldestAt, preview: e.preview,
+    })),
+    'super-admin': (superAdminEntries ?? []).map(e => ({
+      interlocuteurId: e.superAdminId,
+      nom: e.name, sousTitre: e.subtitle,
+      count: e.count, oldestAt: e.oldestAt, preview: e.preview,
+    })),
+    agenda: agendaNotifs,
+    equipe: agendaEquipeNotifs,
+    propositions: proposalUnseen,
+    rdv: confirmedUnseen,
+    decalages: rescheduleUnseen,
+    'demandes-decalage': rescheduleRequestUnseen,
+    /* Les alertes ACTIVES, c est-a-dire le predicat du badge : ni lues ni traitees. */
+    'crm-immo': crmImmoOuvert ? alertesImmo.actives : [],
+  }), [
+    unreadEntries, unreadVendorEntries, superAdminEntries,
+    agendaNotifs, agendaEquipeNotifs,
+    proposalUnseen, confirmedUnseen, rescheduleUnseen, rescheduleRequestUnseen,
+    crmImmoOuvert, alertesImmo.actives,
+  ]);
+
+  /*
+   * lectureSeule en Visu, et c est le SEUL garde de ce chantier qui ne soit pas tenu par
+   * la base : Talvex porte le role super_admin, dont la politique est FOR ALL sur toute
+   * la table. La RLS laisserait donc Talvex marquer lu, archiver ou supprimer les
+   * notifications de l admin qu il regarde, et faire baisser son compteur.
+   *
+   * C est la regle tranchee pour le Groupe, appliquee a Visu : consulter ne doit jamais
+   * ecrire a la place de quelqu un.
+   */
+  const historique = useHistoriqueNotifications({
+    companyId, userId: effectiveAdminId,
+    lectureSeule: Boolean(impersonatedAdmin),
+    sources: sourcesHistorique,
+    setActiveView, setChatLead, setChatVendor,
+    setChatClientMessageSent, setChatVendorMessageSent,
+    setDossierImmoAOuvrir,
   });
 
   // Identite affichee : edition de la session > Societe visualisee > compte connecte.
@@ -267,7 +348,25 @@ function AdminDashboardInner({ onLogout, onConnectAsVendor, onConnectAsClient, i
           crmImmoActif={crmImmoOuvert}
           crmImmoCount={alertesImmo.badge}
           crmImmoEntries={alertesImmo.actives}
-          onCrmImmoEntryClick={(dossierId) => { setDossierImmoAOuvrir(dossierId); setActiveView('crm-immo'); }}
+          /*
+           * CRM Immo marque lu AU CLIC, comme les neuf autres categories.
+           *
+           * Elle etait la seule a ne pas le faire : la notification restait neuve apres
+           * avoir ete ouverte, et le compteur ne baissait pas. Les neuf autres appellent
+           * toutes leur propre marquage ici meme (markClientRead, markVendorRead,
+           * markSuperAdminRead, markAgendaSeen, marquerVue).
+           *
+           * marquerLue verifie son ecriture — .select() puis comptage des lignes — et
+           * rend une erreur plutot qu un succes muet, parce qu un UPDATE refuse par la
+           * RLS rend { error: null } et zero ligne.
+           *
+           * Marquer lu ne TRAITE pas : seul le module le fait, et seul un geste explicite.
+           */
+          onCrmImmoEntryClick={(alerte) => {
+            void alertesImmo.marquerLue(alerte);
+            setDossierImmoAOuvrir(alerte.dossier_id);
+            setActiveView('crm-immo');
+          }}
           hiddenNotifCards={hiddenNotifCards}
           hiddenNotifCardsLoaded={hiddenNotifCardsLoaded}
           onToggleNotifCard={toggleNotifCard}
@@ -336,6 +435,7 @@ function AdminDashboardInner({ onLogout, onConnectAsVendor, onConnectAsClient, i
             markClientRead={markClientRead}
             onVendorViewed={handleVendorViewed}
             markSuperAdminRead={markSuperAdminRead}
+            historique={historique}
           />
           </CrmImmoAlertesProvider>
         </main>

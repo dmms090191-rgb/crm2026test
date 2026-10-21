@@ -3,7 +3,7 @@ import {
   LayoutDashboard, Info, UserPlus, Upload, Users, Database, UserCheck, List,
   MessageCircle, MessageSquare, Shield, Calendar, CalendarRange, CalendarCheck,
   Settings, Globe, Brain, Image as ImageIcon, GraduationCap, Smartphone, Sparkles, CopySlash, Store,
-  Briefcase, Building2,
+  Briefcase, Building2, History,
 } from 'lucide-react';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
 import { peutOuvrirCrmImmo, accesResolu, type EtatAcces } from '../../lib/crmImmoAccess';
@@ -84,6 +84,13 @@ const LAYOUT_SECTIONS: LayoutDefaultSection[] = [
     { id: 'chat-client', label: 'Chat Client' },
     { id: 'chat-vendeur', label: 'Chat Commercial' },
     { id: 'chat-super-admin', label: 'Chat Direction' },
+    /*
+     * Declare JUSTE APRES Chat Direction, dans Communication — la place choisie par
+     * David. Un onglet ajoute au code doit arriver a cette place meme pour les Societes
+     * qui ont deja reorganise leur barre : c est le role de reconcileLayout, corrige le
+     * 20 octobre pour inserer a la position declaree au lieu de pousser en fin.
+     */
+    { id: 'historique-notifications', label: 'Historique Notifications' },
   ] },
   { title: 'Agenda', items: [
     { id: 'agenda', label: 'Mon agenda' },
@@ -114,6 +121,9 @@ const ICONS: Record<string, React.ReactNode> = {
   'chat-client': <MessageCircle className="w-4 h-4" />,
   'chat-vendeur': <MessageSquare className="w-4 h-4" />,
   'chat-super-admin': <Shield className="w-4 h-4" />,
+  /* Sans entree ici, l onglet se rend avec un <span> vide : le libelle s affiche mais
+     la pastille d icone reste blanche, et rien dans le build ne le signale. */
+  'historique-notifications': <History className="w-4 h-4" />,
   'agenda': <Calendar className="w-4 h-4" />,
   'agenda-equipe': <CalendarRange className="w-4 h-4" />,
   'propositions-rdv': <CalendarCheck className="w-4 h-4" />,

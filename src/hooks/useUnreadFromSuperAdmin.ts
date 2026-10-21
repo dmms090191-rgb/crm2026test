@@ -13,6 +13,12 @@ export interface SuperAdminNotifEntry {
   subtitle: string;
   count: number;        // messages non lus DANS ce fil
   latestAt: string;
+  /*
+   * L horodatage du PLUS ANCIEN message non lu de ce fil : le reperage de l EPISODE
+   * de non-lu dans l historique. Tant que l episode dure il ne bouge pas, donc
+   * l historique garde UNE entree pour tout le flot, pas une par message.
+   */
+  oldestAt: string;
   preview: string;
 }
 
@@ -84,16 +90,18 @@ export function useUnreadFromSuperAdmin(adminAuthId: string | null, opts?: { res
     }
 
     // Un groupe par super_admin_id : Talvex et le Groupe ne se melangent jamais.
-    const grouped = new Map<string, { count: number; latestAt: string; preview: string }>();
+    const grouped = new Map<string, { count: number; latestAt: string; oldestAt: string; preview: string }>();
     for (const m of data) {
       const sid = m.super_admin_id as string;
       if (!sid) continue;
       const cur = grouped.get(sid);
       if (!cur) {
-        grouped.set(sid, { count: 1, latestAt: m.created_at, preview: m.content ?? '' });
+        grouped.set(sid, { count: 1, latestAt: m.created_at, oldestAt: m.created_at, preview: m.content ?? '' });
       } else {
         cur.count++;
         if (m.created_at > cur.latestAt) { cur.latestAt = m.created_at; cur.preview = m.content ?? ''; }
+        // Le plus ANCIEN non lu borne l episode : il ne remonte jamais.
+        if (m.created_at < cur.oldestAt) cur.oldestAt = m.created_at;
       }
     }
 
@@ -108,6 +116,7 @@ export function useUnreadFromSuperAdmin(adminAuthId: string | null, opts?: { res
         subtitle: who.subtitle,
         count: g.count,
         latestAt: g.latestAt,
+        oldestAt: g.oldestAt,
         preview: g.preview,
       };
     });

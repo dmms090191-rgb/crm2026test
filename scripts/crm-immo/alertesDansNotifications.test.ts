@@ -394,17 +394,44 @@ test("D1 — la cle d une ligne du hub reprend la cle d unicite de la BASE", () 
 // ===========================================================================
 
 test("E1 — cliquer une alerte du hub ouvre LE dossier concerne, dans la vue du module", () => {
-  const detail = codeSeul(lire("src/pages/admin/components/topbar/AdminNotificationDetail.tsx"));
-  assert.match(detail, /onCrmImmoEntryClick\?\.\(\s*a\.dossier_id\s*\)/,
-    "la ligne ne transmet pas l identifiant du dossier");
+  /*
+   * Le 20 octobre, ce contrat a ete RENFORCE : les deux cloches transmettent l ALERTE
+   * entiere, et non plus seulement son dossier_id.
+   *
+   * Pourquoi : un meme dossier peut porter DEUX alertes en meme temps — une fin de
+   * contrat et un loyer. Avec le seul dossier_id, le gestionnaire ne pouvait designer
+   * aucune des deux, donc il ne pouvait pas marquer lue CELLE qu on venait d ouvrir. Et
+   * CRM Immo etait de ce fait la SEULE des dix categories a ne pas marquer lu au clic :
+   * la notification restait neuve apres avoir ete ouverte, et le compteur ne baissait pas.
+   *
+   * Le couple (dossier, genre, periode) est ce qui identifie une alerte, en base comme
+   * dans l historique des notifications.
+   */
+  for (const f of ["src/pages/admin/components/topbar/AdminNotificationDetail.tsx",
+                   "src/pages/admin/components/topbar/AdminMobileBellMenu.tsx"]) {
+    const src = codeSeul(lire(f));
+    assert.match(src, /onCrmImmoEntryClick\?\.\(\s*a\s*\)/,
+      f + " : la ligne ne transmet pas l alerte entiere");
+    assert.doesNotMatch(src, /onCrmImmoEntryClick\?\.\(\s*a\.dossier_id\s*\)/,
+      f + " : la ligne ne transmet encore que le dossier_id");
+  }
 
   const dash = codeSeul(lire("src/pages/admin/AdminDashboard.tsx"));
-  const ligne = dash.split("\n").find(l => l.includes("onCrmImmoEntryClick"));
-  assert.ok(ligne, "AdminDashboard ne branche pas le clic des alertes");
-  /* Deux effets, indissociables : memoriser QUEL dossier, et basculer sur la vue. L'un
-     sans l'autre ouvre la bonne page sur le mauvais dossier, ou l'inverse. */
-  assert.match(ligne!, /setDossierImmoAOuvrir\(/, "le dossier a ouvrir n est pas memorise");
-  assert.match(ligne!, /setActiveView\('crm-immo'\)/, "le clic ne bascule pas sur la vue du module");
+  const i = dash.indexOf("onCrmImmoEntryClick");
+  assert.ok(i > 0, "AdminDashboard ne branche pas le clic des alertes");
+  /* Le gestionnaire tient desormais sur plusieurs lignes : on prend le BLOC, pas la ligne. */
+  const bloc = dash.slice(i, i + 400);
+
+  assert.match(bloc, /\(\s*alerte\s*\)/, "le gestionnaire ne recoit pas l alerte");
+  /* Trois effets, indissociables : marquer lue, memoriser QUEL dossier, basculer sur la
+     vue. Sans le premier le compteur ne baisse pas ; sans l un des deux autres, on ouvre
+     la bonne page sur le mauvais dossier, ou l inverse. */
+  assert.match(bloc, /marquerLue\(\s*alerte\s*\)/, "le clic ne marque pas l alerte lue");
+  assert.match(bloc, /setDossierImmoAOuvrir\(\s*alerte\.dossier_id\s*\)/,
+    "le dossier a ouvrir n est pas memorise");
+  assert.match(bloc, /setActiveView\('crm-immo'\)/, "le clic ne bascule pas sur la vue du module");
+  /* Marquer lu n est pas traiter : seul un geste explicite dans le module traite. */
+  assert.doesNotMatch(bloc, /marquerTraitee/, "le clic marque TRAITEE, ce qu il ne doit pas faire");
 });
 
 // ===========================================================================

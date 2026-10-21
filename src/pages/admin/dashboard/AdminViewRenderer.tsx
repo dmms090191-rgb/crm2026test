@@ -8,6 +8,7 @@ import AgendaEquipe from '../views/AgendaEquipe';
 import {
   VueEnsemble, AdminSite, AdminLogoPage, Inscription, AjouterLeads, AjouterVendeur, ListeVendeurs,
   ChatClient, ChatVendeur, ChatSuperAdmin, Agenda, PropositionsRdv, Statuts, Crm,
+  HistoriqueNotifications,
   ImportLeads, DocumentationCrm, SauvegardeRestauration,
   SystemPage, AdminCerveauIA, AdminApplicationPage, EditeurIA, AdminCalquerLogo, AdminMesLogosRA,
   Boutiques, Cabinets,
@@ -16,6 +17,28 @@ import CrmImmoGate from './CrmImmoGate';
 import type { EtatAcces } from '../../../lib/crmImmoAccess';
 import { saveConnectReturnContext, saveChatReturnContext } from '../../../lib/connectReturnContext';
 import type { ImpersonatedClient } from '../views/Crm';
+import type { EntreeHistorique } from '../../../lib/notificationHistory';
+import type { Destination } from '../views/historique/notificationDestinations';
+
+/**
+ * Tout ce dont la page Historique Notifications a besoin, en UN paquet.
+ *
+ * Un paquet plutot que huit proprietes : la signature de ce composant est deja longue,
+ * et surtout l alimentation et le chargement vivent dans AdminDashboard — appeles UNE
+ * SEULE FOIS, comme les alertes CRM Immo. L historique doit se remplir meme quand
+ * personne n ouvre l onglet ; s il etait charge par la page, il ne se remplirait qu a
+ * l ouverture et la cloche et la page ne diraient pas la meme chose.
+ */
+export interface PaquetHistorique {
+  entrees: EntreeHistorique[];
+  chargement: boolean;
+  erreur: string | null;
+  lectureSeule: boolean;
+  onVoir: (d: Destination, e: EntreeHistorique) => void;
+  onTraiter: (id: string) => void;
+  onArchiver: (id: string, archiver: boolean) => void;
+  onSupprimer: (id: string) => void;
+}
 
 const lazyFallback = <div className="flex items-center justify-center py-12"><div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" /></div>;
 
@@ -59,6 +82,7 @@ interface Props {
   onVendorViewed: (vendorId: string) => void;
   markSuperAdminRead: (superAdminId?: string) => void;
   chatInitialSuperAdminId?: string | null;
+  historique: PaquetHistorique;
 }
 
 export default function AdminViewRenderer({
@@ -71,7 +95,7 @@ export default function AdminViewRenderer({
   setChatClientMessageSent, setChatVendorMessageSent, setDocInitialTab,
   onNameChange, onConnectAsVendor, onConnectAsClient,
   handleNavigate, handleReturnToCrm, setActiveView,
-  markClientRead, onVendorViewed, markSuperAdminRead,
+  markClientRead, onVendorViewed, markSuperAdminRead, historique,
 }: Props) {
   return (
     <>
@@ -129,6 +153,7 @@ export default function AdminViewRenderer({
            * droit. Le rendre conditionnel le ferait retomber dans le `default:`
            * ci-dessous, qui ouvre la Vue d'ensemble : un refus deguise en reussite.
            */
+          case 'historique-notifications': return <Suspense fallback={lazyFallback}><HistoriqueNotifications {...historique} /></Suspense>;
           case 'crm-immo': return <CrmImmoGate etat={crmImmoAcces} onReessayer={onReessayerCrmImmo} />;
           case 'tuto': return <div className="p-6"><p className="text-sm" style={{ color: 'inherit' }}>Tuto - Contenu a venir</p></div>;
           default: return <Suspense fallback={lazyFallback}><VueEnsemble unreadClientConversations={unreadClientConversations} unreadVendorConversations={unreadVendorConversations} fullName={identityName} companyName={companyName} email={identityEmail} rdvCount={rdvCount} /></Suspense>;

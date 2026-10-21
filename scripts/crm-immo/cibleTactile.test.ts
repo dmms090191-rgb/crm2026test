@@ -2,7 +2,7 @@
 //   node --test scripts/crm-immo/cibleTactile.test.ts
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 
 /*
  * CE FICHIER FIGE DES MESURES, PAS DES OPINIONS.
@@ -25,6 +25,52 @@ import { readFileSync } from "node:fs";
 
 const lire = (p: string) => readFileSync(p, "utf8");
 const D = "src/pages/admin/views/crm-immo/";
+
+/* Les commentaires de ces fichiers CITENT les balises et les classes qu'ils expliquent.
+   Les compter ferait echouer un test sur de la prose, ou le ferait passer sur elle. */
+const OUVRE = "/" + "*";
+const FERME = "*" + "/";
+function codeSeul(src: string): string {
+  let out = "", i = 0;
+  while (i < src.length) {
+    if (src.startsWith(OUVRE, i)) { const f = src.indexOf(FERME, i + 2); i = f === -1 ? src.length : f + 2; continue; }
+    if (src.startsWith("//", i)) { const f = src.indexOf("\n", i); i = f === -1 ? src.length : f; continue; }
+    out += src[i]; i += 1;
+  }
+  return out;
+}
+
+/*
+ * OU FINIT UNE BALISE JSX — et pourquoi `indexOf('>')` ne le sait pas.
+ *
+ * Deux pieges, rencontres l'un apres l'autre :
+ *   - un COMMENTAIRE entre attributs peut contenir un `>`  (<< descendre >>) ;
+ *   - une FLECHE de fonction en contient un  (onChange={e => e.target.value}).
+ *
+ * Le second est le plus courant : presque tout champ de saisie porte un onChange. Avec
+ * la version naive, la balise se coupait avant sa className, et SEPT champs parfaitement
+ * corrects etaient signales comme fautifs. Un test qui crie a tort finit desactive.
+ *
+ * On lit donc caractere par caractere, en ignorant les `>` qui vivent dans un
+ * commentaire, dans une chaine, ou entre accolades.
+ */
+function finDeBalise(src: string, depart: number): number {
+  let i = depart, accolades = 0;
+  let chaine: string | null = null;
+  let commentaire = false;
+  while (i < src.length) {
+    const c = src[i], d = src.slice(i, i + 2);
+    if (commentaire) { if (d === FERME) { commentaire = false; i += 2; continue; } i++; continue; }
+    if (chaine) { if (c === "\\") { i += 2; continue; } if (c === chaine) chaine = null; i++; continue; }
+    if (d === OUVRE) { commentaire = true; i += 2; continue; }
+    if (c === '"' || c === "'" || c === "`") { chaine = c; i++; continue; }
+    if (c === "{") { accolades++; i++; continue; }
+    if (c === "}") { accolades--; i++; continue; }
+    if (c === ">" && accolades === 0) return i;
+    i++;
+  }
+  return -1;
+}
 
 const MODALES = [
   D + "CrmImmoDossierModal.tsx",
@@ -307,3 +353,49 @@ test("D1 — tout texte venant de l utilisateur ou de Postgres peut se couper", 
       + "Un jeton insecable serait coupe par overflow-hidden, sans barre de defilement.");
   }
 });
+
+test("A2 — la regle des 16 px couvre la PAGE, pas seulement les modales", () => {
+  /*
+   * LE TROU QUE CE TEST FERME.
+   *
+   * La liste MODALES ci-dessus ne contenait que des modales — c'est son nom. Le champ de
+   * recherche de la PAGE CRM Immo y a donc echappe et rendait 14 px sur mobile : au
+   * premier toucher, iOS Safari agrandissait la page, qui debordait a droite. Trouve en
+   * auditant le module, pas en relisant ce fichier.
+   *
+   * On balaye donc TOUS les .tsx du module, page comprise, et on ne regarde que les
+   * elements FOCALISABLES — input, textarea, select. Un bouton a 14 px ne declenche
+   * aucun zoom : exiger 16 px partout rendrait ce test bruyant et il finirait desactive.
+   */
+  const fichiers = [
+    "src/pages/admin/views/CrmImmo.tsx",
+    ...readdirSync(D).filter(f => f.endsWith(".tsx")).map(f => D + f),
+  ];
+  const fautifs: string[] = [];
+  let champsVus = 0;
+
+  for (const f of fichiers) {
+    const src = codeSeul(lire(f));
+    const re = /<(input|textarea|select)\b/g;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(src)) !== null) {
+      champsVus++;
+      /* La balise s'etend jusqu'a son premier `>` hors accolades : on reutilise le
+         meme depouillement que pour les boutons-icones. */
+      const fin = finDeBalise(src, m.index + m[1].length + 1);
+      const balise = src.slice(m.index, fin < 0 ? src.length : fin + 1);
+      /* La classe peut vivre sur la balise, ou dans un objet `commun` repandu par
+         {...commun} : on elargit la fenetre de lecture dans ce cas. */
+      const fenetre = /\{\.\.\./.test(balise) ? src.slice(Math.max(0, m.index - 900), fin + 1) : balise;
+      if (!/max-md:text-base|text-base|text-\[1[6-9]px\]/.test(fenetre)) {
+        fautifs.push(f.split("/").pop() + " : <" + m[1] + "> a 14 px sur mobile");
+      }
+    }
+  }
+
+  assert.ok(champsVus >= 8, "le balayage n a trouve que " + champsVus + " champs : garde-fou inerte");
+  assert.deepEqual([...new Set(fautifs)], [],
+    "des champs de saisie restent sous 16 px : iOS Safari agrandira la page au toucher.\n  "
+    + [...new Set(fautifs)].join("\n  "));
+});
+

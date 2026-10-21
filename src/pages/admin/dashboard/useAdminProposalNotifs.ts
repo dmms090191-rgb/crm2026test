@@ -12,6 +12,35 @@ export interface ProposalNotifEntry {
   reschedule_status?: string | null;
 }
 
+/**
+ * Marque une proposition vue, et dit si l ecriture a VRAIMENT eu lieu.
+ *
+ * Pourquoi cette fonction existe : un UPDATE refuse par la RLS ne leve pas d erreur
+ * cote supabase-js. Il rend { error: null } et ZERO ligne. Les quatre gestionnaires
+ * retiraient donc l entree de l ecran en se fiant a un succes qui n en etait pas un :
+ * la notification disparaissait a l affichage et revenait au rechargement suivant.
+ *
+ * .select() est ce qui transforme le silence en preuve — on compte les lignes rendues.
+ * C est le meme controle que celui pose sur les commentaires CRM Immo le 20 octobre.
+ */
+async function marquerVue(proposalId: string): Promise<boolean> {
+  const { data, error } = await supabase
+    .from('rdv_proposals')
+    .update({ seen_by_admin: true })
+    .eq('id', proposalId)
+    .select('id');
+
+  if (error) {
+    console.error('rdv_proposals : marquage vu refuse', error.message);
+    return false;
+  }
+  if (!data || data.length === 0) {
+    console.error('rdv_proposals : marquage vu sans effet (0 ligne) pour', proposalId);
+    return false;
+  }
+  return true;
+}
+
 export function useAdminProposalNotifs(setActiveView: (v: ActiveView) => void) {
   const companyId = useCompanyId();
   const [proposalUnseen, setProposalUnseen] = useState<ProposalNotifEntry[]>([]);
@@ -70,46 +99,41 @@ export function useAdminProposalNotifs(setActiveView: (v: ActiveView) => void) {
   }, [companyId]);
 
   const handleProposalEntryClick = useCallback((proposalId: string) => {
-    supabase
-      .from('rdv_proposals')
-      .update({ seen_by_admin: true })
-      .eq('id', proposalId)
-      .then(() => {
-        setProposalUnseen(prev => prev.filter(p => p.id !== proposalId));
-      });
+    void marquerVue(proposalId).then(ecrit => {
+      if (ecrit) setProposalUnseen(prev => prev.filter(p => p.id !== proposalId));
+    });
     setActiveView('propositions-rdv');
   }, [setActiveView]);
 
   const handleConfirmedEntryClick = useCallback((proposalId: string) => {
-    supabase
-      .from('rdv_proposals')
-      .update({ seen_by_admin: true })
-      .eq('id', proposalId)
-      .then(() => {
-        setConfirmedUnseen(prev => prev.filter(p => p.id !== proposalId));
-      });
+    void marquerVue(proposalId).then(ecrit => {
+      if (ecrit) setConfirmedUnseen(prev => prev.filter(p => p.id !== proposalId));
+    });
     setActiveView('propositions-rdv');
   }, [setActiveView]);
 
   const handleRescheduleEntryClick = useCallback((proposalId: string) => {
-    supabase
-      .from('rdv_proposals')
-      .update({ seen_by_admin: true, reschedule_status: null })
-      .eq('id', proposalId)
-      .then(() => {
-        setRescheduleUnseen(prev => prev.filter(p => p.id !== proposalId));
-      });
+    /*
+     * Ce gestionnaire posait aussi `reschedule_status: null`.
+     *
+     * Lire une notification n est pas un acte metier : ce null effacait la REPONSE du
+     * client — accepte ou refuse — pour la seule raison que l admin avait clique. La
+     * trace de ce qui avait ete decide disparaissait, et l historique du decalage avec.
+     *
+     * Et c etait inutile : les quatre requetes de ce hook filtrent toutes
+     * `seen_by_admin = false`. `seen_by_admin: true` suffit a faire sortir l entree de
+     * la cloche. Le null n apportait rien et detruisait une donnee.
+     */
+    void marquerVue(proposalId).then(ecrit => {
+      if (ecrit) setRescheduleUnseen(prev => prev.filter(p => p.id !== proposalId));
+    });
     setActiveView('propositions-rdv');
   }, [setActiveView]);
 
   const handleRescheduleRequestEntryClick = useCallback((proposalId: string) => {
-    supabase
-      .from('rdv_proposals')
-      .update({ seen_by_admin: true })
-      .eq('id', proposalId)
-      .then(() => {
-        setRescheduleRequestUnseen(prev => prev.filter(p => p.id !== proposalId));
-      });
+    void marquerVue(proposalId).then(ecrit => {
+      if (ecrit) setRescheduleRequestUnseen(prev => prev.filter(p => p.id !== proposalId));
+    });
     setActiveView('propositions-rdv');
   }, [setActiveView]);
 

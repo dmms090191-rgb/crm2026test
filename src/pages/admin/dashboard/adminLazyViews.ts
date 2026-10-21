@@ -10,6 +10,7 @@ export const ListeVendeurs = lazy(() => import('../views/ListeVendeurs'));
 export const ChatClient = lazy(() => import('../views/ChatClient'));
 export const ChatVendeur = lazy(() => import('../views/ChatVendeur'));
 export const ChatSuperAdmin = lazy(() => import('../views/ChatSuperAdmin'));
+export const HistoriqueNotifications = lazy(() => import('../views/HistoriqueNotifications'));
 export const Agenda = lazy(() => import('../views/Agenda'));
 export const PropositionsRdv = lazy(() => import('../views/PropositionsRdv'));
 export const Statuts = lazy(() => import('../views/Statuts'));

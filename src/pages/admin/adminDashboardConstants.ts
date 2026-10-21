@@ -14,6 +14,7 @@ export const BREADCRUMB_LABELS: Record<ActiveView, string> = {
   'chat-client': 'Chat Client',
   'chat-vendeur': 'Chat Commercial',
   'chat-super-admin': 'Chat Direction',
+  'historique-notifications': 'Historique Notifications',
   'agenda': 'Agenda perso',
   'agenda-equipe': 'Agenda équipe',
   'propositions-rdv': 'Propositions RDV',

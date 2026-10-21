@@ -9,6 +9,17 @@ export interface VendorNotifEntry {
   email: string;
   count: number;
   latestAt: string;
+  /*
+   * L horodatage du PLUS ANCIEN message non lu de la conversation.
+   *
+   * C est ce qui identifie un EPISODE de non-lu dans l historique : tant que l episode
+   * dure, ce reperage ne change pas, meme si de nouveaux messages arrivent — donc
+   * l historique garde UNE entree pour les trois messages de Jean, pas trois.
+   * Des que l admin lit et que l interlocuteur reecrit, un nouvel episode commence.
+   *
+   * A ne pas confondre avec latestAt, qui sert a l apercu et au tri.
+   */
+  oldestAt: string;
   /** Dernier message recu, tel qu il a ete ecrit. Jamais une phrase generique. */
   preview: string;
 }
@@ -41,14 +52,16 @@ export function useUnreadVendorMessages() {
       return;
     }
 
-    const grouped = new Map<string, { count: number; latestAt: string; preview: string }>();
+    const grouped = new Map<string, { count: number; latestAt: string; oldestAt: string; preview: string }>();
     for (const m of msgs) {
       if (!m.vendor_id) continue;
       const existing = grouped.get(m.vendor_id);
       if (!existing) {
-        grouped.set(m.vendor_id, { count: 1, latestAt: m.created_at, preview: m.content ?? '' });
+        grouped.set(m.vendor_id, { count: 1, latestAt: m.created_at, oldestAt: m.created_at, preview: m.content ?? '' });
       } else {
         existing.count++;
+        // Le plus ANCIEN non lu borne l episode : il ne remonte jamais.
+        if (m.created_at < existing.oldestAt) existing.oldestAt = m.created_at;
         // Le plus recent gagne : l apercu montre bien le DERNIER message.
         if (m.created_at > existing.latestAt) {
           existing.latestAt = m.created_at;
@@ -75,6 +88,7 @@ export function useUnreadVendorMessages() {
           email: v.email ?? '',
           count: g.count,
           latestAt: g.latestAt,
+          oldestAt: g.oldestAt,
           preview: g.preview,
         });
       }

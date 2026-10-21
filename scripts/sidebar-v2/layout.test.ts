@@ -5,8 +5,8 @@
 import {
   defaultEntries, reconcileLayout, visibleEntries, toLayout,
   moveEntry, addSectionEntry, addDividerEntry, removeEntry, renameEntry, toggleHiddenEntry,
-} from '../../src/lib/sidebarLayout';
-import type { LayoutEntry, LayoutDefaultSection, LayoutItem, LayoutSection } from '../../src/lib/sidebarLayout';
+} from '../../src/lib/sidebarLayout.ts';
+import type { LayoutEntry, LayoutDefaultSection, LayoutItem, LayoutSection } from '../../src/lib/sidebarLayout.ts';
 
 let ko = 0, ok = 0;
 const t = (nom: string, cond: boolean) => {
@@ -223,6 +223,109 @@ console.log('\n=== 10. ONGLETS PROTEGES (Talvex : dashboard, mon-compte, system)
   t('isolation : la config Talvex ne fuit pas vers un autre compte',
     !has(reconcileLayout(T, toLayout(avecComp, 'super_admin', 'talvex'), 'super_admin', 'autre'), 'section:sec_p'));
 }
+
+// ---------------------------------------------------------------------------
+// UN ONGLET AJOUTE AU CODE ARRIVE A SA PLACE DECLAREE, PAS EN FIN
+// ---------------------------------------------------------------------------
+{
+  /*
+   * Le defaut corrige le 20 octobre 2026 : tout onglet absent de la configuration
+   * enregistree etait pousse a la FIN de la barre. Invisible pour qui n'avait jamais
+   * reorganise — sa configuration EST celle du code. Mais des qu'une Societe avait
+   * touche a l'ordre, le nouvel onglet atterrissait tout en bas, hors de son
+   * compartiment : un onglet de Communication affiche sous l'Agenda.
+   *
+   * C'est exactement le piege rencontre sur DEFAULT_KEYS pour les cartes de
+   * notification, et c'est celui qui attendait << Historique Notifications >>, declare
+   * dans Communication juste apres Chat Direction.
+   */
+  const AVANT: LayoutDefaultSection[] = [
+    { title: 'Principal', items: [{ id: 'dashboard', label: 'D' }, { id: 'boutique', label: 'B' }] },
+    { title: 'Communication', items: [{ id: 'chat-client', label: 'CC' }, { id: 'chat-super-admin', label: 'CD' }] },
+    { title: 'Agenda', items: [{ id: 'agenda', label: 'A' }] },
+  ];
+  const APRES: LayoutDefaultSection[] = [
+    { title: 'Principal', items: [{ id: 'dashboard', label: 'D' }, { id: 'boutique', label: 'B' }] },
+    { title: 'Communication', items: [
+      { id: 'chat-client', label: 'CC' },
+      { id: 'chat-super-admin', label: 'CD' },
+      { id: 'historique-notifications', label: 'HN' },
+    ] },
+    { title: 'Agenda', items: [{ id: 'agenda', label: 'A' }] },
+  ];
+
+  const neufs = defaultEntries(APRES);
+  const pos = (l: LayoutEntry[], id: string) => l.findIndex(e => e.kind === 'item' && e.id === id);
+
+  // 1. Une Societe qui n'a RIEN reorganise.
+  const r1 = reconcileLayout(neufs, toLayout(defaultEntries(AVANT), 'admin', 'soc1'), 'admin', 'soc1');
+  t('onglet absent : insere JUSTE APRES chat-super-admin',
+    pos(r1, 'historique-notifications') === pos(r1, 'chat-super-admin') + 1);
+  t('onglet absent : il n atterrit PAS en fin',
+    pos(r1, 'historique-notifications') < pos(r1, 'agenda'));
+
+  // 2. Une Societe qui a REORGANISE : son ordre doit survivre intact.
+  const base = defaultEntries(AVANT);
+  const perso = moveEntry(base,
+    base.findIndex(e => e.kind === 'item' && e.id === 'agenda'),
+    base.findIndex(e => e.kind === 'item' && e.id === 'dashboard'));
+  const avantIds = ids(perso);
+  const r2 = reconcileLayout(neufs, toLayout(perso, 'admin', 'soc1'), 'admin', 'soc1');
+  t('ordre personnalise : les anciens onglets gardent leur ordre relatif',
+    ids(r2).filter(k => avantIds.includes(k)).join() === avantIds.join());
+  t('ordre personnalise : le nouvel onglet suit toujours chat-super-admin',
+    pos(r2, 'historique-notifications') === pos(r2, 'chat-super-admin') + 1);
+  t('ordre personnalise : rien d autre n est ajoute ni retire',
+    ids(r2).length === avantIds.length + 1);
+
+  // 3. L'onglet DEJA present ne bouge pas, ou qu'il soit.
+  const dejaLa = defaultEntries(APRES);
+  const deplace = moveEntry(dejaLa,
+    dejaLa.findIndex(e => e.kind === 'item' && e.id === 'historique-notifications'),
+    dejaLa.findIndex(e => e.kind === 'item' && e.id === 'dashboard'));
+  const r3 = reconcileLayout(neufs, toLayout(deplace, 'admin', 'soc1'), 'admin', 'soc1');
+  t('onglet deja present : il RESTE ou l utilisateur l a mis',
+    ids(r3).join() === ids(deplace).join());
+
+  // 4. Un onglet masque par l'utilisateur reste masque.
+  const masque = toggleHiddenEntry(dejaLa,
+    dejaLa.findIndex(e => e.kind === 'item' && e.id === 'historique-notifications'));
+  const r4 = reconcileLayout(neufs, toLayout(masque, 'admin', 'soc1'), 'admin', 'soc1');
+  t('drapeau hidden conserve',
+    (r4.find(e => e.kind === 'item' && e.id === 'historique-notifications') as LayoutItem).hidden === true);
+
+  // 5. Le voisin de gauche lui-meme absent : on remonte, on ne retombe pas en fin.
+  const SANS_CD: LayoutDefaultSection[] = [
+    { title: 'Principal', items: [{ id: 'dashboard', label: 'D' }, { id: 'boutique', label: 'B' }] },
+    { title: 'Communication', items: [{ id: 'chat-client', label: 'CC' }] },
+    { title: 'Agenda', items: [{ id: 'agenda', label: 'A' }] },
+  ];
+  const r5 = reconcileLayout(neufs, toLayout(defaultEntries(SANS_CD), 'admin', 'soc1'), 'admin', 'soc1');
+  t('voisin absent : on remonte au suivant, pas en fin',
+    pos(r5, 'historique-notifications') < pos(r5, 'agenda'));
+  t('voisin absent : chat-super-admin revient, et AVANT lui',
+    pos(r5, 'chat-super-admin') < pos(r5, 'historique-notifications'));
+
+  // 6. La garde d'entite reste prioritaire.
+  const r6 = reconcileLayout(neufs, toLayout(perso, 'admin', 'soc1'), 'admin', 'AUTRE');
+  t('config d une autre entite : on retombe sur les defauts, onglet compris',
+    ids(r6).join() === ids(neufs).join());
+
+  // 7. Une declaration fautive — le meme onglet dans DEUX compartiments — ne doit pas
+  //    produire deux entrees dans la barre. Le cas arrive par copier-coller, et le
+  //    resultat serait un onglet affiche deux fois, sans erreur nulle part.
+  const DOUBLON: LayoutDefaultSection[] = [
+    { title: 'Principal', items: [{ id: 'dashboard', label: 'D' }, { id: 'historique-notifications', label: 'HN' }] },
+    { title: 'Communication', items: [{ id: 'chat-super-admin', label: 'CD' }, { id: 'historique-notifications', label: 'HN' }] },
+  ];
+  const r7 = reconcileLayout(defaultEntries(DOUBLON),
+    toLayout([{ kind: 'item', id: 'dashboard' }], 'admin', 'soc1'), 'admin', 'soc1');
+  t('declaration fautive : l onglet n apparait qu UNE fois',
+    r7.filter(e => e.kind === 'item' && e.id === 'historique-notifications').length === 1);
+
+
+}
+
 
 console.log(`\n${ko === 0 ? '>>> TOUS LES TESTS PASSENT' : '>>> ' + ko + ' ECHEC(S)'}  (${ok} assertions)`);
 if (ko > 0) process.exit(1);

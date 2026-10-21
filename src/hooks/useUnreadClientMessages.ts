@@ -10,6 +10,17 @@ interface UnreadEntry {
   email: string;
   count: number;
   latestAt: string;
+  /*
+   * L horodatage du PLUS ANCIEN message non lu de la conversation.
+   *
+   * C est ce qui identifie un EPISODE de non-lu dans l historique : tant que l episode
+   * dure, ce reperage ne change pas, meme si de nouveaux messages arrivent — donc
+   * l historique garde UNE entree pour les trois messages de Jean, pas trois.
+   * Des que l admin lit et que l interlocuteur reecrit, un nouvel episode commence.
+   *
+   * A ne pas confondre avec latestAt, qui sert a l apercu et au tri.
+   */
+  oldestAt: string;
   /** Contenu du dernier message non lu de CE client. */
   preview: string;
 }
@@ -38,13 +49,15 @@ export function useUnreadClientMessages() {
       return;
     }
 
-    const grouped = new Map<string, { count: number; latestAt: string; preview: string }>();
+    const grouped = new Map<string, { count: number; latestAt: string; oldestAt: string; preview: string }>();
     for (const m of msgs) {
       const existing = grouped.get(m.client_auth_id);
       if (!existing) {
-        grouped.set(m.client_auth_id, { count: 1, latestAt: m.created_at, preview: m.content ?? '' });
+        grouped.set(m.client_auth_id, { count: 1, latestAt: m.created_at, oldestAt: m.created_at, preview: m.content ?? '' });
       } else {
         existing.count++;
+        // Le plus ANCIEN non lu borne l episode : il ne remonte jamais.
+        if (m.created_at < existing.oldestAt) existing.oldestAt = m.created_at;
         // Le plus recent gagne : l apercu montre bien le DERNIER message.
         if (m.created_at > existing.latestAt) {
           existing.latestAt = m.created_at;
@@ -75,6 +88,7 @@ export function useUnreadClientMessages() {
           email: lead.email ?? lead.data?.['Email'] ?? lead.data?.['email'] ?? '',
           count: g.count,
           latestAt: g.latestAt,
+          oldestAt: g.oldestAt,
           preview: g.preview,
         });
       }

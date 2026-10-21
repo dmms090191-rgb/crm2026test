@@ -44,7 +44,13 @@ export default function CrmImmoFilters({
             onChange={e => onTerme(e.target.value)}
             placeholder="Rechercher un locataire, un propriétaire, un email…"
             data-testid="crm-immo-recherche"
-            className="w-full pl-9 pr-9 py-2 rounded-lg text-sm outline-none"
+            /* max-md:text-base : 16 px sous 768 px, le seuil en dessous duquel iOS Safari
+               agrandit la page des qu on touche le champ — elle deborde alors a droite,
+               precisement au moment ou le clavier monte.
+               La regle avait ete appliquee aux huit fichiers de MODALE le 20 octobre ;
+               ce champ-ci y avait echappe, parce qu il appartient a la PAGE et que la
+               garde ne couvrait que les modales. */
+            className="w-full pl-9 pr-9 py-2 rounded-lg text-sm max-md:text-base outline-none"
             style={{
               background: t.input.bg, border: `1px solid ${t.input.border}`,
               color: t.input.text,

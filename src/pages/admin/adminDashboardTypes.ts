@@ -36,6 +36,7 @@ export type ActiveView =
   | 'ajouter-vendeur'
   | 'liste-vendeurs'
   | 'chat-super-admin'
+  | 'historique-notifications'
   | 'chat-client'
   | 'chat-vendeur'
   | 'agenda'

@@ -119,7 +119,7 @@ export function defaultEntries(sections: LayoutDefaultSection[]): LayoutEntry[] 
  *   item     -> conserve si l'onglet existe encore, sinon retire (lui seul)
  *   section  -> TOUJOURS conserve
  *   divider  -> TOUJOURS conserve
- *   onglet ajoute au code et absent de la sauvegarde -> ajoute en fin
+ *   onglet ajoute au code et absent de la sauvegarde -> insere A SA PLACE DECLAREE
  *
  * La garde d'entite protege d'un cablage errone : une configuration ne peut
  * pas s'afficher chez une autre entite ni dans un autre panel.
@@ -153,8 +153,41 @@ export function reconcileLayout(
     }
   }
 
-  for (const d of defaults) {
-    if (d.kind === 'item' && !seenItems.has(d.id)) kept.push(d);
+  /*
+   * ---------- UN ONGLET AJOUTE AU CODE ARRIVE A SA PLACE, PAS EN FIN ----------
+   *
+   * Avant, tout onglet absent de la configuration enregistree etait pousse a la FIN de
+   * la barre. Pour une Societe qui n'avait jamais reorganise, cela ne se voyait pas :
+   * sa configuration est exactement celle du code. Mais des qu'elle avait touche a
+   * l'ordre, le nouvel onglet atterrissait tout en bas, hors de son compartiment — un
+   * onglet de Communication affiche sous l'Agenda, sans que personne comprenne pourquoi.
+   *
+   * On l'insere donc apres son VOISIN DE GAUCHE dans la declaration du code : le premier
+   * element qui le precede et qui existe deja dans la configuration enregistree. Si ce
+   * voisin est l'en-tete du compartiment, l'onglet se pose en tete de ce compartiment.
+   *
+   * Si l'utilisateur a deplace ce voisin ailleurs, l'onglet le suit. C'est voulu : il
+   * reste a cote de ce qui lui ressemble, la ou l'utilisateur l'a lui-meme range.
+   *
+   * CE QUI NE BOUGE PAS : on INSERE, on ne reordonne jamais. L'ordre choisi par
+   * l'utilisateur et ses drapeaux `hidden` sont conserves tels quels.
+   */
+  for (let i = 0; i < defaults.length; i++) {
+    const d = defaults[i];
+    if (d.kind !== 'item' || seenItems.has(d.id)) continue;
+    seenItems.add(d.id);
+
+    let apres = -1;
+    for (let j = i - 1; j >= 0; j--) {
+      const voisin = defaults[j];
+      const place = kept.findIndex(e => e.kind === voisin.kind && e.id === voisin.id);
+      if (place >= 0) { apres = place; break; }
+    }
+
+    /* Aucun voisin de gauche retrouve — par exemple le tout premier onglet du panel :
+       la fin reste le seul endroit defendable. */
+    if (apres >= 0) kept.splice(apres + 1, 0, d);
+    else kept.push(d);
   }
   return kept;
 }

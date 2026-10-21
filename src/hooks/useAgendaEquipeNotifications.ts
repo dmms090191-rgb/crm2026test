@@ -1,6 +1,8 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { useCompanyId } from './useCompanyId';
+import { useAgendaVu } from './useAgendaVu';
+import { deciderPersistance } from '../lib/agendaVu';
 
 export interface AgendaEquipeNotifEntry {
   rdvId: string;
@@ -12,25 +14,12 @@ export interface AgendaEquipeNotifEntry {
 
 const STORAGE_PREFIX = 'crm_seen_agenda_equipe_notifications_admin_';
 
+/**
+ * La cle du localStorage, INCHANGEE : des « vu » sont deja ranges sous cette forme dans
+ * les navigateurs. En changer le format les perdrait tous d'un coup.
+ */
 function getStorageKey(userId: string) {
   return `${STORAGE_PREFIX}${userId}`;
-}
-
-function getSeenIds(userId: string): Record<string, number> {
-  try {
-    const raw = localStorage.getItem(getStorageKey(userId));
-    if (!raw) return {};
-    return JSON.parse(raw);
-  } catch { return {}; }
-}
-
-function setSeenIds(userId: string, map: Record<string, number>) {
-  const now = Date.now();
-  const cleaned: Record<string, number> = {};
-  for (const [id, ts] of Object.entries(map)) {
-    if (now - ts < 24 * 60 * 60 * 1000) cleaned[id] = ts;
-  }
-  localStorage.setItem(getStorageKey(userId), JSON.stringify(cleaned));
 }
 
 function getRdvTimestamp(rdv: { appointment_utc?: string | null; proposed_date: string; proposed_time: string }): number {
@@ -55,10 +44,50 @@ interface VendorRow {
   last_name: string;
 }
 
-export function useAgendaEquipeNotifications(userId: string | null) {
+/**
+ * Les notifications de l'agenda d'equipe, et leur « deja vu ».
+ *
+ * Ce hook n'est appele QUE par le panel Societe — il n'a pas d'equivalent chez le
+ * Vendeur ni chez le Client. Il passe quand meme par `deciderPersistance`, pour que la
+ * Visu soit refusee au MEME endroit que pour l'agenda personnel : deux regles ecrites
+ * a deux endroits finissent par diverger, et c'est celle-la qu'on ne peut pas se
+ * permettre de rater.
+ */
+export function useAgendaEquipeNotifications(
+  userId: string | null,
+  options?: {
+    /** L'ecran demande la persistance en base. Absent = non. */
+    persistanceEnBase?: boolean;
+    /** Vrai des que l'ecran montre les notifications de QUELQU'UN D'AUTRE. */
+    enVisu?: boolean;
+  },
+) {
   const companyId = useCompanyId();
   const [notifications, setNotifications] = useState<AgendaEquipeNotifEntry[]>([]);
   const [count, setCount] = useState(0);
+
+  const demandee = options?.persistanceEnBase === true;
+  const enVisu = options?.enVisu === true;
+  const persistance = useMemo(() => deciderPersistance({
+    panel: 'societe', demandee, enVisu, companyId, userId,
+  }), [demandee, enVisu, companyId, userId]);
+
+  const vu = useAgendaVu(persistance, 'equipe', getStorageKey(userId ?? ''));
+  /* Lu par reference dans `evaluate`, pour que son identite ne change pas. */
+  const vuRef = useRef(vu);
+  vuRef.current = vu;
+
+  /*
+   * La liste courante, par reference.
+   *
+   * `markAsSeen` a besoin du nom du lead et de l'heure du rendez-vous pour construire
+   * la ligne a ecrire en base. La lire depuis l'etat la mettrait dans les dependances
+   * de `useCallback`, et l'identite de `markAsSeen` changerait a CHAQUE evaluation —
+   * donc aussi celle de `handleAgendaPersoClick`, et la cadence de rendu de la barre
+   * du haut, pour les TROIS panels. Une reference garde le profil d'avant intact.
+   */
+  const notifsRef = useRef<AgendaEquipeNotifEntry[]>([]);
+  notifsRef.current = notifications;
   const rdvsRef = useRef<RdvRow[]>([]);
   const vendorMapRef = useRef<Map<string, string>>(new Map());
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -69,18 +98,23 @@ export function useAgendaEquipeNotifications(userId: string | null) {
   const evaluate = useCallback(() => {
     if (!userId) { setNotifications([]); setCount(0); return; }
 
+    /* Tant que le « deja vu » n'est pas charge, on ne dit rien — et on ne remet pas la
+       liste a vide non plus : repondre trop tot ferait remonter comme neuves des
+       alertes deja vues, le temps d'un aller-retour reseau. */
+    const vuCourant = vuRef.current;
+    if (!vuCourant.prete) return;
+
     const now = Date.now();
-    const seen = getSeenIds(userId);
     const active: AgendaEquipeNotifEntry[] = [];
 
     for (const rdv of rdvsRef.current) {
       const ts = getRdvTimestamp(rdv);
       const diff = now - ts;
       const vendorName = vendorMapRef.current.get(rdv.vendor_id) || 'Admin';
-      if (diff >= -60_000 && diff <= 60_000 && !seen[rdv.id]) {
+      if (diff >= -60_000 && diff <= 60_000 && !vuCourant.estVu(rdv.id, 'starting')) {
         active.push({ rdvId: rdv.id, leadName: rdv.lead_name, vendorName, appointmentUtc: new Date(ts).toISOString(), type: 'starting' });
       }
-      if (diff > 60_000 && !rdv.treated_at && !seen[`untreated_${rdv.id}`]) {
+      if (diff > 60_000 && !rdv.treated_at && !vuCourant.estVu(rdv.id, 'untreated')) {
         active.push({ rdvId: rdv.id, leadName: rdv.lead_name, vendorName, appointmentUtc: new Date(ts).toISOString(), type: 'untreated' });
       }
     }
@@ -139,6 +173,13 @@ export function useAgendaEquipeNotifications(userId: string | null) {
 
   useEffect(() => { load(); }, [load]);
 
+  /* Le « deja vu » de la base arrive apres le premier rendu, et peut changer ensuite.
+     Borne au chemin BASE : rien ne doit bouger sur le chemin local. */
+  useEffect(() => {
+    if (vu.source !== 'base') return;
+    evaluateRef.current();
+  }, [vu]);
+
   useEffect(() => {
     if (!userId) return;
     const ch = supabase
@@ -159,16 +200,24 @@ export function useAgendaEquipeNotifications(userId: string | null) {
 
   const markAsSeen = useCallback((rdvId: string, type?: 'starting' | 'untreated') => {
     if (!userId) return;
-    const seen = getSeenIds(userId);
-    const key = type === 'untreated' ? `untreated_${rdvId}` : rdvId;
-    seen[key] = Date.now();
-    setSeenIds(userId, seen);
-    setNotifications(prev => {
-      const next = prev.filter(n => !(n.rdvId === rdvId && n.type === (type ?? 'starting')));
-      setCount(next.length);
-      return next;
+
+    const entree = notifsRef.current.find(n => n.rdvId === rdvId && n.type === (type ?? 'starting'));
+
+    void vuRef.current.marquer(rdvId, type, {
+      leadName: entree?.leadName ?? '',
+      vendorName: entree?.vendorName,
+      appointmentUtc: entree?.appointmentUtc ?? new Date().toISOString(),
+    }).then(ecrit => {
+      /* On ne retire de l'ecran QUE si l'ecriture a vraiment eu lieu : un refus de la
+         RLS est muet et rend zero ligne. */
+      if (!ecrit) return;
+      setNotifications(prev => {
+        const next = prev.filter(n => !(n.rdvId === rdvId && n.type === (type ?? 'starting')));
+        setCount(next.length);
+        return next;
+      });
     });
   }, [userId]);
 
-  return { notifications, count, markAsSeen };
+  return { notifications, count, markAsSeen, persistance: vu.source, raisonLocale: vu.raison };
 }

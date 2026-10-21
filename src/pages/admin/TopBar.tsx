@@ -100,7 +100,16 @@ interface TopBarProps {
   crmImmoActif?: boolean;
   crmImmoCount?: number;
   crmImmoEntries?: AlerteImmo[];
-  onCrmImmoEntryClick?: (dossierId: string) => void;
+  /*
+   * L ALERTE ENTIERE, et non seulement son dossier.
+   *
+   * Un meme dossier peut porter DEUX alertes a la fois : une fin de contrat et un loyer.
+   * Avec le seul dossier_id, marquer lu ne pouvait designer aucune des deux en
+   * particulier — il aurait fallu marquer les deux parce que l utilisateur en a lu une.
+   * Le couple (dossier, genre, periode) est ce qui identifie une alerte, en base comme
+   * dans l historique.
+   */
+  onCrmImmoEntryClick?: (alerte: AlerteImmo) => void;
   hiddenNotifCards?: Set<string>;
   hiddenNotifCardsLoaded?: boolean;
   onToggleNotifCard?: (key: string) => void;
