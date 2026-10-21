@@ -10,11 +10,19 @@ import type { FiltreDossiers } from '../../../../lib/crmImmoRecherche';
  * liste mobile, sans dupliquer la logique.
  */
 
+/*
+ * Deux filtres seulement.
+ *
+ * « Avec loyer » et « Sans échéance » ont ete retires a la demande de David le
+ * 22 octobre 2026. Ils ne sont pas masques mais SUPPRIMES, y compris leur logique dans
+ * crmImmoRecherche.ts : un filtre qu'aucun bouton ne peut plus declencher est du code
+ * mort, et le code mort finit par etre lu comme une fonctionnalite.
+ *
+ * Rien n'est perdu cote donnees : un filtre est un etat d'ecran, jamais enregistre.
+ */
 const FILTRES: { valeur: FiltreDossiers; libelle: string }[] = [
   { valeur: 'tous', libelle: 'Tous' },
   { valeur: 'fin-proche', libelle: 'Fin proche' },
-  { valeur: 'avec-loyer', libelle: 'Avec loyer' },
-  { valeur: 'sans-echeance', libelle: 'Sans échéance' },
 ];
 
 interface Props {

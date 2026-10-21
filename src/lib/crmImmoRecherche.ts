@@ -113,7 +113,7 @@ export function trier(dossiers: DossierImmo[], colonne: Colonne | null, sens: Se
 }
 
 /** Filtres rapides sur les echeances, appliques apres la recherche. */
-export type FiltreDossiers = 'tous' | 'fin-proche' | 'avec-loyer' | 'sans-echeance';
+export type FiltreDossiers = 'tous' | 'fin-proche';
 
 /**
  * Applique un filtre rapide.
@@ -127,11 +127,9 @@ export function filtrerDossiers(
   preavisJours = 30,
 ): DossierImmo[] {
   if (filtre === 'tous') return dossiers;
-  if (filtre === 'avec-loyer') return dossiers.filter(d => typeof d.jour_encaissement === 'number');
-  if (filtre === 'sans-echeance') {
-    return dossiers.filter(d => !d.date_fin_contrat && typeof d.jour_encaissement !== 'number');
-  }
-  /* 'fin-proche' : les contrats dont l'echeance est dans le preavis, ou deja passee. */
+  /* 'fin-proche' : les contrats dont l'echeance est dans le preavis, ou deja passee.
+     C'est le seul filtre restant : « Avec loyer » et « Sans échéance » ont ete retires
+     le 22 octobre 2026, logique comprise. */
   return dossiers.filter(d => {
     if (!d.date_fin_contrat) return false;
     const ms = Date.parse(`${d.date_fin_contrat}T12:00:00Z`) - Date.parse(`${aujourdhui}T12:00:00Z`);

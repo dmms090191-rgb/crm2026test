@@ -119,18 +119,23 @@ test("le nom d une colonne personnalisee est refuse AVANT l aller-retour", () =>
    * Et le heurt avec un libelle systeme : la base ne l interdit pas, l interface doit.
    *
    * ATTENTION AU PIEGE : ce heurt porte sur le LIBELLE AFFICHE, pas sur le nom de la
-   * colonne SQL. Depuis que David a demande << N/P Locataire >>, la colonne de la base
-   * s appelle toujours `locataire` mais son libelle a change — et c est le libelle qui
-   * ferait deux en-tetes identiques dans le tableau.
+   * colonne SQL. Les colonnes s appellent toujours `locataire` et `proprietaire`, mais
+   * elles s affichent depuis le 22 octobre 2026 << Nom propriétaire >> et
+   * << Prénom propriétaire >> — et c est le libelle qui ferait deux en-tetes identiques
+   * dans le tableau.
    *
-   * Consequence assumee : une Societe peut desormais creer une colonne personnalisee
-   * nommee << Locataire >>. Elle n en aurait aucune raison, et rien ne casse : les deux
-   * en-tetes seraient alors distincts a l ecran.
+   * Consequence assumee : une Societe peut creer une colonne personnalisee nommee
+   * << Locataire >>, puisque plus aucun libelle systeme ne porte ce mot seul. Elle n en
+   * aurait aucune raison, et rien ne casse : les en-tetes resteraient distincts.
    */
-  assert.equal(nomHeurteSysteme("N/P Locataire", COLONNES_SYSTEME), true);
-  assert.equal(nomHeurteSysteme("  n/p locataire ", COLONNES_SYSTEME), true);
-  assert.equal(nomHeurteSysteme("N/P Propriétaire", COLONNES_SYSTEME), true);
+  assert.equal(nomHeurteSysteme("Nom locataire", COLONNES_SYSTEME), true);
+  assert.equal(nomHeurteSysteme("  prénom locataire ", COLONNES_SYSTEME), true);
+  assert.equal(nomHeurteSysteme("Nom propriétaire", COLONNES_SYSTEME), true);
+  assert.equal(nomHeurteSysteme("Prénom propriétaire", COLONNES_SYSTEME), true);
   assert.equal(nomHeurteSysteme("Adresse du bien", COLONNES_SYSTEME), false);
+  /* Les anciens libelles ne heurtent plus rien : ils n existent plus nulle part. */
+  assert.equal(nomHeurteSysteme("N/P Locataire", COLONNES_SYSTEME), false);
+  assert.equal(nomHeurteSysteme("N/P Propriétaire", COLONNES_SYSTEME), false);
 });
 
 test("deux Societes ne partagent pas leur mise en page", () => {

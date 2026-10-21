@@ -93,24 +93,39 @@ export interface DefinitionSysteme {
  * Supprimer — pas protegees par un drapeau qu'un bug pourrait contourner.
  */
 export const COLONNES_SYSTEME: DefinitionSysteme[] = [
-  { cle: 'nom', libelle: 'Nom du client', type: 'texte', masquable: false },
-  { cle: 'prenom', libelle: 'Prénom', type: 'texte', masquable: true },
+  { cle: 'nom', libelle: 'Nom locataire', type: 'texte', masquable: false },
+  { cle: 'prenom', libelle: 'Prénom locataire', type: 'texte', masquable: true },
   { cle: 'email', libelle: 'Email', type: 'texte', masquable: true },
   { cle: 'telephone', libelle: 'Téléphone', type: 'texte', masquable: true },
   { cle: 'date_entree', libelle: "Date d'entrée", type: 'date', masquable: true },
   { cle: 'date_fin_contrat', libelle: 'Fin de contrat', type: 'date', masquable: true },
   /*
-   * << N/P >> — Nom / Prénom, le vocabulaire metier de David. Ce sont des LIBELLES
-   * d'affichage : les colonnes de la base restent `locataire` et `proprietaire`.
-   * Renommer en SQL couterait une migration, casserait les sauvegardes existantes et
-   * ne changerait rien a ce que l'utilisateur lit.
+   * ---------- QUATRE CHAMPS, DEUX PERSONNES ----------
    *
-   * Ce libelle sert a TROIS endroits a la fois — l'en-tete du tableau, le formulaire du
-   * dossier et l'organisateur de colonnes — parce que tous les trois lisent `d.libelle`
-   * via toutesLesColonnes(). Les changer ici les change partout, ensemble.
+   * Le module suit un bail : il y a un LOCATAIRE et un PROPRIETAIRE, et chacun a un nom
+   * et un prenom. Les quatre libelles le disent desormais sans abreviation :
+   *
+   *     nom          -> Nom locataire
+   *     prenom       -> Prénom locataire
+   *     locataire    -> Nom propriétaire
+   *     proprietaire -> Prénom propriétaire
+   *
+   * ATTENTION, et c'est deliberé : les deux dernieres CLES ne disent plus ce que leur
+   * libelle affiche. La colonne SQL `locataire` porte le nom du PROPRIETAIRE, et
+   * `proprietaire` son prenom.
+   *
+   * C'est le choix de David, et il est le bon : renommer ces colonnes exigerait une
+   * migration, casserait les sauvegardes deja prises et les restaurations qui les
+   * relisent, et ne changerait rien a ce que l'utilisateur lit. Un libelle se corrige
+   * sans risque ; une colonne, non.
+   *
+   * Ce libelle sert a QUATRE endroits a la fois — l'en-tete du tableau, les cartes
+   * mobiles, le formulaire du dossier et l'organisateur de colonnes — parce que tous
+   * lisent `d.libelle` via toutesLesColonnes(). Les changer ici les change partout,
+   * ensemble. C'est ce qui garantit qu'aucun ecran ne garde l'ancien vocabulaire.
    */
-  { cle: 'locataire', libelle: 'N/P Locataire', type: 'texte', masquable: true },
-  { cle: 'proprietaire', libelle: 'N/P Propriétaire', type: 'texte', masquable: true },
+  { cle: 'locataire', libelle: 'Nom propriétaire', type: 'texte', masquable: true },
+  { cle: 'proprietaire', libelle: 'Prénom propriétaire', type: 'texte', masquable: true },
   { cle: 'jour_encaissement', libelle: 'Encaissement loyer', type: 'nombre', masquable: true },
   { cle: 'commentaire', libelle: 'Commentaire', type: 'texte', masquable: true },
 ];

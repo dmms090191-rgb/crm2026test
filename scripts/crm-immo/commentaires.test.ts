@@ -299,30 +299,68 @@ test("C7 — la suppression d un commentaire demande confirmation", () => {
 // D — LES LIBELLES N/P
 // ===========================================================================
 
-test("D1 — N/P Locataire et N/P Proprietaire, sans toucher aux colonnes SQL", () => {
+test("D1 — quatre libelles explicites, sans toucher aux colonnes SQL", () => {
   /*
-   * David : << pour l instant je demande seulement de changer les libelles affiches.
-   * Ne renomme pas automatiquement les colonnes SQL. >>
+   * David, le 22 octobre 2026 : quatre champs, et qu on sache de qui on parle.
    *
-   * Un seul endroit porte le libelle — COLONNES_SYSTEME — et il sert A LA FOIS l en-tete
-   * du tableau, le formulaire et l organisateur de colonnes. Les trois changent ensemble.
+   *     nom          -> Nom locataire
+   *     prenom       -> Prénom locataire
+   *     locataire    -> Nom propriétaire
+   *     proprietaire -> Prénom propriétaire
+   *
+   * << Je veux seulement corriger l affichage et les libelles pour eviter tout risque
+   *    sur les donnees existantes. >>
+   *
+   * Les deux dernieres lignes sont le point delicat : la CLE ne dit plus ce que le
+   * LIBELLE affiche. C est assume — renommer ces colonnes exigerait une migration et
+   * casserait les sauvegardes deja prises. Ce test existe pour que personne ne
+   * << corrige >> l incoherence apparente en renommant la base.
    */
   const types = lire(D + "crmImmoTypes.ts");
-  assert.match(types, /cle: 'locataire', libelle: 'N\/P Locataire'/,
-    "le libelle de locataire n est plus N/P Locataire");
-  assert.match(types, /cle: 'proprietaire', libelle: 'N\/P Propriétaire'/,
-    "le libelle de proprietaire n est plus N/P Propriétaire");
+
+  const ATTENDUS: [string, string][] = [
+    ["nom", "Nom locataire"],
+    ["prenom", "Prénom locataire"],
+    ["locataire", "Nom propriétaire"],
+    ["proprietaire", "Prénom propriétaire"],
+  ];
+  for (const [cle, libelle] of ATTENDUS) {
+    assert.match(types, new RegExp("cle: '" + cle + "', libelle: '" + libelle + "'"),
+      "le libelle de " + cle + " n est pas << " + libelle + " >>");
+  }
+
+  /* Plus aucune trace de l ancien vocabulaire, nulle part dans le module. */
+  for (const f of readdirSync(D).filter(x => x.endsWith(".ts") || x.endsWith(".tsx"))) {
+    const src = lire(D + f);
+    assert.ok(!/N\/P (Locataire|Propriétaire)/.test(src),
+      f + " affiche encore un libelle << N/P >>");
+    assert.ok(!/libelle: 'Nom du client'/.test(src),
+      f + " affiche encore << Nom du client >>");
+  }
 
   /* Les CLES, elles, ne bougent pas : ce sont les colonnes de la base. */
   assert.match(types, /cle: 'locataire'/, "la cle SQL locataire a ete renommee");
   assert.match(types, /cle: 'proprietaire'/, "la cle SQL proprietaire a ete renommee");
+  assert.match(types, /cle: 'nom'/, "la cle SQL nom a ete renommee");
+  assert.match(types, /cle: 'prenom'/, "la cle SQL prenom a ete renommee");
 
   /* Et aucune migration ne renomme ces colonnes. */
   for (const f of readdirSync("supabase/migrations").filter(x => x.endsWith(".sql"))) {
     const sql = codeSeul(lire("supabase/migrations/" + f));
-    assert.ok(!/RENAME COLUMN\s+(locataire|proprietaire)/i.test(sql),
+    assert.ok(!/RENAME COLUMN\s+(locataire|proprietaire|nom|prenom)/i.test(sql),
       f + " renomme une colonne SQL : David a demande de ne changer que les libelles");
   }
+
+  /*
+   * UN SEUL endroit porte ces libelles. C est ce qui garantit que le tableau, les cartes
+   * mobiles, le formulaire du dossier, la modale Details et l organisateur de colonnes
+   * disent tous la meme chose : ils lisent tous d.libelle via toutesLesColonnes().
+   */
+  const porteurs = readdirSync(D)
+    .filter(x => (x.endsWith(".ts") || x.endsWith(".tsx")) && x !== "crmImmoTypes.ts")
+    .filter(f => /libelle: 'Nom locataire'|libelle: 'Nom propriétaire'/.test(lire(D + f)));
+  assert.deepEqual(porteurs, [],
+    "ces fichiers redeclarent un libelle au lieu de lire COLONNES_SYSTEME : " + porteurs.join(", "));
 });
 
 // ===========================================================================
