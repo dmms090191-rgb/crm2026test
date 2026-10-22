@@ -37,6 +37,24 @@
  * module a ses propres tests.
  */
 
+import {
+  jourRabattu, lireJour, dernierJourDuMois,
+  construireEcheancier, loyerAAlerter, statutDe, rangDuLoyer,
+  type StatutLoyer,
+} from './crmImmoEcheancier';
+
+/*
+ * LES PRIMITIVES DE DATE VIVENT DESORMAIS DANS crmImmoEcheancier.
+ *
+ * Pourquoi ce deplacement : l'echeancier a besoin de `jourRabattu`, et les alertes ont
+ * besoin de l'echeancier pour numeroter leurs loyers (<< 4e loyer sur 12 >>). Laisser
+ * les primitives ici creait un CYCLE d'imports entre les deux fichiers.
+ *
+ * Elles sont re-exportees telles quelles : tout ce qui les importait depuis ce module
+ * continue de marcher, et il n'existe toujours qu'UNE implementation du 31 fevrier.
+ */
+export { jourRabattu, lireJour, dernierJourDuMois };
+
 export type GenreAlerte = 'fin_contrat' | 'loyer';
 
 /** Les seuls champs d'un dossier dont la derivation a besoin. */
@@ -46,10 +64,29 @@ export interface DossierPourAlertes {
   prenom?: string | null;
   locataire?: string | null;
   proprietaire?: string | null;
+  /**
+   * Le DEBUT du contrat, 'AAAA-MM-JJ' ou null.
+   *
+   * Il borne les alertes de loyer par le bas depuis le 22 octobre 2026. Sans lui, un
+   * contrat qui commence l'annee prochaine reclamait deja son loyer aujourd'hui.
+   */
+  date_entree?: string | null;
   /** 'AAAA-MM-JJ' ou null. */
   date_fin_contrat?: string | null;
   /** Jour du mois, 1 a 31, ou null. */
   jour_encaissement?: number | null;
+}
+
+/**
+ * Un encaissement ACTIF, tel que le porte crm_immo_loyers.
+ *
+ * Seuls les non annules sont passes ici : une ligne annulee ne compte plus comme
+ * encaissee, et son echeance redevient due.
+ */
+export interface EncaissementConnu {
+  dossier_id: string;
+  /** 'AAAA-MM-JJ'. */
+  echeance: string;
 }
 
 /** Une ligne de crm_immo_etats : ce qu'un humain a fait d'une alerte. */
@@ -74,6 +111,17 @@ export interface Alerte {
   proprietaire: string;
   lue: boolean;
   traitee: boolean;
+  /**
+   * Pour un LOYER : sa place dans le contrat, et son etat.
+   *
+   * Les deux sont CALCULES par construireEcheancier, jamais stockes : le numero et le
+   * total tombent de la periode. Une notification et l'onglet Echeancier donnent donc
+   * forcement le meme << 4e loyer sur 12 >>, puisqu'ils appellent la meme fonction.
+   *
+   * Absents pour une fin de contrat, qui ne se numerote pas.
+   */
+  rang?: { numero: number; total: number };
+  statut?: StatutLoyer;
 }
 
 /** Combien de jours avant l'echeance une fin de contrat s'annonce. */
@@ -101,34 +149,88 @@ export function fuseauLocal(): string {
   return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
 }
 
-/** Nombre de jours du mois. mois est 1-12, pas 0-11. */
-export function dernierJourDuMois(annee: number, mois: number): number {
-  /* Le jour 0 du mois suivant EST le dernier jour du mois courant, et Date.UTC
-     gere les annees bissextiles — y compris la regle des siecles : 2000 est
-     bissextile, 2100 ne l'est pas. */
-  return new Date(Date.UTC(annee, mois, 0)).getUTCDate();
-}
-
-/** Le jour d'encaissement, rabattu sur le dernier jour du mois s'il le depasse. */
-export function jourRabattu(jour: number, annee: number, mois: number): number {
-  const dernier = dernierJourDuMois(annee, mois);
-  return Math.min(Math.max(1, Math.trunc(jour)), dernier);
-}
-
 /** 'AAAA-MM' — la periode d'un loyer. Elle revient chaque mois, d'ou l'alerte recurrente. */
 export function periodeLoyer(annee: number, mois: number): string {
   return `${annee}-${DEUX(mois)}`;
 }
 
-/** Decoupe une date 'AAAA-MM-JJ'. Rend null sur toute forme inattendue. */
-export function lireJour(iso: string | null | undefined): { annee: number; mois: number; jour: number } | null {
-  if (!iso) return null;
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
-  if (!m) return null;
-  const annee = Number(m[1]); const mois = Number(m[2]); const jour = Number(m[3]);
-  if (mois < 1 || mois > 12) return null;
-  if (jour < 1 || jour > dernierJourDuMois(annee, mois)) return null;
-  return { annee, mois, jour };
+/** Le mois suivant. Decembre passe a janvier de l'annee d'apres. */
+function moisSuivant(annee: number, mois: number): { annee: number; mois: number } {
+  return mois === 12 ? { annee: annee + 1, mois: 1 } : { annee, mois: mois + 1 };
+}
+
+/**
+ * LES PROCHAINES ECHEANCES D'UN LOYER.
+ *
+ * Sert l'apercu du formulaire : on montre ce que le jour choisi donnera VRAIMENT, mois
+ * par mois, au lieu de demander a l'utilisateur de le deviner.
+ *
+ * ---------- POURQUOI CET APERCU EXISTE ----------
+ *
+ * Un loyer n'a pas une date, il a un JOUR DU MOIS qui revient. Et ce jour ne tombe pas
+ * toujours : il n'y a pas de 31 fevrier, ni de 31 avril. `jourRabattu` le ramene alors
+ * au dernier jour du mois — c'est la regle du module depuis l'origine, et elle est
+ * juste. Mais elle est INVISIBLE a la saisie : on tape « 31 » sans savoir ce qui se
+ * passera en fevrier. L'apercu rend cette regle visible, sans la changer.
+ *
+ * ---------- LE MOIS EN COURS COMPTE-T-IL ? ----------
+ *
+ * Oui, tant que son echeance n'est pas passee. Le 10 du mois, un loyer au 20 montre
+ * d'abord le 20 de ce mois-ci ; le 25, il montre deja le mois suivant. C'est ce qu'on
+ * attend d'un « prochain » encaissement.
+ *
+ * La comparaison porte sur le jour RABATTU. Non pas parce que le jour brut donnerait un
+ * resultat different — il ne le donne jamais, et c'est demontrable : `rabattu` vaut
+ * min(brut, dernierJour) et `aujourd'hui` ne depasse jamais `dernierJour`, donc si brut
+ * tient dans le mois les deux formes sont identiques, et sinon les deux sont fausses.
+ * Mais parce qu'elle dit ce qu'on compare : l'echeance REELLE de ce mois-ci, celle qui
+ * figurera dans la liste, et non un jour theorique qui peut ne pas exister.
+ *
+ * Pure : `aujourdhui` est passe en 'AAAA-MM-JJ'. Aucune horloge implicite, donc testable
+ * sur n'importe quelle date, bissextiles comprises.
+ */
+export function prochainsEncaissements(
+  jour: number,
+  aujourdhui: string,
+  combien = 3,
+): string[] {
+  const depart = lireJour(aujourdhui);
+  if (!depart) return [];
+  if (!Number.isFinite(jour)) return [];
+  const j = Math.trunc(jour);
+  if (j < 1 || j > 31) return [];
+  if (combien <= 0) return [];
+
+  let { annee, mois } = depart;
+  /* L'echeance de CE mois-ci est-elle encore devant nous ? */
+  if (jourRabattu(j, annee, mois) < depart.jour) ({ annee, mois } = moisSuivant(annee, mois));
+
+  const dates: string[] = [];
+  for (let i = 0; i < combien; i++) {
+    dates.push(`${annee}-${DEUX(mois)}-${DEUX(jourRabattu(j, annee, mois))}`);
+    ({ annee, mois } = moisSuivant(annee, mois));
+  }
+  return dates;
+}
+
+/*
+ * Les mois en abrege, ecrits a la main plutot que tires d'`Intl`.
+ *
+ * Deux raisons. D'abord `Intl` oblige a fabriquer une Date, donc a choisir un fuseau,
+ * et une date calendaire n'en a pas : c'est exactement le piege que `formatDateImmo`
+ * evite en decoupant la chaine. Ensuite les abreviations d'`Intl` dependent de la
+ * version d'ICU du navigateur — un test qui les comparerait passerait ici et
+ * echouerait ailleurs.
+ */
+const MOIS_COURT = [
+  'janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin',
+  'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.',
+];
+
+/** '2026-02-28' → '28 févr.'. Rend '' sur toute forme inattendue. */
+export function formatJourMoisCourt(iso: string): string {
+  const d = lireJour(iso);
+  return d ? `${d.jour} ${MOIS_COURT[d.mois - 1]}` : '';
 }
 
 /**
@@ -166,12 +268,16 @@ const nom = (d: DossierPourAlertes) => [d.prenom, d.nom].filter(Boolean).join(' 
  *   exactement ce que la contrainte UNIQUE (company_id, dossier_id, genre,
  *   periode) rend possible.
  */
+const VIDE: ReadonlySet<string> = new Set<string>();
+
 export function deriverAlertes(params: {
   dossiers: DossierPourAlertes[];
   etats: EtatConnu[];
   aujourdhui: string;
+  /** Les encaissements ACTIFS. Absents = aucun loyer n'a ete encaisse. */
+  encaissements?: EncaissementConnu[];
 }): Alerte[] {
-  const { dossiers, etats, aujourdhui } = params;
+  const { dossiers, etats, aujourdhui, encaissements = [] } = params;
   const jour = lireJour(aujourdhui);
   if (!jour) return [];
 
@@ -179,6 +285,14 @@ export function deriverAlertes(params: {
   const cle = (dossierId: string, genre: GenreAlerte, periode: string) => `${dossierId}|${genre}|${periode}`;
   const connus = new Map<string, EtatConnu>();
   for (const e of etats) connus.set(cle(e.dossier_id, e.genre, e.periode), e);
+
+  /* Les echeances deja encaissees, par dossier. */
+  const payes = new Map<string, Set<string>>();
+  for (const e of encaissements) {
+    const s = payes.get(e.dossier_id) ?? new Set<string>();
+    s.add(e.echeance);
+    payes.set(e.dossier_id, s);
+  }
 
   const alertes: Alerte[] = [];
 
@@ -202,19 +316,51 @@ export function deriverAlertes(params: {
       }
     }
 
-    /* ---- LOYER DU MOIS ---- */
-    const brut = d.jour_encaissement;
-    if (typeof brut === 'number' && Number.isFinite(brut) && brut >= 1 && brut <= 31) {
-      const j = jourRabattu(brut, jour.annee, jour.mois);
-      const echeance = `${jour.annee}-${DEUX(jour.mois)}-${DEUX(j)}`;
-      const periode = periodeLoyer(jour.annee, jour.mois);
-      const etat = connus.get(cle(d.id, 'loyer', periode));
-      alertes.push({
-        dossier_id: d.id, genre: 'loyer', periode, echeance,
-        joursRestants: joursEntre(aujourdhui, echeance) ?? 0,
-        locataire, proprietaire,
-        lue: !!etat?.lue_le, traitee: !!etat?.traitee_le,
-      });
+    /* ---- LE LOYER ---- */
+    /*
+     * UNE SEULE SOURCE DE CALCUL.
+     *
+     * L'echeancier est construit par construireEcheancier — exactement la fonction que
+     * lit l'onglet Echeancier loyers et l'apercu du formulaire. Trois consequences, et
+     * aucune n'est ecrite ici :
+     *
+     *   - les BORNES du contrat sont deja appliquees : un bail termine ou pas encore
+     *     commence ne produit aucune echeance, donc aucune alerte ;
+     *   - un contrat INCOMPLET produit un echeancier vide, donc aucune alerte ;
+     *   - le NUMERO et le TOTAL (<< 4e loyer sur 12 >>) tombent du meme calcul, donc la
+     *     notification et l'onglet ne peuvent pas donner deux chiffres differents.
+     *
+     * Et comme l'echeancier appartient a la PERIODE, un renouvellement recommence
+     * naturellement la numerotation a 1 : la nouvelle periode est un autre echeancier.
+     */
+    const echeancier = construireEcheancier({
+      debut: d.date_entree, fin: d.date_fin_contrat, jour: d.jour_encaissement,
+    });
+
+    if (echeancier.length > 0) {
+      const encaissesDuDossier = payes.get(d.id) ?? VIDE;
+      const estEncaisse = (date: string) => encaissesDuDossier.has(date);
+
+      /*
+       * Le plus ancien impaye deja echu, a defaut celui du mois en cours.
+       *
+       * Un loyer ENCAISSE ne reste donc pas reclame — c'est la regle posee par David —
+       * et un impaye de janvier ne disparait plus en fevrier derriere celui de fevrier.
+       */
+      const cible = loyerAAlerter(echeancier, estEncaisse, aujourdhui);
+
+      if (cible) {
+        const periode = cible.date.slice(0, 7);
+        const etat = connus.get(cle(d.id, 'loyer', periode));
+        alertes.push({
+          dossier_id: d.id, genre: 'loyer', periode, echeance: cible.date,
+          joursRestants: joursEntre(aujourdhui, cible.date) ?? 0,
+          locataire, proprietaire,
+          lue: !!etat?.lue_le, traitee: !!etat?.traitee_le,
+          rang: { numero: cible.numero, total: cible.total },
+          statut: statutDe(cible.date, false, aujourdhui),
+        });
+      }
     }
   }
 
@@ -255,7 +401,22 @@ export function libelleAlerte(a: Alerte): string {
  * Le TITRE de l alerte : son premier segment, celui qui dit de quoi il s agit.
  */
 export function titreAlerte(a: Alerte): string {
-  return a.genre === 'fin_contrat' ? 'Contrat bientôt terminé' : 'Loyer à encaisser';
+  if (a.genre === 'fin_contrat') return 'Contrat bientôt terminé';
+
+  /*
+   * << Loyer a encaisser — 4e loyer sur 12 >>.
+   *
+   * Le rang vient de l'echeancier, donc il est toujours d'accord avec l'onglet. Il peut
+   * manquer — une alerte fabriquee a la main dans un test, par exemple — et la phrase
+   * reste alors celle d'avant plutot que d'afficher un rang invente.
+   *
+   * << Loyer en retard >> quand l'echeance appartient a un mois PASSE. C'est la meme
+   * distinction que dans l'echeancier, et elle ne demande aucun delai de grace a
+   * arbitrer : un loyer du mois en cours est a encaisser, un loyer d'un mois passe est
+   * en retard.
+   */
+  const base = a.statut === 'en-retard' ? 'Loyer en retard' : 'Loyer à encaisser';
+  return a.rang ? `${base} — ${rangDuLoyer(a.rang)}` : base;
 }
 
 /**

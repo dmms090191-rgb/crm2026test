@@ -384,9 +384,33 @@ test("A2 — la regle des 16 px couvre la PAGE, pas seulement les modales", () =
          meme depouillement que pour les boutons-icones. */
       const fin = finDeBalise(src, m.index + m[1].length + 1);
       const balise = src.slice(m.index, fin < 0 ? src.length : fin + 1);
-      /* La classe peut vivre sur la balise, ou dans un objet `commun` repandu par
-         {...commun} : on elargit la fenetre de lecture dans ce cas. */
-      const fenetre = /\{\.\.\./.test(balise) ? src.slice(Math.max(0, m.index - 900), fin + 1) : balise;
+      /*
+       * La classe peut vivre sur la balise, ou dans un objet repandu par {...commun}.
+       *
+       * On resout alors le spread PAR SON NOM, et non par la distance. La version
+       * precedente lisait les 900 caracteres precedant la balise : le jour ou un bloc
+       * s'est intercale entre la definition de `commun` et le champ, elle a signale un
+       * champ parfaitement correct. Une fenetre de lecture est une heuristique ; le nom
+       * de la variable, lui, est exact.
+       */
+      const spread = /\{\.\.\.(\w+)\}/.exec(balise);
+      /*
+       * La classe peut aussi venir d'une VARIABLE : `className={champ}`. C'est la forme
+       * employee par la modale de renouvellement, et elle a fait signaler deux champs
+       * parfaitement corrects. On resout donc le nom dans les deux cas — l'objet
+       * repandu, et la chaine nommee.
+       */
+      const nomme = /className=\{(\w+)\}/.exec(balise);
+
+      let fenetre = balise;
+      const resoudre = (nom: string, forme: string) => {
+        const i = src.indexOf("const " + nom + " = " + forme);
+        /* Introuvable — forme inattendue — on retombe sur la fenetre large plutot que
+           d'accuser a tort. */
+        return i >= 0 ? src.slice(i, i + 900) : src.slice(Math.max(0, m!.index - 900), fin + 1);
+      };
+      if (spread) fenetre = balise + "\n" + resoudre(spread[1], "{");
+      else if (nomme) fenetre = balise + "\n" + resoudre(nomme[1], "'");
       if (!/max-md:text-base|text-base|text-\[1[6-9]px\]/.test(fenetre)) {
         fautifs.push(f.split("/").pop() + " : <" + m[1] + "> a 14 px sur mobile");
       }

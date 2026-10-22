@@ -21,6 +21,12 @@ const TABLES_WITH_COMPANY_ID = new Set([
      SANS les colonnes : le tableau perdrait ses colonnes personnalisees alors que
      leurs valeurs seraient toujours dans le jsonb, inertes. */
   'crm_immo_dossiers', 'crm_immo_colonnes', 'crm_immo_etats', 'crm_immo_commentaires',
+  /* Les deux tables du 22 octobre 2026 portent elles aussi company_id NOT NULL. Et pour
+     crm_immo_contrats l oubli serait pire qu un 42501 : la table porte un declencheur
+     qui REECRIT les dates du dossier depuis la periode en cours. Une periode restauree
+     avec le mauvais company_id ne retrouverait pas son dossier, donc le declencheur ne
+     synchroniserait rien, et le dossier resterait sur des dates sans periode. */
+  'crm_immo_contrats', 'crm_immo_loyers',
 ]);
 
 export type RestoreStatus = 'idle' | 'simulating' | 'restoring' | 'done' | 'error';

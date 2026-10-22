@@ -50,6 +50,18 @@ export const CRM_BACKUP_TABLES: BackupTableConfig[] = [
   { name: 'crm_immo_colonnes', label: 'CRM Immo - colonnes', category: 'crm' },
   { name: 'crm_immo_etats', label: 'CRM Immo - etats des alertes', category: 'crm' },
   { name: 'crm_immo_commentaires', label: 'CRM Immo - commentaires des dossiers', category: 'crm' },
+  /*
+   * Les PERIODES de contrat et les ENCAISSEMENTS, ajoutes le 22 octobre 2026.
+   *
+   * crm_immo_contrats porte l'historique des baux : sans elle, une restauration
+   * ramenerait les dossiers avec leur contrat courant mais sans aucune trace des
+   * precedents — exactement ce que le renouvellement cherche a preserver.
+   *
+   * crm_immo_loyers porte les encaissements constates. L'echeancier, lui, n'est PAS
+   * sauvegarde : il se derive des dates, donc il se reconstruit tout seul.
+   */
+  { name: 'crm_immo_contrats', label: 'CRM Immo - periodes de contrat', category: 'crm' },
+  { name: 'crm_immo_loyers', label: 'CRM Immo - encaissements de loyers', category: 'crm' },
 ];
 
 export const CRM_TABLE_NAMES = CRM_BACKUP_TABLES.map((t) => t.name);
@@ -107,6 +119,16 @@ export const RESTORE_ORDER = [
      (dossier_id, company_id) vers crm_immo_dossiers(id, company_id). Elle vient donc
      apres les dossiers, pour la meme raison, sous peine de 23503. */
   'crm_immo_commentaires',
+  /*
+   * MEME cle etrangere composee, donc MEME contrainte d'ordre : apres les dossiers.
+   *
+   * Et crm_immo_contrats porte en plus un declencheur qui REECRIT les trois colonnes de
+   * date du dossier depuis la periode en cours. Restaurer les contrats apres les
+   * dossiers n'est donc pas qu'une question de cle etrangere : c'est ce qui remet les
+   * dossiers en accord avec leurs periodes, dans ce sens-la et pas l'autre.
+   */
+  'crm_immo_contrats',
+  'crm_immo_loyers',
 ] as const;
 
 export const TABLE_PRIMARY_KEYS: Record<string, string> = {
@@ -146,6 +168,8 @@ export const TABLE_PRIMARY_KEYS: Record<string, string> = {
      Une table absente de cette carte se restaure quand meme, et on ne sait pas si c est
      voulu ou oublie. */
   crm_immo_commentaires: 'id',
+  crm_immo_contrats: 'id',
+  crm_immo_loyers: 'id',
 };
 
 export interface FkRule {
@@ -170,6 +194,16 @@ export const FK_RULES: Record<string, FkRule[]> = {
    * avec elle. Les lignes sont desormais ECARTEES avant l'envoi, par ecarterOrphelins.
    */
   crm_immo_commentaires: [
+    { column: 'dossier_id', referencedTable: 'crm_immo_dossiers', referencedColumn: 'id' },
+  ],
+  /* Memes filles d'un dossier, meme traitement : une periode ou un encaissement dont le
+     dossier n'est pas restaure est ECARTE proprement, et compte dans le rapport. Sans
+     cette regle, une seule orpheline emporterait jusqu'a cent lignes valides avec elle,
+     l'envoi se faisant par lots. */
+  crm_immo_contrats: [
+    { column: 'dossier_id', referencedTable: 'crm_immo_dossiers', referencedColumn: 'id' },
+  ],
+  crm_immo_loyers: [
     { column: 'dossier_id', referencedTable: 'crm_immo_dossiers', referencedColumn: 'id' },
   ],
   crm_immo_etats: [

@@ -1,8 +1,14 @@
+import { useMemo } from 'react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 import {
   COLONNES_SYSTEME, TYPES_COLONNE, formatDateImmo,
   type ColonneImmo, type SaisieDossier, type ChampSysteme,
 } from './crmImmoTypes';
+import {
+  prochainsEncaissements, formatJourMoisCourt, journeeDeReference, fuseauLocal,
+  enDateFrancaise,
+} from '../../../../lib/crmImmoAlertes';
+import { construireEcheancier } from '../../../../lib/crmImmoEcheancier';
 
 
 /**
@@ -32,6 +38,36 @@ const TYPE_HTML: Record<ChampSysteme, string> = {
   locataire: 'text', proprietaire: 'text',
   jour_encaissement: 'number', commentaire: 'textarea',
 };
+
+/**
+ * LES 31 JOURS, ET LES TROIS QUI MERITENT UN MOT.
+ *
+ * ---------- POURQUOI UNE LISTE, ET PAS UN CALENDRIER ----------
+ *
+ * Un calendrier choisit une DATE ; un loyer a un JOUR DU MOIS qui revient. Il faudrait
+ * donc saisir un jour, un mois et une annee pour n'en garder qu'un tiers — et surtout
+ * cela ne reglerait rien : choisir « 31 janvier » laisserait entiere la question de
+ * fevrier. Un calendrier ne repond pas au probleme des mois courts, il le cache.
+ *
+ * ---------- POURQUOI UNE LISTE, ET PAS UN CHAMP LIBRE ----------
+ *
+ * Le champ libre acceptait la frappe a l'aveugle. La liste supprime la faute de frappe
+ * et la valeur impossible, et surtout elle dit a QUEL MOMENT CA COMPTE ce que la regle
+ * de rabattement fera — au lieu de le laisser decouvrir en fevrier.
+ *
+ * La valeur rendue reste un entier de 1 a 31 : la colonne `jour_encaissement` ne change
+ * pas, et le dossier existant garde la sienne.
+ */
+const JOURS_ENCAISSEMENT: { valeur: number; libelle: string }[] = Array.from(
+  { length: 31 },
+  (_, i) => {
+    const n = i + 1;
+    if (n === 29) return { valeur: n, libelle: '29 (28 en février, sauf année bissextile)' };
+    if (n === 30) return { valeur: n, libelle: '30 (28 ou 29 en février)' };
+    if (n === 31) return { valeur: n, libelle: '31 (dernier jour du mois)' };
+    return { valeur: n, libelle: String(n) };
+  },
+);
 
 interface Props {
   saisie: SaisieDossier;
@@ -69,6 +105,48 @@ export default function CrmImmoChampsDossier({
 
   const systeme = COLONNES_SYSTEME.filter(d => !(sansCommentaire && d.cle === 'commentaire'));
 
+  /*
+   * L'APERCU DES PROCHAINES ECHEANCES.
+   *
+   * Le jour du mois est une regle, pas une date : « 31 » ne veut pas dire la meme chose
+   * en mars et en fevrier. L'apercu montre ce que la regle donnera REELLEMENT, pour que
+   * personne n'ait a se demander ce qui se passera au mois court suivant.
+   *
+   * `aujourdhui` est fige au montage. Un loyer n'a pas besoin de suivre le passage de
+   * minuit : la modale ne reste pas ouverte une journee, et un intervalle de plus dans
+   * une modale de saisie couterait plus qu'il ne rapporte.
+   */
+  const aujourdhui = useMemo(() => journeeDeReference(new Date(), fuseauLocal()), []);
+  const apercuEcheances = useMemo(() => {
+    const brut = (saisie.jour_encaissement as string ?? '').trim();
+    if (brut === '') return '';
+    const n = Number(brut);
+    const dates = prochainsEncaissements(n, aujourdhui, 3);
+    return dates.map(formatJourMoisCourt).filter(Boolean).join(', ');
+  }, [saisie.jour_encaissement, aujourdhui]);
+
+  /*
+   * L'ECHEANCIER COMPLET, des que les TROIS champs sont la.
+   *
+   * David : << Je ne veux pas attendre la création du dossier pour voir le calcul. >> Le
+   * nombre de loyers n'est donc jamais saisi, et il s'affiche avant meme d'enregistrer.
+   *
+   * C'est `construireEcheancier` qui le produit — exactement la fonction que lisent
+   * l'onglet Echeancier et la numerotation des notifications. Ce formulaire ne refait
+   * aucun calcul : ce qu'il annonce ici est ce que le dossier aura.
+   */
+  const echeancier = useMemo(() => construireEcheancier({
+    debut: (saisie.date_entree as string) || null,
+    fin: (saisie.date_fin_contrat as string) || null,
+    jour: Number((saisie.jour_encaissement as string) || NaN),
+  }), [saisie.date_entree, saisie.date_fin_contrat, saisie.jour_encaissement]);
+
+  /** Vrai des que les trois champs sont renseignes, meme si la periode est vide. */
+  const contratRenseigne =
+    ((saisie.date_entree as string) ?? '').trim() !== ''
+    && ((saisie.date_fin_contrat as string) ?? '').trim() !== ''
+    && ((saisie.jour_encaissement as string) ?? '').trim() !== '';
+
   const champ = (cle: ChampSysteme) => {
     const def = COLONNES_SYSTEME.find(d => d.cle === cle)!;
     const type = TYPE_HTML[cle];
@@ -91,11 +169,37 @@ export default function CrmImmoChampsDossier({
           ? <Valeur v={saisie[cle] as string} type={def.type} testid={`crm-immo-lecture-${cle}`} />
           : type === 'textarea'
             ? <textarea {...commun} rows={3} />
-            : <input {...commun} type={type} {...(cle === 'jour_encaissement' ? { min: 1, max: 31, step: 1 } : {})} />}
-        {cle === 'jour_encaissement' && !lectureSeule && (
-          <span className="block text-[11px] mt-1" style={{ color: t.label.hint }}>
-            Jour du mois. « 5 » = le 5 de chaque mois ; « 31 » est ramené au dernier jour des mois plus courts.
-          </span>
+            : cle === 'jour_encaissement'
+              /* Une liste, et non plus un champ libre : ni faute de frappe, ni valeur
+                 impossible, et les trois jours delicats s'expliquent au moment du choix.
+                 `t.selectBg` et non `t.modal.fieldBg` : c'est le fond deja employe par
+                 les listes de ce formulaire, et un select au fond d'un input se repere
+                 mal sur les themes clairs. */
+              ? <select {...commun} style={{ ...commun.style, background: t.selectBg }}>
+                  <option value="">—</option>
+                  {JOURS_ENCAISSEMENT.map(j => (
+                    <option key={j.valeur} value={j.valeur}>{j.libelle}</option>
+                  ))}
+                </select>
+              : <input {...commun} type={type} />}
+
+        {cle === 'jour_encaissement' && (
+          <>
+            {!lectureSeule && (
+              <span className="block text-[11px] mt-1" style={{ color: t.label.hint }}>
+                Le jour revient chaque mois.
+              </span>
+            )}
+            {/* L'apercu vaut aussi en consultation : on vient souvent dans Details pour
+                savoir quand tombe le prochain loyer, pas pour relire un nombre. */}
+            {apercuEcheances !== '' && (
+              <span className="block text-[11px] mt-1 break-words"
+                style={{ color: t.text.link }}
+                data-testid="crm-immo-apercu-encaissements">
+                Prochains encaissements : {apercuEcheances}
+              </span>
+            )}
+          </>
         )}
       </label>
     );
@@ -106,6 +210,37 @@ export default function CrmImmoChampsDossier({
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {systeme.map(d => champ(d.cle))}
       </div>
+
+      {/*
+        * L'ECHEANCIER, CALCULE AVANT MEME D'ENREGISTRER.
+        *
+        * Il apparait des que les trois champs sont la, et il dit le nombre REEL de
+        * loyers — pas un nombre de mois theorique. Une periode qui n'en contient aucun
+        * le dit aussi : c'est une information, pas un vide.
+        */}
+      {contratRenseigne && (
+        <div className="mt-3 rounded-lg p-2.5 text-xs break-words"
+          style={{ background: t.surface.secondary, border: `1px solid ${t.surface.border}`, color: t.text.tertiary }}
+          data-testid="crm-immo-apercu-echeancier">
+          {echeancier.length === 0 ? (
+            <>Aucun loyer ne tombe entre ces deux dates. Vérifiez la période et le jour d'encaissement.</>
+          ) : (
+            <>
+              <strong style={{ color: t.text.secondary }} data-testid="crm-immo-apercu-nombre-loyers">
+                {echeancier.length} loyer{echeancier.length > 1 ? 's' : ''}
+              </strong>
+              {' — du '}{enDateFrancaise(echeancier[0].date)}
+              {' au '}{enDateFrancaise(echeancier[echeancier.length - 1].date)}
+              {echeancier.length > 3 && (
+                <span style={{ color: t.label.hint }}>
+                  {' · '}
+                  {echeancier.slice(0, 3).map(e => enDateFrancaise(e.date)).join(', ')}…
+                </span>
+              )}
+            </>
+          )}
+        </div>
+      )}
 
       {colonnesPerso.length > 0 && (
         <div className="mt-5 pt-4" style={{ borderTop: `1px solid ${t.surface.borderLight}` }}>

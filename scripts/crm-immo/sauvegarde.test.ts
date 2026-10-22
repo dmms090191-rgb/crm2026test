@@ -21,9 +21,17 @@ import { CRM_BACKUP_TABLES, CRM_TABLE_NAMES, RESTORE_ORDER } from "../../src/pag
  */
 
 /*
- * QUATRE tables de donnees depuis le 20 octobre 2026. crm_immo_commentaires porte
- * l historique des commentaires d un dossier, qui etait auparavant un champ texte unique
- * ecrase a chaque modification.
+ * SIX tables de donnees depuis le 22 octobre 2026.
+ *
+ * crm_immo_commentaires porte l historique des commentaires d un dossier (20 octobre).
+ * crm_immo_contrats porte les PERIODES de bail, historique compris : sans elle, une
+ * restauration ramenerait le contrat courant sans aucune trace des precedents, et le
+ * renouvellement perdrait tout son sens. crm_immo_loyers porte les ENCAISSEMENTS
+ * constates, annulations comprises.
+ *
+ * L ECHEANCIER, lui, n est PAS sauvegarde : il se derive des dates du contrat, donc il
+ * se reconstruit seul. Sauvegarder une donnee derivee, c est se garantir qu elle
+ * finira par contredire sa source.
  *
  * Ajouter un nom ici fait echouer les tests qui suivent, et chaque echec DESIGNE le
  * fichier:ligne a corriger. C est le seul endroit a modifier en premier : c est lui qui
@@ -31,6 +39,7 @@ import { CRM_BACKUP_TABLES, CRM_TABLE_NAMES, RESTORE_ORDER } from "../../src/pag
  */
 const TABLES_DONNEES = [
   "crm_immo_dossiers", "crm_immo_colonnes", "crm_immo_etats", "crm_immo_commentaires",
+  "crm_immo_contrats", "crm_immo_loyers",
 ];
 
 test("les quatre tables de donnees sont dans la liste de sauvegarde", () => {

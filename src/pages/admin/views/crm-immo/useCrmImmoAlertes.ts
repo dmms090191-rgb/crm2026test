@@ -4,6 +4,7 @@ import { useCompanyId } from '../../../../hooks/useCompanyId';
 import {
   deriverAlertes, journeeDeReference, fuseauLocal, filtrer, compteBadge,
   type Alerte, type EtatConnu, type GenreAlerte, type FiltreAlertes, type DossierPourAlertes,
+  type EncaissementConnu,
 } from '../../../../lib/crmImmoAlertes';
 
 /**
@@ -44,8 +45,13 @@ import {
  */
 
 /* Les seules colonnes dont la derivation a besoin : inutile de rapatrier les
-   commentaires et les valeurs personnalisees pour compter des echeances. */
-const CHAMPS_DOSSIER = 'id,nom,prenom,locataire,proprietaire,date_fin_contrat,jour_encaissement';
+   commentaires et les valeurs personnalisees pour compter des echeances.
+
+   `date_entree` a rejoint la liste le 22 octobre 2026 : sans elle, l'alerte de loyer ne
+   pouvait pas etre bornee par le DEBUT du bail, et un contrat a venir reclamait deja
+   son loyer. Une colonne oubliee ici rend la regle muette sans qu'aucun type ne
+   proteste — `date_entree` est optionnel dans DossierPourAlertes. */
+const CHAMPS_DOSSIER = 'id,nom,prenom,locataire,proprietaire,date_entree,date_fin_contrat,jour_encaissement';
 
 const RYTHME_DERIVATION = 60_000;
 const RYTHME_RESEAU = 300_000;
@@ -65,6 +71,14 @@ export function useCrmImmoAlertes(actif: boolean) {
   const companyId = useCompanyId();
   const [dossiers, setDossiers] = useState<DossierPourAlertes[]>([]);
   const [etats, setEtats] = useState<EtatConnu[]>([]);
+  /*
+   * Les encaissements ACTIFS. Ils entrent dans la derivation pour une seule raison, et
+   * c'est la regle posee par David : un loyer encaisse ne doit plus etre reclame.
+   *
+   * Seuls les non annules sont charges — une ligne annulee ne compte plus comme
+   * encaissee, et son echeance redevient due.
+   */
+  const [encaissements, setEncaissements] = useState<EncaissementConnu[]>([]);
   const [chargement, setChargement] = useState(true);
   const [erreur, setErreur] = useState('');
   const [filtre, setFiltre] = useState<FiltreAlertes>('actives');
@@ -75,16 +89,22 @@ export function useCrmImmoAlertes(actif: boolean) {
   const [aujourdhui, setAujourdhui] = useState(() => journeeDeReference(new Date(), fuseau));
 
   const recharger = useCallback(async () => {
-    if (!actif || !companyId) { setDossiers([]); setEtats([]); setChargement(false); return; }
-    const [d, e] = await Promise.all([
+    if (!actif || !companyId) {
+      setDossiers([]); setEtats([]); setEncaissements([]); setChargement(false); return;
+    }
+    const [d, e, l] = await Promise.all([
       supabase.from('crm_immo_dossiers').select(CHAMPS_DOSSIER).eq('company_id', companyId),
       supabase.from('crm_immo_etats').select('dossier_id,genre,periode,lue_le,traitee_le').eq('company_id', companyId),
+      /* `is('annule_le', null)` : une annulation rend l'echeance a nouveau due. */
+      supabase.from('crm_immo_loyers').select('dossier_id,echeance')
+        .eq('company_id', companyId).is('annule_le', null),
     ]);
-    if (d.error || e.error) {
-      setErreur(d.error?.message ?? e.error?.message ?? '');
+    if (d.error || e.error || l.error) {
+      setErreur(d.error?.message ?? e.error?.message ?? l.error?.message ?? '');
     } else {
       setDossiers((d.data ?? []) as DossierPourAlertes[]);
       setEtats((e.data ?? []) as EtatConnu[]);
+      setEncaissements((l.data ?? []) as EncaissementConnu[]);
       setErreur('');
     }
     /* Le jour est relu a chaque passage reseau : un onglet laisse ouvert la nuit doit
@@ -116,8 +136,8 @@ export function useCrmImmoAlertes(actif: boolean) {
   }, [actif]);
 
   const toutes = useMemo(
-    () => deriverAlertes({ dossiers, etats, aujourdhui }),
-    [dossiers, etats, aujourdhui],
+    () => deriverAlertes({ dossiers, etats, aujourdhui, encaissements }),
+    [dossiers, etats, aujourdhui, encaissements],
   );
 
   const affichees = useMemo(() => filtrer(toutes, filtre), [toutes, filtre]);

@@ -1,10 +1,14 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { X, Pencil, Save, Info, MessageSquare } from 'lucide-react';
+import { X, Pencil, Save, Info, MessageSquare , CalendarClock } from 'lucide-react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 import { useFermetureModale } from './useFermetureModale';
 import { useCrmImmoCommentaires } from './useCrmImmoCommentaires';
 import CrmImmoChampsDossier from './CrmImmoChampsDossier';
 import CrmImmoCommentaires from './CrmImmoCommentaires';
+import { enDateFrancaise } from '../../../../lib/crmImmoAlertes';
+import CrmImmoEcheancier from './CrmImmoEcheancier';
+import CrmImmoRenouvelerModal from './CrmImmoRenouvelerModal';
+import { useCrmImmoEcheancier, type EncaissementDossier } from './useCrmImmoEcheancier';
 import {
   problemeDeSaisie, SAISIE_VIDE, type DossierImmo, type ColonneImmo, type SaisieDossier
 } from './crmImmoTypes';
@@ -37,7 +41,7 @@ import {
  * jetant les changements, << Enregistrer >> ecrit vraiment en base.
  */
 
-export type OngletDetails = 'informations' | 'commentaires';
+export type OngletDetails = 'informations' | 'commentaires' | 'echeancier';
 
 interface Props {
   dossier: DossierImmo;
@@ -71,6 +75,17 @@ export default function CrmImmoDetailsModal({
 }: Props) {
   const t = useThemeTokens();
   const [onglet, setOnglet] = useState<OngletDetails>(ongletInitial);
+
+  /*
+   * L'echeancier du dossier. Il ne calcule rien : les echeances, leur numero et leur
+   * statut viennent de crmImmoEcheancier, la meme fonction que lisent les
+   * notifications. Ce hook ne fait que charger les periodes et les encaissements.
+   */
+  const ech = useCrmImmoEcheancier(dossier.id);
+  const [renouveler, setRenouveler] = useState(false);
+  const [erreurEcheancier, setErreurEcheancier] = useState('');
+  const [aAnnuler, setAAnnuler] = useState<EncaissementDossier | null>(null);
+  const [motifAnnulation, setMotifAnnulation] = useState('');
   const [edition, setEdition] = useState(false);
   const [saisie, setSaisie] = useState<SaisieDossier>(SAISIE_VIDE);
 
@@ -131,9 +146,14 @@ export default function CrmImmoDetailsModal({
   const ONGLETS: { cle: OngletDetails; libelle: string; icone: typeof Info }[] = [
     { cle: 'informations', libelle: 'Informations', icone: Info },
     { cle: 'commentaires', libelle: 'Commentaires', icone: MessageSquare },
+    /* << Échéancier loyers >> : les echeances du bail, leur statut, et le loyer du mois
+       en cours surligne. Il n'a pas de compteur comme les commentaires — le nombre de
+       loyers est deja affiche dans l'onglet, avec la periode qui le produit. */
+    { cle: 'echeancier', libelle: 'Échéancier loyers', icone: CalendarClock },
   ];
 
   return (
+    <>
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
       style={{ background: t.modal.overlayBg }} data-testid="crm-immo-details-modal"
       {...fermeture.proprietesDuFond}>
@@ -214,6 +234,33 @@ export default function CrmImmoDetailsModal({
           )}
 
           {onglet === 'commentaires' && <CrmImmoCommentaires etat={commentaires} />}
+
+          {onglet === 'echeancier' && (
+            <CrmImmoEcheancier
+              echeancier={ech.echeancier}
+              periodeAffichee={ech.periodeAffichee}
+              periodeActive={ech.periodeActive}
+              historique={ech.historique}
+              encaissements={ech.encaissements}
+              compteurs={ech.compteurs}
+              chargement={ech.chargement}
+              enCours={ech.enCours}
+              echeancierDe={ech.echeancierDe}
+              onEncaisser={async (date) => {
+                const e = await ech.marquerEncaisse(date);
+                setErreurEcheancier(e ?? '');
+              }}
+              onAnnuler={(e) => { setAAnnuler(e); setMotifAnnulation(''); }}
+              onRenouveler={() => { setErreurEcheancier(''); setRenouveler(true); }}
+            />
+          )}
+
+          {(ech.erreur !== '' || erreurEcheancier !== '') && onglet === 'echeancier' && (
+            <p className="text-xs px-3 py-2 rounded-lg break-words mt-3" data-testid="crm-immo-echeancier-erreur"
+              style={{ background: t.danger.bg, border: `1px solid ${t.danger.border}`, color: t.danger.text }}>
+              {erreurEcheancier || ech.erreur}
+            </p>
+          )}
         </div>
 
         <div className="px-4 py-3 shrink-0 flex flex-col gap-2"
@@ -283,5 +330,69 @@ export default function CrmImmoDetailsModal({
         </div>
       </div>
     </div>
+
+    {renouveler && (
+      <CrmImmoRenouvelerModal
+        periodeActive={ech.periodeActive}
+        enCours={ech.enCours}
+        erreur={erreurEcheancier}
+        onFermer={() => { setRenouveler(false); setErreurEcheancier(''); }}
+        onValider={async (debut, fin, jour) => {
+          const e = await ech.renouveler(debut, fin, jour);
+          if (e) { setErreurEcheancier(e); return; }
+          setErreurEcheancier('');
+          setRenouveler(false);
+        }}
+      />
+    )}
+
+    {aAnnuler && (
+      <div className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+        style={{ background: t.surface.overlay }} data-testid="crm-immo-annuler-modal">
+        <div className="w-full max-w-md rounded-2xl p-4 flex flex-col gap-3 max-h-[90dvh] overflow-auto"
+          style={{ background: t.card.bg, border: `1px solid ${t.surface.border}` }}>
+          <h3 className="text-sm font-bold" style={{ color: t.heading.primary }}>
+            Annuler l'encaissement du {enDateFrancaise(aAnnuler.echeance)} ?
+          </h3>
+          {/* L'annulation n'efface rien : la ligne est conservee, l'echeance redevient
+              due, et la correction reste lisible dans l'historique. */}
+          <p className="text-xs" style={{ color: t.text.tertiary }}>
+            L'échéance redeviendra due. La ligne n'est pas supprimée : la correction reste
+            visible dans l'historique des encaissements annulés.
+          </p>
+          <label>
+            <span className="block text-xs mb-1" style={{ color: t.modal.fieldLabel }}>
+              Motif (facultatif)
+            </span>
+            <input value={motifAnnulation} onChange={e => setMotifAnnulation(e.target.value)}
+              data-testid="crm-immo-annuler-motif" maxLength={500}
+              placeholder="Erreur de saisie, chèque rejeté…"
+              className="w-full px-3 py-2 rounded-lg text-sm max-md:text-base outline-none"
+              style={{ background: t.modal.fieldBg, border: `1px solid ${t.modal.fieldBorder}`, color: t.modal.fieldValue }} />
+          </label>
+          <div className="flex items-center justify-end gap-2 flex-wrap">
+            <button type="button" onClick={() => setAAnnuler(null)} disabled={ech.enCours}
+              data-testid="crm-immo-annuler-renoncer" aria-label="Renoncer à annuler l'encaissement"
+              className="px-3 py-2 max-md:px-4 max-md:py-3 rounded-lg text-sm font-semibold"
+              style={{ background: t.surface.secondary, border: `1px solid ${t.surface.border}`, color: t.text.secondary }}>
+              Renoncer
+            </button>
+            <button type="button" disabled={ech.enCours}
+              onClick={async () => {
+                const e = await ech.annulerEncaissement(aAnnuler.id, motifAnnulation);
+                setErreurEcheancier(e ?? '');
+                if (!e) setAAnnuler(null);
+              }}
+              data-testid="crm-immo-annuler-confirmer"
+              aria-label="Confirmer l'annulation de l'encaissement"
+              className="px-3 py-2 max-md:px-4 max-md:py-3 rounded-lg text-sm font-semibold"
+              style={{ background: t.danger.bg, border: `1px solid ${t.danger.border}`, color: t.danger.text }}>
+              Annuler l'encaissement
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }

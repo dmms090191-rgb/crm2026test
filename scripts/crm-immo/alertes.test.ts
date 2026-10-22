@@ -15,10 +15,30 @@ import {
 const MOTIF_LOYER = /^[0-9]{4}-(0[1-9]|1[0-2])$/;
 const MOTIF_FIN = /^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$/;
 
+/*
+ * Le dossier de reference porte un bail qui COMMENCE au mois des relevés.
+ *
+ * Deux raisons, et la seconde a ete apprise a ses depens.
+ *
+ * 1. Depuis le 22 octobre 2026, une alerte de loyer n'existe que si le contrat est
+ *    complet ET que l'echeance tombe dedans. Un dossier sans dates ne produit donc plus
+ *    rien, et les tests qui ne s'interessent qu'au jour d'encaissement n'auraient rien
+ *    a mesurer.
+ *
+ * 2. Le debut ne peut pas etre lointain. L'alerte vise le PLUS ANCIEN impaye deja echu :
+ *    un bail commence en l'an 2000 et jamais encaisse ferait donc remonter le loyer de
+ *    janvier 2000, pas celui du mois en cours. Les relevés se font en novembre 2026, le
+ *    bail commence donc le 1er novembre 2026.
+ *
+ * La fin reste lointaine pour ne RIEN declencher d'autre : 2099 est bien au-dela du
+ * preavis de 30 jours, donc aucune alerte de fin de contrat ne brouille les relevés.
+ * Les tests qui veulent une vraie borne la posent explicitement.
+ */
 const dossier = (over: Partial<DossierPourAlertes> = {}): DossierPourAlertes => ({
   id: "d1", nom: "Dupont", prenom: "Jean",
   locataire: "Jean Dupont", proprietaire: "Sarah Cohen",
-  date_fin_contrat: null, jour_encaissement: null, ...over,
+  date_entree: "2026-11-01", date_fin_contrat: "2099-12-31",
+  jour_encaissement: null, ...over,
 });
 
 const seulement = (alertes: Alerte[], genre: string) => alertes.filter(a => a.genre === genre);
@@ -44,6 +64,9 @@ test("jourRabattu : un bail qui dit 31 est honore partout, sans jamais deborder"
   assert.equal(jourRabattu(31, 2026, 1), 31, "janvier : inchange");
   assert.equal(jourRabattu(5, 2026, 2), 5, "un jour normal n est pas touche");
   assert.equal(jourRabattu(30, 2026, 2), 28, "30 en fevrier se rabat aussi");
+  assert.equal(jourRabattu(30, 2028, 2), 29, "30 en fevrier BISSEXTIL s arrete au 29");
+  assert.equal(jourRabattu(29, 2026, 2), 28, "29 en fevrier normal");
+  assert.equal(jourRabattu(29, 2028, 2), 29, "29 en fevrier bissextil : inchange");
   /* Le piege precis : new Date(2026, 1, 31) rend le 3 MARS, sans erreur. Si le
      rabattement etait fait comme ca, l'alerte de fevrier ne sortirait jamais. */
   assert.notEqual(new Date(2026, 1, 31).getMonth(), 1,
@@ -169,32 +192,59 @@ test("CHANGER la date de fin cree une NOUVELLE echeance, donc une nouvelle alert
 // LE LOYER — recurrent, rabattu, et traitable par mois
 // ---------------------------------------------------------------------------
 
-test("loyer : une alerte par mois civil, avec la date rabattue", () => {
-  const d = [dossier({ jour_encaissement: 31 })];
-  const fevrier = seulement(deriverAlertes({ dossiers: d, etats: [], aujourdhui: "2026-02-10" }), "loyer");
-  assert.equal(fevrier.length, 1);
-  assert.equal(fevrier[0].periode, "2026-02");
-  assert.equal(fevrier[0].echeance, "2026-02-28", "le 31 fevrier est rabattu sur le 28");
-
-  const bissextile = seulement(deriverAlertes({ dossiers: d, etats: [], aujourdhui: "2028-02-10" }), "loyer");
-  assert.equal(bissextile[0].echeance, "2028-02-29");
-
-  const avril = seulement(deriverAlertes({ dossiers: d, etats: [], aujourdhui: "2026-04-10" }), "loyer");
-  assert.equal(avril[0].echeance, "2026-04-30");
+test("loyer : la date est rabattue sur les mois courts", () => {
+  /*
+   * Chaque cas porte son PROPRE bail, qui commence au mois mesure.
+   *
+   * Pourquoi : depuis le 22 octobre 2026, l'alerte vise le plus ANCIEN impaye deja echu,
+   * pas celui du mois en cours. Un bail qui commencerait des annees plus tot ferait donc
+   * remonter sa premiere echeance, et le relevé ne mesurerait plus le rabattement.
+   */
+  const cas: [string, string, string, string][] = [
+    ["2026-02-01", "2026-02-28", "2026-02-10", "2026-02-28"],
+    ["2028-02-01", "2028-02-29", "2028-02-10", "2028-02-29"],
+    ["2026-04-01", "2026-04-30", "2026-04-10", "2026-04-30"],
+    ["2026-01-01", "2026-01-31", "2026-01-10", "2026-01-31"],
+  ];
+  for (const [debut, fin, quand, attendue] of cas) {
+    const d = [dossier({ date_entree: debut, date_fin_contrat: fin, jour_encaissement: 31 })];
+    const a = seulement(deriverAlertes({ dossiers: d, etats: [], aujourdhui: quand }), "loyer");
+    assert.equal(a.length, 1, "le " + quand + " : une alerte attendue");
+    assert.equal(a[0].echeance, attendue, "le 31 doit etre rabattu sur " + attendue);
+    assert.equal(a[0].periode, attendue.slice(0, 7), "la periode suit l echeance");
+  }
 });
 
-test("loyer : traiter novembre ne traite pas decembre", () => {
-  const d = [dossier({ jour_encaissement: 5 })];
+test("loyer : traiter un mois ne traite pas le suivant", () => {
+  /*
+   * L'etat est garde par PERIODE — (dossier, genre, 'AAAA-MM') — donc traiter novembre
+   * ne dit rien de decembre.
+   *
+   * Pour que decembre arrive, novembre doit etre ENCAISSE : l'alerte vise le plus ancien
+   * impaye, donc un novembre impaye resterait devant. C'est exactement la regle posee
+   * par David — un loyer encaisse ne reste pas reclame — et elle se mesure ici.
+   */
+  const d = [dossier({ date_entree: "2026-11-01", date_fin_contrat: "2027-10-31", jour_encaissement: 5 })];
   const etats: EtatConnu[] = [{ dossier_id: "d1", genre: "loyer", periode: "2026-11", traitee_le: "2026-11-05T08:00:00Z" }];
 
   const nov = deriverAlertes({ dossiers: d, etats, aujourdhui: "2026-11-20" });
   assert.equal(filtrer(nov, "actives").length, 0, "novembre est traite");
   assert.equal(filtrer(nov, "traitees").length, 1);
 
-  const dec = deriverAlertes({ dossiers: d, etats, aujourdhui: "2026-12-02" });
-  const actives = filtrer(dec, "actives");
-  assert.equal(actives.length, 1, "decembre est une periode NEUVE : l alerte revient");
-  assert.equal(actives[0].periode, "2026-12");
+  /* Novembre encaisse : decembre prend la suite, et il n'est ni lu ni traite. */
+  const dec = deriverAlertes({
+    dossiers: d, etats, aujourdhui: "2026-12-20",
+    encaissements: [{ dossier_id: "d1", echeance: "2026-11-05" }],
+  });
+  const loyer = seulement(dec, "loyer");
+  assert.equal(loyer.length, 1);
+  assert.equal(loyer[0].periode, "2026-12", "c'est decembre qui est reclame");
+  assert.equal(loyer[0].traitee, false, "l'etat de novembre ne colore pas decembre");
+
+  /* Sans l'encaissement, novembre reste devant : il est toujours du. */
+  const sansEncaissement = seulement(deriverAlertes({ dossiers: d, etats, aujourdhui: "2026-12-20" }), "loyer");
+  assert.equal(sansEncaissement[0].periode, "2026-11",
+    "un novembre impaye doit rester reclame en decembre");
 });
 
 test("loyer : l alerte est visible tout le mois, avant comme apres l echeance", () => {
@@ -245,6 +295,128 @@ test("le badge compte les NON LUES et NON TRAITEES — traiter sans lire le reti
   assert.equal(filtrer(apres, "toutes").length, 3, "« Toutes » n applique aucun filtre");
 });
 
+// ---------------------------------------------------------------------------
+// LES BORNES DU CONTRAT — pas de contrat complet, pas d'alerte de loyer
+// ---------------------------------------------------------------------------
+//
+// Jusqu'au 22 octobre 2026, l'alerte de loyer ne regardait QUE jour_encaissement. Elle
+// sortait donc tous les mois, indefiniment, sans jamais consulter les bornes du bail.
+// Mesure faite sur le dossier reel du module, dont le contrat s'arretait le 20/10/2026 :
+//
+//     consulte le 15/01/2030                        -> 1 alerte, echeance 20/01/2030
+//     contrat du 01/03/2027, consulte le 22/10/2026 -> 1 alerte, deja
+//
+// L'echeancier rendait la contradiction visible : il disait << contrat termine, 1 loyer >>
+// pendant que la cloche reclamait un loyer de 2030. David a tranche : la regle est
+// stricte, et c'est la regle du contrat.
+
+test("loyer : un bail TERMINE ne reclame que ses loyers IMPAYES", () => {
+  /*
+   * LE BUG D'ORIGINE, mesure avant correction : un bail fini le 20/10/2026 reclamait
+   * encore, le 15/01/2030, un loyer d'echeance 20/01/2030. Cette echeance N'EXISTE PAS —
+   * elle est hors du contrat. C'est ce que construireEcheancier supprime : il ne produit
+   * que les echeances comprises entre les deux dates.
+   *
+   * Ce qui RESTE reclame, en revanche, c'est le loyer du 20/10/2026 lui-meme s'il n'a
+   * jamais ete encaisse. C'est une vraie dette, et la faire taire parce que le bail
+   * s'est termine ferait perdre de l'argent.
+   */
+  const d = [dossier({ date_entree: "2026-10-06", date_fin_contrat: "2026-10-20", jour_encaissement: 20 })];
+  const paye = [{ dossier_id: "d1", echeance: "2026-10-20" }];
+
+  for (const quand of ["2026-11-15", "2027-06-15", "2030-01-10"]) {
+    const impaye = seulement(deriverAlertes({ dossiers: d, etats: [], aujourdhui: quand }), "loyer");
+    assert.equal(impaye.length, 1, "le " + quand + " : le loyer impaye doit rester reclame");
+    assert.equal(impaye[0].echeance, "2026-10-20",
+      "le " + quand + " : l'echeance doit rester celle du contrat, jamais une date inventee");
+
+    const regle = seulement(deriverAlertes({ dossiers: d, etats: [], aujourdhui: quand, encaissements: paye }), "loyer");
+    assert.equal(regle.length, 0, "le " + quand + " : un loyer encaisse ne se reclame plus");
+  }
+});
+
+test("loyer : un bail PAS ENCORE COMMENCE ne reclame rien", () => {
+  const d = [dossier({ date_entree: "2027-03-01", date_fin_contrat: "2028-02-29", jour_encaissement: 15 })];
+  assert.equal(seulement(deriverAlertes({ dossiers: d, etats: [], aujourdhui: "2026-10-22" }), "loyer").length, 0,
+    "un contrat qui commence en 2027 reclame deja son loyer en 2026");
+  /* Et des qu'il commence, il reclame. */
+  assert.equal(seulement(deriverAlertes({ dossiers: d, etats: [], aujourdhui: "2027-03-02" }), "loyer").length, 1,
+    "le contrat a commence : son loyer doit sortir");
+});
+
+test("loyer : les BORNES sont incluses, des deux cotes", () => {
+  /*
+   * Un bail qui finit le 20 doit encore son loyer du 20, et un bail qui commence le 5
+   * doit celui du 5. Ce sont les deux cas ou un << plus petit que >> au lieu d'un
+   * << plus petit ou egal >> ferait disparaitre un vrai loyer sans que personne ne s'en
+   * apercoive.
+   *
+   * Chaque bail ne couvre qu'un seul mois : sans cela, l'alerte viserait une echeance
+   * anterieure et le relevé ne mesurerait plus la borne.
+   */
+  const finPile = [dossier({ date_entree: "2026-11-01", date_fin_contrat: "2026-11-20", jour_encaissement: 20 })];
+  const a1 = seulement(deriverAlertes({ dossiers: finPile, etats: [], aujourdhui: "2026-11-10" }), "loyer");
+  assert.equal(a1.length, 1, "l'echeance EGALE a la fin du bail doit sortir");
+  assert.equal(a1[0].echeance, "2026-11-20");
+
+  const debutPile = [dossier({ date_entree: "2026-11-05", date_fin_contrat: "2026-11-30", jour_encaissement: 5 })];
+  const a2 = seulement(deriverAlertes({ dossiers: debutPile, etats: [], aujourdhui: "2026-11-01" }), "loyer");
+  assert.equal(a2.length, 1, "l'echeance EGALE au debut du bail doit sortir");
+  assert.equal(a2[0].echeance, "2026-11-05");
+
+  /* Un jour de plus de chaque cote, et il n'y a plus rien du tout. */
+  const finVeille = [dossier({ date_entree: "2026-11-01", date_fin_contrat: "2026-11-19", jour_encaissement: 20 })];
+  assert.equal(seulement(deriverAlertes({ dossiers: finVeille, etats: [], aujourdhui: "2026-11-10" }), "loyer").length, 0,
+    "une echeance APRES la fin du bail ne doit pas sortir");
+
+  const debutLendemain = [dossier({ date_entree: "2026-11-06", date_fin_contrat: "2026-11-30", jour_encaissement: 5 })];
+  assert.equal(seulement(deriverAlertes({ dossiers: debutLendemain, etats: [], aujourdhui: "2026-11-01" }), "loyer").length, 0,
+    "une echeance AVANT le debut du bail ne doit pas sortir");
+});
+
+test("loyer : un contrat INCOMPLET ne produit aucune alerte", () => {
+  const cas: [string, Partial<DossierPourAlertes>][] = [
+    ["sans date d entree", { date_entree: null, date_fin_contrat: "2027-12-31", jour_encaissement: 5 }],
+    ["sans date de fin", { date_entree: "2026-01-01", date_fin_contrat: null, jour_encaissement: 5 }],
+    ["sans jour d encaissement", { date_entree: "2026-01-01", date_fin_contrat: "2027-12-31", jour_encaissement: null }],
+    ["sans aucune des trois", { date_entree: null, date_fin_contrat: null, jour_encaissement: null }],
+    ["date d entree abimee", { date_entree: "pas-une-date", date_fin_contrat: "2027-12-31", jour_encaissement: 5 }],
+    ["date de fin abimee", { date_entree: "2026-01-01", date_fin_contrat: "2026-13-99", jour_encaissement: 5 }],
+  ];
+  for (const [quoi, over] of cas) {
+    const a = deriverAlertes({ dossiers: [dossier(over)], etats: [], aujourdhui: "2026-11-15" });
+    assert.equal(seulement(a, "loyer").length, 0, quoi + " : une alerte de loyer est sortie quand meme");
+  }
+});
+
+test("loyer : le rabattement joue AVANT la borne, pas apres", () => {
+  /*
+   * Le piege fin. Un bail qui finit le 28 fevrier, avec un loyer au 31 : l'echeance
+   * rabattue EST le 28 fevrier, donc elle tombe pile sur la fin et doit sortir.
+   *
+   * Si la borne etait comparee au jour BRUT (31), elle le trouverait apres le 28 et
+   * ferait disparaitre un loyer parfaitement du.
+   */
+  const d = [dossier({ date_entree: "2026-02-01", date_fin_contrat: "2026-02-28", jour_encaissement: 31 })];
+  const a = seulement(deriverAlertes({ dossiers: d, etats: [], aujourdhui: "2026-02-10" }), "loyer");
+  assert.equal(a.length, 1, "le loyer rabattu sur la fin du bail doit sortir");
+  assert.equal(a[0].echeance, "2026-02-28");
+
+  /* Et en annee bissextile, le rabattement donne le 29, qui depasse une fin au 28. */
+  const bissextile = [dossier({ date_entree: "2028-02-01", date_fin_contrat: "2028-02-28", jour_encaissement: 31 })];
+  assert.equal(seulement(deriverAlertes({ dossiers: bissextile, etats: [], aujourdhui: "2028-02-10" }), "loyer").length, 0,
+    "rabattu au 29, le loyer depasse une fin de bail au 28 : il ne doit pas sortir");
+});
+
+test("fin de contrat : la regle du loyer ne l a PAS touchee", () => {
+  /* Les deux alertes sont independantes. Un contrat sans jour d encaissement doit
+     toujours annoncer sa fin — c'est meme le cas le plus courant. */
+  const d = [dossier({ date_entree: "2026-01-01", date_fin_contrat: "2026-11-20", jour_encaissement: null })];
+  const a = deriverAlertes({ dossiers: d, etats: [], aujourdhui: "2026-11-10" });
+  assert.equal(seulement(a, "fin_contrat").length, 1, "la fin de contrat doit toujours sortir");
+  assert.equal(seulement(a, "loyer").length, 0, "mais pas le loyer, faute de jour d encaissement");
+});
+
 test("un etat qui ne correspond a aucune alerte derivee est inerte", () => {
   /* Cas reel : une alerte traitee il y a six mois, dont la periode n est plus
      derivee. Elle ne doit NI reapparaitre, NI faire planter la derivation. */
@@ -291,15 +463,21 @@ test("l affichage porte TOUJOURS locataire, proprietaire et echeance", () => {
 
 test("la phrase de David, au caractere pres, pour les deux genres", () => {
   /*
-   * Exigence litterale : << Contrat bientot termine — {locataire} — proprietaire
-   * {proprietaire} — echeance le {date} >> et << Loyer a encaisser — {locataire} —
-   * pour {proprietaire} — echeance le {date} >>.
+   * Exigence litterale, enrichie le 22 octobre 2026 du RANG DU LOYER :
+   *
+   *   Contrat bientot termine — {locataire} — proprietaire {proprietaire} — echeance le {date}
+   *   Loyer a encaisser — {n}e loyer sur {total} — {locataire} — pour {proprietaire} — echeance le {date}
+   *
+   * Le rang vient de construireEcheancier, donc il est forcement d'accord avec l'onglet
+   * Echeancier loyers : c'est la meme fonction qui les produit tous les deux.
    *
    * Ce test est volontairement ecrit en DUR, sans reutiliser les constantes du module :
    * un test qui derive sa valeur attendue de la source ne verifie plus rien.
    */
   const a = deriverAlertes({
-    dossiers: [dossier({ jour_encaissement: 5, date_fin_contrat: "2026-12-15" })],
+    dossiers: [dossier({
+      date_entree: "2026-11-01", date_fin_contrat: "2026-12-15", jour_encaissement: 5,
+    })],
     etats: [], aujourdhui: "2026-11-19",
   });
   const fin = a.find(x => x.genre === "fin_contrat")!;
@@ -311,9 +489,36 @@ test("la phrase de David, au caractere pres, pour les deux genres", () => {
   );
   assert.equal(
     libelleAlerte(loyer),
-    /* Le 19 novembre, le loyer courant est celui de NOVEMBRE : l alerte reste visible
-       tout le mois, meme apres le 5. Ce n est pas le loyer de decembre. */
-    "Loyer à encaisser — Jean Dupont — pour Sarah Cohen — échéance le 05/11/2026",
+    /* Un bail du 01/11 au 15/12 avec un loyer au 5 contient DEUX echeances : le 05/11 et
+       le 05/12. Le 19 novembre, celle de novembre est echue et impayee — c'est donc le
+       1er loyer sur 2. */
+    "Loyer à encaisser — 1er loyer sur 2 — Jean Dupont — pour Sarah Cohen — échéance le 05/11/2026",
+  );
+
+  /* Un mois plus tard, novembre toujours impaye : la phrase dit le RETARD, et garde le
+     meme numero — c'est bien le premier loyer qui n'a pas ete paye. */
+  const enRetard = deriverAlertes({
+    dossiers: [dossier({
+      date_entree: "2026-11-01", date_fin_contrat: "2026-12-15", jour_encaissement: 5,
+    })],
+    etats: [], aujourdhui: "2026-12-10",
+  }).find(x => x.genre === "loyer")!;
+  assert.equal(
+    libelleAlerte(enRetard),
+    "Loyer en retard — 1er loyer sur 2 — Jean Dupont — pour Sarah Cohen — échéance le 05/11/2026",
+  );
+
+  /* Novembre encaisse : on passe au second, et il n'est plus en retard. */
+  const suivant = deriverAlertes({
+    dossiers: [dossier({
+      date_entree: "2026-11-01", date_fin_contrat: "2026-12-15", jour_encaissement: 5,
+    })],
+    etats: [], aujourdhui: "2026-12-10",
+    encaissements: [{ dossier_id: "d1", echeance: "2026-11-05" }],
+  }).find(x => x.genre === "loyer")!;
+  assert.equal(
+    libelleAlerte(suivant),
+    "Loyer à encaisser — 2e loyer sur 2 — Jean Dupont — pour Sarah Cohen — échéance le 05/12/2026",
   );
 });
 
@@ -325,14 +530,15 @@ test("titre + detail redonnent EXACTEMENT la phrase entiere", () => {
    * s il s agit de deux alertes.
    *
    * libelleAlerte EST definie comme titre + separateur + detail. Ce test fige l identite
-   * pour que personne ne reecrive l une des trois a la main.
+   * pour que personne ne reecrive l une des trois a la main. Le rang du loyer vit dans
+   * le TITRE, donc il traverse les trois surfaces sans etre ecrit deux fois.
    */
   const a = deriverAlertes({
     dossiers: [
-      dossier({ jour_encaissement: 31, date_fin_contrat: "2026-02-28" }),
+      dossier({ date_entree: "2026-02-01", date_fin_contrat: "2026-02-28", jour_encaissement: 31 }),
       dossier({ id: "d2", locataire: "Marie-Antoinette Vandenbergheimerstein",
                 proprietaire: "Jean-Baptiste de la Rochefoucauld", jour_encaissement: 1,
-                date_fin_contrat: "2027-01-03" }),
+                date_entree: "2026-02-01", date_fin_contrat: "2027-01-03" }),
     ],
     etats: [], aujourdhui: "2026-02-01",
   });
@@ -345,6 +551,12 @@ test("titre + detail redonnent EXACTEMENT la phrase entiere", () => {
     assert.ok(!detailAlerte(x).startsWith(titreAlerte(x)),
       "le detail repete le titre : " + detailAlerte(x));
   }
+
+  /* Le rang est dans le titre, jamais dans le detail : sinon il s'afficherait deux fois
+     dans la cloche du module, qui montre la phrase entiere. */
+  const loyer = a.find(x => x.genre === "loyer")!;
+  assert.match(titreAlerte(loyer), /loyer sur \d+/, "le titre doit porter le rang");
+  assert.doesNotMatch(detailAlerte(loyer), /loyer sur \d+/, "le detail ne doit PAS le repeter");
 });
 
 test("une date est toujours jj/mm/aaaa, jamais la locale du poste", () => {

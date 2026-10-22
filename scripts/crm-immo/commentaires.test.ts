@@ -367,30 +367,42 @@ test("D1 — quatre libelles explicites, sans toucher aux colonnes SQL", () => {
 // E — LA SAUVEGARDE
 // ===========================================================================
 
-test("E1 — la nouvelle table est sauvegardee ET restauree, dans le bon ordre", () => {
+test("E1 — les tables filles sont sauvegardees ET restaurees, dans le bon ordre", () => {
   /*
    * Le piege nomme dans restoreConstants.ts : une table ajoutee a la liste d export et
    * oubliee dans l ordre de restauration serait SAUVEGARDEE puis JAMAIS RESTAUREE, sans
-   * que le rapport la mentionne. La sauvegarde paraitrait complete et CRM Immo
-   * reviendrait sans ses commentaires.
+   * que le rapport la mentionne. La sauvegarde paraitrait complete, et le module
+   * reviendrait ampute.
+   *
+   * Ce test couvrait d abord crm_immo_commentaires seule, et exigeait qu elle soit la
+   * DERNIERE de RESTORE_ORDER. C etait trop etroit : le 22 octobre 2026, deux tables
+   * sont venues apres elle et le test a echoue sans qu il y ait de defaut. La vraie
+   * regle n a jamais ete << en derniere position >>, c est << APRES les dossiers >>,
+   * parce que ces tables portent toutes la cle composee (dossier_id, company_id).
    */
   const c = lire("src/pages/admin/views/sauvegarde/restoreConstants.ts");
-  assert.match(c, /name: 'crm_immo_commentaires'/, "la table n est pas sauvegardee");
-  assert.match(c, /'crm_immo_commentaires',\n\] as const;/,
-    "la table n est pas dans l ordre de restauration, ou pas en dernier");
+  const restore = lire("src/pages/admin/views/sauvegarde/useRestoreCrm.ts");
 
-  /* L ORDRE : elle porte la meme cle composee que crm_immo_etats, donc elle vient APRES
-     les dossiers, sous peine de 23503. */
+  const FILLES = ["crm_immo_commentaires", "crm_immo_contrats", "crm_immo_loyers"];
   const ordre = c.slice(c.indexOf("export const RESTORE_ORDER"));
   const iDossiers = ordre.indexOf("'crm_immo_dossiers'");
-  const iCommentaires = ordre.indexOf("'crm_immo_commentaires'");
-  assert.ok(iDossiers >= 0 && iCommentaires > iDossiers,
-    "les commentaires sont restaures AVANT les dossiers : 23503 garanti");
+  assert.ok(iDossiers >= 0, "crm_immo_dossiers manque dans RESTORE_ORDER");
 
-  /* Et son company_id doit etre reecrit avec la Societe de destination. */
-  const restore = lire("src/pages/admin/views/sauvegarde/useRestoreCrm.ts");
-  assert.match(restore, /'crm_immo_commentaires'/,
-    "la table ne figure pas parmi celles dont company_id est reecrit");
+  for (const t of FILLES) {
+    assert.ok(c.includes("name: '" + t + "'"), t + " n est pas sauvegardee");
+
+    const i = ordre.indexOf("'" + t + "'");
+    assert.ok(i >= 0, t + " n est pas dans l ordre de restauration : elle ne reviendrait jamais");
+    assert.ok(i > iDossiers,
+      t + " est restauree AVANT crm_immo_dossiers : 23503 garanti sur la cle composee");
+
+    assert.ok(c.includes(t + ": 'id'"), t + " n a pas de cle primaire declaree");
+    assert.ok(new RegExp(t + ":\\s*\\[").test(c),
+      t + " n a pas de regle FK : une orpheline emporterait son lot entier");
+
+    assert.ok(restore.includes("'" + t + "'"),
+      t + " ne figure pas parmi celles dont company_id est reecrit");
+  }
 });
 
 test("E2 — crm_immo_acces reste hors de TOUTE liste", () => {

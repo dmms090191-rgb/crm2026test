@@ -458,11 +458,29 @@ test("F1 — aucun fichier de CRM Immo n importe le systeme de notifications gen
   }
 });
 
-test("F2 — la cloche du module ne lit QUE ses deux tables", () => {
+test("F2 — la cloche du module ne lit QUE les tables de CRM Immo", () => {
+  /*
+   * L'isolement du module : sa cloche ne doit pas aller chercher ailleurs. Elle lisait
+   * deux tables ; elle en lit TROIS depuis le 22 octobre 2026.
+   *
+   * crm_immo_loyers a rejoint la liste pour une seule raison, et c'est une regle posee
+   * par David : << loyer encaisse = ne doit plus rester comme loyer actif a encaisser >>.
+   * Sans cette lecture, la cloche reclamerait un loyer deja paye, et contredirait
+   * l'onglet Echeancier — exactement ce qu'on cherche a eviter.
+   *
+   * Les contrats, eux, ne sont PAS lus : les trois colonnes du dossier sont deja le
+   * reflet de la periode en cours, tenu par declencheur. Les relire serait une seconde
+   * source pour la meme verite.
+   */
   const src = lire(DOSSIER_MODULE + "/useCrmImmoAlertes.ts");
   const tables = [...src.matchAll(/\.from\('([^']+)'\)/g)].map(m => m[1]);
-  assert.deepEqual([...new Set(tables)].sort(), ["crm_immo_dossiers", "crm_immo_etats"],
+  assert.deepEqual([...new Set(tables)].sort(),
+    ["crm_immo_dossiers", "crm_immo_etats", "crm_immo_loyers"],
     "la cloche interroge " + tables.join(", ") + " : elle ne doit lire que ses propres tables");
+
+  /* Et seuls les encaissements ACTIFS comptent : une annulation rend l'echeance due. */
+  assert.match(src, /\.is\('annule_le', null\)/,
+    "la cloche compterait les encaissements ANNULES comme encaisses");
 });
 
 test("F3 — V1 sans Realtime : aucun canal dans tout le module", () => {
