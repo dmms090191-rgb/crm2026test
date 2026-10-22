@@ -82,6 +82,65 @@ function versSaisie(d: DossierImmo): SaisieDossier {
   };
 }
 
+/*
+ * L'INDICATEUR D'ONGLET ACTIF CHANGE DE FORME AVEC LA MISE EN PAGE, PARCE QU'IL LE DOIT.
+ *
+ * En rangee, un lisere de 2 px sous l'onglet actif tombe sur le bord bas de la barre,
+ * donc contre le panneau : il DESIGNE le contenu qu'il ouvre. Dans la grille 2 x 2, les
+ * deux onglets de la premiere ligne n'ont aucun bord de barre sous eux — leur lisere
+ * flotte au MILIEU de la barre, 4 px au-dessus de la seconde ligne, et se lit alors comme
+ * un soulignement de l'onglet du DESSOUS. Mesure a 360 px : bord bas de l'onglet actif a
+ * y=54 dans une barre de 105 px, soit 51 px trop haut. Et le defaut etait PERMANENT sur
+ * telephone, car les deux seules portes d'entree de la modale ouvrent sur un onglet de la
+ * premiere ligne : CrmImmoCards et CrmImmoTable passent 'informations' ou 'commentaires'.
+ *
+ * Sous md, l'onglet actif est donc marque comme une CASE — teinte de fond et bordure
+ * complete — et non par un bord bas. C'est le patron maison du tablist en grille
+ * (SiteTabs) et du selecteur de SimulationPreview.
+ *
+ * ---------- POURQUOI LA BORDURE EST accent.solid ET NON tab.activeBorder ----------
+ *
+ * t.tab.activeBorder etait le jeton evident, et il est FAUX ici. Mesure du contraste de
+ * la bordure elle-meme contre le fond de modale, sur les seize themes selectionnables,
+ * avec le plancher maison de 3:1 pour un element d'interface non textuel (celui de
+ * scripts/talixy/talixyFoundations.test.ts) :
+ *
+ *   tab.activeBorder -> minimum 1,10. Sous le plancher sur DEUX themes : talixy a 1,10
+ *     (rgba(255,255,255,0.9) sur un fond clair : une alpha elevee n'est pas un contraste)
+ *     et highlevel_emerald a 2,10.
+ *   accent.solid     -> minimum 2,10. Sous le plancher sur UN seul theme,
+ *     highlevel_emerald, qui l'etait DEJA : c'est la couleur du lisere d'avant.
+ *   accent.border    -> sous le plancher sur les SEIZE. Inutilisable.
+ *
+ * Donc accent.solid : elle n'introduit aucun theme degrade, et sur talixy elle evite un
+ * recul net (1,10 contre 6,85 auparavant). Elle a un second merite : l'indicateur porte
+ * alors la MEME couleur dans les deux mises en page, seule sa forme change.
+ *
+ * La teinte de fond reste t.tab.activeBg. Elle ne porte PAS le signal — mesuree entre
+ * 1,04 et 1,31 contre le fond — c'est la bordure qui le porte ; elle ne fait qu'affirmer
+ * la case.
+ *
+ * La couleur du texte ne change pas : t.accent.text. Mesure du contraste du TEXTE sur la
+ * case active, teinte composee sur le fond : la teinte etant de la couleur de l'accent,
+ * elle rapproche le fond du texte et fait BAISSER le contraste de 0,12 a 2,72 selon le
+ * theme. Tous restent au-dessus de 4,0 — le plus bas est red a 4,02 — sauf
+ * highlevel_emerald a 2,76, qui etait DEJA a 2,88 : son defaut lui est anterieur et n'est
+ * pas corrige ici. On ne prend pas t.tab.activeText, mais sans en dire du mal : dans
+ * douze des seize themes il vaut EXACTEMENT accent.text, et dans les quatre autres il est
+ * plus contraste. Le garder ici n'apporterait donc rien et changerait la couleur de
+ * l'onglet actif sur quatre themes sans raison.
+ *
+ * A partir de md, le lisere revient tel qu'il etait.
+ *
+ * Pourquoi des proprietes CSS personnalisees et non le style inline : un style inline
+ * gagne contre toute classe, donc aucun `md:` ne pourrait le reprendre. L'idiome — poser
+ * la variable inline, la consommer en [color:var(...)] — est celui d'AdminMobileBellMenu
+ * et des ecrans site-builder.
+ */
+const ONGLET_ACTIF =
+  'max-md:bg-[color:var(--onglet-fond)] max-md:border-[color:var(--onglet-trait)] md:border-b-[color:var(--onglet-trait)]';
+const ONGLET_INACTIF = 'max-md:border-transparent md:border-b-transparent';
+
 export default function CrmImmoDetailsModal({
   dossier, colonnesPerso, ongletInitial, enCours, erreur, onFermer, onEnregistrer, onPeriodeChangee,
 }: Props) {
@@ -215,23 +274,47 @@ export default function CrmImmoDetailsModal({
           LES ONGLETS. role="tablist" et aria-selected : un lecteur d'ecran annonce alors
           << onglet 1 sur 4, selectionne >> au lieu de quatre boutons sans rapport.
 
-          ---------- POURQUOI LA RANGEE DEFILE ----------
+          ---------- UNE GRILLE SOUS 768 PX, LA RANGEE AU-DESSUS ----------
 
-          Mesure a 320 px : avec trois onglets, << Échéancier loyers >> s'enroulait DEJA
-          sur deux lignes et les pastilles faisaient 64 px de haut au lieu de 44. Avec un
-          quatrieme, la rangee deborde (334 px de contenu pour 320 px) et tous les
-          libelles se compriment — le texte sortant alors de son propre bouton, dans une
-          coque dont l'overflow-x calcule vaut `hidden` : l'onglet existerait dans le code
-          sans exister a l'ecran, sans barre de defilement et sans message.
+          La rangee qui defile ne suffisait pas, et la mesure le dit : a 360 px, les
+          quatre onglets font 564 px de contenu dans 358 px de barre. << Échéancier
+          loyers >> finissait a 442 px et << Documents >> a 564 — tous deux HORS ECRAN.
+          Le defilement existait, mais rien ne l'annoncait : on ne decouvrait le
+          quatrieme onglet qu'en balayant au hasard. Un onglet qu'on ne sait pas
+          atteindre n'existe pas.
 
-          `overflow-x-auto` plus `whitespace-nowrap shrink-0` traite les deux mecanismes a
-          la fois, et ramene les pastilles a 44 px — donc il corrige aussi le defaut qui
-          existait avant ce chantier. Le meme patron sert deja la rangee de filtres du
-          module. Rien ne l'interdit ici : la prohibition d'overflow-x-auto de
-          theme.test.ts ne vise que CrmImmoCards.
+          D'ou la grille 2 x 2 : les quatre sont la d'un coup, sans geste a deviner.
+
+          ---------- POURQUOI md ET NON sm ----------
+
+          La frontiere mobile/bureau de ce module est md, pas sm, et la source durable de
+          ce fait est theme.test.ts, qui EXIGE `hidden md:block` sur le tableau et
+          `md:hidden` sur les fiches. (Un comptage des `max-md:` du module le montrerait
+          aussi, mais un comptage vieillit a chaque commit : on cite donc le test, pas un
+          nombre.) Avec un `sm:` ici, la bande 640-767 px montrait les
+          FICHES mobiles sous une barre d'onglets deja en rangee bureau — deux mises en
+          page de generations differentes dans la meme vue, et une bande que rien ne
+          mesurait. `md:` fait coincider les deux bascules sur le meme pixel.
+
+          Ce que ce choix coute, dit franchement : entre ~600 et 767 px la rangee TENAIT
+          deja entiere (mesure a 601 px : debordement 0, bord droit de << Documents >> a
+          587 px pour 599 px de barre). La grille y ajoute donc une seconde ligne, soit
+          ~50 px pris au corps defilant. C'est le prix de la coherence avec les fiches, et
+          c'est un prix, pas un gain.
+
+          `no-scrollbar` reste sans prefixe : il est inerte quand il n'y a pas de barre de
+          defilement, donc il ne gene pas la grille.
+
+          Les deux variables CSS posees ici alimentent ONGLET_ACTIF — voir son
+          commentaire en tete de fichier pour la raison.
         */}
-        <div className="flex items-stretch gap-1 px-3 pt-2 shrink-0 overflow-x-auto no-scrollbar" role="tablist"
-          style={{ borderBottom: `1px solid ${t.modal.border}` }}>
+        <div className="grid grid-cols-2 gap-1 px-3 pt-2 shrink-0 no-scrollbar md:flex md:items-stretch md:overflow-x-auto"
+          role="tablist"
+          style={{
+            borderBottom: `1px solid ${t.modal.border}`,
+            '--onglet-fond': t.tab.activeBg,
+            '--onglet-trait': t.accent.solid,
+          } as React.CSSProperties}>
           {ONGLETS.map(o => {
             const actif = onglet === o.cle;
             const Icone = o.icone;
@@ -239,18 +322,24 @@ export default function CrmImmoDetailsModal({
               <button key={o.cle} type="button" role="tab" aria-selected={actif}
                 onClick={() => setOnglet(o.cle)}
                 data-testid={`crm-immo-details-onglet-${o.cle}`}
-                /* py-3 : 44 px de haut au doigt, sans toucher a la largeur.
-                   whitespace-nowrap et shrink-0 : le libelle garde sa largeur naturelle
-                   et sort du cadre par le DEFILEMENT, au lieu d'etre comprime jusqu'a
-                   deborder de son propre bouton. */
-                className="inline-flex items-center gap-1.5 px-3 py-3 rounded-t-lg text-sm font-semibold whitespace-nowrap shrink-0"
-                style={actif
-                  ? { color: t.accent.text, borderBottom: `2px solid ${t.accent.solid}` }
-                  : { color: t.text.secondary, borderBottom: '2px solid transparent' }}>
-                <Icone className="w-4 h-4" />
+                /* `max-md:min-h-[44px]` et non `min-h-[44px]` : la cible au doigt est
+                   prefixee PARTOUT ailleurs dans le module (une trentaine de
+                   `max-md:min-h-[44px]`), et la laisser sans prefixe epaississait la
+                   rangee de bureau sans raison. Dans la grille, un libelle qui s'enroule
+                   doit AGRANDIR le bouton, jamais le reduire sous 44 px.
+                   `max-md:border` reserve 1 px sur les quatre cotes : l'onglet actif et
+                   les trois autres occupent alors la meme place, donc rien ne saute au
+                   changement d'onglet. Le bord bas de 2 px, lui, n'existe qu'a partir de
+                   md — d'ou `md:border-b-2` et non un `border-b-2` nu.
+                   Le texte est centre dans sa case sous md, aligne a gauche en rangee.
+                   whitespace-nowrap et shrink-0 ne valent qu'a partir de md : sous md le
+                   libelle doit pouvoir s'enrouler plutot que de sortir de sa case. */
+                className={`inline-flex items-center justify-center gap-1.5 px-2 py-3 text-sm font-semibold text-center max-md:min-h-[44px] max-md:rounded-lg max-md:border md:rounded-t-lg md:border-b-2 md:justify-start md:px-3 md:text-left md:whitespace-nowrap md:shrink-0 ${actif ? ONGLET_ACTIF : ONGLET_INACTIF}`}
+                style={{ color: actif ? t.accent.text : t.text.secondary }}>
+                <Icone className="w-4 h-4 shrink-0" />
                 {o.libelle}
                 {o.cle === 'commentaires' && nombre > 0 && (
-                  <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold"
+                  <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold shrink-0"
                     data-testid="crm-immo-details-onglet-compte"
                     style={{ background: t.accent.solid, color: t.text.inverse }}>
                     {nombre > 99 ? '99+' : nombre}

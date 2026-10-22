@@ -35,12 +35,39 @@ const lire = (p: string) => readFileSync(p, 'utf8');
 const sansCommentaires = (s: string) =>
   s.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1 ');
 
+/** La balise OUVRANTE d'un element JSX, a partir de son `<`. Un `[^>]*` ne suffit pas :
+ *  une balise contient des fleches `=>` (onClick={() => ...}), et la recherche
+ *  s'arreterait au premier chevron de la fleche. On coupe donc au premier `>` qui ne
+ *  suit pas un `=`. */
+const baliseOuvrante = (src: string, depuis: number) => {
+  for (let i = depuis; i < src.length; i++) {
+    if (src[i] === '>' && src[i - 1] !== '=') return src.slice(depuis, i + 1);
+  }
+  return '';
+};
+/** Toutes les balises ouvrantes `<nom ...>` de la source qui portent le motif donne.
+ *  On cherche ainsi un element par son ROLE et non par un prefixe de ses classes : un
+ *  prefixe de classes change avec le style, et son echec rendait une chaine vide. */
+const balisesAvec = (src: string, nom: string, motif: RegExp) => {
+  const trouvees: string[] = [];
+  for (let p = src.indexOf('<' + nom); p !== -1; p = src.indexOf('<' + nom, p + 1)) {
+    const balise = baliseOuvrante(src, p);
+    if (motif.test(balise)) trouvees.push(balise);
+  }
+  return trouvees;
+};
+
 const D = 'src/pages/admin/views/crm-immo/';
 const COMPOSANT = lire(D + 'CrmImmoDocuments.tsx');
 const HOOK = lire(D + 'useCrmImmoDocuments.ts');
 const CODE_HOOK = sansCommentaires(HOOK);
 const CODE_COMPOSANT = sansCommentaires(COMPOSANT);
 const MODALE = lire(D + 'CrmImmoDetailsModal.tsx');
+/** La modale SANS ses commentaires, comme CODE_HOOK et CODE_COMPOSANT. Ses commentaires
+ *  citent les classes qu'ils expliquent — `max-md:min-h-[44px]`, `md:border-b-2`,
+ *  `role="tablist"` — et une assertion qui lirait la prose trouverait ce qu'elle cherche
+ *  sans que le code le porte. Piege deja rencontre ici une fois, sur role="tablist". */
+const CODE_MODALE = sansCommentaires(MODALE);
 const CONVERSION = sansCommentaires(lire('src/lib/crmImmoConversion.ts'));
 
 /** Les migrations du chantier, retrouvees par leur nom et non par une version figee :
@@ -266,19 +293,144 @@ console.log('\n=== 7. L ONGLET EST BRANCHE DANS LA MODALE EXISTANTE ===');
   t('il n y a toujours qu UNE modale Details',
     (lire('src/pages/admin/views/CrmImmo.tsx').match(/<CrmImmoDetailsModal/g) ?? []).length === 1);
 
-  /* Mesure a 320 px : avec trois onglets << Échéancier loyers >> s enroulait DEJA sur
-     deux lignes (64 px au lieu de 44) ; avec quatre, la rangee deborde a 334 px pour 320
-     et les libelles se compriment jusqu a sortir de leur bouton, dans une coque dont
-     l overflow-x calcule vaut hidden. */
-  /* On ancre sur la BALISE, pas sur la chaine role="tablist" : le commentaire qui
-     explique la barre la contient aussi, et un indexOf tombait dessus — l'assertion
-     echouait alors que la classe etait bien posee quinze lignes plus bas. */
-  const barre = MODALE.split('\n').find(l => /<div className="flex items-stretch[^"]*" role="tablist"/.test(l)) ?? '';
-  t('la balise de la barre d onglets est trouvee', barre !== '');
-  t('la barre d onglets defile horizontalement', /overflow-x-auto/.test(barre));
-  t('et sans barre de defilement visible', /no-scrollbar/.test(barre));
-  t('les onglets gardent leur largeur naturelle', /whitespace-nowrap shrink-0/.test(MODALE));
-  t('les onglets font 44 px au doigt', /px-3 py-3/.test(MODALE));
+  /*
+   * ---------- LA BARRE D ONGLETS : UNE GRILLE SOUS md, UNE RANGEE AU-DESSUS ----------
+   *
+   * Mesure AVANT correctif, a 360 px : les quatre onglets faisaient 564 px de contenu
+   * dans 358 px de barre. << Échéancier loyers >> finissait a 442 px et << Documents >>
+   * a 564 — tous deux hors ecran. Le defilement existait mais rien ne l'annoncait : un
+   * onglet qu'on ne sait pas atteindre n'existe pas.
+   *
+   * ---------- COMMENT CE BLOC EST ANCRE, ET POURQUOI AINSI ----------
+   *
+   * On trouve les elements par leur ROLE — role="tablist", role="tab" — et jamais par un
+   * prefixe de leurs classes. La version precedente de ce bloc s'ancrait sur
+   * `inline-flex items-center justify-center...` : quand ce prefixe changeait, l'ancre
+   * rendait la chaine VIDE, et l'assertion qui gardait la propriete centrale du
+   * correctif — << rien n'empeche le libelle de s'enrouler >> — devenait une negation
+   * sur chaine vide, donc VERTE. Elle ne gardait plus rien en annoncant le contraire.
+   *
+   * D'ou la regle que ce bloc s'impose : TOUTE assertion NEGATIVE est conjointe a
+   * `mesurable`.
+   *
+   * ET VOICI CE QUE `mesurable` COUVRE EXACTEMENT, parce qu'une garantie survendue est
+   * elle-meme un mensonge : une premiere version ne verifiait que << la capture n'est pas
+   * VIDE >>, ce qui laissait passer une capture TRONQUEE. baliseOuvrante s'arrete au
+   * premier `>` qui ne suit pas un `=` ; un attribut contenant un chevron — par exemple
+   * title={nombre > 0 ? 'a' : 'b'} — coupe donc la balise en plein milieu, la capture
+   * reste non vide, et une negation posee dessus repasse au vert. Mesure : capture tombee
+   * de 591 a 546 caracteres, `mesurable` encore VRAI.
+   *
+   * `mesurable` exige donc la COMPLETUDE et non la seule presence : la balise doit se
+   * terminer par `>` et porter les cinq attributs qu'on sait qu'elle a. Une capture
+   * tronquee en perd au moins un, et le bloc rougit.
+   */
+  const barres = balisesAvec(CODE_MODALE, 'div', /role="tablist"/);
+  t('exactement une balise porte role="tablist"', barres.length === 1);
+  const barre = barres[0] ?? '';
+
+  const onglets = balisesAvec(CODE_MODALE, 'button', /role="tab"/);
+  t('exactement un gabarit de bouton porte role="tab"', onglets.length === 1);
+  const onglet = onglets[0] ?? '';
+  t('ce bouton annonce son etat au lecteur d ecran', /aria-selected=\{actif\}/.test(onglet));
+
+  /* Le gabarit de classes est lu SUR le bouton role="tab" lui-meme : la propriete testee
+     et l'element teste ne peuvent donc pas se desolidariser. */
+  const gabarit = /className=\{`([^`]*)\$\{actif \? ONGLET_ACTIF : ONGLET_INACTIF\}`\}/.exec(onglet);
+  t('ses classes sortent du gabarit et des deux constantes d indicateur', gabarit !== null);
+  const base = gabarit?.[1] ?? '';
+
+  /** Une balise est exploitable si elle est COMPLETE, pas seulement non vide. */
+  const complete = (b: string, attendus: RegExp[]) =>
+    b.endsWith('>') && attendus.every(a => a.test(b));
+
+  const mesurable =
+    complete(barre, [/role="tablist"/, /className="/, /style=\{\{/, /borderBottom/, /--onglet-trait/])
+    && complete(onglet, [/role="tab"/, /aria-selected=\{actif\}/, /data-testid=/, /className=\{`/, /style=\{\{/])
+    && base !== '';
+  t('TEMOIN : les deux balises sont COMPLETES, pas seulement non vides', mesurable);
+
+  /* ---------- LA BARRE ---------- */
+  /* `/\bgrid\b/` ne vaut RIEN ici : la frontiere de mot tombe sur le tiret de
+     `grid-cols-2` et sur le deux-points de `md:grid`, donc elle est deja impliquee par
+     l'assertion de colonnes, et elle laissait passer un `grid` prefixe. Mutant mesure :
+     `grid` -> `md:grid` rendait 36 OK / 0 ECHEC alors que la grille mobile disparaissait
+     et que les quatre boutons s'enroulaient en lignes irregulieres — exactement le choix
+     produit detruit, sous une assertion qui s'intitule << sous md >>.
+     `/["\s]grid\s/` exige le display NU, premier de la chaine de classes. */
+  t('sous md la barre porte le display grid, SANS prefixe', /["\s]grid\s/.test(barre));
+  t('et il n est pas reporte a un palier', mesurable && !/\b(sm|md|lg|xl):grid\b/.test(barre));
+  t('la grille a DEUX colonnes', /grid-cols-2/.test(barre));
+  t('et elle redevient une rangee a partir de md', /md:flex/.test(barre));
+  t('la rangee de md peut defiler si besoin', /md:overflow-x-auto/.test(barre));
+  t('sans barre de defilement visible', /no-scrollbar/.test(barre));
+  /* La frontiere du module est md, pas sm : theme.test.ts exige `hidden md:block` sur le
+     tableau et `md:hidden` sur les fiches. Un `sm:` ici remettrait les fiches mobiles
+     sous une barre deja en rangee bureau, dans une bande que rien ne mesure. */
+  t('aucun prefixe sm: ne subsiste sur la barre', mesurable && !/\bsm:/.test(barre));
+
+  /* ---------- LE BOUTON ---------- */
+  t('un onglet fait au moins 44 px au doigt, meme enroule', /max-md:min-h-\[44px\]/.test(base));
+  /* La cible tactile est prefixee partout ailleurs dans le module : sans prefixe, elle
+     epaissirait aussi la rangee de bureau, et le garde cibleTactile ne la voit pas. */
+  t('et cette cible ne vaut QUE sous md', mesurable && !/(^|\s)min-h-\[44px\]/.test(base));
+  t('les quatre cases reservent leur bordure, donc rien ne saute', /max-md:border(\s|$)/.test(base));
+  t('le bord bas de 2 px n existe qu a partir de md', /md:border-b-2/.test(base));
+  t('son libelle est centre dans sa case sous md', /justify-center/.test(base) && /text-center/.test(base));
+  /* LE POINT : sous md le libelle doit pouvoir s'enrouler. Un whitespace-nowrap sans
+     prefixe le ferait sortir de sa case au lieu de passer a la ligne. */
+  t('rien n empeche le libelle de s enrouler sous md',
+    mesurable && !/(^|\s)whitespace-nowrap/.test(base));
+  t('mais il garde sa largeur naturelle en rangee',
+    /md:whitespace-nowrap/.test(base) && /md:shrink-0/.test(base));
+  t('aucun prefixe sm: ne subsiste sur l onglet', mesurable && !/\bsm:/.test(base));
+
+  /* ---------- L INDICATEUR D ONGLET ACTIF ---------- */
+  /* En grille, un bord bas ne touche pas le panneau pour les onglets de la PREMIERE
+     ligne : il flotte au milieu de la barre et se lit comme un soulignement de l'onglet
+     du dessous. Mesure a 360 px avant correction : y=54 dans une barre de 105 px. Sous
+     md l'onglet actif est donc marque comme une CASE, et par un bord bas au-dessus. */
+  const defActif = /const ONGLET_ACTIF =\s*'([^']*)';/.exec(CODE_MODALE);
+  const defInactif = /const ONGLET_INACTIF =\s*'([^']*)';/.exec(CODE_MODALE);
+  t('les deux constantes d indicateur sont trouvees', defActif !== null && defInactif !== null);
+  const actifCls = defActif?.[1] ?? '';
+  const inactifCls = defInactif?.[1] ?? '';
+  const indicateurMesurable = actifCls !== '' && inactifCls !== '';
+  t('TEMOIN : les deux constantes ont rendu du texte', indicateurMesurable);
+
+  t('sous md, l onglet actif porte une teinte de fond',
+    /max-md:bg-\[color:var\(--onglet-fond\)\]/.test(actifCls));
+  /* La bordure porte --onglet-trait, donc accent.solid, et NON tab.activeBorder : mesure
+     du contraste de la bordure contre le fond de modale sur les seize themes, plancher
+     maison 3:1 — tab.activeBorder descend a 1,10 sur talixy (invisible, contre 6,85 pour
+     le lisere d'avant) et a 2,10 sur highlevel_emerald ; accent.solid ne passe sous le
+     plancher que sur highlevel_emerald, ou c'etait DEJA le cas. */
+  t('et une bordure complete, non un simple bord bas',
+    /max-md:border-\[color:var\(--onglet-trait\)\]/.test(actifCls));
+  t('LE POINT : la bordure n emprunte pas tab.activeBorder, invisible sur talixy',
+    indicateurMesurable && !/--onglet-bord/.test(actifCls) && !/activeBorder/.test(CODE_MODALE));
+  t('LE POINT : sous md, aucun bord bas ne sert d indicateur',
+    indicateurMesurable && !/(^|\s)border-b/.test(actifCls) && !/max-md:border-b/.test(actifCls));
+  t('a partir de md, le lisere revient', /md:border-b-\[color:var\(--onglet-trait\)\]/.test(actifCls));
+  t('un onglet inactif ne montre ni teinte ni bordure',
+    /max-md:border-transparent/.test(inactifCls) && /md:border-b-transparent/.test(inactifCls));
+  t('et il ne porte aucun fond', indicateurMesurable && !/\bbg-/.test(inactifCls));
+
+  /* Les deux couleurs passent par des variables CSS parce qu'un style inline gagnerait
+     contre le `md:` : si quelqu'un remet borderBottom dans le style du bouton, aucune
+     classe ne pourra plus le reprendre, et le defaut revient en silence. */
+  t('les deux variables sont posees sur la barre',
+    /--onglet-fond': t\.tab\.activeBg/.test(CODE_MODALE)
+    && /--onglet-trait': t\.accent\.solid/.test(CODE_MODALE));
+  t('LE POINT : le style du bouton ne pose plus de borderBottom',
+    mesurable && !/borderBottom/.test(onglet));
+  t('il n y porte plus que la couleur du texte',
+    /style=\{\{ color: actif \? t\.accent\.text : t\.text\.secondary \}\}/.test(onglet));
+
+  /* Dans une case etroite, une icone ou une pastille sans shrink-0 se fait ecraser. */
+  t('l icone ne se fait pas ecraser', /<Icone className="w-4 h-4 shrink-0" \/>/.test(CODE_MODALE));
+  t('la pastille de compteur non plus',
+    /min-w-\[18px\] h-\[18px\][^"]*shrink-0/.test(CODE_MODALE));
 }
 
 console.log('\n=== 8. L INTERFACE MOBILE ET BUREAU ===');
