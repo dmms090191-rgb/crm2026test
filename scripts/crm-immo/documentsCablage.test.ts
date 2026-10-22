@@ -661,5 +661,104 @@ console.log('\n=== 13. LA CONVERSION NE PERD JAMAIS UN FICHIER ===');
   t('TEMOIN : et aucune n est installee', !/heic2any|libheif|heic-decode|wasm-heif/.test(pkg));
 }
 
+console.log('\n=== 14. L APERCU PLEIN ECRAN D UNE PHOTO ===');
+{
+  const APERCU = lire(D + 'CrmImmoApercu.tsx');
+  const CODE_APERCU = sansCommentaires(APERCU);
+
+  /* ---- LA SECURITE N'A PAS BOUGE ---- */
+  /*
+   * LE POINT LE PLUS IMPORTANT DE CE BLOC. L'apercu ne doit pas ouvrir une seconde voie
+   * d'acces aux octets : il n'a RIEN a lui, il recoit une URL deja signee par le parent,
+   * qui l'obtient du meme urlSignee() que la lecture et le telechargement.
+   */
+  t('l apercu ne parle PAS a Supabase lui-meme', !/supabase/i.test(CODE_APERCU));
+  t('il ne connait meme pas le nom du bucket', !/crm-immo-documents|BUCKET/.test(CODE_APERCU));
+  t('LE POINT : aucune URL publique nulle part', !/getPublicUrl/.test(CODE_APERCU) && !/getPublicUrl/.test(CODE_COMPOSANT));
+  t('il recoit son URL en propriete', /url: string;/.test(APERCU) && /src=\{url\}/.test(CODE_APERCU));
+  /* Le parent, lui, passe par la voie unique — et par urlSignee, pas par la vignette. */
+  t('l ouverture demande une URL FRAICHE au lieu de reutiliser la vignette',
+    /const ouvrirApercu = useCallback\([\s\S]{0,400}?etat\.urlSignee\(d\.id\)/.test(CODE_COMPOSANT));
+  t('et elle ne lit pas le cache des miniatures',
+    !/const ouvrirApercu = useCallback\([\s\S]{0,400}?miniatures\[/.test(CODE_COMPOSANT));
+
+  /* ---- L URL PERIMEE SE REGENERE, UNE FOIS ---- */
+  /*
+   * SECONDES_URL_SIGNEE vaut 120 : une consultation un peu longue survit a l'URL. On
+   * redemande donc au parent — mais UNE SEULE FOIS par URL, sinon un fichier reellement
+   * absent du stockage ferait tourner la regeneration sans fin et sans rien dire.
+   */
+  t('une image en echec redemande une URL au parent', /onRegenerer\(\)/.test(CODE_APERCU));
+  t('LE POINT : au plus UNE regeneration par URL',
+    /dejaRegenere\.current !== url[\s\S]{0,120}?dejaRegenere\.current = url/.test(CODE_APERCU));
+  t('et la seconde fois, on le DIT au lieu de reessayer', /setEchec\(true\)/.test(CODE_APERCU));
+  t('le parent repasse bien par ouvrirApercu pour regenerer',
+    /onRegenerer=\{\(\) => \{[\s\S]{0,200}?ouvrirApercu\(d\)/.test(CODE_COMPOSANT));
+
+  /* ---- AUCUNE ACTION DESTRUCTRICE ---- */
+  /* Exigence de David : on entre pour VOIR. Une suppression derriere un geste
+     d'exploration est la facon de perdre une piece de bail d'un doigt. */
+  t('LE POINT : l apercu ne supprime rien', !/supprimer|Trash|danger/i.test(CODE_APERCU));
+  t('il ne renomme rien non plus', !/renommer|Pencil/i.test(CODE_APERCU));
+  t('et il ne deplace rien', !/deplacer|FolderInput/i.test(CODE_APERCU));
+
+  /* ---- LA FERMETURE ---- */
+  /*
+   * Echap doit fermer l'APERCU et lui seul. La modale Details ecoute aussi Echap sur
+   * `document`, en bullage : on ecoute en CAPTURE — qui passe avant — et on arrete la
+   * propagation. Sans cela, un seul Echap fermerait les deux.
+   */
+  t('Echap ferme l apercu', /e\.key !== 'Escape'/.test(CODE_APERCU));
+  t('LE POINT : l ecoute est en CAPTURE, pas en bullage',
+    /addEventListener\('keydown', auClavier, true\)/.test(CODE_APERCU));
+  t('et la propagation est arretee, pour ne pas fermer la modale dessous',
+    /e\.stopPropagation\(\)/.test(CODE_APERCU));
+  t('l ecouteur est retire au demontage',
+    /removeEventListener\('keydown', auClavier, true\)/.test(CODE_APERCU));
+  t('un bouton de fermeture existe', /data-testid="crm-immo-apercu-fermer"/.test(APERCU));
+  t('et sa cible fait 44 px au doigt',
+    /max-md:min-h-\[44px\] max-md:min-w-\[44px\]/.test(CODE_APERCU));
+
+  /* ---- L IMAGE N EST NI COUPEE NI DEFORMEE ---- */
+  t('l image est en object-contain, donc entiere', /object-contain/.test(CODE_APERCU));
+  t('le transform ne porte qu UNE echelle', /scale\(\$\{etat\.echelle\}\)/.test(CODE_APERCU));
+  t('TEMOIN : pas de scale a deux facteurs', !/scale\([^)]*,[^)]*\)/.test(CODE_APERCU));
+
+  /* ---- LE GESTE ---- */
+  /*
+   * touch-action: none est indispensable : sans lui le navigateur prend le pincement
+   * pour lui, zoome la PAGE, et nos pointeurs ne voient qu'une partie du geste.
+   */
+  t('la surface du geste neutralise les gestes natifs', /touchAction: 'none'/.test(CODE_APERCU));
+  t('le pincement passe par le modele pur', /apresPincement\(/.test(CODE_APERCU));
+  t('le deplacement aussi', /versDecalage\(/.test(CODE_APERCU));
+  t('le double-tape aussi', /apresDoubleTape\(/.test(CODE_APERCU));
+  /* Le modele vit dans src/lib pour etre testable : importer le composant entrainerait
+     src/lib/supabase, qui lit import.meta.env et ne se charge pas hors navigateur. */
+  t('et ce modele est un module a part, donc testable',
+    /from '\.\.\/\.\.\/\.\.\/\.\.\/lib\/crmImmoApercu'/.test(APERCU));
+
+  /* ---- LE PORTAIL ---- */
+  /* Rendu sur place, l apercu serait rogne par l `overflow-hidden` de la coque de la
+     modale Details, et un ancetre transforme ferait d un `fixed` un calque relatif. */
+  t('LE POINT : l apercu est porte vers document.body',
+    /createPortal\(/.test(CODE_APERCU) && /document\.body,/.test(CODE_APERCU));
+  t('et il passe AU-DESSUS de la modale et de sa confirmation',
+    /z-\[70\]/.test(CODE_APERCU));
+
+  /* ---- CE QUI L OUVRE ---- */
+  /* Le bouton n existe que sur une VRAIE vignette : sur une icone de PDF il n y aurait
+     rien a agrandir, et un bouton qui ne fait rien se touche quand meme. */
+  t('la vignette devient un bouton', /data-testid="crm-immo-documents-apercu"/.test(COMPOSANT));
+  t('LE POINT : seulement quand une vignette existe vraiment',
+    /vignette !== undefined && cassees\[d\.id\] === undefined \? \(\s*<button/.test(CODE_COMPOSANT));
+  /* 40 px de vignette, etendus a 56 par un ::before : grossir la vignette prendrait la
+     place du nom du fichier, mesuree a 320 px. B2 de cibleTactile exige `relative`. */
+  t('sa zone tactile est etendue sans grossir la vignette',
+    /max-md:before:-inset-2/.test(CODE_COMPOSANT));
+  t('et le ::before est ancre sur SON bouton',
+    /className="relative w-10 h-10[^"]*max-md:before:absolute/.test(CODE_COMPOSANT));
+}
+
 console.log(`\n=== RESULTAT : ${ok} OK, ${ko} ECHEC ===\n`);
 process.exit(ko === 0 ? 0 : 1);

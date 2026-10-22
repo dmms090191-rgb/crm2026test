@@ -8,6 +8,7 @@ import {
   ACCEPT_PHOTO, ACCEPT_DOCUMENT, nomTronque, poidsLisible, afficheEnMiniature,
 } from '../../../../lib/crmImmoDocuments';
 import type { EtatDocuments, DocumentImmo } from './useCrmImmoDocuments';
+import CrmImmoApercu from './CrmImmoApercu';
 
 /**
  * L'ONGLET DOCUMENTS — pensé pour être utilisé debout, chez le client, sur un téléphone.
@@ -50,6 +51,8 @@ export default function CrmImmoDocuments({ etat }: Props) {
   const [creerOuvert, setCreerOuvert] = useState(false);
   const [renomme, setRenomme] = useState<{ id: string; nom: string; classeur: boolean } | null>(null);
   const [aSupprimer, setASupprimer] = useState<DocumentImmo | null>(null);
+  /* La photo en cours d'agrandissement, avec SON URL signee du moment. */
+  const [apercu, setApercu] = useState<{ id: string; nom: string; url: string } | null>(null);
   const [deplace, setDeplace] = useState<string | null>(null);
   const [survol, setSurvol] = useState(false);
 
@@ -81,6 +84,22 @@ export default function CrmImmoDocuments({ etat }: Props) {
     });
     return () => { vivant = false; };
   }, [visibles, miniatures, etat]);
+
+  /**
+   * OUVRIR L'APERCU — avec une URL FRAICHE, jamais celle de la vignette.
+   *
+   * Les URL de vignettes dorment dans `miniatures` depuis le montage du panneau et ne
+   * valent que 120 secondes : les reutiliser afficherait une image morte des la
+   * troisieme minute. On passe donc par le MEME urlSignee() que la lecture et le
+   * telechargement — aucune seconde logique d'acces n'est ajoutee, et le bucket reste
+   * prive.
+   */
+  const ouvrirApercu = useCallback(async (d: DocumentImmo) => {
+    setMessage('');
+    const { url, error } = await etat.urlSignee(d.id);
+    if (error !== null || url === null) { setMessage(error ?? 'Lien indisponible.'); return; }
+    setApercu({ id: d.id, nom: d.nom_affiche, url });
+  }, [etat]);
 
   const ouvrir = useCallback(async (d: DocumentImmo, telecharger: boolean) => {
     setMessage('');
@@ -364,18 +383,39 @@ export default function CrmImmoDocuments({ etat }: Props) {
                 border: `1px solid ${incomplet ? t.warning.border : t.surface.borderLight}`,
               }}>
               {/* La vignette, ou une icone. onError couvre le HEIC ET tout format futur
-                  qu'un navigateur ne saurait pas decoder : on ne devine aucune liste. */}
-              <div className="w-10 h-10 shrink-0 rounded-lg overflow-hidden flex items-center justify-center"
-                style={{ background: t.surface.secondary }}>
-                {vignette !== undefined && cassees[d.id] === undefined ? (
+                  qu'un navigateur ne saurait pas decoder : on ne devine aucune liste.
+
+                  QUAND C'EST UNE VRAIE VIGNETTE, ELLE S'OUVRE. Une vignette de 40 px ne
+                  dit pas de quelle photo il s'agit ; un appui dessus ouvre l'apercu plein
+                  ecran. Le bouton n'existe QUE dans ce cas : sur une icone de PDF il n'y
+                  aurait rien a agrandir, et un bouton qui ne fait rien se touche quand
+                  meme.
+
+                  La zone tactile passe de 40 a 56 px par un ::before etendu, et non en
+                  grossissant la vignette : la ligne a ete mesuree a 320 px, chaque pixel
+                  pris ici serait pris au nom du fichier. `relative` est obligatoire — un
+                  ::before absolu s'ancre au premier ancetre POSITIONNE, et sans lui il
+                  s'ancrerait sur la modale en `fixed inset-0`, donc sur tout l'ecran. */}
+              {vignette !== undefined && cassees[d.id] === undefined ? (
+                <button type="button"
+                  onClick={() => void ouvrirApercu(d)}
+                  data-testid="crm-immo-documents-apercu"
+                  aria-label={`Agrandir ${d.nom_affiche}`} title={`Agrandir ${d.nom_affiche}`}
+                  className="relative w-10 h-10 shrink-0 rounded-lg overflow-hidden flex items-center justify-center max-md:before:absolute max-md:before:content-[''] max-md:before:-inset-2"
+                  style={{ background: t.surface.secondary }}>
                   <img src={vignette} alt="" className="w-10 h-10 object-cover"
                     onError={() => setCassees(prev => ({ ...prev, [d.id]: true }))} />
-                ) : afficheEnMiniature(d.mime) ? (
-                  <ImageIcon className="w-4 h-4" style={{ color: t.text.tertiary }} />
-                ) : (
-                  <FileIcon className="w-4 h-4" style={{ color: t.text.tertiary }} />
-                )}
-              </div>
+                </button>
+              ) : (
+                <div className="w-10 h-10 shrink-0 rounded-lg overflow-hidden flex items-center justify-center"
+                  style={{ background: t.surface.secondary }}>
+                  {afficheEnMiniature(d.mime) ? (
+                    <ImageIcon className="w-4 h-4" style={{ color: t.text.tertiary }} />
+                  ) : (
+                    <FileIcon className="w-4 h-4" style={{ color: t.text.tertiary }} />
+                  )}
+                </div>
+              )}
 
               <div className="flex-1 min-w-0 basis-40 flex flex-col justify-center">
                 {enRenommage ? (
@@ -522,6 +562,22 @@ export default function CrmImmoDocuments({ etat }: Props) {
           Une sauvegarde CRM Immo enregistre les fiches de ces documents (nom, dossier, type, date),
           mais <strong>pas les fichiers eux-mêmes</strong>. Conservez vos originaux.
         </p>
+      )}
+
+      {/* L'APERCU PLEIN ECRAN. Il se porte vers document.body par un portail : rendu
+          ici, il serait rogne par l'`overflow-hidden` de la coque de la modale.
+          onRegenerer redemande une URL signee — la meme voie que tout le reste — quand
+          celle en cours a expire pendant la consultation. */}
+      {apercu !== null && (
+        <CrmImmoApercu
+          nomAffiche={apercu.nom}
+          url={apercu.url}
+          onRegenerer={() => {
+            const d = etat.documents.find(x => x.id === apercu.id);
+            if (d !== undefined) void ouvrirApercu(d);
+          }}
+          onFermer={() => setApercu(null)}
+        />
       )}
     </div>
   );
