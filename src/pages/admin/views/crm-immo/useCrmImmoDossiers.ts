@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../../../lib/supabase';
 import { lireToutesLesLignes } from '../../../../lib/lectureIntegrale';
 import { useCompanyId } from '../../../../hooks/useCompanyId';
+import { supprimerDossiersEtLeursDocuments } from '../../../../lib/crmImmoSuppressionDossier';
+import { operationsSuppressionDossier } from './useCrmImmoDocuments';
 import type { DossierImmo, SaisieDossier } from './crmImmoTypes';
 
 /**
@@ -187,24 +189,38 @@ export function useCrmImmoDossiers() {
   const supprimer = useCallback(async (ids: string[]) => {
     if (ids.length === 0) return { error: null, supprimees: 0 };
 
-    const { data, error: err } = await supabase
-      .from('crm_immo_dossiers')
-      .delete()
-      .in('id', ids)
-      .select('id');
+    /*
+     * LES FICHIERS D'ABORD, LE DOSSIER ENSUITE — ET AVEC UNE TRACE D'INTENTION.
+     *
+     * La cascade de la base efface les LIGNES et laisse les OCTETS : aucune fonction du
+     * schema ne reference storage.objects. Supprimer le dossier en premier abandonnerait
+     * ses documents dans le bucket, invisibles et hors de portee de toute suppression
+     * future.
+     *
+     * Mais nettoyer Storage d'abord ouvrait le trou symetrique : si la suppression du
+     * dossier echouait ENSUITE, les fiches restaient en pointant des fichiers detruits,
+     * indiscernables de fiches saines. La sequence marque donc les documents AVANT de
+     * toucher aux octets, pour que cet etat-la soit visible et reprenable.
+     *
+     * Toute la mecanique vit dans supprimerDossiersEtLeursDocuments, ou elle est
+     * mesurable : ses quatre operations sont injectees, donc un test peut forcer
+     * n'importe lequel des quatre echecs.
+     */
+    const r = await supprimerDossiersEtLeursDocuments(ids, operationsSuppressionDossier());
 
-    if (err) return { error: err.message, supprimees: 0 };
-
-    const partis = new Set((data ?? []).map(l => (l as { id: string }).id));
-    setDossiers(prev => prev.filter(d => !partis.has(d.id)));
-    if (partis.size !== ids.length) {
-      return {
-        error: `${ids.length - partis.size} dossier(s) n’ont pas pu être supprimés : droits insuffisants.`,
-        supprimees: partis.size,
-      };
+    if (r.supprimees > 0) {
+      /* On ne connait pas QUELS dossiers sont partis quand il en reste : on recharge
+         plutot que de deviner. Deviner afficherait un dossier supprime, ou cacherait un
+         dossier qui existe encore. */
+      if (r.supprimees === ids.length) {
+        const partis = new Set(ids);
+        setDossiers(prev => prev.filter(d => !partis.has(d.id)));
+      } else {
+        void load();
+      }
     }
-    return { error: null, supprimees: partis.size };
-  }, []);
+    return { error: r.error, supprimees: r.supprimees };
+  }, [load]);
 
   return { dossiers, loading, error, companyId, recharger: load, creer, modifier, supprimer };
 }

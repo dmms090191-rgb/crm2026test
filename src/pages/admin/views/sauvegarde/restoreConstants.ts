@@ -62,6 +62,27 @@ export const CRM_BACKUP_TABLES: BackupTableConfig[] = [
    */
   { name: 'crm_immo_contrats', label: 'CRM Immo - periodes de contrat', category: 'crm' },
   { name: 'crm_immo_loyers', label: 'CRM Immo - encaissements de loyers', category: 'crm' },
+  /*
+   * LES DOCUMENTS, ajoutes le 22 octobre 2026 — ET LE LIBELLE DIT LA VERITE.
+   *
+   * Une sauvegarde est un fichier JSON : elle contient les METADONNEES des documents
+   * (nom affiche, dossier, type, taille, dates, auteur, chemin), et PAS UN SEUL OCTET
+   * des fichiers. Les binaires vivent dans le bucket prive crm-immo-documents, qu'aucun
+   * circuit de sauvegarde ne touche — verifie : aucun appel Storage dans ce dossier,
+   * aucune des edge functions, aucun pg_cron, et la documentation Supabase precise que
+   * les sauvegardes de base n'incluent pas les objets Storage.
+   *
+   * Un libelle << CRM Immo - documents >> laisserait croire le contraire. La parenthese
+   * n'est donc pas une precaution de style : c'est le seul endroit ou l'utilisateur lit
+   * ce qu'il emporte, au moment ou il choisit ce qu'il sauvegarde.
+   *
+   * Et le PREFIXE compte : TABLES_CRM_IMMO est derivee par startsWith('crm_immo_') dans
+   * useRestoreCrm, et c'est lui qui aiguille ces tables vers le RPC qui anonymise les
+   * identites lors d'une restauration croisee. Une table mal nommee prendrait l'upsert
+   * direct, sans anonymisation.
+   */
+  { name: 'crm_immo_classeurs', label: 'CRM Immo - dossiers documentaires', category: 'crm' },
+  { name: 'crm_immo_documents', label: 'CRM Immo - documents (metadonnees seules, fichiers NON inclus)', category: 'crm' },
 ];
 
 export const CRM_TABLE_NAMES = CRM_BACKUP_TABLES.map((t) => t.name);
@@ -129,6 +150,19 @@ export const RESTORE_ORDER = [
    */
   'crm_immo_contrats',
   'crm_immo_loyers',
+  /*
+   * LES DEUX TABLES DE DOCUMENTS, ET L'ORDRE ENTRE ELLES COMPTE AUSSI.
+   *
+   * crm_immo_classeurs porte la meme cle etrangere composee (dossier_id, company_id)
+   * que ses soeurs : apres les dossiers, sous peine de 23503.
+   *
+   * crm_immo_documents en porte DEUX : une vers les dossiers, une vers les classeurs
+   * (classeur_id, company_id). Elle vient donc apres les DEUX. Inverser ces deux lignes
+   * ferait ecarter tout document range dans un classeur, en ne laissant que ceux de la
+   * racine — une perte partielle, donc plus difficile a remarquer qu'une perte totale.
+   */
+  'crm_immo_classeurs',
+  'crm_immo_documents',
 ] as const;
 
 export const TABLE_PRIMARY_KEYS: Record<string, string> = {
@@ -170,6 +204,8 @@ export const TABLE_PRIMARY_KEYS: Record<string, string> = {
   crm_immo_commentaires: 'id',
   crm_immo_contrats: 'id',
   crm_immo_loyers: 'id',
+  crm_immo_classeurs: 'id',
+  crm_immo_documents: 'id',
 };
 
 export interface FkRule {
@@ -208,6 +244,21 @@ export const FK_RULES: Record<string, FkRule[]> = {
   ],
   crm_immo_etats: [
     { column: 'dossier_id', referencedTable: 'crm_immo_dossiers', referencedColumn: 'id' },
+  ],
+  crm_immo_classeurs: [
+    { column: 'dossier_id', referencedTable: 'crm_immo_dossiers', referencedColumn: 'id' },
+  ],
+  /*
+   * Un document a DEUX parents, et ils ne se traitent pas pareil.
+   *
+   * dossier_id est obligatoire : sans son dossier, le document est ecarte.
+   * classeur_id est NULLABLE — NULL veut dire << a la racine du dossier client >>. La
+   * regle est donc `optional`, sans quoi tous les documents de la racine seraient
+   * ecartes comme orphelins alors qu'ils sont parfaitement valides.
+   */
+  crm_immo_documents: [
+    { column: 'dossier_id', referencedTable: 'crm_immo_dossiers', referencedColumn: 'id' },
+    { column: 'classeur_id', referencedTable: 'crm_immo_classeurs', referencedColumn: 'id', optional: true },
   ],
   leads: [
     { column: 'vendor_id', referencedTable: 'vendors', referencedColumn: 'id', optional: true },

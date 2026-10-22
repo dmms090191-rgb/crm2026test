@@ -83,6 +83,14 @@ const MODALES = [
   D + "CrmImmoChampsDossier.tsx",
   D + "CrmImmoDetailsModal.tsx",
   D + "CrmImmoCommentaires.tsx",
+  /*
+   * L'onglet Documents est le panneau le plus tactile du module : on l'utilise debout,
+   * chez un client, pour photographier un bail. Il porte des boutons-icones serres —
+   * ouvrir, telecharger, renommer, deplacer, supprimer — exactement la famille que cette
+   * liste protege. L'oublier ici aurait laisse la regle des 44 px VERTE sans rien
+   * mesurer, ce qui est le piege que ce fichier signale deja plus haut.
+   */
+  D + "CrmImmoDocuments.tsx",
   D + "CrmImmoColonnesModal.tsx",
   D + "CrmImmoDeleteModal.tsx",
   D + "CrmImmoColonneRow.tsx",
@@ -216,6 +224,21 @@ const CIBLES: { fichier: string; repere: string; avant: string; apres: string; c
    */
   { fichier: D + "CrmImmoFilters.tsx", repere: "crm-immo-filtre-${f.valeur}",
     avant: "26 de haut", apres: "44 de haut", classe: /max-md:min-h-\[44px\]/ },
+
+  /*
+   * L'onglet Documents, mesure le 22 octobre 2026 a 375 px, chaque bouton SEUL pour
+   * qu'aucun `items-stretch` ne l'etire et ne masque la mesure d'avant.
+   *
+   * C'est le panneau le plus tactile du module : on l'utilise debout, chez un client,
+   * pour photographier un bail. Ses boutons-icones sont les plus petits du module avant
+   * correction — 26 px de haut, soit la moitie de la cible.
+   */
+  { fichier: D + "CrmImmoDocuments.tsx", repere: 'data-testid="crm-immo-documents-photo"',
+    avant: "174 x 40", apres: "174 x 44", classe: /max-md:min-h-\[44px\]/ },
+  { fichier: D + "CrmImmoDocuments.tsx", repere: 'data-testid="crm-immo-documents-telecharger"',
+    avant: "30 x 26", apres: "38 x 44", classe: /max-md:min-h-\[44px\]/ },
+  { fichier: D + "CrmImmoDocuments.tsx", repere: "Supprimer définitivement",
+    avant: "217 x 40", apres: "217 x 44", classe: /max-md:min-h-\[44px\]/ },
 ];
 
 test("B1 — chaque cible mesuree garde ce qui l a agrandie", () => {

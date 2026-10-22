@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { X, Pencil, Save, Info, MessageSquare , CalendarClock } from 'lucide-react';
+import { X, Pencil, Save, Info, MessageSquare , CalendarClock, Paperclip } from 'lucide-react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 import { useFermetureModale } from './useFermetureModale';
 import { useCrmImmoCommentaires } from './useCrmImmoCommentaires';
@@ -9,12 +9,14 @@ import { enDateFrancaise } from '../../../../lib/crmImmoAlertes';
 import CrmImmoEcheancier from './CrmImmoEcheancier';
 import CrmImmoRenouvelerModal from './CrmImmoRenouvelerModal';
 import { useCrmImmoEcheancier, type EncaissementDossier } from './useCrmImmoEcheancier';
+import CrmImmoDocuments from './CrmImmoDocuments';
+import { useCrmImmoDocuments } from './useCrmImmoDocuments';
 import {
   problemeDeSaisie, SAISIE_VIDE, type DossierImmo, type ColonneImmo, type SaisieDossier
 } from './crmImmoTypes';
 
 /**
- * LA MODALE DETAILS — tout un dossier, en deux onglets.
+ * LA MODALE DETAILS — tout un dossier, en quatre onglets.
  *
  * ---------- POURQUOI UNE MODALE DE PLUS, ET NON DES ONGLETS DANS CELLE QUI EXISTE ----------
  *
@@ -41,7 +43,7 @@ import {
  * jetant les changements, << Enregistrer >> ecrit vraiment en base.
  */
 
-export type OngletDetails = 'informations' | 'commentaires' | 'echeancier';
+export type OngletDetails = 'informations' | 'commentaires' | 'echeancier' | 'documents';
 
 interface Props {
   dossier: DossierImmo;
@@ -100,6 +102,14 @@ export default function CrmImmoDetailsModal({
   const [saisie, setSaisie] = useState<SaisieDossier>(SAISIE_VIDE);
 
   const commentaires = useCrmImmoCommentaires(dossier.id);
+
+  /*
+   * Les documents du dossier. Meme convention que les deux hooks freres : il charge au
+   * MONTAGE de la modale et non a l'ouverture de l'onglet. C'est deliberement la
+   * convention du module — s'en ecarter pour economiser une requete installerait une
+   * troisieme facon de charger un onglet, et c'est la divergence qui coute, pas l'appel.
+   */
+  const documents = useCrmImmoDocuments(dossier.id);
 
   const depart = useMemo(() => JSON.stringify(versSaisie(dossier)), [dossier]);
   useEffect(() => { setSaisie(JSON.parse(depart) as SaisieDossier); }, [depart]);
@@ -160,6 +170,10 @@ export default function CrmImmoDetailsModal({
        en cours surligne. Il n'a pas de compteur comme les commentaires — le nombre de
        loyers est deja affiche dans l'onglet, avec la periode qui le produit. */
     { cle: 'echeancier', libelle: 'Échéancier loyers', icone: CalendarClock },
+    /* << Documents >> : les pieces du dossier, par photo ou par fichier, rangees dans des
+       dossiers a un niveau. Les octets vivent dans un bucket PRIVE, jamais accessibles
+       par une URL permanente. */
+    { cle: 'documents', libelle: 'Documents', icone: Paperclip },
   ];
 
   return (
@@ -199,9 +213,24 @@ export default function CrmImmoDetailsModal({
 
         {/*
           LES ONGLETS. role="tablist" et aria-selected : un lecteur d'ecran annonce alors
-          << onglet 1 sur 2, selectionne >> au lieu de deux boutons sans rapport.
+          << onglet 1 sur 4, selectionne >> au lieu de quatre boutons sans rapport.
+
+          ---------- POURQUOI LA RANGEE DEFILE ----------
+
+          Mesure a 320 px : avec trois onglets, << Échéancier loyers >> s'enroulait DEJA
+          sur deux lignes et les pastilles faisaient 64 px de haut au lieu de 44. Avec un
+          quatrieme, la rangee deborde (334 px de contenu pour 320 px) et tous les
+          libelles se compriment — le texte sortant alors de son propre bouton, dans une
+          coque dont l'overflow-x calcule vaut `hidden` : l'onglet existerait dans le code
+          sans exister a l'ecran, sans barre de defilement et sans message.
+
+          `overflow-x-auto` plus `whitespace-nowrap shrink-0` traite les deux mecanismes a
+          la fois, et ramene les pastilles a 44 px — donc il corrige aussi le defaut qui
+          existait avant ce chantier. Le meme patron sert deja la rangee de filtres du
+          module. Rien ne l'interdit ici : la prohibition d'overflow-x-auto de
+          theme.test.ts ne vise que CrmImmoCards.
         */}
-        <div className="flex items-stretch gap-1 px-3 pt-2 shrink-0" role="tablist"
+        <div className="flex items-stretch gap-1 px-3 pt-2 shrink-0 overflow-x-auto no-scrollbar" role="tablist"
           style={{ borderBottom: `1px solid ${t.modal.border}` }}>
           {ONGLETS.map(o => {
             const actif = onglet === o.cle;
@@ -210,8 +239,11 @@ export default function CrmImmoDetailsModal({
               <button key={o.cle} type="button" role="tab" aria-selected={actif}
                 onClick={() => setOnglet(o.cle)}
                 data-testid={`crm-immo-details-onglet-${o.cle}`}
-                /* py-3 : 44 px de haut au doigt, sans toucher a la largeur. */
-                className="inline-flex items-center gap-1.5 px-3 py-3 rounded-t-lg text-sm font-semibold"
+                /* py-3 : 44 px de haut au doigt, sans toucher a la largeur.
+                   whitespace-nowrap et shrink-0 : le libelle garde sa largeur naturelle
+                   et sort du cadre par le DEFILEMENT, au lieu d'etre comprime jusqu'a
+                   deborder de son propre bouton. */
+                className="inline-flex items-center gap-1.5 px-3 py-3 rounded-t-lg text-sm font-semibold whitespace-nowrap shrink-0"
                 style={actif
                   ? { color: t.accent.text, borderBottom: `2px solid ${t.accent.solid}` }
                   : { color: t.text.secondary, borderBottom: '2px solid transparent' }}>
@@ -265,6 +297,8 @@ export default function CrmImmoDetailsModal({
               onRenouveler={() => { setErreurEcheancier(''); setRenouveler(true); }}
             />
           )}
+
+          {onglet === 'documents' && <CrmImmoDocuments etat={documents} />}
 
           {(ech.erreur !== '' || erreurEcheancier !== '') && onglet === 'echeancier' && (
             <p className="text-xs px-3 py-2 rounded-lg break-words mt-3" data-testid="crm-immo-echeancier-erreur"

@@ -40,6 +40,21 @@ import { CRM_BACKUP_TABLES, CRM_TABLE_NAMES, RESTORE_ORDER } from "../../src/pag
 const TABLES_DONNEES = [
   "crm_immo_dossiers", "crm_immo_colonnes", "crm_immo_etats", "crm_immo_commentaires",
   "crm_immo_contrats", "crm_immo_loyers",
+  /*
+   * LES DEUX TABLES DE DOCUMENTS, ajoutees le 22 octobre 2026 — et le choix est
+   * EXPLICITE, comme ce fichier l'exige.
+   *
+   * Elles sont sauvegardees parce que leurs METADONNEES sont de vraies donnees metier :
+   * le nom qu'on a donne a une piece, le dossier ou on l'a rangee, qui l'a deposee et
+   * quand. Les perdre a une restauration ferait perdre le classement de tout un dossier.
+   *
+   * Mais les OCTETS, eux, ne sont PAS sauvegardes, et rien ici ne peut y changer quoi que
+   * ce soit : une sauvegarde est un fichier JSON, les fichiers vivent dans un bucket
+   * Storage, et aucun circuit de sauvegarde ne le touche. C'est pourquoi le libelle de
+   * crm_immo_documents porte << metadonnees seules, fichiers NON inclus >> : c'est le
+   * seul endroit ou l'utilisateur lit ce qu'il emporte, au moment ou il le choisit.
+   */
+  "crm_immo_classeurs", "crm_immo_documents",
 ];
 
 test("les quatre tables de donnees sont dans la liste de sauvegarde", () => {

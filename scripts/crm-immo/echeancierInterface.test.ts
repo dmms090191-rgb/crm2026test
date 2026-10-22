@@ -85,8 +85,22 @@ console.log('\n=== 1. UNE SEULE SOURCE DE CALCUL ===');
 
 console.log('\n=== 2. LE TROISIEME ONGLET ===');
 {
+  /*
+   * ---------- POURQUOI CETTE ASSERTION NE RECOPIE PLUS LA LIGNE ENTIERE ----------
+   *
+   * Elle epinglait le texte exact de la declaration, point-virgule compris. Elle disait
+   * donc deux choses a la fois : << 'echeancier' est une valeur d'onglet >> — ce qu'elle
+   * veut verifier — et << il y a exactement trois onglets, dans cet ordre >> — ce qu'elle
+   * ne veut pas verifier, et qui l'a fait echouer a l'ajout de l'onglet Documents.
+   *
+   * Un garde qui tombe a chaque evolution legitime finit desactive. Celui-ci verifie
+   * desormais ce qu'il annonce : la declaration existe, et 'echeancier' en fait partie.
+   */
+  const declaration = /export type OngletDetails =([^;]+);/.exec(modale);
   t("'echeancier' est une valeur d onglet",
-    /export type OngletDetails = 'informations' \| 'commentaires' \| 'echeancier';/.test(modale));
+    declaration !== null && /'echeancier'/.test(declaration[1]));
+  t("et 'informations' et 'commentaires' y sont toujours",
+    declaration !== null && /'informations'/.test(declaration[1]) && /'commentaires'/.test(declaration[1]));
   t('il figure dans la barre d onglets',
     /\{ cle: 'echeancier', libelle: 'Échéancier loyers'/.test(modale));
   t('il a son panneau', /onglet === 'echeancier' &&[\s\S]{0,80}?<CrmImmoEcheancier/.test(modale));

@@ -27,10 +27,19 @@ const TABLES_WITH_COMPANY_ID = new Set([
      avec le mauvais company_id ne retrouverait pas son dossier, donc le declencheur ne
      synchroniserait rien, et le dossier resterait sur des dates sans periode. */
   'crm_immo_contrats', 'crm_immo_loyers',
+  /*
+   * Les deux tables de DOCUMENTS, du 22 octobre 2026. Elles portent company_id NOT NULL,
+   * et leur presence ici a une seconde consequence, plus importante que la premiere :
+   * c'est ce qui les fait entrer dans TABLES_CRM_IMMO juste en dessous, donc passer par
+   * le RPC qui ANONYMISE les identites lors d'une restauration croisee. Les oublier ici
+   * leur ferait prendre l'upsert direct : le created_by de la Societe source arriverait
+   * intact chez la destination.
+   */
+  'crm_immo_classeurs', 'crm_immo_documents',
 ]);
 
 /**
- * LES SIX TABLES QUI PASSENT PAR crm_immo_restaurer_lot.
+ * LES HUIT TABLES QUI PASSENT PAR crm_immo_restaurer_lot.
  *
  * Elles ne peuvent pas etre upsertees directement depuis le navigateur :
  *   - restaurer un dossier complet fait CREER une periode avec un id neuf, qui entre
@@ -40,8 +49,14 @@ const TABLES_WITH_COMPANY_ID = new Set([
  *   - une ligne fautive emportait ses 499 voisines.
  *
  * La liste est la MEME que celle des tables a company_id ci-dessus, et ce n'est pas
- * une coincidence : ce sont les six tables du module. On la derive donc d'elle, pour
- * qu'une septieme table ajoutee a l'une entre automatiquement dans l'autre.
+ * une coincidence : ce sont les tables du module. On la derive donc d'elle, pour qu'une
+ * table ajoutee a l'une entre automatiquement dans l'autre — ce qui a servi des
+ * l'ajout des deux tables de documents.
+ *
+ * ATTENTION : cette appartenance ne fait que CHOISIR la branche d'ecriture. Elle ne
+ * declenche rien par elle-meme. La visite d'une table vient de RESTORE_ORDER seul : une
+ * table absente de RESTORE_ORDER n'est jamais restauree, et le rapport ne la mentionne
+ * meme pas.
  */
 export const TABLES_CRM_IMMO = new Set(
   [...TABLES_WITH_COMPANY_ID].filter(t => t.startsWith('crm_immo_')),

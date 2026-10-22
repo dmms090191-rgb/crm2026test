@@ -186,7 +186,10 @@ test("4 — les deux tables filles sont restaurees APRES les dossiers", () => {
   const iDossiers = ordre.indexOf("crm_immo_dossiers");
   assert.ok(iDossiers >= 0, "crm_immo_dossiers a disparu de l ordre de restauration");
 
-  for (const fille of ["crm_immo_etats", "crm_immo_commentaires"]) {
+  /* Les deux tables de documents sont des filles du dossier au MEME titre : meme cle
+     etrangere composee, donc meme contrainte d ordre et meme besoin de regle FK. Les
+     omettre ici laisserait cette garde verte sans les mesurer. */
+  for (const fille of ["crm_immo_etats", "crm_immo_commentaires", "crm_immo_classeurs", "crm_immo_documents"]) {
     const i = ordre.indexOf(fille);
     assert.ok(i >= 0, fille + " a disparu de l ordre de restauration");
     assert.ok(i > iDossiers,
@@ -195,7 +198,10 @@ test("4 — les deux tables filles sont restaurees APRES les dossiers", () => {
 });
 
 test("4 bis — les deux tables filles ont leur regle, et elle pointe le bon parent", () => {
-  for (const fille of ["crm_immo_etats", "crm_immo_commentaires"]) {
+  /* Les deux tables de documents sont des filles du dossier au MEME titre : meme cle
+     etrangere composee, donc meme contrainte d ordre et meme besoin de regle FK. Les
+     omettre ici laisserait cette garde verte sans les mesurer. */
+  for (const fille of ["crm_immo_etats", "crm_immo_commentaires", "crm_immo_classeurs", "crm_immo_documents"]) {
     const regles = FK_RULES[fille];
     assert.ok(regles && regles.length > 0, fille + " n a aucune regle FK : ses orphelines partiraient en base");
     const r = regles.find(x => x.referencedTable === "crm_immo_dossiers");
