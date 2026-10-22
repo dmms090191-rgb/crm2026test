@@ -119,6 +119,31 @@ export default function CrmImmoDocuments({ etat }: Props) {
    * clair, comme le font deja les pilules de CrmImmoFilters.
    */
   const bouton = 'inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold disabled:opacity-50 whitespace-nowrap';
+
+  /*
+   * LES DEUX ENTREES DE FICHIER ONT LE MEME POIDS, PARCE QU'ELLES FONT DEUX CHOSES
+   * QU'ON NE PEUT PAS SUBSTITUER L'UNE A L'AUTRE.
+   *
+   * Le champ photo porte `capture="environment"` : il ouvre l'appareil, et lui seul —
+   * ni la galerie, ni les fichiers. Le champ document, lui, est le SEUL chemin, sur un
+   * telephone, pour envoyer un PDF recu par courriel, un DOC, ou une photo DEJA prise.
+   * Supprimer le second sur mobile aurait donc retire une capacite, pas un bouton ;
+   * c'est pourquoi il est RENOMME << Choisir un fichier >> plutot que retire, et mis au
+   * meme rang que la photo.
+   *
+   * Sous md, les deux se partagent la ligne a parts egales — flex-1 basis-0 — donc meme
+   * largeur, meme hauteur, alignes. Le libelle peut s'y enrouler : a 320 px, la moitie
+   * d'une ligne ne tient pas << Prendre une photo >> d'un seul tenant, et le bouton doit
+   * alors GRANDIR, jamais retrecir sous 44 px. whitespace-nowrap ne vaut donc qu'a
+   * partir de md, ou la largeur ne manque plus.
+   */
+  const boutonFichier = 'inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold disabled:opacity-50 text-center max-md:min-h-[44px] max-md:flex-1 max-md:basis-0 max-md:px-2 md:whitespace-nowrap';
+
+  /* << Nouveau dossier >> ne cree aucun contenu : il range. Il passe donc au second
+     rang — plus petit, plus sobre — et prend sa propre ligne sous md (basis-full),
+     pour ne pas voler de largeur aux deux actions qui, elles, apportent un fichier.
+     Il garde ses 44 px : secondaire ne veut pas dire difficile a toucher. */
+  const boutonRanger = 'inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold disabled:opacity-50 whitespace-nowrap max-md:min-h-[44px] max-md:basis-full';
   const petitBouton = 'inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-50 shrink-0';
 
   return (
@@ -141,22 +166,22 @@ export default function CrmImmoDocuments({ etat }: Props) {
 
       {/* ---------- LES ACTIONS ---------- */}
       <div className="flex flex-wrap items-stretch gap-2">
-        <button type="button" className={`${bouton} max-md:min-h-[44px]`} disabled={etat.envoi.enCours}
+        <button type="button" className={boutonFichier} disabled={etat.envoi.enCours}
           onClick={() => champPhoto.current?.click()}
           data-testid="crm-immo-documents-photo"
           style={{ background: t.accent.solid, color: t.text.inverse }}>
           <Camera className="w-4 h-4 shrink-0" />
           Prendre une photo
         </button>
-        <button type="button" className={`${bouton} max-md:min-h-[44px]`} disabled={etat.envoi.enCours}
+        <button type="button" className={boutonFichier} disabled={etat.envoi.enCours}
           onClick={() => champFichier.current?.click()}
           data-testid="crm-immo-documents-fichier"
           style={{ background: t.accent.bg, color: t.accent.text, border: `1px solid ${t.accent.border}` }}>
           <Upload className="w-4 h-4 shrink-0" />
-          Ajouter un document
+          Choisir un fichier
         </button>
         {classeurOuvert === null && (
-          <button type="button" className={`${bouton} max-md:min-h-[44px]`} disabled={etat.envoi.enCours}
+          <button type="button" className={boutonRanger} disabled={etat.envoi.enCours}
             onClick={() => { setCreerOuvert(v => !v); setNouveauDossier(''); }}
             data-testid="crm-immo-documents-nouveau-dossier"
             style={{ background: t.surface.secondary, color: t.text.secondary, border: `1px solid ${t.surface.border}` }}>

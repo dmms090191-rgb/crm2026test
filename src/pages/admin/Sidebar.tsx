@@ -140,9 +140,14 @@ export default function Sidebar({ activeView, onNavigate, collapsed, onCollapse,
   const ctTextOverrides = customThemeOverrides?.text_overrides || {};
   const [userId, setUserId] = useState<string | null>(null);
 
+  /* getSession et non getUser : on ne veut QUE l'identifiant, et il est deja dans le
+     jeton en stockage. getUser interroge le serveur, et tous les appels auth de
+     supabase-js passent par un verrou global que chaque requete REST doit prendre a son
+     tour pour obtenir son jeton — un aller-retour ici retarde donc TOUTES les requetes
+     du panel, pas seulement celle-ci. */
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) setUserId(user.id);
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) setUserId(session.user.id);
     });
   }, []);
 

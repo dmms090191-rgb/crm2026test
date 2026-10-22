@@ -66,11 +66,22 @@ interface Props {
   onOuvrirColonnes: () => void;
   /** Le compteur de la carte correspondante, quand le filtre actif en a un. */
   compteurCategorie?: number | null;
+  /**
+   * Vrai tant que les dossiers ne sont pas revenus.
+   *
+   * Sans lui, cette barre AFFIRMAIT << 0 dossier >> pendant toute la requete : `total`
+   * et `affiches` valent 0 avant la reponse, donc `affiches === total` et le compte
+   * s'ecrivait. David l'a photographie sur son telephone : << 0 dossier >> sous une
+   * liste qui disait << Chargement des dossiers... >>. Deux phrases au meme instant,
+   * dont une fausse. Un compteur qui ne sait pas compter doit se taire, pas annoncer
+   * zero.
+   */
+  chargement: boolean;
 }
 
 export default function CrmImmoFilters({
   terme, onTerme, filtre, onFiltre, total, affiches, onOuvrirColonnes,
-  compteurCategorie = null,
+  compteurCategorie = null, chargement,
 }: Props) {
   const t = useThemeTokens();
 
@@ -169,7 +180,9 @@ export default function CrmImmoFilters({
           defile, il partait a droite du dernier bouton, donc hors de l'ecran. */}
       <div className="flex items-center justify-between gap-2 text-xs" style={{ color: t.label.hint }}>
         <span data-testid="crm-immo-compte">
-          {affiches === total ? `${total} dossier${total > 1 ? 's' : ''}` : `${affiches} sur ${total}`}
+          {chargement
+            ? 'Chargement…'
+            : affiches === total ? `${total} dossier${total > 1 ? 's' : ''}` : `${affiches} sur ${total}`}
         </span>
         {ecartUnite && (
           <span data-testid="crm-immo-ecart-unite" className="text-right">{ecartUnite}</span>

@@ -23,9 +23,11 @@ export default function ProfileMenu({ adminName, tokens }: ProfileMenuProps) {
   const companyId = useCompanyId();
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  /* getSession et non getUser : seul l'identifiant est lu, et il est deja dans le jeton
+     en stockage. Voir Sidebar.tsx pour la raison complete — le verrou global d'auth. */
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) setUserId(user.id);
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) setUserId(session.user.id);
     });
   }, []);
 

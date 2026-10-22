@@ -40,6 +40,19 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 export interface FermetureModale {
   /** Vrai quand un premier geste a ete fait et qu'il en faut un second pour fermer. */
   confirmationDemandee: boolean;
+  /**
+   * DEMANDER LA FERMETURE — le chemin qui AVERTIT.
+   *
+   * Echap et le clic a cote passent par ici depuis toujours : s'il y a quelque chose a
+   * perdre, le premier geste arme la confirmation au lieu de fermer. Le bouton X, lui,
+   * appelait `onFermer` en direct dans chaque modale : il fermait SANS prevenir.
+   *
+   * Tant que le clic a cote existait, la divergence restait discrete. Une modale en
+   * PLEIN ECRAN n'a plus de fond a cliquer : le X y devient la seule sortie, et une
+   * seule sortie qui ne previent pas, c'est une saisie perdue en un geste. D'ou cette
+   * sortie exposee, a brancher sur le X.
+   */
+  demander: () => void;
   /** A poser sur l'element de fond (celui qui porte `fixed inset-0`). */
   proprietesDuFond: {
     onMouseDown: (e: { target: EventTarget | null; currentTarget: EventTarget | null }) => void;
@@ -88,6 +101,7 @@ export function useFermetureModale(options: {
 
   return {
     confirmationDemandee,
+    demander,
     reinitialiser,
     proprietesDuFond: {
       onMouseDown: (e) => { departSurLeFond.current = e.target === e.currentTarget; },

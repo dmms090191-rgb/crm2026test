@@ -326,6 +326,9 @@ export default function CrmImmo() {
         filtre={filtre} onFiltre={setFiltre}
         total={dos.dossiers.length} affiches={lignes.length}
         compteurCategorie={compteurCategorie}
+        /* Le MEME etat que la liste. La barre et le tableau disaient deux choses au
+           meme instant : << 0 dossier >> ici, << Chargement des dossiers... >> la. */
+        chargement={dos.loading || enAttenteDuClassement}
         onOuvrirColonnes={() => setColonnesOuvertes(true)}
       />
 

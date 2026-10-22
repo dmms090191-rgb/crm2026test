@@ -237,14 +237,42 @@ export default function CrmImmoDetailsModal({
 
   return (
     <>
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+    <div className="fixed inset-0 z-50 flex justify-center p-0 max-md:items-stretch md:items-center md:p-4"
       style={{ background: t.modal.overlayBg }} data-testid="crm-immo-details-modal"
       {...fermeture.proprietesDuFond}>
 
-      {/* max-w-3xl : plus large que la modale de creation — c'est la << grande modale >>
-          demandee. dvh et non vh : le clavier mobile ne change pas vh, et la barre des
-          boutons passerait dessous. */}
-      <div className="w-full sm:max-w-3xl max-h-[92dvh] flex flex-col rounded-t-2xl sm:rounded-2xl overflow-hidden"
+      {/*
+        SOUS md, LA MODALE EST L'ECRAN. AU-DESSUS, C'EST UNE FENETRE.
+
+        Mesure sur le telephone de David : la modale n'occupait qu'une partie de la
+        hauteur, bords arrondis en haut, le fond visible au-dessus — une fenetre flottante
+        sur un ecran de 6 pouces, ou la place est justement ce qui manque. Sous md elle
+        prend donc tout : largeur pleine, hauteur pleine, aucun arrondi.
+
+        Le patron est celui de la maison — SitePreviewModal dit en toutes lettres
+        << Mobile : occupe tout l'ecran. Ordinateur : grande fenetre centree >> — avec
+        DEUX divergences assumees :
+
+          h-[100dvh] ET NON h-full. h-full vaut height:100%, donc resolu contre le bloc
+          conteneur : un seul ancetre portant transform, filter ou backdrop-filter fait
+          du voile `fixed` un calque relatif a CET ancetre, et la coque suivrait sa
+          hauteur au lieu de l'ecran. Cette modale vit sous AdminDashboard et n'est pas
+          portee vers document.body, contrairement a SitePreviewModal : h-[100dvh] ne
+          depend, lui, d'aucune chaine d'ancetres.
+
+          dvh ET NON vh, que SitePreviewModal emploie encore : C1 de cibleTactile
+          l'interdit dans ce module, et pour une raison — avec le clavier mobile, vh ne
+          bouge pas et le pied passe dessous.
+
+        md: et non sm:, comme la barre d'onglets juste en dessous : la frontiere du
+        module est md, et deux bascules a deux pixels differents dans la MEME modale
+        auraient donne, entre 640 et 767 px, une fenetre centree coiffant une grille
+        d'onglets encore en mode telephone.
+
+        Le plafond de 92dvh reste, a partir de md : sur un ecran large, une modale qui
+        touche les deux bords perd sa qualite de fenetre.
+      */}
+      <div className="w-full flex flex-col overflow-hidden max-md:h-[100dvh] md:max-w-3xl md:max-h-[92dvh] md:rounded-2xl"
         style={{ background: t.modal.bg, border: `1px solid ${t.modal.border}`, boxShadow: t.modal.shadow }}>
 
         <div className="flex items-start justify-between gap-2 px-4 py-3 shrink-0"
@@ -259,7 +287,14 @@ export default function CrmImmoDetailsModal({
               Dossier CRM Immo
             </p>
           </div>
-          <button type="button" onClick={onFermer} disabled={enCours} title="Fermer"
+          {/* LE X PASSE PAR LE MEME CHEMIN QU'ECHAP, ET C'EST NOUVEAU.
+              Il appelait onFermer en direct : en modification, il fermait SANS armer
+              l'avertissement << Vos modifications seront perdues >>, que le clavier et
+              le clic a cote armaient bien. Tant qu'on pouvait cliquer a cote, la
+              divergence restait discrete. En plein ecran il n'y a PLUS de fond a
+              cliquer : le X devient la seule sortie, et il doit donc etre la sortie
+              qui previent. Un second appui ferme, comme ailleurs. */}
+          <button type="button" onClick={fermeture.demander} disabled={enCours} title="Fermer"
             aria-label="Fermer le détail du dossier"
             data-testid="crm-immo-details-fermer"
             /* Mesure a 375 px : 28 x 28. Un ::before de -8px porte la zone a 44 x 44.

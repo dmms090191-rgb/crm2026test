@@ -2,6 +2,7 @@ import { Suspense, lazy } from 'react';
 import { Lock, RefreshCw } from 'lucide-react';
 import { useThemeTokens } from '../../../hooks/useThemeTokens';
 import { peutOuvrirCrmImmo, accesRefuse, type EtatAcces } from '../../../lib/crmImmoAccess';
+import { importCrmImmo } from './adminLazyViews';
 
 /*
  * LA PORTE DU MODULE CRM IMMO.
@@ -47,7 +48,21 @@ import { peutOuvrirCrmImmo, accesRefuse, type EtatAcces } from '../../../lib/crm
  * selon lequel des deux a repondu le premier.
  */
 
-const CrmImmo = lazy(() => import('../views/CrmImmo'));
+/*
+ * LE PAQUET DE LA VUE EST PRELEVE D'AVANCE, ET SA FONCTION D'IMPORT VIT AILLEURS.
+ *
+ * La Porte garantit que la vue ne se monte pas sans le droit — c'est son role — mais
+ * elle le garantit AU PRIX D'UNE SERIE : l'appel `import()` n'est evalue que dans la
+ * branche « accorde », donc APRES la reponse de la RPC. Mesure en production : ce que ce
+ * lazy declenche alors, c'est 31 fichiers que le navigateur n'a pas encore, soit
+ * 129 225 octets bruts, decouverts en deux paliers — le paquet de la vue d'abord, ses
+ * dependances ensuite. Tout cela sur le chemin du CLIC, devant un spinner.
+ *
+ * La RPC, elle, a repondu au montage du panel. AdminDashboard preleve donc le paquet sur
+ * un creneau au repos des que le droit est connu, en appelant importCrmImmo — range dans
+ * adminLazyViews avec importDocumentationCrm, qui sert exactement a cela.
+ */
+const CrmImmo = lazy(importCrmImmo);
 
 /* Le spinner prend la couleur d'accent du theme actif. lazyFallback, dans
    AdminViewRenderer, est en border-orange-500 EN DUR : correct sur les 11 themes

@@ -60,8 +60,14 @@ export function useAdminDashboardEffects({
     return () => clearTimeout(tm);
   }, [activeView]);
 
+  /* getSession et non getUser : les TROIS champs lus ici — id, email, user_metadata —
+     sont deja dans le jeton en stockage, et getUser les redemandait au serveur. Tous les
+     appels auth de supabase-js prennent un verrou global, que chaque requete REST doit
+     prendre a son tour pour obtenir son jeton : un aller-retour auth au montage retarde
+     donc l'ensemble des requetes du panel, pas seulement celle-ci. */
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const user = session?.user;
       if (!user) return;
       // L'ID du compte connecte reste necessaire (requetes, Realtime).
       setAdminAuthId(user.id);

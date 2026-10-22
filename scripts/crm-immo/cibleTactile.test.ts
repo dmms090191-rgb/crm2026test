@@ -105,12 +105,33 @@ const MODALES = [
  * celle d'apres — un faux positif silencieux. On part de la ligne du repere, puis on
  * avance s'il le faut.
  */
+/**
+ * Une ligne de classes, AVEC le contenu des constantes qu'elle cite.
+ *
+ * Une classe peut etre ecrite en clair — className="... max-md:min-h-[44px]" — ou tiree
+ * d'une constante — className={boutonFichier}. Dans le second cas, la ligne ne porte
+ * aucune classe, et cette garde declarait la cible perdue alors qu'elle faisait toujours
+ * ses 44 px. C'est un FAUX NEGATIF : le defaut est dans l'ancre, pas dans le code.
+ *
+ * On resout donc les identifiants cites, en y ajoutant le corps de leur `const`. La
+ * garde suit ainsi la PROPRIETE et non son orthographe — et elle devient plus stricte,
+ * pas moins : elle attrape desormais les deux ecritures au lieu d'une seule.
+ */
+function avecConstantes(src: string, ligne: string): string {
+  let sortie = ligne;
+  for (const m of ligne.matchAll(/\$?\{([A-Za-z_$][\w$]*)\}/g)) {
+    const def = new RegExp("const " + m[1] + " =\\s*'([^']*)'").exec(src);
+    if (def) sortie += " " + def[1];
+  }
+  return sortie;
+}
+
 function classesApres(src: string, repere: string): string {
   const lignes = src.split("\n");
   const depart = lignes.findIndex(l => l.includes(repere));
   assert.ok(depart >= 0, "repere introuvable : " + repere);
   /* La ligne du repere elle-meme, d abord : le cas le plus courant. */
-  if (/className=/.test(lignes[depart])) return lignes[depart];
+  if (/className=/.test(lignes[depart])) return avecConstantes(src, lignes[depart]);
 
   /*
    * Sinon on remonte a la BALISE OUVRANTE qui contient le repere, puis on lit ses
@@ -126,7 +147,7 @@ function classesApres(src: string, repere: string): string {
     }
     if (ouverture < 0) break;
     for (let i = ouverture; i < Math.min(ouverture + 20, lignes.length); i++) {
-      if (/className=/.test(lignes[i])) return lignes[i];
+      if (/className=/.test(lignes[i])) return avecConstantes(src, lignes[i]);
       if (i > ouverture && /^\s*<[a-zA-Z]/.test(lignes[i])) break; // balise suivante
       if (/>\s*$/.test(lignes[i]) && i > ouverture) break;         // fin de la balise
     }
@@ -235,6 +256,16 @@ const CIBLES: { fichier: string; repere: string; avant: string; apres: string; c
    */
   { fichier: D + "CrmImmoDocuments.tsx", repere: 'data-testid="crm-immo-documents-photo"',
     avant: "174 x 40", apres: "174 x 44", classe: /max-md:min-h-\[44px\]/ },
+  /*
+   * << Nouveau dossier >> n'etait PAS dans cette liste, et ce trou a ete mis en evidence
+   * le 23 octobre 2026 par une mutation : retirer sa cible tactile laissait B1 verte.
+   * Il compte desormais, parce qu'il vient de changer de rang — passe en action
+   * secondaire, plus petit et sur sa propre ligne — et qu'un bouton qu'on diminue est
+   * exactement celui dont la cible se perd sans qu'on s'en apercoive.
+   * Mesure a 320 / 360 / 375 / 390 / 412 px apres le changement : 44 px de haut partout.
+   */
+  { fichier: D + "CrmImmoDocuments.tsx", repere: 'data-testid="crm-immo-documents-nouveau-dossier"',
+    avant: "44 de haut", apres: "44 de haut", classe: /max-md:min-h-\[44px\]/ },
   { fichier: D + "CrmImmoDocuments.tsx", repere: 'data-testid="crm-immo-documents-telecharger"',
     avant: "30 x 26", apres: "38 x 44", classe: /max-md:min-h-\[44px\]/ },
   { fichier: D + "CrmImmoDocuments.tsx", repere: "Supprimer définitivement",

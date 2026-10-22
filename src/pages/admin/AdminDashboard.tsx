@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo, useCallback } from 'react';
+import { useState, useRef, useMemo, useCallback, useEffect } from 'react';
 import Sidebar from './Sidebar';
 import TopBar from './TopBar';
 import type { ChatLead } from './views/Crm';
@@ -15,6 +15,7 @@ import { useCrmImmoTableauDeBord } from './views/crm-immo/useCrmImmoTableauDeBor
 import type { CategorieImmo } from '../../lib/crmImmoEcheancier';
 import { CrmImmoAlertesProvider } from '../../contexts/CrmImmoAlertesContext';
 import { peutOuvrirCrmImmo } from '../../lib/crmImmoAccess';
+import { importCrmImmo } from './dashboard/adminLazyViews';
 import { useActiveLogo } from '../../hooks/useActiveLogo';
 import { useAppIcon } from '../../hooks/useAppIcon';
 import { useUnreadClientMessages } from '../../hooks/useUnreadClientMessages';
@@ -81,6 +82,23 @@ function AdminDashboardInner({ onLogout, onConnectAsVendor, onConnectAsClient, i
    * ouverture de panel.
    */
   const crmImmoOuvert = peutOuvrirCrmImmo(crmImmoAcces);
+
+  /*
+   * ---------- LE PAQUET DE CRM IMMO EST PRELEVE DES QUE LE DROIT EST CONNU ----------
+   *
+   * Sans cela, le telechargement commence au CLIC, apres la reponse de la RPC, et
+   * l'utilisateur attend 31 fichiers devant un spinner. La RPC, elle, a repondu au
+   * montage du panel : le creneau au repos qui suit est gratuit, et le paquet y tient.
+   *
+   * Le declencheur est le DROIT et non le montage : une Societe sans le module ne
+   * telecharge rien. Et `requestIdleCallback` cede le pas a tout ce qui presse —
+   * le prelevement ne peut donc pas retarder l'affichage qu'il sert.
+   */
+  useEffect(() => {
+    if (!crmImmoOuvert) return;
+    const id = requestIdleCallback(() => { void importCrmImmo(); });
+    return () => cancelIdleCallback(id);
+  }, [crmImmoOuvert]);
   /*
    * ---------- L ORDRE DES DEUX HOOKS A ETE INVERSE LE 22 OCTOBRE 2026 ----------
    *

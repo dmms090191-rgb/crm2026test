@@ -435,14 +435,53 @@ console.log('\n=== 7. L ONGLET EST BRANCHE DANS LA MODALE EXISTANTE ===');
 
 console.log('\n=== 8. L INTERFACE MOBILE ET BUREAU ===');
 {
-  /* capture rend le champ CAMERA-SEULE : un bouton unique empecherait d envoyer une
-     photo deja prise. Il en faut donc deux, et c est aussi ce que David a demande. */
+  /*
+   * capture rend le champ CAMERA-SEULE : un bouton unique empecherait d envoyer une
+   * photo deja prise. Il en faut donc deux, et c est aussi ce que David a demande.
+   *
+   * MIS A L EPREUVE LE 23 OCTOBRE 2026, et confirme. David voulait retirer le second
+   * bouton sur telephone. Or c est le SEUL chemin, depuis un telephone, pour envoyer un
+   * PDF recu par courriel, un DOC, ou une photo DEJA rangee dans la galerie : le champ
+   * photo, lui, n ouvre que l appareil. Le bouton a donc ete RENOMME << Choisir un
+   * fichier >> et mis au meme rang que la photo, au lieu d etre supprime.
+   *
+   * L assertion ci-dessous ne garde pas un libelle par gout : elle garde la CAPACITE.
+   * Si le second champ disparait, le telephone perd l envoi de PDF.
+   */
   t('un champ de capture camera existe', /capture="environment"/.test(COMPOSANT));
   t('et un champ de fichier separe', COMPOSANT.includes('crm-immo-documents-champ-fichier'));
   t('les deux boutons sont distincts',
     COMPOSANT.includes('crm-immo-documents-photo') && COMPOSANT.includes('crm-immo-documents-fichier'));
   t('le bouton photo est libelle en clair', /Prendre une photo/.test(COMPOSANT));
-  t('le bouton fichier aussi', /Ajouter un document/.test(COMPOSANT));
+  t('le bouton fichier aussi', /Choisir un fichier/.test(COMPOSANT));
+  /* LE POINT : le champ qui n a PAS de capture doit accepter autre chose que des
+     images, sinon le PDF reste impossible malgre le bouton. */
+  t('le champ sans capture accepte le PDF et le DOC',
+    /ACCEPT_DOCUMENT = 'image\/\*,application\/pdf,\.doc,\.docx'/.test(lire('src/lib/crmImmoDocuments.ts')));
+
+  /* ---- L EQUILIBRE DES DEUX ENTREES DE FICHIER ---- */
+  const defBoutonFichier = /const boutonFichier = '([^']*)';/.exec(CODE_COMPOSANT);
+  const defBoutonRanger = /const boutonRanger = '([^']*)';/.exec(CODE_COMPOSANT);
+  t('les deux gabarits de bouton sont trouves', defBoutonFichier !== null && defBoutonRanger !== null);
+  const clsFichier = defBoutonFichier?.[1] ?? '';
+  const clsRanger = defBoutonRanger?.[1] ?? '';
+  const gabaritsMesurables = clsFichier !== '' && clsRanger !== '';
+  t('TEMOIN : les deux gabarits ont rendu du texte', gabaritsMesurables);
+
+  t('les deux entrees de fichier partagent la ligne a parts egales sous md',
+    /max-md:flex-1/.test(clsFichier) && /max-md:basis-0/.test(clsFichier));
+  t('elles font 44 px au doigt', /max-md:min-h-\[44px\]/.test(clsFichier));
+  /* Dans une demi-largeur a 320 px, le libelle doit pouvoir s enrouler et AGRANDIR le
+     bouton. Un whitespace-nowrap sans prefixe le ferait deborder de sa case. */
+  t('leur libelle peut s enrouler sous md',
+    gabaritsMesurables && !/(^|\s)whitespace-nowrap/.test(clsFichier));
+  t('mais garde sa largeur naturelle a partir de md', /md:whitespace-nowrap/.test(clsFichier));
+  t('et les deux boutons emploient le MEME gabarit',
+    (CODE_COMPOSANT.match(/className=\{boutonFichier\}/g) ?? []).length === 2);
+
+  t('<< Nouveau dossier >> est au second rang', /text-xs/.test(clsRanger) && /px-3 py-2/.test(clsRanger));
+  t('il prend sa propre ligne sous md', /max-md:basis-full/.test(clsRanger));
+  t('et reste touchable malgre tout', /max-md:min-h-\[44px\]/.test(clsRanger));
   t('les deux champs acceptent plusieurs fichiers',
     (COMPOSANT.match(/multiple/g) ?? []).length === 2);
   /* Le glisser-deposer de FICHIERS est nouveau dans le projet : le seul existant sert a
