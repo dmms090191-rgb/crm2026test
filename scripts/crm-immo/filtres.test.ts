@@ -1,27 +1,35 @@
 /**
- * Tests des FILTRES RAPIDES du tableau CRM Immo.
+ * Tests des FILTRES du tableau CRM Immo.
  * Lancer :  npx tsx scripts/crm-immo/filtres.test.ts
  *
  * ---------- CE QUE CE FICHIER TIENT ----------
  *
- * Le 22 octobre 2026, David a demande de retirer deux filtres : « Avec loyer » et
- * « Sans échéance ». Ils n'ont pas ete masques mais SUPPRIMES, logique comprise — un
- * filtre qu'aucun bouton ne peut plus declencher est du code mort, et le code mort finit
- * par etre relu comme une fonctionnalite.
+ * Le 22 octobre 2026, David a demande que CHAQUE carte du tableau de bord ouvre la page
+ * du module sur sa propre liste : « Je ne veux pas qu'une carte ouvre simplement Tous
+ * si un filtre precis peut etre applique. »
  *
- * Il reste donc deux boutons : « Tous » et « Fin proche ». Ce test les verrouille dans
- * les deux sens — ce qui doit etre la, et ce qui ne doit plus l'etre — et verifie que
- * le seul filtre restant fait toujours exactement son travail.
+ * La barre porte donc huit boutons : « Tous », plus les sept categories du tableau de
+ * bord. Et le filtre ne CALCULE plus rien — il lit l'appartenance etablie une seule
+ * fois par classerTableauDeBord. C'est ce qui empeche une carte d'annoncer un chiffre
+ * que la liste qu'elle ouvre contredirait.
  *
- * La barre de filtres n'avait aucun test : la logique de `filtrerDossiers` n'etait
- * verifiee nulle part. Retirer du code sans filet, c'est exactement la facon de casser
- * ce qu'on ne regardait pas.
+ * Ce que ce fichier verrouille :
+ *   - les huit filtres, leurs cles et leurs libelles, dans les deux sens ;
+ *   - qu'un libelle de bouton est IDENTIQUE au libelle de sa carte ;
+ *   - que plus aucune date n'est calculee ici ;
+ *   - le comportement devant un classement absent.
+ *
+ * Trois filtres ont disparu au fil de la journee — « Avec loyer », « Sans échéance »,
+ * puis « Fin proche ». Les deux premiers n'avaient plus de sens ; le troisieme
+ * recouvrait exactement deux des nouveaux sans les distinguer, et refaisait son propre
+ * calcul de preavis avec l'horloge de la page, gelee au montage.
  */
 import { readFileSync } from 'node:fs';
 import { filtrerDossiers, preparerLignes, type FiltreDossiers } from '../../src/lib/crmImmoRecherche.ts';
 import type { DossierImmo } from '../../src/pages/admin/views/crm-immo/crmImmoTypes.ts';
 import { COLONNES_SYSTEME } from '../../src/pages/admin/views/crm-immo/crmImmoTypes.ts';
 import { toutesLesColonnes, REGLAGE_VIDE } from '../../src/lib/crmImmoColonnes.ts';
+import { CATEGORIES_IMMO, type CategorieImmo } from '../../src/lib/crmImmoEcheancier.ts';
 
 let ko = 0, ok = 0;
 const t = (nom: string, cond: boolean) => {
@@ -31,8 +39,6 @@ const t = (nom: string, cond: boolean) => {
 
 const lire = (p: string) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const code = (p: string) => lire(p).replace(/\/\*[\s\S]*?\*\//g, '').replace(/^[ \t]*\/\/.*$/gm, '');
-
-const AUJOURDHUI = '2026-10-22';
 
 function dossier(p: Partial<DossierImmo> & { id: string }): DossierImmo {
   return {
@@ -44,84 +50,176 @@ function dossier(p: Partial<DossierImmo> & { id: string }): DossierImmo {
   } as DossierImmo;
 }
 
-console.log('\n=== 1. LA BARRE NE PROPOSE PLUS QUE DEUX FILTRES ===');
+/** Un classement vide, ou chaque test place ensuite ce dont il a besoin. */
+const vide = (): Record<CategorieImmo, Set<string>> =>
+  Object.fromEntries(CATEGORIES_IMMO.map(c => [c, new Set<string>()])) as Record<CategorieImmo, Set<string>>;
+
+console.log('\n=== 1. HUIT FILTRES : « TOUS », PLUS LES SEPT CATEGORIES ===');
 {
   const src = code('../../src/pages/admin/views/crm-immo/CrmImmoFilters.tsx');
-  const bloc = /const FILTRES[^=]*=\s*\[([\s\S]*?)\];/.exec(src);
-  t('la liste des filtres est trouvable', bloc !== null);
 
-  const valeurs = [...(bloc?.[1] ?? '').matchAll(/valeur: '([a-z-]+)'/g)].map(m => m[1]);
-  t('exactement deux filtres', valeurs.length === 2);
-  t('ce sont « Tous » et « Fin proche »', valeurs.join() === 'tous,fin-proche');
+  /* Les sept libelles sont declares dans un Record<CategorieImmo, string> : le
+     compilateur reclame une entree des qu'une categorie est ajoutee au calcul. */
+  const bloc = /const LIBELLES: Record<CategorieImmo, string> = \{([\s\S]*?)\};/.exec(src);
+  t('la table des libelles est trouvable', bloc !== null);
 
-  const libelles = [...(bloc?.[1] ?? '').matchAll(/libelle: '([^']+)'/g)].map(m => m[1]);
-  t('leurs libelles sont inchanges', libelles.join() === 'Tous,Fin proche');
+  const cles = [...(bloc?.[1] ?? '').matchAll(/'([a-z-]+)':/g)].map(m => m[1]);
+  t('les sept categories ont un libelle', cles.length === 7);
+  t('et ce sont exactement celles du calcul',
+    cles.slice().sort().join() === CATEGORIES_IMMO.slice().sort().join());
+
+  t('« Tous » est conserve, en tete', /\{ valeur: 'tous', libelle: 'Tous' \}/.test(src));
+  t('les sept autres viennent de CATEGORIES_IMMO, pas d une recopie',
+    /\.\.\.CATEGORIES_IMMO\.map\(/.test(src));
 
   /* Dans les deux sens : ce qui ne doit PLUS exister. */
+  t('« Fin proche » a disparu de la barre', !/fin-proche|Fin proche/.test(src));
   t('« Avec loyer » a disparu de la barre', !/avec-loyer|Avec loyer/.test(src));
   t('« Sans échéance » a disparu de la barre', !/sans-echeance|Sans échéance/.test(src));
 }
 
-console.log('\n=== 2. LA LOGIQUE AUSSI A ETE RETIREE, PAS SEULEMENT LE BOUTON ===');
+console.log('\n=== 1 bis. UNE SEULE RANGEE, QUI DEFILE ===');
+{
+  /*
+   * MESURE DU 22 OCTOBRE 2026, sur la vraie barre rendue avec les vrais tokens.
+   *
+   *   a 375 px : 8 pilules, UNE rangee, 44 px de haut, conteneur visible 359 px pour
+   *              974 px de contenu — donc il defile ; 0 debordement de page, 0 texte
+   *              tronque. A 320 px, identique.
+   *   a 1024 px : les huit tiennent, le conteneur ne defile plus.
+   *
+   * En `flex-wrap`, les memes huit libelles faisaient TROIS a QUATRE rangees a 375 px :
+   * la liste etait repoussee hors de l'ecran avant d'avoir commence. Ce test garde la
+   * mise en page qui l'a corrige — un `flex-wrap` revenu ne casserait rien d'autre.
+   */
+  const src = lire('../../src/pages/admin/views/crm-immo/CrmImmoFilters.tsx');
+  const rangee = /<div className="([^"]*)">\s*\{FILTRES\.map/.exec(src)?.[1] ?? '';
+  t('la rangee des filtres est trouvable', rangee !== '');
+  t('elle ne se replie PAS sur plusieurs lignes', !/flex-wrap/.test(rangee));
+  t('elle defile horizontalement', /overflow-x-auto/.test(rangee));
+  t('sans barre de defilement visible', /no-scrollbar/.test(rangee));
+
+  const pilule = /className="([^"]*)"\s*\n?\s*style=\{actif/.exec(src)?.[1]
+    ?? /px-3 py-1 rounded-full[^"]*/.exec(src)?.[0] ?? '';
+  t('un libelle ne se casse pas au milieu d une pilule', /whitespace-nowrap/.test(pilule));
+  t('une pilule ne retrecit pas pour entrer de force', /shrink-0/.test(pilule));
+  t('et elle fait 44 px de haut au doigt', /max-md:min-h-\[44px\]/.test(pilule));
+
+  /* Le compte etait dans la rangee, en `ml-auto` : dans un conteneur qui defile, il
+     partait a droite du dernier bouton, donc hors de l'ecran. Il vit maintenant dessous. */
+  t('le compte n est plus dans la rangee qui defile', !/ml-auto/.test(rangee));
+  t('et il est rendu sous la barre',
+    /crm-immo-compte/.test(src) && src.indexOf('crm-immo-compte') > src.indexOf('FILTRES.map'));
+}
+
+console.log('\n=== 2. UN BOUTON PORTE EXACTEMENT LE LIBELLE DE SA CARTE ===');
+{
+  /*
+   * LE CONTRAT CARTE <-> FILTRE.
+   *
+   * On clique « Loyers en retard » sur le dashboard, on doit arriver sur un filtre qui
+   * s'appelle « Loyers en retard ». Un libelle qui derive d'un cote laisse croire qu'on
+   * a atterri ailleurs — et c'est invisible aux types, les deux etant des chaines.
+   */
+  const filtres = code('../../src/pages/admin/views/crm-immo/CrmImmoFilters.tsx');
+  const cartes = code('../../src/pages/admin/views/SocieteKpiGrid.tsx');
+
+  const libelleFiltre = (c: CategorieImmo) =>
+    new RegExp(`'${c}': '([^']+)'`).exec(filtres)?.[1] ?? null;
+  const libelleCarte = (c: CategorieImmo) =>
+    new RegExp(`key: '${c}', label: '([^']+)'`).exec(cartes)?.[1] ?? null;
+
+  for (const c of CATEGORIES_IMMO) {
+    const f = libelleFiltre(c), k = libelleCarte(c);
+    t(`« ${c} » : meme libelle sur la carte et sur le filtre`, f !== null && f === k);
+  }
+}
+
+console.log('\n=== 3. LE FILTRE NE CALCULE PLUS AUCUNE DATE ===');
 {
   const src = code('../../src/lib/crmImmoRecherche.ts');
-  t('le type ne connait plus que deux valeurs',
-    /export type FiltreDossiers = 'tous' \| 'fin-proche';/.test(src));
-  t('aucune branche « avec-loyer » ne subsiste', !/avec-loyer/.test(src));
-  t('aucune branche « sans-echeance » ne subsiste', !/sans-echeance/.test(src));
-  /* Le filtre retire portait sur jour_encaissement : la colonne, elle, reste. */
+  t('le type est « tous » plus les categories du calcul',
+    /export type FiltreDossiers = 'tous' \| CategorieImmo;/.test(src));
+  t('plus aucune branche « fin-proche »', !/fin-proche/.test(src));
+  t('plus aucune branche « avec-loyer »', !/avec-loyer/.test(src));
+  t('plus aucune branche « sans-echeance »', !/sans-echeance/.test(src));
+
+  /*
+   * Le coeur du changement : ce module lisait des dates, avec sa propre constante de
+   * preavis et l'horloge de la page — gelee au montage. Il n'en lit plus aucune, donc
+   * il ne peut plus se tromper de date ni de fuseau.
+   */
+  t('plus aucune arithmetique de date', !/86_400_000|Date\.parse|preavisJours/.test(src));
+  t('et plus d « aujourdhui » du tout', !/aujourdhui/.test(src));
   t('la colonne Encaissement loyer existe toujours',
     COLONNES_SYSTEME.some(c => c.cle === 'jour_encaissement'));
 }
 
-console.log('\n=== 3. « FIN PROCHE » FAIT TOUJOURS SON TRAVAIL ===');
+console.log('\n=== 4. LE FILTRE LIT L APPARTENANCE, ET RIEN D AUTRE ===');
 {
+  const lot = [dossier({ id: 'a' }), dossier({ id: 'b' }), dossier({ id: 'c' })];
+  const classement = vide();
+  classement['baux-expires'].add('a');
+  classement['baux-expires'].add('c');
+  classement['loyers-en-retard'].add('b');
+
+  const ids = (f: FiltreDossiers) => filtrerDossiers(lot, f, classement).map(d => d.id).join();
+
+  t('« Tous » ne filtre rien', ids('tous') === 'a,b,c');
+  t('une categorie rend exactement ses dossiers', ids('baux-expires') === 'a,c');
+  t('une autre categorie rend les siens', ids('loyers-en-retard') === 'b');
+  t('une categorie vide ne rend rien', ids('baux-a-venir') === '');
+
+  /* L'ordre rendu est celui de la LISTE, pas celui de l'ensemble : le tri de la page
+     doit rester maitre. On le prouve en inversant l'ordre d'insertion. */
+  const inverse = vide();
+  inverse['baux-expires'].add('c');
+  inverse['baux-expires'].add('a');
+  t('l ordre rendu est celui de la liste, pas celui de l ensemble',
+    filtrerDossiers(lot, 'baux-expires', inverse).map(d => d.id).join() === 'a,c');
+
   /*
-   * Le preavis est de 30 jours. On borne des DEUX cotes : le jour pile, le jour d avant,
-   * le jour d apres. Un test qui ne verifie qu un cas au milieu ne voit pas un decalage
-   * d une journee.
+   * CLASSEMENT ABSENT : la liste doit etre VIDE, jamais complete.
+   *
+   * Le classement arrive par le reseau. Rendre la liste entiere pendant ce temps ferait
+   * croire que les 300 dossiers de la Societe ont tous un loyer en retard — le plus
+   * alarmant des mensonges possibles sur cet ecran.
    */
-  const lot = [
-    dossier({ id: 'passee', date_fin_contrat: '2026-09-30' }),
-    dossier({ id: 'aujourdhui', date_fin_contrat: '2026-10-22' }),
-    dossier({ id: 'dans-29j', date_fin_contrat: '2026-11-20' }),
-    dossier({ id: 'dans-30j', date_fin_contrat: '2026-11-21' }),
-    dossier({ id: 'dans-31j', date_fin_contrat: '2026-11-22' }),
-    dossier({ id: 'sans-date', date_fin_contrat: null }),
-  ];
-  const ids = (f: FiltreDossiers) => filtrerDossiers(lot, f, AUJOURDHUI).map(d => d.id).join();
+  t('sans classement, une categorie ne rend AUCUN dossier',
+    filtrerDossiers(lot, 'baux-expires', null).length === 0);
+  t('mais « Tous » rend tout, lui, meme sans classement',
+    filtrerDossiers(lot, 'tous', null).length === 3);
 
-  t('« Tous » ne filtre rien', filtrerDossiers(lot, 'tous', AUJOURDHUI).length === lot.length);
-  t('« Fin proche » prend une echeance deja passee', ids('fin-proche').includes('passee'));
-  t('« Fin proche » prend le jour meme', ids('fin-proche').includes('aujourdhui'));
-  t('« Fin proche » prend le 30e jour, la borne', ids('fin-proche').includes('dans-30j'));
-  t('« Fin proche » laisse le 31e jour', !ids('fin-proche').includes('dans-31j'));
-  t('« Fin proche » ignore un dossier sans echeance', !ids('fin-proche').includes('sans-date'));
-
-  /* Une date illisible ne doit ni passer, ni faire tomber le tableau. */
-  const abime = [dossier({ id: 'abime', date_fin_contrat: 'pas-une-date' })];
-  t('une date illisible est ecartee sans casser',
-    filtrerDossiers(abime, 'fin-proche', AUJOURDHUI).length === 0);
+  /* Un dossier sans contrat complet n'est dans aucune categorie : il n'a ni bail ni
+     loyer a montrer, et il reste visible par « Tous ». */
+  const orphelin = [dossier({ id: 'zz' })];
+  t('un dossier sans contrat n apparait dans aucune categorie',
+    CATEGORIES_IMMO.every(c => filtrerDossiers(orphelin, c, classement).length === 0));
+  t('mais il reste visible dans « Tous »',
+    filtrerDossiers(orphelin, 'tous', classement).length === 1);
 }
 
-console.log('\n=== 4. LE PIPELINE COMPLET REPOND ENCORE ===');
+console.log('\n=== 5. LE PIPELINE COMPLET REPOND ENCORE ===');
 {
   const colonnes = toutesLesColonnes({ systeme: COLONNES_SYSTEME, perso: [], reglage: REGLAGE_VIDE });
   const lot = [
-    dossier({ id: 'a', nom: 'Dupont', date_fin_contrat: '2026-10-25' }),
-    dossier({ id: 'b', nom: 'Martin', date_fin_contrat: '2027-06-01' }),
+    dossier({ id: 'a', nom: 'Dupont' }),
+    dossier({ id: 'b', nom: 'Martin' }),
   ];
+  const classement = vide();
+  classement['contrats-a-renouveler'].add('a');
+
   const rendu = (filtre: FiltreDossiers, terme: string) =>
-    preparerLignes({ dossiers: lot, terme, colonnes, triSur: null, sens: 'asc', filtre, aujourdhui: AUJOURDHUI })
+    preparerLignes({ dossiers: lot, terme, colonnes, triSur: null, sens: 'asc', filtre, classement })
       .map(d => d.id).join();
 
   t('sans filtre ni terme : tout sort', rendu('tous', '') === 'a,b');
-  t('le filtre s applique avant la recherche', rendu('fin-proche', '') === 'a');
+  t('le filtre s applique avant la recherche', rendu('contrats-a-renouveler', '') === 'a');
   t('la recherche porte toujours sur les valeurs', rendu('tous', 'martin') === 'b');
-  t('filtre et recherche se combinent', rendu('fin-proche', 'martin') === '');
+  t('filtre et recherche se combinent', rendu('contrats-a-renouveler', 'martin') === '');
 }
 
-console.log('\n=== 5. LES LIBELLES DES QUATRE CHAMPS ===');
+console.log('\n=== 6. LES LIBELLES DES QUATRE CHAMPS ===');
 {
   /*
    * Quatre champs, deux personnes. Les deux dernieres CLES ne disent plus ce que leur

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '../../../../lib/supabase';
+import { lireToutesLesLignes } from '../../../../lib/lectureIntegrale';
 import { useCompanyId } from '../../../../hooks/useCompanyId';
 import { journeeDeReference, fuseauLocal } from '../../../../lib/crmImmoAlertes';
 import {
@@ -27,8 +28,16 @@ import {
  * comparent le nombre de lignes rendues.
  */
 
-/** Une periode de bail, telle que la porte crm_immo_contrats. */
-export interface PeriodeDossier {
+/**
+ * Une periode de bail telle que la table la PORTE — une ligne, avec son id et sa date
+ * de cloture.
+ *
+ * A ne pas confondre avec PeriodeDossier de crmImmoEcheancier, qui est l'ENTREE DU
+ * CALCUL : celle-la ne garde que les quatre champs qui servent a produire des
+ * echeances, plus un drapeau. Les deux ont vecu sous le meme nom un moment, ce qui
+ * etait un piege a relecture.
+ */
+export interface PeriodeEnregistree {
   id: string;
   debut: string;
   fin: string;
@@ -57,7 +66,7 @@ export interface LigneEcheancier extends EcheanceLoyer {
 
 export function useCrmImmoEcheancier(dossierId: string | null) {
   const companyId = useCompanyId();
-  const [periodes, setPeriodes] = useState<PeriodeDossier[]>([]);
+  const [periodes, setPeriodes] = useState<PeriodeEnregistree[]>([]);
   const [encaissements, setEncaissements] = useState<EncaissementDossier[]>([]);
   const [chargement, setChargement] = useState(true);
   const [erreur, setErreur] = useState('');
@@ -69,21 +78,32 @@ export function useCrmImmoEcheancier(dossierId: string | null) {
   const charger = useCallback(async () => {
     if (!dossierId || !companyId) { setPeriodes([]); setEncaissements([]); setChargement(false); return; }
     setChargement(true);
+    /*
+     * PAGINEES. Un dossier tenu longtemps accumule une ligne de loyer par mois : le
+     * plafond de PostgREST finirait par couper l'historique sans rien dire, et
+     * l'echeancier afficherait des encaissements manquants comme des impayes.
+     *
+     * Les deux tris sont DEPARTAGES par `id` : sans second critere, deux lignes de
+     * meme date pourraient s'echanger entre deux pages — l'une vue deux fois, l'autre
+     * jamais.
+     */
     const [p, l] = await Promise.all([
-      supabase.from('crm_immo_contrats')
-        .select('id,debut,fin,jour_encaissement,cloture_le,created_at')
-        .eq('company_id', companyId).eq('dossier_id', dossierId)
-        .order('debut', { ascending: false }),
+      lireToutesLesLignes<PeriodeEnregistree>((de, a) =>
+        supabase.from('crm_immo_contrats')
+          .select('id,debut,fin,jour_encaissement,cloture_le,created_at', { count: 'exact' })
+          .eq('company_id', companyId).eq('dossier_id', dossierId)
+          .order('debut', { ascending: false }).order('id').range(de, a)),
       /* Les ANNULES sont charges aussi : l'historique de correction doit rester lisible. */
-      supabase.from('crm_immo_loyers')
-        .select('id,echeance,encaisse_le,annule_le,motif_annulation')
-        .eq('company_id', companyId).eq('dossier_id', dossierId)
-        .order('echeance', { ascending: true }),
+      lireToutesLesLignes<EncaissementDossier>((de, a) =>
+        supabase.from('crm_immo_loyers')
+          .select('id,echeance,encaisse_le,annule_le,motif_annulation', { count: 'exact' })
+          .eq('company_id', companyId).eq('dossier_id', dossierId)
+          .order('echeance', { ascending: true }).order('id').range(de, a)),
     ]);
     if (p.error || l.error) {
       setErreur(p.error?.message ?? l.error?.message ?? '');
     } else {
-      setPeriodes((p.data ?? []) as PeriodeDossier[]);
+      setPeriodes((p.data ?? []) as PeriodeEnregistree[]);
       setEncaissements((l.data ?? []) as EncaissementDossier[]);
       setErreur('');
     }
@@ -146,7 +166,7 @@ export function useCrmImmoEcheancier(dossierId: string | null) {
   );
 
   /** L'echeancier d'une periode close, pour l'historique. */
-  const echeancierDe = useCallback((p: PeriodeDossier) =>
+  const echeancierDe = useCallback((p: PeriodeEnregistree) =>
     construireEcheancier({ debut: p.debut, fin: p.fin, jour: p.jour_encaissement }), []);
 
   /* ---------------------------------------------------------------------
@@ -196,45 +216,56 @@ export function useCrmImmoEcheancier(dossierId: string | null) {
   }, [companyId, charger]);
 
   /**
-   * RENOUVELER : cloturer l'ancienne periode, puis creer la nouvelle.
+   * RENOUVELER — UNE SEULE OPERATION, par la fonction crm_immo_renouveler.
    *
-   * L'ordre n'est pas une discipline, c'est une regle de la base : un index partiel
-   * unique interdit deux periodes en cours, donc inserer avant de cloturer echoue.
+   * ---------- CE QUE C'ETAIT, ET POURQUOI C'ETAIT FRAGILE ----------
    *
-   * L'ancienne periode est CONSERVEE — c'est tout l'objet du renouvellement — et le
-   * dossier est resynchronise par declencheur, sans qu'on ait a l'ecrire ici.
+   * Deux requetes HTTP, donc deux transactions : cloturer, puis inserer. Entre les
+   * deux, l'etat valide de la base ne contenait AUCUNE periode en cours. Si la seconde
+   * echouait — reseau coupe, onglet ferme, refus de droits — le bail restait cloture
+   * sans remplacant. Et une ecriture concurrente dans cette fenetre faisait ressusciter
+   * une periode par declencheur, ce qui faisait echouer l'insertion en 23505 et
+   * laissait la base dans un etat pire qu'avant.
+   *
+   * ---------- CE QUE C'EST ----------
+   *
+   * Un appel, une transaction : soit la cloture ET la creation, soit rien. La fonction
+   * verrouille la ligne du DOSSIER — pas la periode, qui cesse de qualifier sous
+   * READ COMMITTED et ne serialise donc rien — et refuse si la periode en cours n'est
+   * plus celle qu'on annonce.
+   *
+   * `periodeActive?.id ?? null` est cette annonce. Deux onglets ouverts sur la meme
+   * fiche portent le meme identifiant ; le premier qui renouvelle le perime, et le
+   * second recoit un refus lisible au lieu d'enterrer silencieusement son travail.
+   *
+   * Les messages d'erreur viennent de la base, en francais, et sont deja destines a
+   * l'ecran : TLV01 dossier introuvable, TLV02 dates invalides, TLV03 periode deja
+   * changee, TLV04 refus de droits.
    */
   const renouveler = useCallback(async (
     debut: string, fin: string, jour: number,
   ): Promise<string | null> => {
-    if (!dossierId || !companyId) return 'Dossier introuvable.';
-    if (!debut || !fin) return 'Les deux dates sont nécessaires.';
-    if (fin < debut) return 'La date de fin ne peut pas précéder la date de début.';
-    if (!Number.isFinite(jour) || jour < 1 || jour > 31) return "Le jour d'encaissement doit être entre 1 et 31.";
+    if (!dossierId) return 'Dossier introuvable.';
 
     setEnCours(true);
-    const { data: utilisateur } = await supabase.auth.getUser();
-
-    if (periodeActive) {
-      const { data, error } = await supabase
-        .from('crm_immo_contrats')
-        .update({ cloture_le: new Date().toISOString(), cloture_par: utilisateur?.user?.id ?? null })
-        .eq('id', periodeActive.id).eq('company_id', companyId)
-        .select('id');
-      if (error) { setEnCours(false); return error.message; }
-      if (!data || data.length === 0) { setEnCours(false); return 'Action refusée : droits insuffisants.'; }
-    }
-
-    const { data, error } = await supabase
-      .from('crm_immo_contrats')
-      .insert({ company_id: companyId, dossier_id: dossierId, debut, fin, jour_encaissement: jour })
-      .select('id');
+    const { error } = await supabase.rpc('crm_immo_renouveler', {
+      p_dossier_id: dossierId,
+      p_periode_attendue: periodeActive?.id ?? null,
+      p_debut: debut,
+      p_fin: fin,
+      p_jour: jour,
+    });
     setEnCours(false);
-    if (error) return error.message;
-    if (!data || data.length === 0) return 'Action refusée : droits insuffisants.';
+
+    /*
+     * Pas de garde << zero ligne >> ici, et ce n'est pas un oubli : un refus de la RLS
+     * ne passe plus en silence. La fonction compte ses lignes (GET DIAGNOSTICS) et leve
+     * une exception, que PostgREST remonte comme une vraie erreur.
+     */
+    if (error) return error.message || 'Le renouvellement a échoué.';
     await charger();
     return null;
-  }, [dossierId, companyId, periodeActive, charger]);
+  }, [dossierId, periodeActive, charger]);
 
   return {
     periodes, periodeActive, periodeAffichee, historique,

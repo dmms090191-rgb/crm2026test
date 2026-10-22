@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '../../../../lib/supabase';
 import { useCompanyId } from '../../../../hooks/useCompanyId';
+import { lireToutesLesLignes } from '../../../../lib/lectureIntegrale';
+import type { PeriodeDossier } from '../../../../lib/crmImmoEcheancier';
 import {
-  deriverAlertes, journeeDeReference, fuseauLocal, filtrer, compteBadge,
+  deriverAlertes, filtrer, compteBadge,
   type Alerte, type EtatConnu, type GenreAlerte, type FiltreAlertes, type DossierPourAlertes,
   type EncaissementConnu,
 } from '../../../../lib/crmImmoAlertes';
@@ -53,7 +55,6 @@ import {
    proteste — `date_entree` est optionnel dans DossierPourAlertes. */
 const CHAMPS_DOSSIER = 'id,nom,prenom,locataire,proprietaire,date_entree,date_fin_contrat,jour_encaissement';
 
-const RYTHME_DERIVATION = 60_000;
 const RYTHME_RESEAU = 300_000;
 
 /**
@@ -67,61 +68,79 @@ const RYTHME_RESEAU = 300_000;
  * La RLS rendrait bien 0 ligne — ce n est pas une question de securite, c est une
  * question de ne pas demander ce qu on sait absent.
  */
-export function useCrmImmoAlertes(actif: boolean) {
+export function useCrmImmoAlertes(
+  actif: boolean,
+  aujourdhui: string,
+  periodes: PeriodeDossier[],
+  encaissements: EncaissementConnu[],
+  rechargerDonnees: () => Promise<void>,
+) {
   const companyId = useCompanyId();
   const [dossiers, setDossiers] = useState<DossierPourAlertes[]>([]);
   const [etats, setEtats] = useState<EtatConnu[]>([]);
-  /*
-   * Les encaissements ACTIFS. Ils entrent dans la derivation pour une seule raison, et
-   * c'est la regle posee par David : un loyer encaisse ne doit plus etre reclame.
-   *
-   * Seuls les non annules sont charges — une ligne annulee ne compte plus comme
-   * encaissee, et son echeance redevient due.
-   */
-  const [encaissements, setEncaissements] = useState<EncaissementConnu[]>([]);
   const [chargement, setChargement] = useState(true);
   const [erreur, setErreur] = useState('');
   const [filtre, setFiltre] = useState<FiltreAlertes>('actives');
-  const fuseau = useMemo(() => fuseauLocal(), []);
 
-  /* Le jour de reference, recalcule au battement. C'est LUI qui fait naitre les alertes
-     sans aucune requete. */
-  const [aujourdhui, setAujourdhui] = useState(() => journeeDeReference(new Date(), fuseau));
 
-  const recharger = useCallback(async () => {
+  /**
+   * CE QUE CE HOOK LIT LUI-MEME : ses dossiers et ses etats, rien d'autre.
+   *
+   * Les PERIODES et les ENCAISSEMENTS arrivent du hook du tableau de bord, qui les
+   * charge une fois pour les deux surfaces. Les relire ici donnerait deux jeux de
+   * lignes rafraichis a des instants differents — et une cloche qui reclamerait un
+   * loyer que les cartes comptent deja comme encaisse.
+   *
+   * Les deux lectures restantes sont PAGINEES : crm_immo_dossiers et crm_immo_etats
+   * grossissent aussi, et PostgREST tronque sans le dire.
+   */
+  const chargerLesSiennes = useCallback(async () => {
     if (!actif || !companyId) {
-      setDossiers([]); setEtats([]); setEncaissements([]); setChargement(false); return;
+      setDossiers([]); setEtats([]); setChargement(false); return;
     }
-    const [d, e, l] = await Promise.all([
-      supabase.from('crm_immo_dossiers').select(CHAMPS_DOSSIER).eq('company_id', companyId),
-      supabase.from('crm_immo_etats').select('dossier_id,genre,periode,lue_le,traitee_le').eq('company_id', companyId),
-      /* `is('annule_le', null)` : une annulation rend l'echeance a nouveau due. */
-      supabase.from('crm_immo_loyers').select('dossier_id,echeance')
-        .eq('company_id', companyId).is('annule_le', null),
+    const [d, e] = await Promise.all([
+      lireToutesLesLignes<DossierPourAlertes>((de, a) =>
+        supabase.from('crm_immo_dossiers').select(CHAMPS_DOSSIER, { count: 'exact' })
+          .eq('company_id', companyId).order('id').range(de, a)),
+      lireToutesLesLignes<EtatConnu>((de, a) =>
+        supabase.from('crm_immo_etats').select('dossier_id,genre,periode,lue_le,traitee_le', { count: 'exact' })
+          .eq('company_id', companyId).order('dossier_id').order('genre').order('periode').range(de, a)),
     ]);
-    if (d.error || e.error || l.error) {
-      setErreur(d.error?.message ?? e.error?.message ?? l.error?.message ?? '');
+    if (d.error || e.error) {
+      setErreur(d.error?.message ?? e.error?.message ?? '');
     } else {
       setDossiers((d.data ?? []) as DossierPourAlertes[]);
       setEtats((e.data ?? []) as EtatConnu[]);
-      setEncaissements((l.data ?? []) as EncaissementConnu[]);
       setErreur('');
     }
-    /* Le jour est relu a chaque passage reseau : un onglet laisse ouvert la nuit doit
-       repartir sur la bonne date, meme si le battement de 60 s a ete gele par le
-       navigateur en arriere-plan. */
-    setAujourdhui(journeeDeReference(new Date(), fuseau));
     setChargement(false);
-  }, [actif, companyId, fuseau]);
+  }, [actif, companyId]);
 
-  useEffect(() => { void recharger(); }, [recharger]);
+  /*
+   * LE CHARGEMENT INITIAL NE TOUCHE QUE CE QUI APPARTIENT A CE HOOK.
+   *
+   * Le hook du tableau de bord charge DEJA les periodes et les encaissements a son
+   * propre montage. Les redemander ici ferait deux fois les memes deux requetes a
+   * chaque ouverture du panel, pour les memes lignes.
+   */
+  useEffect(() => { void chargerLesSiennes(); }, [chargerLesSiennes]);
 
-  /* Battement local : aucune requete, seulement la date qui avance. */
-  useEffect(() => {
-    if (!actif) return;
-    const t = setInterval(() => setAujourdhui(journeeDeReference(new Date(), fuseau)), RYTHME_DERIVATION);
-    return () => clearInterval(t);
-  }, [actif, fuseau]);
+  /**
+   * << Actualiser >>, lui, rafraichit TOUT ce dont la cloche depend.
+   *
+   * C'est ce que les cinq appels de la page attendent : apres un encaissement ou un
+   * renouvellement, la cloche doit repartir sur des periodes a jour, pas seulement sur
+   * des etats a jour.
+   */
+  const recharger = useCallback(async () => {
+    await Promise.all([chargerLesSiennes(), rechargerDonnees()]);
+  }, [chargerLesSiennes, rechargerDonnees]);
+
+  /*
+   * Plus de battement local ici : l'horloge appartient au hook du tableau de bord, qui
+   * la prete. Elle avance toujours toutes les 60 s sans aucune requete — c'est juste
+   * qu'il n'y en a plus qu'UNE dans l'application.
+   */
 
   /* Reseau : periodique, et au retour de visibilite. */
   const rechargerRef = useRef(recharger);
@@ -136,8 +155,8 @@ export function useCrmImmoAlertes(actif: boolean) {
   }, [actif]);
 
   const toutes = useMemo(
-    () => deriverAlertes({ dossiers, etats, aujourdhui, encaissements }),
-    [dossiers, etats, aujourdhui, encaissements],
+    () => deriverAlertes({ dossiers, etats, aujourdhui, encaissements, periodes }),
+    [dossiers, etats, aujourdhui, encaissements, periodes],
   );
 
   const affichees = useMemo(() => filtrer(toutes, filtre), [toutes, filtre]);

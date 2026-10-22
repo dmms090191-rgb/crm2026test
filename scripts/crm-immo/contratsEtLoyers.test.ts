@@ -194,8 +194,22 @@ console.log('\n=== 7. LA REGLE STRICTE DES ALERTES DE LOYER ===');
    * rabattement sont donc appliques UNE fois, au meme endroit. C est la regle posee par
    * David : << Ne cree pas une deuxieme logique de calcul. >>
    */
-  t('l alerte construit son echeancier par la fonction PARTAGEE',
-    /construireEcheancier\(\{\s*debut: d\.date_entree, fin: d\.date_fin_contrat, jour: d\.jour_encaissement/.test(alertes));
+  /*
+   * CETTE ASSERTION A ETE RETOURNEE LE 22 OCTOBRE 2026.
+   *
+   * Elle exigeait que l'alerte construise son echeancier sur les TROIS COLONNES du
+   * dossier. Ces colonnes ne refletent que le contrat EN COURS : un loyer impaye d'un
+   * contrat renouvele sortait donc de la cloche le jour du renouvellement — la dette
+   * restait, l'alerte disparaissait.
+   *
+   * David : << Le renouvellement ne doit jamais faire disparaitre une dette reelle. >>
+   * L'echeancier se construit desormais sur TOUTES les periodes du dossier, et lire les
+   * colonnes du dossier pour cela est devenu interdit.
+   */
+  t('l alerte construit son echeancier sur les PERIODES, pas sur le dossier',
+    /echeancierDuDossier\(periodesParDossier\.get\(d\.id\)/.test(alertes));
+  t('et elle ne lit plus les trois colonnes du dossier pour cela',
+    !/construireEcheancier\(\{\s*debut: d\.date_entree/.test(alertes));
   t('elle vient bien de crmImmoEcheancier',
     /from '\.\/crmImmoEcheancier'/.test(alertes));
   t('un echeancier vide ne produit aucune alerte',

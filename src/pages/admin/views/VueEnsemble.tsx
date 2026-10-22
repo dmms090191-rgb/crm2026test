@@ -4,9 +4,22 @@ import { useThemeTokens } from '../../../hooks/useThemeTokens';
 import { useSansStatutStats } from '../../../hooks/useSansStatutStats';
 import SansStatutModal from '../../../components/SansStatutModal';
 import SocieteIdentityCard from './SocieteIdentityCard';
-import SocieteKpiGrid from './SocieteKpiGrid';
+import SocieteKpiGrid, { SocieteKpiGridImmo } from './SocieteKpiGrid';
 import { useSocieteOverviewCounts } from './useSocieteOverviewCounts';
+import type { CategorieImmo, CompteursImmo } from '../../../lib/crmImmoEcheancier';
 import type { ActiveView } from '../AdminDashboard';
+
+/**
+ * Ce que le dashboard recoit quand la Societe possede CRM IMMO.
+ *
+ * `null` — et c'est le cas de toutes les autres Societes — signifie : garde EXACTEMENT
+ * les six compteurs generiques. La bascule tient en une seule condition, et le droit
+ * vient de has_crm_immo_access, jamais d'un nom de Societe ecrit en dur.
+ */
+export interface ImmoPourDashboard {
+  compteurs: CompteursImmo;
+  chargement: boolean;
+}
 
 interface VueEnsembleProps {
   onNavigate?: (view: ActiveView, options?: { docTab?: string }) => void;
@@ -18,6 +31,10 @@ interface VueEnsembleProps {
   email?: string;
   /** Rendez-vous a traiter : imminents + non traites, perso et equipe. */
   rdvCount?: number;
+  /** Les sept compteurs CRM Immo, ou null si la Societe n'a pas le module. */
+  immo?: ImmoPourDashboard | null;
+  /** Ouvre la page du module sur la categorie de la carte cliquee. */
+  onOuvrirCrmImmo?: (categorie: CategorieImmo) => void;
 }
 
 export default function VueEnsemble({
@@ -27,6 +44,8 @@ export default function VueEnsemble({
   companyName = '',
   email = '',
   rdvCount = 0,
+  immo = null,
+  onOuvrirCrmImmo,
 }: VueEnsembleProps) {
   const t = useThemeTokens();
   const [modalOpen, setModalOpen] = useState(false);
@@ -61,18 +80,35 @@ export default function VueEnsemble({
           </div>
         </div>
 
-        <SocieteKpiGrid
-          tokens={t}
-          onSansStatutClick={() => setModalOpen(true)}
-          values={{
-            leadsActifs: leadsCount,
-            sansStatut: sansStatut.count,
-            vendeurs: sansStatut.vendors.length,
-            messages: unreadClientConversations + unreadVendorConversations,
-            rendezVous: rdvCount,
-            enAttente: pendingCount,
-          }}
-        />
+        {/*
+          * LA BASCULE, EN UNE SEULE CONDITION.
+          *
+          * `immo` n'est renseigne que si has_crm_immo_access a dit oui pour CETTE
+          * Societe. Toutes les autres passent par le `else` et gardent EXACTEMENT les
+          * six compteurs d'avant — meme composant, memes valeurs, meme clic sur
+          * « Sans statut ». Aucun nom de Societe n'intervient.
+          */}
+        {immo ? (
+          <SocieteKpiGridImmo
+            tokens={t}
+            compteurs={immo.compteurs}
+            chargement={immo.chargement}
+            onOuvrirModule={onOuvrirCrmImmo}
+          />
+        ) : (
+          <SocieteKpiGrid
+            tokens={t}
+            onSansStatutClick={() => setModalOpen(true)}
+            values={{
+              leadsActifs: leadsCount,
+              sansStatut: sansStatut.count,
+              vendeurs: sansStatut.vendors.length,
+              messages: unreadClientConversations + unreadVendorConversations,
+              rendezVous: rdvCount,
+              enAttente: pendingCount,
+            }}
+          />
+        )}
       </div>
 
       {announcements.length > 0 && (

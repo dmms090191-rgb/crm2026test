@@ -276,8 +276,21 @@ test("5 — crm_immo_acces n est dans AUCUNE liste, et n a aucune regle", () => 
     "src/lib/restaureOrphelins.ts",
   ]) {
     const code = lire(f).split("\n").filter(l => !l.trim().startsWith("*") && !l.trim().startsWith("//")).join("\n");
-    assert.ok(!code.includes("crm_immo_acces"),
-      f + " nomme crm_immo_acces dans son CODE : elle deviendrait restaurable");
+    /*
+     * La TABLE, pas la fonction qui lit le droit.
+     *
+     * `has_crm_immo_access` CONTIENT la chaine `crm_immo_acces` : une recherche de
+     * sous-chaine la confondait avec la table, et interdisait au circuit de demander
+     * si la Societe de destination possede le module — exactement ce qu'il doit faire
+     * avant de lancer.
+     *
+     * On cherche donc le NOM DE TABLE tel qu'une liste l'ecrit : entre quotes, et sans
+     * rien d'accole.
+     */
+    assert.ok(!/['"`]crm_immo_acces['"`]/.test(code),
+      f + " nomme la table crm_immo_acces dans son CODE : elle deviendrait restaurable");
+    assert.ok(!/\bfrom\(\s*['"`]crm_immo_acces['"`]/.test(code),
+      f + " interroge directement crm_immo_acces");
   }
 });
 

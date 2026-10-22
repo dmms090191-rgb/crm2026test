@@ -205,6 +205,17 @@ const CIBLES: { fichier: string; repere: string; avant: string; apres: string; c
     avant: "86 x 37", apres: "86 x 45", classe: /max-md:py-\[14px\]/ },
   { fichier: D + "CrmImmoCommentaires.tsx", repere: "crm-immo-commentaire-renoncer-",
     avant: "63 x 37", apres: "63 x 45", classe: /max-md:py-\[14px\]/ },
+
+  /*
+   * La barre de filtres, mesuree le 22 octobre 2026.
+   *
+   * Elle y avait echappe tant qu'elle ne portait que deux pilules. Elle en porte huit
+   * depuis que chaque carte du tableau de bord ouvre sa propre liste : le defaut
+   * devenait quatre fois plus present, et une pilule ratee envoie sur la mauvaise
+   * liste sans rien dire.
+   */
+  { fichier: D + "CrmImmoFilters.tsx", repere: "crm-immo-filtre-${f.valeur}",
+    avant: "26 de haut", apres: "44 de haut", classe: /max-md:min-h-\[44px\]/ },
 ];
 
 test("B1 — chaque cible mesuree garde ce qui l a agrandie", () => {

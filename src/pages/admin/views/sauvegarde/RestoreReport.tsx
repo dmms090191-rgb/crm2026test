@@ -43,7 +43,7 @@ export function RestoreReportPanel({ report, onClose, tokens: t }: Props) {
           )}
           <div className="min-w-0">
             <h3 className="text-sm font-bold" style={{ color: t.text.primary }}>
-              {isSimulation ? 'Simulation terminee' : 'Restauration terminee'}
+  {report.blocage ? 'Restauration non lancée' : isSimulation ? 'Simulation terminee' : 'Restauration terminee'}
             </h3>
             {isSimulation && (
               <p className="text-[11px]" style={{ color: t.success.text }}>
@@ -73,6 +73,21 @@ export function RestoreReportPanel({ report, onClose, tokens: t }: Props) {
       </div>
 
       <div className="px-4 sm:px-5 py-4 space-y-4">
+        {/*
+          * LE BLOCAGE PASSE AVANT TOUT LE RESTE.
+          *
+          * Un rapport a zero ligne et zero table se lit comme « il n'y avait rien a
+          * faire ». Quand on a REFUSE de partir, il faut le dire d'abord, et dire quoi
+          * faire — sinon l'utilisateur relance, et retrouve le meme rapport vide.
+          */}
+        {report.blocage && (
+          <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-lg"
+            data-testid="restore-blocage"
+            style={{ background: t.danger.bg, border: `1px solid ${t.danger.border}` }}>
+            <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: t.danger.text }} />
+            <p className="text-xs leading-relaxed" style={{ color: t.danger.text }}>{report.blocage}</p>
+          </div>
+        )}
         {/* Summary stats */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
           <StatBox label="Tables dans le fichier" value={report.tablesInFile} tokens={t} />
@@ -182,6 +197,22 @@ export function RestoreReportPanel({ report, onClose, tokens: t }: Props) {
                       : 'Parent introuvable'}
                     style={{ background: t.warning.bg, color: t.warning.text }}>
                     {tr.ignored} ecartee{(tr.ignored ?? 0) > 1 ? 's' : ''}
+                  </span>
+                )}
+                {/*
+                  Les lignes dont l'ATTRIBUTION a ete retiree : elles venaient d'une autre
+                  Societe. `auth.users` est global, donc created_by, cloture_par,
+                  encaisse_par et annule_par traversaient les cloisons sans un mot. Les
+                  vider est juste ; le taire ne le serait pas.
+                  Les FAITS, eux, sont conserves : une annulation garde sa date et son
+                  motif, seul son auteur disparait.
+                */}
+                {(tr.anonymized ?? 0) > 0 && (
+                  <span className="text-[11px] flex-shrink-0 whitespace-nowrap px-1.5 py-0.5 rounded"
+                    data-testid="restore-anonymisees"
+                    title="Lignes venant d'une autre société : l'auteur a été retiré, les dates et motifs sont conservés"
+                    style={{ background: t.accent.bg, color: t.accent.solid }}>
+                    {tr.anonymized} sans auteur
                   </span>
                 )}
                 <span className="text-[11px] flex-shrink-0 whitespace-nowrap" style={{ color: t.text.tertiary }}>

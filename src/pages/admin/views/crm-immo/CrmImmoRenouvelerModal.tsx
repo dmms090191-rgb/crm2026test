@@ -4,7 +4,7 @@ import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 import { enDateFrancaise } from '../../../../lib/crmImmoAlertes';
 import { construireEcheancier } from '../../../../lib/crmImmoEcheancier';
 import { useFermetureModale } from './useFermetureModale';
-import type { PeriodeDossier } from './useCrmImmoEcheancier';
+import type { PeriodeEnregistree } from './useCrmImmoEcheancier';
 
 /**
  * RENOUVELER LE CONTRAT.
@@ -27,7 +27,7 @@ import type { PeriodeDossier } from './useCrmImmoEcheancier';
  */
 
 interface Props {
-  periodeActive: PeriodeDossier | null;
+  periodeActive: PeriodeEnregistree | null;
   enCours: boolean;
   erreur: string;
   onFermer: () => void;

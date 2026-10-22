@@ -1,6 +1,7 @@
 import { Search, X, SlidersHorizontal } from 'lucide-react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 import type { FiltreDossiers } from '../../../../lib/crmImmoRecherche';
+import { CATEGORIES_IMMO, type CategorieImmo } from '../../../../lib/crmImmoEcheancier';
 
 /**
  * Recherche et filtres du tableau CRM Immo.
@@ -11,19 +12,49 @@ import type { FiltreDossiers } from '../../../../lib/crmImmoRecherche';
  */
 
 /*
- * Deux filtres seulement.
+ * HUIT FILTRES : « Tous », plus les sept categories du tableau de bord.
  *
- * « Avec loyer » et « Sans échéance » ont ete retires a la demande de David le
- * 22 octobre 2026. Ils ne sont pas masques mais SUPPRIMES, y compris leur logique dans
- * crmImmoRecherche.ts : un filtre qu'aucun bouton ne peut plus declencher est du code
- * mort, et le code mort finit par etre lu comme une fonctionnalite.
+ * David, le 22 octobre 2026 : « Je ne veux pas qu'une carte ouvre simplement Tous si un
+ * filtre precis peut etre applique. » Chaque carte du dashboard a donc son filtre ici,
+ * et le libelle du bouton est celui de la carte, mot pour mot.
  *
- * Rien n'est perdu cote donnees : un filtre est un etat d'ecran, jamais enregistre.
+ * ---------- LE VOCABULAIRE N'EST PAS RECOPIE ----------
+ *
+ * Les cles viennent de CategorieImmo. Le typage de LIBELLES en Record<CategorieImmo, …>
+ * fait que le compilateur reclame un libelle des qu'une categorie est ajoutee au
+ * calcul : il devient impossible d'avoir une carte sans son filtre.
+ *
+ * ---------- CE QUI A DISPARU ----------
+ *
+ * « Fin proche » n'existe plus. Il recouvrait exactement deux des nouveaux filtres
+ * (« Contrats a renouveler » et « Baux expires ») sans distinguer l'un de l'autre, et
+ * refaisait son propre calcul de preavis avec l'horloge de la page — gelee au montage.
+ * Mesure du 22 octobre : la carte « Contrats a renouveler » affichait 0 et ce filtre
+ * ouvrait une liste d'UNE ligne. Rien n'est perdu cote donnees : un filtre est un etat
+ * d'ecran, jamais enregistre.
+ *
+ * (« Avec loyer » et « Sans échéance » avaient ete retires le meme jour, plus tot.)
  */
+const LIBELLES: Record<CategorieImmo, string> = {
+  'loyers-en-retard': 'Loyers en retard',
+  'loyers-a-encaisser': 'Loyers à encaisser',
+  'encaisses-ce-mois': 'Encaissés ce mois',
+  'contrats-a-renouveler': 'Contrats à renouveler',
+  'baux-expires': 'Baux expirés',
+  'dossiers-en-cours': 'Dossiers en cours',
+  'baux-a-venir': 'Baux à venir',
+};
+
 const FILTRES: { valeur: FiltreDossiers; libelle: string }[] = [
   { valeur: 'tous', libelle: 'Tous' },
-  { valeur: 'fin-proche', libelle: 'Fin proche' },
+  ...CATEGORIES_IMMO.map(c => ({ valeur: c as FiltreDossiers, libelle: LIBELLES[c] })),
 ];
+
+/* Les trois categories ou le compteur de la carte et le nombre de lignes n'ont PAS la
+   meme unite : la carte compte des echeances, la liste montre des dossiers. */
+const CATEGORIES_EN_ECHEANCES = new Set<string>([
+  'loyers-en-retard', 'loyers-a-encaisser', 'encaisses-ce-mois',
+]);
 
 interface Props {
   terme: string;
@@ -33,12 +64,28 @@ interface Props {
   total: number;
   affiches: number;
   onOuvrirColonnes: () => void;
+  /** Le compteur de la carte correspondante, quand le filtre actif en a un. */
+  compteurCategorie?: number | null;
 }
 
 export default function CrmImmoFilters({
   terme, onTerme, filtre, onFiltre, total, affiches, onOuvrirColonnes,
+  compteurCategorie = null,
 }: Props) {
   const t = useThemeTokens();
+
+  /*
+   * L'ECART ENTRE LA CARTE ET LA LISTE, DIT A VOIX HAUTE.
+   *
+   * Neuf loyers en retard peuvent n'appartenir qu'a un seul dossier. La carte affiche
+   * 9, la liste montre 1 ligne, et sans explication l'utilisateur lit un bug. On
+   * affiche donc les deux nombres, et seulement quand ils different.
+   */
+  const ecartUnite =
+    filtre !== 'tous' && CATEGORIES_EN_ECHEANCES.has(filtre) &&
+    compteurCategorie !== null && compteurCategorie !== affiches
+      ? `${compteurCategorie} ${compteurCategorie > 1 ? 'échéances' : 'échéance'} sur ${affiches} dossier${affiches > 1 ? 's' : ''}`
+      : null;
 
   return (
     <div className="flex flex-col gap-2.5">
@@ -84,13 +131,31 @@ export default function CrmImmoFilters({
         </button>
       </div>
 
-      <div className="flex flex-wrap items-center gap-1.5">
+      {/*
+        * HUIT PILULES SUR UNE SEULE RANGEE QUI DEFILE.
+        *
+        * En `flex-wrap`, huit libelles longs font trois a quatre rangees a 375 px : la
+        * liste est repoussee hors de l'ecran avant d'avoir commence. Une rangee qui
+        * defile horizontalement garde la hauteur constante et laisse voir qu'il y a
+        * autre chose a droite.
+        *
+        * `overflow-x-auto` est borne a CE conteneur : il ne cree aucun debordement de
+        * page — la mesure par element le verifie, `scrollWidth` du document etant
+        * aveugle sous `overflow-x: hidden`.
+        *
+        * `min-h-[44px]` sous 768 px : les pilules faisaient 26 px de haut, sous le
+        * minimum tactile que scripts/crm-immo/cibleTactile.test.ts impose deja aux
+        * douze autres cibles du module. Passer de deux a huit boutons rendait ce defaut
+        * huit fois plus present.
+        */}
+      <div className="flex items-stretch gap-1.5 overflow-x-auto no-scrollbar -mx-1 px-1 py-0.5">
         {FILTRES.map(f => {
           const actif = filtre === f.valeur;
           return (
             <button key={f.valeur} type="button" onClick={() => onFiltre(f.valeur)}
               data-testid={`crm-immo-filtre-${f.valeur}`}
-              className="px-2.5 py-1 rounded-full text-xs font-semibold transition-colors"
+              aria-pressed={actif}
+              className="px-3 py-1 rounded-full text-xs font-semibold transition-colors whitespace-nowrap shrink-0 max-md:min-h-[44px] max-md:px-4"
               style={actif
                 ? { background: t.accent.solid, color: t.text.inverse, border: `1px solid ${t.accent.solid}` }
                 : { background: t.surface.secondary, color: t.text.secondary, border: `1px solid ${t.surface.border}` }}>
@@ -98,9 +163,17 @@ export default function CrmImmoFilters({
             </button>
           );
         })}
-        <span className="text-xs ml-auto" style={{ color: t.label.hint }} data-testid="crm-immo-compte">
+      </div>
+
+      {/* Le compte, SOUS la rangee et non dedans : en `ml-auto` dans un conteneur qui
+          defile, il partait a droite du dernier bouton, donc hors de l'ecran. */}
+      <div className="flex items-center justify-between gap-2 text-xs" style={{ color: t.label.hint }}>
+        <span data-testid="crm-immo-compte">
           {affiches === total ? `${total} dossier${total > 1 ? 's' : ''}` : `${affiches} sur ${total}`}
         </span>
+        {ecartUnite && (
+          <span data-testid="crm-immo-ecart-unite" className="text-right">{ecartUnite}</span>
+        )}
       </div>
     </div>
   );

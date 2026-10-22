@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../../../lib/supabase';
+import { lireToutesLesLignes } from '../../../../lib/lectureIntegrale';
 import { useCompanyId } from '../../../../hooks/useCompanyId';
 import { COMMENTAIRE_MAX, type CommentaireImmo } from './crmImmoTypes';
 
@@ -133,10 +134,15 @@ export function useCrmImmoNombreCommentaires() {
 
   const recharger = useCallback(async () => {
     if (!companyId) { setParDossier({}); return; }
-    const { data, error } = await supabase
-      .from('crm_immo_commentaires')
-      .select('dossier_id')
-      .eq('company_id', companyId);
+    /* Paginee : le compte par dossier se fait sur TOUTES les lignes, et une troncature
+       silencieuse ferait afficher moins de commentaires qu'il n'y en a. */
+    const { data, error } = await lireToutesLesLignes<{ dossier_id: string }>((de, a) =>
+      supabase
+        .from('crm_immo_commentaires')
+        .select('dossier_id', { count: 'exact' })
+        .eq('company_id', companyId)
+        .order('id')
+        .range(de, a));
 
     if (error) { setParDossier({}); return; }
     const compte: Record<string, number> = {};

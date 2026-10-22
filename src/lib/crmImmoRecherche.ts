@@ -1,5 +1,6 @@
 import type { DossierImmo } from '../pages/admin/views/crm-immo/crmImmoTypes';
 import { cleColonne, type Colonne } from './crmImmoColonnes';
+import type { CategorieImmo } from './crmImmoEcheancier';
 
 /*
  * Recherche, tri et filtres du tableau CRM Immo — module PUR.
@@ -112,30 +113,44 @@ export function trier(dossiers: DossierImmo[], colonne: Colonne | null, sens: Se
   });
 }
 
-/** Filtres rapides sur les echeances, appliques apres la recherche. */
-export type FiltreDossiers = 'tous' | 'fin-proche';
+/**
+ * Les filtres de la liste : << Tous >>, plus LES SEPT CATEGORIES DU TABLEAU DE BORD.
+ *
+ * Le vocabulaire n'est pas recopie, il est IMPORTE de crmImmoEcheancier. Ajouter une
+ * categorie la-bas ajoute un filtre ici, et le compilateur reclame son libelle.
+ */
+export type FiltreDossiers = 'tous' | CategorieImmo;
 
 /**
- * Applique un filtre rapide.
+ * Applique un filtre.
  *
- * `aujourdhui` est passe en 'AAAA-MM-JJ' : aucune horloge implicite, donc testable.
+ * ---------- CE MODULE NE CALCULE PLUS AUCUNE DATE ----------
+ *
+ * Jusqu'au 22 octobre 2026, le filtre << Fin proche >> refaisait son propre calcul de
+ * preavis, avec sa propre constante de 30 jours et l'horloge de la page — gelee au
+ * montage. Le tableau de bord, lui, calculait avec la sienne, rafraichie toutes les
+ * 60 s. Mesure du jour : la carte << Contrats a renouveler >> affichait 0, et le clic
+ * ouvrait une liste d'UNE ligne. Deux verites, aucun moyen de savoir laquelle croire.
+ *
+ * Desormais le classement est fait UNE fois, par classerTableauDeBord, a partir de
+ * crm_immo_contrats et des encaissements, avec l'horloge du tableau de bord. Ce module
+ * ne fait plus que lire l'appartenance. Il ne peut plus se tromper de date, puisqu'il
+ * n'en lit plus aucune.
+ *
+ * @param classement Les dossiers de chaque categorie, ou null tant que le classement
+ *                   n'est pas charge. Null rend une liste VIDE pour une categorie —
+ *                   jamais la liste entiere, qui ferait croire que tout correspond.
  */
 export function filtrerDossiers(
   dossiers: DossierImmo[],
   filtre: FiltreDossiers,
-  aujourdhui: string,
-  preavisJours = 30,
+  classement: Record<CategorieImmo, Set<string>> | null,
 ): DossierImmo[] {
   if (filtre === 'tous') return dossiers;
-  /* 'fin-proche' : les contrats dont l'echeance est dans le preavis, ou deja passee.
-     C'est le seul filtre restant : « Avec loyer » et « Sans échéance » ont ete retires
-     le 22 octobre 2026, logique comprise. */
-  return dossiers.filter(d => {
-    if (!d.date_fin_contrat) return false;
-    const ms = Date.parse(`${d.date_fin_contrat}T12:00:00Z`) - Date.parse(`${aujourdhui}T12:00:00Z`);
-    if (Number.isNaN(ms)) return false;
-    return Math.round(ms / 86_400_000) <= preavisJours;
-  });
+  if (!classement) return [];
+  const vises = classement[filtre];
+  if (!vises) return [];
+  return dossiers.filter(d => vises.has(d.id));
 }
 
 /** Le pipeline complet, dans l'ordre : filtre, puis recherche, puis tri. */
@@ -146,10 +161,10 @@ export function preparerLignes(params: {
   triSur: Colonne | null;
   sens: Sens;
   filtre: FiltreDossiers;
-  aujourdhui: string;
+  classement: Record<CategorieImmo, Set<string>> | null;
 }): DossierImmo[] {
-  const { dossiers, terme, colonnes, triSur, sens, filtre, aujourdhui } = params;
-  return trier(rechercher(filtrerDossiers(dossiers, filtre, aujourdhui), terme, colonnes), triSur, sens);
+  const { dossiers, terme, colonnes, triSur, sens, filtre, classement } = params;
+  return trier(rechercher(filtrerDossiers(dossiers, filtre, classement), terme, colonnes), triSur, sens);
 }
 
 /** Retrouve une colonne par sa cle, pour restaurer un tri apres rechargement. */

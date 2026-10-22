@@ -8,6 +8,7 @@ import {
   libelleAlerte, titreAlerte, detailAlerte, enDateFrancaise,
   type DossierPourAlertes, type EtatConnu, type Alerte,
 } from "../../src/lib/crmImmoAlertes.ts";
+import type { PeriodeDossier } from "../../src/lib/crmImmoEcheancier.ts";
 
 /* Les deux expressions reellement posees par la contrainte
    crm_immo_etats_periode_valide. Toute periode produite doit leur obeir, sinon
@@ -42,6 +43,32 @@ const dossier = (over: Partial<DossierPourAlertes> = {}): DossierPourAlertes => 
 });
 
 const seulement = (alertes: Alerte[], genre: string) => alertes.filter(a => a.genre === genre);
+
+/*
+ * LES PERIODES QU UN DOSSIER COMPLET PORTE EN BASE.
+ *
+ * Depuis le 22 octobre 2026, deriverAlertes ne lit plus les trois colonnes du dossier
+ * pour construire l echeancier : il lit les PERIODES. La raison est une regle de David —
+ * un loyer impaye d un contrat renouvele doit rester reclame, or ces trois colonnes ne
+ * refletent que le contrat EN COURS.
+ *
+ * Un declencheur en base garantit qu un dossier complet a exactement UNE periode en
+ * cours, miroir de ses trois colonnes. Cet adaptateur reproduit ce fait, pour que les
+ * cas d epreuve ci-dessous continuent de se lire comme avant. Un test qui veut un
+ * HISTORIQUE — plusieurs periodes, dont des cloturees — les passe explicitement.
+ */
+const periodesDe = (dossiers: DossierPourAlertes[]): PeriodeDossier[] =>
+  dossiers.flatMap(d =>
+    d.date_entree && d.date_fin_contrat && d.jour_encaissement !== null && d.jour_encaissement !== undefined
+      ? [{
+          dossier_id: d.id, debut: d.date_entree, fin: d.date_fin_contrat,
+          jour_encaissement: d.jour_encaissement, cloturee: false,
+        }]
+      : []);
+
+type EntreeAlertes = Parameters<typeof deriverAlertes>[0];
+const deriver = (p: EntreeAlertes) =>
+  deriverAlertes({ ...p, periodes: p.periodes ?? periodesDe(p.dossiers) });
 
 // ---------------------------------------------------------------------------
 // LE RABATTEMENT — le piege du 31 fevrier
@@ -103,7 +130,7 @@ test("deux fuseaux, le meme instant en milieu de mois : la MEME periode de loyer
   const losAngeles = journeeDeReference(instant, "America/Los_Angeles");
   const d = [dossier({ jour_encaissement: 5 })];
   const periode = (jour: string) =>
-    seulement(deriverAlertes({ dossiers: d, etats: [], aujourdhui: jour }), "loyer")[0].periode;
+    seulement(deriver({ dossiers: d, etats: [], aujourdhui: jour }), "loyer")[0].periode;
   assert.equal(periode(paris), "2026-11");
   assert.equal(periode(jerusalem), "2026-11");
   assert.equal(periode(losAngeles), "2026-11",
@@ -123,7 +150,7 @@ test("toute periode produite obeit aux expressions de la contrainte", () => {
   for (let mois = 1; mois <= 12; mois++) {
     const dernier = dernierJourDuMois(2026, mois);
     const aujourdhui = `2026-${String(mois).padStart(2, "0")}-15`;
-    const a = deriverAlertes({
+    const a = deriver({
       dossiers: [dossier({ jour_encaissement: 31, date_fin_contrat: `2026-${String(mois).padStart(2, "0")}-${String(dernier).padStart(2, "0")}` })],
       etats: [], aujourdhui,
     });
@@ -155,7 +182,7 @@ test("lireJour refuse les dates impossibles au lieu de les corriger en silence",
 test("fin de contrat : active a J-30 PILE, pas a J-31", () => {
   const fin = "2026-12-15";
   const d = [dossier({ date_fin_contrat: fin })];
-  const a = (aujourdhui: string) => seulement(deriverAlertes({ dossiers: d, etats: [], aujourdhui }), "fin_contrat");
+  const a = (aujourdhui: string) => seulement(deriver({ dossiers: d, etats: [], aujourdhui }), "fin_contrat");
 
   assert.equal(joursEntre("2026-11-15", fin), 30, "le 15 novembre est bien J-30");
   assert.equal(a("2026-11-15").length, 1, "a J-30 l alerte sort");
@@ -166,12 +193,12 @@ test("fin de contrat : active a J-30 PILE, pas a J-31", () => {
 
 test("fin de contrat : une echeance DEPASSEE reste active jusqu a ce qu on la traite", () => {
   const d = [dossier({ date_fin_contrat: "2026-01-10" })];
-  const a = seulement(deriverAlertes({ dossiers: d, etats: [], aujourdhui: "2026-03-01" }), "fin_contrat");
+  const a = seulement(deriver({ dossiers: d, etats: [], aujourdhui: "2026-03-01" }), "fin_contrat");
   assert.equal(a.length, 1, "le travail reste a faire : le calendrier ne l efface pas");
   assert.ok(a[0].joursRestants < 0, "les jours restants sont negatifs");
   /* C est le bouton << traite >> qui la retire, pas le temps. */
   const etats: EtatConnu[] = [{ dossier_id: "d1", genre: "fin_contrat", periode: "2026-01-10", traitee_le: "2026-03-01T10:00:00Z" }];
-  const apres = deriverAlertes({ dossiers: d, etats, aujourdhui: "2026-03-01" });
+  const apres = deriver({ dossiers: d, etats, aujourdhui: "2026-03-01" });
   assert.equal(filtrer(apres, "actives").length, 0);
   assert.equal(filtrer(apres, "traitees").length, 1, "et elle est CONSERVEE dans l historique");
 });
@@ -179,10 +206,10 @@ test("fin de contrat : une echeance DEPASSEE reste active jusqu a ce qu on la tr
 test("CHANGER la date de fin cree une NOUVELLE echeance, donc une nouvelle alerte", () => {
   /* L'ancienne etait traitee ; la nouvelle date n a pas d etat, elle revient active. */
   const etats: EtatConnu[] = [{ dossier_id: "d1", genre: "fin_contrat", periode: "2026-12-15", traitee_le: "2026-11-20T09:00:00Z" }];
-  const avant = deriverAlertes({ dossiers: [dossier({ date_fin_contrat: "2026-12-15" })], etats, aujourdhui: "2026-11-25" });
+  const avant = deriver({ dossiers: [dossier({ date_fin_contrat: "2026-12-15" })], etats, aujourdhui: "2026-11-25" });
   assert.equal(filtrer(avant, "actives").filter(x => x.genre === "fin_contrat").length, 0, "traitee");
 
-  const apres = deriverAlertes({ dossiers: [dossier({ date_fin_contrat: "2026-12-20" })], etats, aujourdhui: "2026-11-25" });
+  const apres = deriver({ dossiers: [dossier({ date_fin_contrat: "2026-12-20" })], etats, aujourdhui: "2026-11-25" });
   const actives = filtrer(apres, "actives").filter(x => x.genre === "fin_contrat");
   assert.equal(actives.length, 1, "la nouvelle date est une nouvelle echeance");
   assert.equal(actives[0].periode, "2026-12-20");
@@ -208,7 +235,7 @@ test("loyer : la date est rabattue sur les mois courts", () => {
   ];
   for (const [debut, fin, quand, attendue] of cas) {
     const d = [dossier({ date_entree: debut, date_fin_contrat: fin, jour_encaissement: 31 })];
-    const a = seulement(deriverAlertes({ dossiers: d, etats: [], aujourdhui: quand }), "loyer");
+    const a = seulement(deriver({ dossiers: d, etats: [], aujourdhui: quand }), "loyer");
     assert.equal(a.length, 1, "le " + quand + " : une alerte attendue");
     assert.equal(a[0].echeance, attendue, "le 31 doit etre rabattu sur " + attendue);
     assert.equal(a[0].periode, attendue.slice(0, 7), "la periode suit l echeance");
@@ -227,12 +254,12 @@ test("loyer : traiter un mois ne traite pas le suivant", () => {
   const d = [dossier({ date_entree: "2026-11-01", date_fin_contrat: "2027-10-31", jour_encaissement: 5 })];
   const etats: EtatConnu[] = [{ dossier_id: "d1", genre: "loyer", periode: "2026-11", traitee_le: "2026-11-05T08:00:00Z" }];
 
-  const nov = deriverAlertes({ dossiers: d, etats, aujourdhui: "2026-11-20" });
+  const nov = deriver({ dossiers: d, etats, aujourdhui: "2026-11-20" });
   assert.equal(filtrer(nov, "actives").length, 0, "novembre est traite");
   assert.equal(filtrer(nov, "traitees").length, 1);
 
   /* Novembre encaisse : decembre prend la suite, et il n'est ni lu ni traite. */
-  const dec = deriverAlertes({
+  const dec = deriver({
     dossiers: d, etats, aujourdhui: "2026-12-20",
     encaissements: [{ dossier_id: "d1", echeance: "2026-11-05" }],
   });
@@ -242,7 +269,7 @@ test("loyer : traiter un mois ne traite pas le suivant", () => {
   assert.equal(loyer[0].traitee, false, "l'etat de novembre ne colore pas decembre");
 
   /* Sans l'encaissement, novembre reste devant : il est toujours du. */
-  const sansEncaissement = seulement(deriverAlertes({ dossiers: d, etats, aujourdhui: "2026-12-20" }), "loyer");
+  const sansEncaissement = seulement(deriver({ dossiers: d, etats, aujourdhui: "2026-12-20" }), "loyer");
   assert.equal(sansEncaissement[0].periode, "2026-11",
     "un novembre impaye doit rester reclame en decembre");
 });
@@ -250,7 +277,7 @@ test("loyer : traiter un mois ne traite pas le suivant", () => {
 test("loyer : l alerte est visible tout le mois, avant comme apres l echeance", () => {
   const d = [dossier({ jour_encaissement: 15 })];
   for (const jour of ["2026-11-01", "2026-11-15", "2026-11-30"]) {
-    const a = seulement(deriverAlertes({ dossiers: d, etats: [], aujourdhui: jour }), "loyer");
+    const a = seulement(deriver({ dossiers: d, etats: [], aujourdhui: jour }), "loyer");
     assert.equal(a.length, 1, `le ${jour}`);
     assert.equal(a[0].echeance, "2026-11-15");
   }
@@ -261,7 +288,7 @@ test("loyer : l alerte est visible tout le mois, avant comme apres l echeance", 
 // ---------------------------------------------------------------------------
 
 test("un dossier sans date ni jour ne produit aucune alerte", () => {
-  const a = deriverAlertes({ dossiers: [dossier()], etats: [], aujourdhui: "2026-11-15" });
+  const a = deriver({ dossiers: [dossier()], etats: [], aujourdhui: "2026-11-15" });
   assert.equal(a.length, 0);
 });
 
@@ -272,14 +299,14 @@ test("une date ou un jour invalide est ignore, pas devine", () => {
     { jour_encaissement: Number.NaN }, { jour_encaissement: null },
   ];
   for (const over of cas) {
-    const a = deriverAlertes({ dossiers: [dossier(over)], etats: [], aujourdhui: "2026-11-15" });
+    const a = deriver({ dossiers: [dossier(over)], etats: [], aujourdhui: "2026-11-15" });
     assert.equal(a.length, 0, `cas ${JSON.stringify(over)}`);
   }
 });
 
 test("le badge compte les NON LUES et NON TRAITEES — traiter sans lire le retire aussi", () => {
   const d = [dossier({ id: "a", jour_encaissement: 5 }), dossier({ id: "b", jour_encaissement: 6 }), dossier({ id: "c", jour_encaissement: 7 })];
-  const nu = deriverAlertes({ dossiers: d, etats: [], aujourdhui: "2026-11-02" });
+  const nu = deriver({ dossiers: d, etats: [], aujourdhui: "2026-11-02" });
   assert.equal(nu.length, 3);
   assert.equal(compteBadge(nu), 3, "aucune ligne d etat : les trois comptent");
 
@@ -288,7 +315,7 @@ test("le badge compte les NON LUES et NON TRAITEES — traiter sans lire le reti
     /* Traitee SANS avoir ete lue : elle doit sortir du badge quand meme. */
     { dossier_id: "b", genre: "loyer", periode: "2026-11", traitee_le: "2026-11-02T09:00:00Z" },
   ];
-  const apres = deriverAlertes({ dossiers: d, etats, aujourdhui: "2026-11-02" });
+  const apres = deriver({ dossiers: d, etats, aujourdhui: "2026-11-02" });
   assert.equal(compteBadge(apres), 1, "seule c reste non lue et non traitee");
   assert.equal(filtrer(apres, "actives").length, 2, "a et c restent actives");
   assert.equal(filtrer(apres, "traitees").length, 1, "b est conservee dans l historique");
@@ -325,22 +352,22 @@ test("loyer : un bail TERMINE ne reclame que ses loyers IMPAYES", () => {
   const paye = [{ dossier_id: "d1", echeance: "2026-10-20" }];
 
   for (const quand of ["2026-11-15", "2027-06-15", "2030-01-10"]) {
-    const impaye = seulement(deriverAlertes({ dossiers: d, etats: [], aujourdhui: quand }), "loyer");
+    const impaye = seulement(deriver({ dossiers: d, etats: [], aujourdhui: quand }), "loyer");
     assert.equal(impaye.length, 1, "le " + quand + " : le loyer impaye doit rester reclame");
     assert.equal(impaye[0].echeance, "2026-10-20",
       "le " + quand + " : l'echeance doit rester celle du contrat, jamais une date inventee");
 
-    const regle = seulement(deriverAlertes({ dossiers: d, etats: [], aujourdhui: quand, encaissements: paye }), "loyer");
+    const regle = seulement(deriver({ dossiers: d, etats: [], aujourdhui: quand, encaissements: paye }), "loyer");
     assert.equal(regle.length, 0, "le " + quand + " : un loyer encaisse ne se reclame plus");
   }
 });
 
 test("loyer : un bail PAS ENCORE COMMENCE ne reclame rien", () => {
   const d = [dossier({ date_entree: "2027-03-01", date_fin_contrat: "2028-02-29", jour_encaissement: 15 })];
-  assert.equal(seulement(deriverAlertes({ dossiers: d, etats: [], aujourdhui: "2026-10-22" }), "loyer").length, 0,
+  assert.equal(seulement(deriver({ dossiers: d, etats: [], aujourdhui: "2026-10-22" }), "loyer").length, 0,
     "un contrat qui commence en 2027 reclame deja son loyer en 2026");
   /* Et des qu'il commence, il reclame. */
-  assert.equal(seulement(deriverAlertes({ dossiers: d, etats: [], aujourdhui: "2027-03-02" }), "loyer").length, 1,
+  assert.equal(seulement(deriver({ dossiers: d, etats: [], aujourdhui: "2027-03-02" }), "loyer").length, 1,
     "le contrat a commence : son loyer doit sortir");
 });
 
@@ -355,22 +382,22 @@ test("loyer : les BORNES sont incluses, des deux cotes", () => {
    * anterieure et le relevé ne mesurerait plus la borne.
    */
   const finPile = [dossier({ date_entree: "2026-11-01", date_fin_contrat: "2026-11-20", jour_encaissement: 20 })];
-  const a1 = seulement(deriverAlertes({ dossiers: finPile, etats: [], aujourdhui: "2026-11-10" }), "loyer");
+  const a1 = seulement(deriver({ dossiers: finPile, etats: [], aujourdhui: "2026-11-10" }), "loyer");
   assert.equal(a1.length, 1, "l'echeance EGALE a la fin du bail doit sortir");
   assert.equal(a1[0].echeance, "2026-11-20");
 
   const debutPile = [dossier({ date_entree: "2026-11-05", date_fin_contrat: "2026-11-30", jour_encaissement: 5 })];
-  const a2 = seulement(deriverAlertes({ dossiers: debutPile, etats: [], aujourdhui: "2026-11-01" }), "loyer");
+  const a2 = seulement(deriver({ dossiers: debutPile, etats: [], aujourdhui: "2026-11-01" }), "loyer");
   assert.equal(a2.length, 1, "l'echeance EGALE au debut du bail doit sortir");
   assert.equal(a2[0].echeance, "2026-11-05");
 
   /* Un jour de plus de chaque cote, et il n'y a plus rien du tout. */
   const finVeille = [dossier({ date_entree: "2026-11-01", date_fin_contrat: "2026-11-19", jour_encaissement: 20 })];
-  assert.equal(seulement(deriverAlertes({ dossiers: finVeille, etats: [], aujourdhui: "2026-11-10" }), "loyer").length, 0,
+  assert.equal(seulement(deriver({ dossiers: finVeille, etats: [], aujourdhui: "2026-11-10" }), "loyer").length, 0,
     "une echeance APRES la fin du bail ne doit pas sortir");
 
   const debutLendemain = [dossier({ date_entree: "2026-11-06", date_fin_contrat: "2026-11-30", jour_encaissement: 5 })];
-  assert.equal(seulement(deriverAlertes({ dossiers: debutLendemain, etats: [], aujourdhui: "2026-11-01" }), "loyer").length, 0,
+  assert.equal(seulement(deriver({ dossiers: debutLendemain, etats: [], aujourdhui: "2026-11-01" }), "loyer").length, 0,
     "une echeance AVANT le debut du bail ne doit pas sortir");
 });
 
@@ -384,7 +411,7 @@ test("loyer : un contrat INCOMPLET ne produit aucune alerte", () => {
     ["date de fin abimee", { date_entree: "2026-01-01", date_fin_contrat: "2026-13-99", jour_encaissement: 5 }],
   ];
   for (const [quoi, over] of cas) {
-    const a = deriverAlertes({ dossiers: [dossier(over)], etats: [], aujourdhui: "2026-11-15" });
+    const a = deriver({ dossiers: [dossier(over)], etats: [], aujourdhui: "2026-11-15" });
     assert.equal(seulement(a, "loyer").length, 0, quoi + " : une alerte de loyer est sortie quand meme");
   }
 });
@@ -398,13 +425,13 @@ test("loyer : le rabattement joue AVANT la borne, pas apres", () => {
    * ferait disparaitre un loyer parfaitement du.
    */
   const d = [dossier({ date_entree: "2026-02-01", date_fin_contrat: "2026-02-28", jour_encaissement: 31 })];
-  const a = seulement(deriverAlertes({ dossiers: d, etats: [], aujourdhui: "2026-02-10" }), "loyer");
+  const a = seulement(deriver({ dossiers: d, etats: [], aujourdhui: "2026-02-10" }), "loyer");
   assert.equal(a.length, 1, "le loyer rabattu sur la fin du bail doit sortir");
   assert.equal(a[0].echeance, "2026-02-28");
 
   /* Et en annee bissextile, le rabattement donne le 29, qui depasse une fin au 28. */
   const bissextile = [dossier({ date_entree: "2028-02-01", date_fin_contrat: "2028-02-28", jour_encaissement: 31 })];
-  assert.equal(seulement(deriverAlertes({ dossiers: bissextile, etats: [], aujourdhui: "2028-02-10" }), "loyer").length, 0,
+  assert.equal(seulement(deriver({ dossiers: bissextile, etats: [], aujourdhui: "2028-02-10" }), "loyer").length, 0,
     "rabattu au 29, le loyer depasse une fin de bail au 28 : il ne doit pas sortir");
 });
 
@@ -412,7 +439,7 @@ test("fin de contrat : la regle du loyer ne l a PAS touchee", () => {
   /* Les deux alertes sont independantes. Un contrat sans jour d encaissement doit
      toujours annoncer sa fin — c'est meme le cas le plus courant. */
   const d = [dossier({ date_entree: "2026-01-01", date_fin_contrat: "2026-11-20", jour_encaissement: null })];
-  const a = deriverAlertes({ dossiers: d, etats: [], aujourdhui: "2026-11-10" });
+  const a = deriver({ dossiers: d, etats: [], aujourdhui: "2026-11-10" });
   assert.equal(seulement(a, "fin_contrat").length, 1, "la fin de contrat doit toujours sortir");
   assert.equal(seulement(a, "loyer").length, 0, "mais pas le loyer, faute de jour d encaissement");
 });
@@ -421,7 +448,7 @@ test("un etat qui ne correspond a aucune alerte derivee est inerte", () => {
   /* Cas reel : une alerte traitee il y a six mois, dont la periode n est plus
      derivee. Elle ne doit NI reapparaitre, NI faire planter la derivation. */
   const etats: EtatConnu[] = [{ dossier_id: "d1", genre: "loyer", periode: "2026-05", traitee_le: "2026-05-05T08:00:00Z" }];
-  const a = deriverAlertes({ dossiers: [dossier({ jour_encaissement: 5 })], etats, aujourdhui: "2026-11-15" });
+  const a = deriver({ dossiers: [dossier({ jour_encaissement: 5 })], etats, aujourdhui: "2026-11-15" });
   assert.equal(a.length, 1);
   assert.equal(a[0].periode, "2026-11");
   assert.equal(a[0].traitee, false, "l etat de mai ne doit pas colorer novembre");
@@ -433,8 +460,8 @@ test("l ordre est le plus urgent d abord, et il est STABLE a egalite", () => {
     dossier({ id: "a", locataire: "Albert", jour_encaissement: 20 }),
     dossier({ id: "m", locataire: "Marc", date_fin_contrat: "2026-11-18" }),
   ];
-  const un = deriverAlertes({ dossiers: d, etats: [], aujourdhui: "2026-11-10" });
-  const deux = deriverAlertes({ dossiers: [...d].reverse(), etats: [], aujourdhui: "2026-11-10" });
+  const un = deriver({ dossiers: d, etats: [], aujourdhui: "2026-11-10" });
+  const deux = deriver({ dossiers: [...d].reverse(), etats: [], aujourdhui: "2026-11-10" });
   assert.deepEqual(un.map(a => a.dossier_id + a.genre), deux.map(a => a.dossier_id + a.genre),
     "l ordre ne doit pas dependre de l ordre d arrivee des dossiers");
   assert.equal(un[0].dossier_id, "m", "la fin de contrat du 18 est la plus proche");
@@ -444,7 +471,7 @@ test("l affichage porte TOUJOURS locataire, proprietaire et echeance", () => {
   /* Exigence explicite de David : << je veux TOUJOURS pouvoir comprendre
      immediatement de quel locataire il s agit, pour quel proprietaire, et quelle
      est la date >>. Un dossier sans locataire retombe sur le nom du client. */
-  const a = deriverAlertes({
+  const a = deriver({
     dossiers: [dossier({ locataire: null, proprietaire: null, jour_encaissement: 5, date_fin_contrat: "2026-11-20" })],
     etats: [], aujourdhui: "2026-11-01",
   });
@@ -474,7 +501,7 @@ test("la phrase de David, au caractere pres, pour les deux genres", () => {
    * Ce test est volontairement ecrit en DUR, sans reutiliser les constantes du module :
    * un test qui derive sa valeur attendue de la source ne verifie plus rien.
    */
-  const a = deriverAlertes({
+  const a = deriver({
     dossiers: [dossier({
       date_entree: "2026-11-01", date_fin_contrat: "2026-12-15", jour_encaissement: 5,
     })],
@@ -497,7 +524,7 @@ test("la phrase de David, au caractere pres, pour les deux genres", () => {
 
   /* Un mois plus tard, novembre toujours impaye : la phrase dit le RETARD, et garde le
      meme numero — c'est bien le premier loyer qui n'a pas ete paye. */
-  const enRetard = deriverAlertes({
+  const enRetard = deriver({
     dossiers: [dossier({
       date_entree: "2026-11-01", date_fin_contrat: "2026-12-15", jour_encaissement: 5,
     })],
@@ -509,7 +536,7 @@ test("la phrase de David, au caractere pres, pour les deux genres", () => {
   );
 
   /* Novembre encaisse : on passe au second, et il n'est plus en retard. */
-  const suivant = deriverAlertes({
+  const suivant = deriver({
     dossiers: [dossier({
       date_entree: "2026-11-01", date_fin_contrat: "2026-12-15", jour_encaissement: 5,
     })],
@@ -533,7 +560,7 @@ test("titre + detail redonnent EXACTEMENT la phrase entiere", () => {
    * pour que personne ne reecrive l une des trois a la main. Le rang du loyer vit dans
    * le TITRE, donc il traverse les trois surfaces sans etre ecrit deux fois.
    */
-  const a = deriverAlertes({
+  const a = deriver({
     dossiers: [
       dossier({ date_entree: "2026-02-01", date_fin_contrat: "2026-02-28", jour_encaissement: 31 }),
       dossier({ id: "d2", locataire: "Marie-Antoinette Vandenbergheimerstein",

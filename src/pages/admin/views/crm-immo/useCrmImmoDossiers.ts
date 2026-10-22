@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../../../lib/supabase';
+import { lireToutesLesLignes } from '../../../../lib/lectureIntegrale';
 import { useCompanyId } from '../../../../hooks/useCompanyId';
 import type { DossierImmo, SaisieDossier } from './crmImmoTypes';
 
@@ -19,6 +20,23 @@ import type { DossierImmo, SaisieDossier } from './crmImmoTypes';
  * viderait le resultat EN SILENCE pour un Groupe qui consulte sa fille. Mesure faite :
  * 1 ligne vue. Les noms de Societe, quand il en faudra, se liront a part.
  */
+/**
+ * Ce que rend une ecriture de dossier.
+ *
+ * `avertissement` n'est PAS une erreur : l'enregistrement a reussi. Il signale que la
+ * base a conserve la periode du bail — une date videe alors qu'un contrat est en cours
+ * est ramenee a la valeur de ce contrat. Sans ce mot, l'utilisateur voit sa saisie
+ * revenir et croit a un bug.
+ *
+ * Creation et modification partagent le type : sinon le ternaire du formulaire
+ * (`edite ? modifier(...) : creer(...)`) produit une union ou le champ n'existe que
+ * d'un cote, et TypeScript refuse de le lire.
+ */
+export interface ResultatEcritureDossier {
+  error: string | null;
+  avertissement?: string;
+}
+
 export function useCrmImmoDossiers() {
   const companyId = useCompanyId();
   const [dossiers, setDossiers] = useState<DossierImmo[]>([]);
@@ -28,11 +46,26 @@ export function useCrmImmoDossiers() {
   const load = useCallback(async () => {
     if (!companyId) { setDossiers([]); setLoading(false); return; }
     setLoading(true);
-    const { data, error: err } = await supabase
-      .from('crm_immo_dossiers')
-      .select('*')
-      .eq('company_id', companyId)
-      .order('created_at', { ascending: false });
+    /*
+     * PAGINEE, ET SA COMPLETUDE VERIFIEE.
+     *
+     * PostgREST tronque au-dela de son plafond, sans erreur : la liste serait juste
+     * plus courte, et les dossiers manquants invisibles. Une agence qui depasse le
+     * millier de dossiers verrait simplement les plus anciens disparaitre.
+     *
+     * Le tri reste `created_at` DESC — c'est l'ordre attendu a l'ecran — mais il est
+     * DEPARTAGE par `id`. Sans ce second critere, deux dossiers crees dans la meme
+     * milliseconde pourraient s'echanger entre deux pages : l'un apparaitrait deux
+     * fois, l'autre jamais.
+     */
+    const { data, error: err } = await lireToutesLesLignes<DossierImmo>((de, a) =>
+      supabase
+        .from('crm_immo_dossiers')
+        .select('*', { count: 'exact' })
+        .eq('company_id', companyId)
+        .order('created_at', { ascending: false })
+        .order('id')
+        .range(de, a));
     if (err) { setError(err.message); setDossiers([]); }
     else { setDossiers((data ?? []) as DossierImmo[]); setError(''); }
     setLoading(false);
@@ -66,7 +99,7 @@ export function useCrmImmoDossiers() {
     };
   }, [companyId]);
 
-  const creer = useCallback(async (s: SaisieDossier) => {
+  const creer = useCallback(async (s: SaisieDossier): Promise<ResultatEcritureDossier> => {
     if (!companyId) return { error: 'Société introuvable.' };
     if (!s.nom.trim()) return { error: 'Le nom du client est obligatoire.' };
 
@@ -82,7 +115,11 @@ export function useCrmImmoDossiers() {
     return { error: null };
   }, [companyId, versLigne]);
 
-  const modifier = useCallback(async (id: string, s: SaisieDossier) => {
+  /** Rend un avertissement quand la base a conserve la periode du bail : l'enregistrement
+   *  a reussi, mais une date videe a ete ramenee a la valeur du contrat. */
+  const modifier = useCallback(async (
+    id: string, s: SaisieDossier,
+  ): Promise<ResultatEcritureDossier> => {
     if (!s.nom.trim()) return { error: 'Le nom du client est obligatoire.' };
 
     const ligne = versLigne(s);
@@ -101,7 +138,42 @@ export function useCrmImmoDossiers() {
     const lignes = (data ?? []) as DossierImmo[];
     if (lignes.length === 0) return { error: 'Modification refusée : droits insuffisants ou dossier introuvable.' };
 
-    setDossiers(prev => prev.map(d => (d.id === id ? lignes[0] : d)));
+    const rendu = lignes[0];
+    setDossiers(prev => prev.map(d => (d.id === id ? rendu : d)));
+
+    /*
+     * LA BASE A-T-ELLE RAMENE UNE DATE QU'ON VENAIT DE VIDER ?
+     *
+     * Depuis le 22 octobre 2026, un declencheur BEFORE empeche le dossier de contredire
+     * sa periode de bail : vider l'une des trois colonnes alors qu'une periode est en
+     * cours, et la base les remet aux valeurs du contrat. C'est ce qui ferme la
+     * divergence mesuree ce jour-la — le dossier disait << pas de date de fin >> pendant
+     * que crm_immo_contrats tenait toujours sa periode.
+     *
+     * Cote base, c'est juste. Cote ecran, ca ne l'est pas tant qu'on ne le dit pas :
+     * l'utilisateur voit sa saisie revenir sans explication et croit a un bug.
+     *
+     * On ne redemande rien a la base pour le savoir : la ligne rendue par .select('*')
+     * est celle d'APRES declencheurs. Il suffit de la comparer a ce qu'on a envoye.
+     */
+    const ramenees: string[] = [];
+    if (ligne.date_entree === null && rendu.date_entree !== null) ramenees.push("la date d'entrée");
+    if (ligne.date_fin_contrat === null && rendu.date_fin_contrat !== null) ramenees.push('la date de fin');
+    if (ligne.jour_encaissement === null && rendu.jour_encaissement !== null) ramenees.push("le jour d'encaissement");
+
+    if (ramenees.length > 0) {
+      /* Formulation volontairement neutre : elle doit rester juste au singulier comme
+         au pluriel, et quel que soit le genre des champs enumeres. */
+      const quoi = ramenees.length === 1
+        ? ramenees[0]
+        : ramenees.slice(0, -1).join(', ') + ' et ' + ramenees[ramenees.length - 1];
+      return {
+        error: null,
+        avertissement: `Un bail est en cours sur ce dossier : la période du contrat a été conservée (${quoi}). `
+          + 'Pour la changer, utilisez « Renouveler le contrat » dans Détails.',
+      };
+    }
+
     return { error: null };
   }, [versLigne]);
 

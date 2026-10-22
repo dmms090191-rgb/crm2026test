@@ -468,19 +468,40 @@ test("F2 — la cloche du module ne lit QUE les tables de CRM Immo", () => {
    * Sans cette lecture, la cloche reclamerait un loyer deja paye, et contredirait
    * l'onglet Echeancier — exactement ce qu'on cherche a eviter.
    *
-   * Les contrats, eux, ne sont PAS lus : les trois colonnes du dossier sont deja le
-   * reflet de la periode en cours, tenu par declencheur. Les relire serait une seconde
-   * source pour la meme verite.
+   * Et depuis le soir du 22 octobre 2026, elle n'en lit plus que DEUX.
+   *
+   * Les periodes et les encaissements lui arrivent du hook qui alimente aussi le
+   * tableau de bord. Deux raisons, et aucune n'est cosmetique :
+   *
+   *   - les PERIODES sont devenues necessaires a la cloche. La regle des impayes
+   *     anciens veut qu'une dette d'un contrat renouvele reste reclamee, or les trois
+   *     colonnes du dossier ne refletent que le contrat en cours. La cloche ne pouvait
+   *     donc plus s'en contenter ;
+   *   - les relire de son cote donnerait deux jeux de lignes rafraichis a des instants
+   *     differents — une cloche qui reclame un loyer que les cartes comptent deja
+   *     comme encaisse. C'est exactement ce que cette garde cherche a empecher, et le
+   *     partage le garantit mieux qu'une lecture jumelle.
+   *
+   * L'isolement du module, lui, n'a pas bouge : les deux tables restantes sont
+   * `crm_immo_*`, et le chargeur partage ne lit rien d'autre non plus — c'est verifie
+   * juste en dessous.
    */
   const src = lire(DOSSIER_MODULE + "/useCrmImmoAlertes.ts");
   const tables = [...src.matchAll(/\.from\('([^']+)'\)/g)].map(m => m[1]);
   assert.deepEqual([...new Set(tables)].sort(),
-    ["crm_immo_dossiers", "crm_immo_etats", "crm_immo_loyers"],
+    ["crm_immo_dossiers", "crm_immo_etats"],
     "la cloche interroge " + tables.join(", ") + " : elle ne doit lire que ses propres tables");
 
+  /* Le chargeur partage : les deux autres tables, et toujours aucune autre. */
+  const partage = lire(DOSSIER_MODULE + "/useCrmImmoTableauDeBord.ts");
+  const tablesPartage = [...partage.matchAll(/\.from\('([^']+)'\)/g)].map(m => m[1]);
+  assert.deepEqual([...new Set(tablesPartage)].sort(),
+    ["crm_immo_contrats", "crm_immo_loyers"],
+    "le chargeur partage interroge " + tablesPartage.join(", "));
+
   /* Et seuls les encaissements ACTIFS comptent : une annulation rend l'echeance due. */
-  assert.match(src, /\.is\('annule_le', null\)/,
-    "la cloche compterait les encaissements ANNULES comme encaisses");
+  assert.match(partage, /\.is\('annule_le', null\)/,
+    "le chargeur compterait les encaissements ANNULES comme encaisses");
 });
 
 test("F3 — V1 sans Realtime : aucun canal dans tout le module", () => {

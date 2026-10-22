@@ -194,9 +194,22 @@ test('recherche, tri et filtres reduisent la liste sans la casser', async ({ pag
   await page.getByTestId('crm-immo-recherche-effacer').click();
   await expect.poll(lignesVisibles, { timeout: 10_000 }).toBe(total);
 
-  /* Le filtre « Avec loyer » : seul le premier dossier a un jour d'encaissement. */
-  await page.getByTestId('crm-immo-filtre-avec-loyer').click();
-  await expect.poll(lignesVisibles, { timeout: 10_000 }).toBeLessThan(total);
+  /*
+   * LES FILTRES PAR CATEGORIE.
+   *
+   * Ce test cliquait « Avec loyer », filtre supprime le 22 octobre 2026 : il echouait
+   * donc depuis, sans rapport avec ce qu'il verifiait.
+   *
+   * La barre porte desormais « Tous » plus les sept categories du tableau de bord.
+   * On prend « Baux a venir » : les deux dossiers [TEST] ont un bail qui a commence,
+   * donc aucun ne doit y figurer — c'est un filtre dont on connait le resultat sans
+   * dependre des dates du jeu d'essai. Puis « Tous » doit tout ramener.
+   *
+   * Le retour a « Tous » est le vrai enjeu : un filtre qui ne se relache pas enferme
+   * l'utilisateur dans une liste vide.
+   */
+  await page.getByTestId('crm-immo-filtre-baux-a-venir').click();
+  await expect.poll(lignesVisibles, { timeout: 10_000 }).toBe(0);
   await page.getByTestId('crm-immo-filtre-tous').click();
   await expect.poll(lignesVisibles, { timeout: 10_000 }).toBe(total);
 

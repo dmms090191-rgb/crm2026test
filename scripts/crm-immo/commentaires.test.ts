@@ -199,7 +199,10 @@ test("B4 — le compte ne rapatrie que des identifiants, jamais des contenus", (
   const i = hook.indexOf("export function useCrmImmoNombreCommentaires");
   assert.ok(i > 0, "le hook du compte a disparu");
   const bloc = codeSeul(hook.slice(i));
-  const select = bloc.match(/\.select\('([^']*)'\)/);
+  /* La liste de colonnes peut desormais etre suivie d'options : `{ count: 'exact' }` a
+     rejoint le select quand la lecture est devenue paginee. On capture donc la liste,
+     puis ce qui la suit, au lieu d'exiger une parenthese fermante immediate. */
+  const select = bloc.match(/\.select\('([^']*)'\s*(?:,|\))/);
   assert.ok(select, "le compte ne fait plus de select");
   assert.equal(select![1], "dossier_id",
     "le compte rapatrie " + select![1] + " : il ne doit lire que les identifiants");
@@ -413,8 +416,19 @@ test("E2 — crm_immo_acces reste hors de TOUTE liste", () => {
    */
   const c = codeSeul(lire("src/pages/admin/views/sauvegarde/restoreConstants.ts"));
   const r = codeSeul(lire("src/pages/admin/views/sauvegarde/useRestoreCrm.ts"));
+  /*
+   * La TABLE, pas la fonction qui lit le droit.
+   *
+   * `has_crm_immo_access` CONTIENT la chaine `crm_immo_acces` : une recherche de
+   * sous-chaine la confondait avec la table, et interdisait au circuit de demander si
+   * la Societe de destination possede le module — exactement ce qu'il doit faire avant
+   * de lancer une restauration qui serait autrement refusee ligne par ligne en 42501.
+   *
+   * On cherche donc le NOM DE TABLE tel qu'une liste l'ecrit : entre quotes.
+   */
   for (const [nom, src] of [["restoreConstants", c], ["useRestoreCrm", r]] as [string, string][]) {
-    assert.ok(!src.includes("crm_immo_acces"), nom + " nomme crm_immo_acces : il deviendrait restaurable");
+    assert.ok(!/['"`]crm_immo_acces['"`]/.test(src),
+      nom + " nomme la table crm_immo_acces : elle deviendrait restaurable");
   }
 });
 

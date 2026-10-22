@@ -1,5 +1,6 @@
 import { createContext, useContext, type ReactNode } from 'react';
 import type { EtatAlertesImmo } from '../pages/admin/views/crm-immo/useCrmImmoAlertes';
+import type { CategorieImmo, CompteursImmo } from '../lib/crmImmoEcheancier';
 
 /*
  * LA SOURCE UNIQUE DES ALERTES CRM IMMO.
@@ -24,6 +25,20 @@ import type { EtatAlertesImmo } from '../pages/admin/views/crm-immo/useCrmImmoAl
  * Un clic sur une alerte du hub doit ouvrir LE BON dossier. Le hub vit dans la barre
  * du haut, la page dans la zone principale : ils ne se connaissent pas. Le contexte
  * porte donc aussi la demande d ouverture — le hub la depose, la page la consomme.
+ *
+ * ---------- ET LE CLASSEMENT DU TABLEAU DE BORD ----------
+ *
+ * Depuis le 22 octobre 2026, CHACUNE des sept cartes du dashboard ouvre la page du
+ * module sur sa propre liste. Deux choses passent donc par ici :
+ *
+ *   - le CLASSEMENT lui-meme — quels dossiers appartiennent a quelle categorie. Il est
+ *     calcule une seule fois, dans AdminDashboard, par le hook qui alimente deja les
+ *     cartes. La page ne le recalcule pas : elle lirait d autres lignes, avec une autre
+ *     horloge, et afficherait un autre chiffre que la carte cliquee.
+ *   - la DEMANDE de filtre — quelle categorie la carte vient de demander. Meme motif
+ *     que l ouverture d un dossier : la carte depose, la page consomme. Le contexte vit
+ *     AU-DESSUS d AdminViewRenderer, donc la demande survit au changement de vue, ce
+ *     qu une prop ne ferait pas.
  */
 
 export interface AlertesImmoPartagees {
@@ -34,6 +49,31 @@ export interface AlertesImmoPartagees {
   /** Le hub depose une demande ; la page la consomme et appelle ouvertureConsommee(). */
   demanderOuverture: (dossierId: string) => void;
   ouvertureConsommee: () => void;
+  /** La categorie qu une carte du dashboard demande d appliquer a l arrivee, ou null. */
+  filtreADemander: CategorieImmo | null;
+  /** Une carte depose la demande ; la page la consomme et appelle filtreConsomme(). */
+  demanderFiltre: (filtre: CategorieImmo) => void;
+  filtreConsomme: () => void;
+  /**
+   * Le classement du tableau de bord, ou null si la Societe n a pas le module.
+   *
+   * `chargement` est vrai tant que les periodes et les encaissements ne sont pas
+   * revenus : la page affiche alors une attente, et surtout PAS << aucun dossier >>,
+   * qui ferait croire que le filtre ne trouve rien.
+   */
+  tableauDeBord: {
+    compteurs: CompteursImmo;
+    dossiersParCategorie: Record<CategorieImmo, Set<string>>;
+    chargement: boolean;
+    /**
+     * Relit les periodes et les encaissements tout de suite.
+     *
+     * Le hook a son propre rythme — cinq minutes, plus le retour de visibilite. Apres
+     * un renouvellement ou un encaissement, attendre ce rythme laisserait le dossier
+     * dans la mauvaise categorie, et la carte sur un chiffre perime.
+     */
+    recharger: () => Promise<void>;
+  } | null;
 }
 
 const Contexte = createContext<AlertesImmoPartagees | null>(null);

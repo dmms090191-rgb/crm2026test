@@ -15,6 +15,8 @@ import {
 } from './adminLazyViews';
 import CrmImmoGate from './CrmImmoGate';
 import type { EtatAcces } from '../../../lib/crmImmoAccess';
+import type { ImmoPourDashboard } from '../views/VueEnsemble';
+import type { CategorieImmo } from '../../../lib/crmImmoEcheancier';
 import { saveConnectReturnContext, saveChatReturnContext } from '../../../lib/connectReturnContext';
 import type { ImpersonatedClient } from '../views/Crm';
 import type { EntreeHistorique } from '../../../lib/notificationHistory';
@@ -83,11 +85,21 @@ interface Props {
   markSuperAdminRead: (superAdminId?: string) => void;
   chatInitialSuperAdminId?: string | null;
   historique: PaquetHistorique;
+  /**
+   * Les sept compteurs CRM Immo du dashboard, ou null si la Societe n a pas le module.
+   *
+   * Null fait garder a la Vue d ensemble ses six compteurs generiques, inchanges. La
+   * bascule tient donc en une seule valeur, et aucun nom de Societe n intervient.
+   */
+  immoDashboard?: ImmoPourDashboard | null;
+  /** Ouvre la page du module sur la categorie de la carte cliquee. */
+  onOuvrirCrmImmo?: (categorie: CategorieImmo) => void;
 }
 
 export default function AdminViewRenderer({
   activeView, chatLead, chatVendor, rdvLead, effectiveAdminId, chatInitialSuperAdminId = null,
   impersonatedAdmin, isSAViewing, crmImmoAcces, onReessayerCrmImmo, docInitialTab,
+  immoDashboard = null, onOuvrirCrmImmo,
   unreadClientConversations, unreadVendorConversations,
   identityName = '', identityEmail = '', companyName = '', rdvCount = 0,
   pendingScrollRef,
@@ -125,7 +137,7 @@ export default function AdminViewRenderer({
       )}
       {activeView !== 'info-admin' && activeView !== 'chat-client' && activeView !== 'chat-vendeur' && activeView !== 'chat-super-admin' && (() => {
         switch (activeView) {
-          case 'vue-ensemble': return <Suspense fallback={lazyFallback}><VueEnsemble onNavigate={handleNavigate} unreadClientConversations={unreadClientConversations} unreadVendorConversations={unreadVendorConversations} fullName={identityName} companyName={companyName} email={identityEmail} rdvCount={rdvCount} /></Suspense>;
+          case 'vue-ensemble': return <Suspense fallback={lazyFallback}><VueEnsemble onNavigate={handleNavigate} immo={immoDashboard} onOuvrirCrmImmo={onOuvrirCrmImmo} unreadClientConversations={unreadClientConversations} unreadVendorConversations={unreadVendorConversations} fullName={identityName} companyName={companyName} email={identityEmail} rdvCount={rdvCount} /></Suspense>;
           case 'site': return <Suspense fallback={lazyFallback}><AdminSite /></Suspense>;
           case 'logo': return <Suspense fallback={lazyFallback}><AdminLogoPage isSAViewing={isSAViewing} /></Suspense>;
           case 'inscription': return <Suspense fallback={lazyFallback}><Inscription /></Suspense>;
@@ -156,7 +168,7 @@ export default function AdminViewRenderer({
           case 'historique-notifications': return <Suspense fallback={lazyFallback}><HistoriqueNotifications {...historique} /></Suspense>;
           case 'crm-immo': return <CrmImmoGate etat={crmImmoAcces} onReessayer={onReessayerCrmImmo} />;
           case 'tuto': return <div className="p-6"><p className="text-sm" style={{ color: 'inherit' }}>Tuto - Contenu a venir</p></div>;
-          default: return <Suspense fallback={lazyFallback}><VueEnsemble unreadClientConversations={unreadClientConversations} unreadVendorConversations={unreadVendorConversations} fullName={identityName} companyName={companyName} email={identityEmail} rdvCount={rdvCount} /></Suspense>;
+          default: return <Suspense fallback={lazyFallback}><VueEnsemble immo={immoDashboard} onOuvrirCrmImmo={onOuvrirCrmImmo} unreadClientConversations={unreadClientConversations} unreadVendorConversations={unreadVendorConversations} fullName={identityName} companyName={companyName} email={identityEmail} rdvCount={rdvCount} /></Suspense>;
         }
       })()}
     </>

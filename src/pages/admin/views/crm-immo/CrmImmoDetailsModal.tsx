@@ -52,6 +52,16 @@ interface Props {
   erreur: string;
   onFermer: () => void;
   onEnregistrer: (s: SaisieDossier) => void;
+  /**
+   * Appele quand la PERIODE de bail a change — renouvellement, encaissement, annulation.
+   *
+   * L'echeancier se recharge tout seul, mais la LISTE de la page et le CLASSEMENT du
+   * tableau de bord, eux, ne savent rien : ils relisent sur leur propre rythme, a cinq
+   * minutes d'intervalle et jamais en phase. Sans ce signal, un bail renouvele garde
+   * ses anciennes dates dans la liste, et reste dans la mauvaise categorie, jusqu'au
+   * prochain passage reseau.
+   */
+  onPeriodeChangee?: () => void;
 }
 
 /** Une ligne de base devient une saisie : null devient chaine vide, jamais "null". */
@@ -71,7 +81,7 @@ function versSaisie(d: DossierImmo): SaisieDossier {
 }
 
 export default function CrmImmoDetailsModal({
-  dossier, colonnesPerso, ongletInitial, enCours, erreur, onFermer, onEnregistrer,
+  dossier, colonnesPerso, ongletInitial, enCours, erreur, onFermer, onEnregistrer, onPeriodeChangee,
 }: Props) {
   const t = useThemeTokens();
   const [onglet, setOnglet] = useState<OngletDetails>(ongletInitial);
@@ -249,6 +259,7 @@ export default function CrmImmoDetailsModal({
               onEncaisser={async (date) => {
                 const e = await ech.marquerEncaisse(date);
                 setErreurEcheancier(e ?? '');
+                if (!e) onPeriodeChangee?.();
               }}
               onAnnuler={(e) => { setAAnnuler(e); setMotifAnnulation(''); }}
               onRenouveler={() => { setErreurEcheancier(''); setRenouveler(true); }}
@@ -342,6 +353,7 @@ export default function CrmImmoDetailsModal({
           if (e) { setErreurEcheancier(e); return; }
           setErreurEcheancier('');
           setRenouveler(false);
+          onPeriodeChangee?.();
         }}
       />
     )}
@@ -381,7 +393,7 @@ export default function CrmImmoDetailsModal({
               onClick={async () => {
                 const e = await ech.annulerEncaissement(aAnnuler.id, motifAnnulation);
                 setErreurEcheancier(e ?? '');
-                if (!e) setAAnnuler(null);
+                if (!e) { setAAnnuler(null); onPeriodeChangee?.(); }
               }}
               data-testid="crm-immo-annuler-confirmer"
               aria-label="Confirmer l'annulation de l'encaissement"

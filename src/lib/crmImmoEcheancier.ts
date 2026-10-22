@@ -226,6 +226,386 @@ export function rangDuLoyer(e: { numero: number; total: number }): string {
   return `${e.numero}${e.numero === 1 ? 'er' : 'e'} loyer sur ${e.total}`;
 }
 
+/* ---------------------------------------------------------------------------
+   LES COMPTEURS DU TABLEAU DE BORD
+   --------------------------------------------------------------------------- */
+
+/**
+ * Une periode de bail, telle que la porte crm_immo_contrats — CLOTUREE OU NON.
+ *
+ * On charge les deux, et c'est une regle posee par David le 22 octobre 2026 :
+ * << Le renouvellement ne doit jamais faire disparaitre une dette reelle. >> Une
+ * echeance impayee d'un ancien contrat reste due ; seules les CATEGORIES DE CONTRAT
+ * (expire / a venir / a renouveler / en cours) ne regardent que la periode en cours.
+ */
+export interface PeriodeDossier {
+  dossier_id: string;
+  debut: string;
+  fin: string;
+  jour_encaissement: number;
+  /** Vrai si la periode a ete remplacee par un renouvellement. */
+  cloturee: boolean;
+}
+
+/** Une echeance situee dans l'historique complet d'un dossier. */
+export interface EcheanceDossier extends EcheanceLoyer {
+  /** Vrai si elle vient d'une periode deja remplacee. */
+  ancienne: boolean;
+}
+
+/**
+ * L'ECHEANCIER COMPLET D'UN DOSSIER, toutes ses periodes reunies.
+ *
+ * ---------- POURQUOI ON NE PEUT PAS SE CONTENTER DE CONCATENER ----------
+ *
+ * Deux periodes successives se CHEVAUCHENT presque toujours. Un bail 2026-01-05 →
+ * 2026-12-05 renouvele le 10 juillet par 2026-07-10 → 2027-07-09 : les echeances d'aout
+ * a decembre existent dans les deux. Concatenees, elles compteraient deux fois — et si
+ * le jour d'encaissement a change au passage (5 → 20), ce seraient meme deux DATES
+ * differentes pour un seul loyer du.
+ *
+ * La regle appliquee : une periode ne fournit ses echeances que JUSQU'AU DEBUT de la
+ * suivante. L'ancien contrat etait en vigueur jusqu'a ce que le nouveau prenne le
+ * relais, ni avant ni apres. C'est exact pour une chaine de renouvellements comme pour
+ * un changement de jour d'encaissement.
+ *
+ * Le dedoublonnage par date qui suit n'est qu'une ceinture : il ne reste rien a
+ * dedoublonner apres la coupure, sauf si deux periodes partagent le meme debut.
+ *
+ * ---------- LE NUMERO RESTE CELUI DE SA PERIODE ----------
+ *
+ * << 4e loyer sur 12 >> designe le 4e loyer DU CONTRAT, pas le 4e de l'histoire du
+ * dossier : David a valide que la numerotation reparte a 1 apres un renouvellement.
+ * Chaque echeance garde donc le numero et le total que construireEcheancier lui a
+ * donnes DANS SA PERIODE.
+ *
+ * Consequence assumee : un bail de 12 loyers interrompu au 7e laisse des echeances
+ * numerotees << 7 sur 12 >>. Le contrat prevoyait bien douze loyers ; il a ete
+ * remplace avant. Dire << 7 sur 7 >> inventerait un contrat qui n'a jamais existe.
+ */
+export function echeancierDuDossier(
+  periodes: PeriodeDossier[],
+  estEncaisse: (date: string) => boolean = () => false,
+): EcheanceDossier[] {
+  /* Par debut croissant : c'est l'ordre dans lequel les contrats se sont succede. */
+  const tri = [...periodes]
+    .filter(p => lireJour(p.debut) !== null && lireJour(p.fin) !== null)
+    .sort((a, b) => a.debut.localeCompare(b.debut) || a.fin.localeCompare(b.fin));
+
+  const vues = new Set<string>();
+  const sortie: EcheanceDossier[] = [];
+
+  for (let i = 0; i < tri.length; i++) {
+    const p = tri[i];
+    const releve = tri[i + 1]?.debut ?? null;
+    for (const e of construireEcheancier({ debut: p.debut, fin: p.fin, jour: p.jour_encaissement })) {
+      /*
+       * LA COUPURE, ET SA SEULE EXCEPTION.
+       *
+       * Passe le debut de la periode suivante, les echeances de celle-ci appartiennent
+       * au nouveau contrat — SAUF si elle a deja ete ENCAISSEE.
+       *
+       * Un encaissement est rattache au dossier et a une DATE, pas a un contrat :
+       * l'index unique de crm_immo_loyers porte sur (company_id, dossier_id, echeance),
+       * et la table n'a aucune colonne contrat_id. Une ligne payee le 5 juillet survit
+       * donc au renouvellement. La supprimer de l'echeancier la rendrait ORPHELINE :
+       * l'argent serait encaisse en base, et l'ecran reclamerait quand meme ce loyer.
+       *
+       * C'est un defaut que ce code a eu, et qui a ete mesure : avec un releve au
+       * 20 aout, un paiement du 5 juillet donnait exactement les memes compteurs que
+       * l'absence de paiement. Une echeance payee est un fait, pas une prevision — elle
+       * ne se recoupe pas.
+       *
+       * `continue` et non `break` : un paiement peut se trouver APRES une echeance non
+       * payee du meme ancien contrat. S'arreter a la premiere impayee rendrait les
+       * suivantes orphelines a nouveau.
+       */
+      if (releve !== null && e.date >= releve && !estEncaisse(e.date)) continue;
+      if (vues.has(e.date)) continue;
+      vues.add(e.date);
+      sortie.push({ ...e, ancienne: p.cloturee });
+    }
+  }
+
+  return sortie.sort((a, b) => a.date.localeCompare(b.date));
+}
+
+/** Un encaissement NON ANNULE. */
+export interface EncaissementActif {
+  dossier_id: string;
+  /** L'echeance reglee, 'AAAA-MM-JJ'. */
+  echeance: string;
+  /** Le JOUR ou l'argent est entre, 'AAAA-MM-JJ' dans le fuseau du poste. */
+  encaisseLeJour: string;
+}
+
+export interface CompteursImmo {
+  loyersEnRetard: number;
+  loyersAEncaisser: number;
+  encaissesCeMois: number;
+  contratsARenouveler: number;
+  bauxExpires: number;
+  dossiersEnCours: number;
+  bauxAVenir: number;
+}
+
+/**
+ * LES SEPT CATEGORIES, ET LEUR SEUL VOCABULAIRE.
+ *
+ * Cette cle sert a TROIS endroits : la carte du tableau de bord, le filtre de la page
+ * CRM Immo, et la classification ci-dessous. Un seul mot pour les trois, donc aucune
+ * table de traduction ou un libelle pourrait se desaligner en silence.
+ */
+export type CategorieImmo =
+  | 'loyers-en-retard'
+  | 'loyers-a-encaisser'
+  | 'encaisses-ce-mois'
+  | 'contrats-a-renouveler'
+  | 'baux-expires'
+  | 'dossiers-en-cours'
+  | 'baux-a-venir';
+
+export const CATEGORIES_IMMO: readonly CategorieImmo[] = [
+  'loyers-en-retard', 'loyers-a-encaisser', 'encaisses-ce-mois',
+  'contrats-a-renouveler', 'baux-expires', 'dossiers-en-cours', 'baux-a-venir',
+] as const;
+
+/** Le compteur que chaque categorie alimente. Fige le lien carte <-> filtre. */
+export const COMPTEUR_DE_CATEGORIE: Record<CategorieImmo, keyof CompteursImmo> = {
+  'loyers-en-retard': 'loyersEnRetard',
+  'loyers-a-encaisser': 'loyersAEncaisser',
+  'encaisses-ce-mois': 'encaissesCeMois',
+  'contrats-a-renouveler': 'contratsARenouveler',
+  'baux-expires': 'bauxExpires',
+  'dossiers-en-cours': 'dossiersEnCours',
+  'baux-a-venir': 'bauxAVenir',
+};
+
+/** Les categories qui comptent des CONTRATS : une periode y entre une fois, et une seule. */
+export const CATEGORIES_CONTRAT: readonly CategorieImmo[] = [
+  'contrats-a-renouveler', 'baux-expires', 'dossiers-en-cours', 'baux-a-venir',
+] as const;
+
+export interface ClassementImmo {
+  compteurs: CompteursImmo;
+  /**
+   * Les DOSSIERS concernes par chaque categorie.
+   *
+   * Issus du MEME parcours que les compteurs — c'est ce qui rend impossible qu'une
+   * carte annonce un chiffre et que la liste filtree en montre un autre.
+   *
+   * Attention a l'unite : pour les quatre categories de contrat, un dossier porte une
+   * periode et une seule, donc `dossiers[c].size === compteurs[...]`. Pour les trois
+   * categories de loyer, l'unite du compteur est l'ECHEANCE : un dossier avec trois
+   * loyers en retard compte 3 et n'apparait qu'une fois dans la liste. Les deux disent
+   * vrai, ils ne disent pas la meme chose.
+   */
+  dossiers: Record<CategorieImmo, Set<string>>;
+}
+
+/** Combien de jours avant la fin d'un bail on propose de le renouveler. */
+export const PREAVIS_RENOUVELLEMENT = 30;
+
+/**
+ * 'AAAA-MM-JJ' + n jours. Tout le trajet reste en UTC — Date.UTC pour entrer, setUTCDate
+ * pour avancer, toISOString pour sortir. C'est l'UTC de bout en bout qui garantit le jour,
+ * pas l'heure choisie : midi est une ceinture de securite, pas la serrure.
+ */
+export function ajouterJours(iso: string, n: number): string {
+  const d = lireJour(iso);
+  if (!d) return iso;
+  const t = new Date(Date.UTC(d.annee, d.mois - 1, d.jour, 12));
+  t.setUTCDate(t.getUTCDate() + n);
+  return t.toISOString().slice(0, 10);
+}
+
+/**
+ * LE CLASSEMENT DU TABLEAU DE BORD D'UNE SOCIETE CRM IMMO.
+ *
+ * Rend DEUX choses issues du MEME parcours : les sept compteurs, et les dossiers de
+ * chaque categorie. Une carte et la liste qu'elle ouvre ne peuvent donc pas etre
+ * calculees differemment, ni a des instants differents.
+ *
+ * ---------- MAIS ELLES NE COMPTENT PAS LA MEME CHOSE, ET C'EST VOULU ----------
+ *
+ * Le compteur et la liste n'ont pas la meme UNITE, et aucun parcours commun ne peut
+ * les rendre egaux :
+ *
+ *   - les quatre categories de CONTRAT comptent des periodes. Un index partiel unique
+ *     (company_id, dossier_id) WHERE cloture_le IS NULL garantit une periode en cours
+ *     au plus par dossier, donc la : compteur = nombre de dossiers listes, toujours.
+ *   - les trois categories de LOYER comptent des ECHEANCES. Un dossier avec neuf
+ *     loyers en retard ajoute 9 au compteur et UNE ligne a la liste.
+ *
+ * Les deux disent vrai. L'interface doit donc dire laquelle elle montre — le filtre
+ * de la page affiche les deux nombres pour les trois categories de loyer, faute de
+ * quoi l'utilisateur lit l'ecart comme une erreur.
+ *
+ * ---------- LES QUATRE CATEGORIES DE CONTRAT SONT UNE PARTITION ----------
+ *
+ * David, le 22 octobre 2026 : << Je veux une partition stricte. Un contrat ne doit
+ * apparaitre que dans UNE seule de ces quatre categories. >>
+ *
+ *   Baux expires          fin < aujourd'hui
+ *   Baux a venir          debut > aujourd'hui
+ *   Contrats a renouveler debut <= aujourd'hui <= fin  ET  fin <= aujourd'hui + 30 j
+ *   Dossiers en cours     debut <= aujourd'hui <= fin  ET  fin >  aujourd'hui + 30 j
+ *
+ * C'est une CHAINE `if / else if / else if / else`, et non quatre tests independants :
+ * une periode entre dans une branche et sort. L'ordre est celui de la certitude — fini
+ * d'abord, pas commence ensuite, fin proche, puis le reste par elimination.
+ *
+ * Deux consequences a ne pas perdre de vue :
+ *   - un bail termine le 20 octobre est << expire >> et RIEN d'autre, meme si sa fin
+ *     tombe dans les trente jours ;
+ *   - << Dossiers en cours >> ne contient PLUS les baux qui se terminent bientot. Ils
+ *     sont dans << Contrats a renouveler >>. Les deux chiffres s'additionnent
+ *     desormais sans se compter deux fois, et c'est tout l'objet du changement.
+ *
+ * ---------- << ENCAISSES CE MOIS >> COMPTE L'ARGENT, PAS LES ECHEANCES ----------
+ *
+ * David a tranche : on se base sur la date d'encaissement, pas sur le mois de
+ * l'echeance. Un loyer de janvier regle en octobre compte en octobre. C'est la vue de
+ * caisse — ce qui est rentre ce mois-ci — et elle ne se deduit d'aucun des deux autres
+ * compteurs de loyer.
+ *
+ * ---------- ET AUCUN SECOND CALCUL ----------
+ *
+ * Les loyers passent par construireEcheancier et statutDe, exactement comme l'onglet
+ * Echeancier et les notifications. Le tableau de bord ne sait pas compter des mois.
+ */
+export function classerTableauDeBord(params: {
+  periodes: PeriodeDossier[];
+  encaissements: EncaissementActif[];
+  aujourdhui: string;
+  preavisJours?: number;
+}): ClassementImmo {
+  const { periodes, encaissements, aujourdhui, preavisJours = PREAVIS_RENOUVELLEMENT } = params;
+
+  const c: CompteursImmo = {
+    loyersEnRetard: 0, loyersAEncaisser: 0, encaissesCeMois: 0,
+    contratsARenouveler: 0, bauxExpires: 0, dossiersEnCours: 0, bauxAVenir: 0,
+  };
+  const dossiers = Object.fromEntries(
+    CATEGORIES_IMMO.map(k => [k, new Set<string>()]),
+  ) as Record<CategorieImmo, Set<string>>;
+
+  if (!lireJour(aujourdhui)) return { compteurs: c, dossiers };
+
+  const limite = ajouterJours(aujourdhui, preavisJours);
+  const moisCourant = aujourdhui.slice(0, 7);
+
+  /* Les echeances deja reglees, par dossier. Les annulees ne sont pas ici : une
+     annulation rend l'echeance due, c'est la regle du module. */
+  const payes = new Map<string, Set<string>>();
+  for (const e of encaissements) {
+    const s = payes.get(e.dossier_id) ?? new Set<string>();
+    s.add(e.echeance);
+    payes.set(e.dossier_id, s);
+    if (e.encaisseLeJour.slice(0, 7) === moisCourant) {
+      c.encaissesCeMois++;
+      dossiers['encaisses-ce-mois'].add(e.dossier_id);
+    }
+  }
+
+  /*
+   * --- LES QUATRE CATEGORIES DE CONTRAT : LA PERIODE EN COURS, ET ELLE SEULE ---
+   *
+   * Une periode cloturee a ete remplacee : elle ne decrit plus l'etat du bail. La
+   * compter ferait apparaitre un dossier dans deux categories a la fois — expire par
+   * son ancien contrat, en cours par le nouveau — et detruirait la partition.
+   */
+  for (const p of periodes) {
+    if (p.cloturee) continue;
+
+    /*
+     * UNE PERIODE ILLISIBLE NE SE RANGE NULLE PART.
+     *
+     * Les dates arrivent de colonnes `date NOT NULL`, donc ce cas ne vient pas de la
+     * base. Mais la comparaison ci-dessous est LEXICOGRAPHIQUE : une chaine vide ou un
+     * texte quelconque serait `< aujourdhui` et atterrirait sans bruit dans
+     * << Baux expires >>. Un chiffre faux et muet est pire qu'un chiffre manquant.
+     */
+    if (!lireJour(p.debut) || !lireJour(p.fin)) continue;
+
+    /*
+     * UNE PARTITION, PAS QUATRE TESTS.
+     *
+     * Lues comme quatre predicats independants, les regles de David se recouvriraient
+     * sur une periode a l'envers (fin < debut) : elle serait a la fois << expiree >> et
+     * << a venir >>. La chaine tranche pour << expiree >>, par l'ordre des branches.
+     * Le CHECK crm_immo_contrats_ordre (fin >= debut) rend d'ailleurs ce cas
+     * inatteignable depuis la base ; la decision est figee par un test, pas laissee au
+     * hasard de l'ordre d'ecriture.
+     */
+    if (p.fin < aujourdhui) {
+      c.bauxExpires++;
+      dossiers['baux-expires'].add(p.dossier_id);
+    } else if (p.debut > aujourdhui) {
+      c.bauxAVenir++;
+      dossiers['baux-a-venir'].add(p.dossier_id);
+    } else if (p.fin <= limite) {
+      c.contratsARenouveler++;
+      dossiers['contrats-a-renouveler'].add(p.dossier_id);
+    } else {
+      c.dossiersEnCours++;
+      dossiers['dossiers-en-cours'].add(p.dossier_id);
+    }
+  }
+
+  /*
+   * --- LES LOYERS : TOUT L'HISTORIQUE DU DOSSIER ---
+   *
+   * David, le 22 octobre 2026 : << Une echeance reelle comprise dans un ancien contrat
+   * et toujours non encaissee doit continuer a apparaitre dans les loyers en retard /
+   * a encaisser selon sa date, meme si la periode a ete cloturee ou renouvelee. Le
+   * renouvellement ne doit jamais faire disparaitre une dette reelle. >>
+   *
+   * On parcourt donc DOSSIER par dossier, et non periode par periode :
+   * echeancierDuDossier coupe chaque periode au debut de la suivante, ce qui empeche
+   * qu'un meme loyer du soit compte deux fois — et qu'un changement de jour
+   * d'encaissement en fabrique deux a des dates differentes.
+   */
+  const parDossier = new Map<string, PeriodeDossier[]>();
+  for (const p of periodes) {
+    const l = parDossier.get(p.dossier_id) ?? [];
+    l.push(p);
+    parDossier.set(p.dossier_id, l);
+  }
+
+  for (const [dossierId, sesPeriodes] of parDossier) {
+    const regles = payes.get(dossierId) ?? new Set<string>();
+    const estEncaisse = (date: string) => regles.has(date);
+    for (const e of echeancierDuDossier(sesPeriodes, estEncaisse)) {
+      const s = statutDe(e.date, estEncaisse(e.date), aujourdhui);
+      if (s === 'en-retard') {
+        c.loyersEnRetard++;
+        dossiers['loyers-en-retard'].add(dossierId);
+      } else if (s === 'a-encaisser') {
+        c.loyersAEncaisser++;
+        dossiers['loyers-a-encaisser'].add(dossierId);
+      }
+    }
+  }
+
+  return { compteurs: c, dossiers };
+}
+
+/**
+ * Les sept compteurs seuls.
+ *
+ * Un enrobage d'une ligne autour de classerTableauDeBord : il n'existe qu'UN parcours,
+ * donc les compteurs et les listes filtrees ne peuvent pas diverger.
+ */
+export function compterTableauDeBord(params: {
+  periodes: PeriodeDossier[];
+  encaissements: EncaissementActif[];
+  aujourdhui: string;
+  preavisJours?: number;
+}): CompteursImmo {
+  return classerTableauDeBord(params).compteurs;
+}
+
 /** Combien d'echeances dans chaque etat. Sert aux compteurs de l'onglet. */
 export function compterParStatut(
   echeancier: EcheanceLoyer[],

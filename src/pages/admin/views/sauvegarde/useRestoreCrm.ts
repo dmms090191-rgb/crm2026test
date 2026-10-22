@@ -29,6 +29,24 @@ const TABLES_WITH_COMPANY_ID = new Set([
   'crm_immo_contrats', 'crm_immo_loyers',
 ]);
 
+/**
+ * LES SIX TABLES QUI PASSENT PAR crm_immo_restaurer_lot.
+ *
+ * Elles ne peuvent pas etre upsertees directement depuis le navigateur :
+ *   - restaurer un dossier complet fait CREER une periode avec un id neuf, qui entre
+ *     ensuite en conflit avec celle du fichier (23505, lot de 500 perdu) ;
+ *   - crm_immo_contrats et crm_immo_loyers portent des index PARTIELS, que le
+ *     parametre on_conflict de PostgREST ne sait pas designer ;
+ *   - une ligne fautive emportait ses 499 voisines.
+ *
+ * La liste est la MEME que celle des tables a company_id ci-dessus, et ce n'est pas
+ * une coincidence : ce sont les six tables du module. On la derive donc d'elle, pour
+ * qu'une septieme table ajoutee a l'une entre automatiquement dans l'autre.
+ */
+export const TABLES_CRM_IMMO = new Set(
+  [...TABLES_WITH_COMPANY_ID].filter(t => t.startsWith('crm_immo_')),
+);
+
 export type RestoreStatus = 'idle' | 'simulating' | 'restoring' | 'done' | 'error';
 
 export interface TableResult {
@@ -44,6 +62,19 @@ export interface TableResult {
    * n'ont rien a ecarter, et leur imposer un zero explicite n'apprendrait rien.
    */
   ignored?: number;
+  /**
+   * Les lignes dont l'ATTRIBUTION a ete retiree : elles venaient d'une autre Societe.
+   *
+   * `auth.users` etant global, les colonnes qui designent une personne —
+   * created_by, cloture_par, encaisse_par, annule_par — traversaient les cloisons
+   * sans que rien ne le signale. Elles sont desormais videes sur une restauration
+   * CROISEE, et le rapport le dit : une identite retiree est une information, pas un
+   * detail d'implementation.
+   *
+   * Les FAITS, eux, sont conserves : une annulation garde sa date et son motif, seul
+   * son auteur disparait.
+   */
+  anonymized?: number;
   /** Les identifiants parents introuvables, pour que l'ecart s'explique. */
   missingParents?: string[];
 }
@@ -70,6 +101,13 @@ export interface RestoreReport {
   totalErrors: number;
   tables: TableResult[];
   fkWarnings: FkWarning[];
+  /**
+   * Pourquoi la restauration n'a PAS ete lancee, quand elle ne l'a pas ete.
+   *
+   * Un rapport a zero ligne et zero erreur se lit comme << il n'y avait rien a
+   * faire >>. Quand on a refuse de partir, il faut le DIRE — et dire quoi faire.
+   */
+  blocage?: string;
 }
 
 export function useRestoreCrm() {
@@ -220,6 +258,57 @@ export function useRestoreCrm() {
     );
     const totalTables = tablesToRestore.length;
 
+    /*
+     * LE MODULE EST-IL ACCORDE A LA SOCIETE DE DESTINATION ?
+     *
+     * Les douze policies des six tables CRM Immo exigent toutes has_crm_immo_access.
+     * Sans le module, chaque ligne part en 42501 — c'est correct cote securite, mais
+     * l'utilisateur ne decouvrait le probleme qu'au bout d'une liste d'erreurs
+     * incomprehensibles, apres avoir attendu la fin d'une restauration qui n'a rien
+     * ecrit.
+     *
+     * On demande donc AVANT, et on ne lance pas. La question est posee a la base, pas
+     * deduite : has_crm_immo_access est la MEME fonction que les policies appellent,
+     * donc sa reponse ne peut pas diverger de ce que la RLS fera.
+     *
+     * Et uniquement si le fichier contient reellement des lignes CRM Immo : une
+     * sauvegarde qui n'en a pas n'a aucune raison d'etre bloquee.
+     */
+    const immoARestaurer = tablesToRestore.filter((t) => TABLES_CRM_IMMO.has(t));
+    if (immoARestaurer.length > 0) {
+      const { data: accorde, error: erreurAcces } = await supabase
+        .rpc('has_crm_immo_access', { p_company_id: companyId });
+
+      if (erreurAcces || accorde !== true) {
+        const blocage = erreurAcces
+          ? `Impossible de vérifier l'accès CRM Immo de cette société : ${erreurAcces.message}`
+          : "Cette société n'a pas accès au module CRM Immo. La sauvegarde contient "
+            + `${immoARestaurer.length} table${immoARestaurer.length > 1 ? 's' : ''} CRM Immo `
+            + `(${immoARestaurer.join(', ')}), qui seraient toutes refusées. `
+            + 'Activez le module pour cette société depuis le panel Talvex, puis relancez.';
+        const arret: RestoreReport = {
+          mode: 'live',
+          startedAt,
+          finishedAt: new Date().toISOString(),
+          tablesInFile: RESTORE_ORDER.filter((t) => backup.data[t] !== undefined).length,
+          tablesWithData: totalTables,
+          tablesEmpty: [],
+          tablesAbsent: [],
+          totalTables,
+          totalRows: 0,
+          totalInserted: 0,
+          totalErrors: 1,
+          tables: [],
+          fkWarnings: [],
+          blocage,
+        };
+        setReport(arret);
+        setCurrentTable(null);
+        setStatus('error');
+        return arret;
+      }
+    }
+
     for (let i = 0; i < tablesToRestore.length; i++) {
       if (abortRef.current) break;
       const table = tablesToRestore[i];
@@ -275,9 +364,67 @@ export function useRestoreCrm() {
       for (let batch = 0; batch < rows.length; batch += BATCH_SIZE) {
         if (abortRef.current) break;
         const rawChunk = rows.slice(batch, batch + BATCH_SIZE);
-        const chunk = (companyId && TABLES_WITH_COMPANY_ID.has(table))
+        /*
+         * LES SIX TABLES CRM IMMO PARTENT AVEC LE company_id DU FICHIER.
+         *
+         * C'est volontaire, et c'est ce qui rend la regle d'identite verifiable : la
+         * fonction compare la Societe d'origine a la destination pour savoir si la
+         * restauration est CROISEE, et vide alors les colonnes qui designent une
+         * personne. Reecrire company_id ici lui retirerait le seul moyen de le savoir.
+         *
+         * Les autres tables gardent la reecriture cote client, inchangee.
+         */
+        const chunk = (companyId && TABLES_WITH_COMPANY_ID.has(table) && !TABLES_CRM_IMMO.has(table))
           ? rawChunk.map(row => ({ ...row, company_id: companyId }))
           : rawChunk;
+
+        /*
+         * LES SIX TABLES CRM IMMO PASSENT PAR UNE FONCTION, PAS PAR L'UPSERT DIRECT.
+         *
+         * Trois raisons, toutes mesurees le 22 octobre 2026 :
+         *
+         *   1. LA PERIODE FANTOME. Restaurer un dossier complet declenche la creation
+         *      automatique d'une periode AVEC UN ID NEUF. La periode du fichier arrive
+         *      ensuite, heurte l'index partiel unique, et le lot entier est perdu en
+         *      23505. La fonction pose un drapeau de restauration, dans la MEME
+         *      transaction, qui fait taire cette auto-creation — et elle seule.
+         *
+         *   2. LES INDEX PARTIELS. `on_conflict=` de PostgREST n'emet qu'une liste de
+         *      colonnes, jamais le predicat WHERE qu'un index partiel exige pour etre
+         *      infere. crm_immo_contrats et crm_immo_loyers sont donc inupsertables sur
+         *      leur cle metier depuis le navigateur, quoi qu'on fasse ici.
+         *
+         *   3. LE LOT TOUT ENTIER. Une seule ligne fautive faisait perdre ses 499
+         *      voisines. La fonction ecrit ligne a ligne et RAPPORTE les refus avec leur
+         *      code, au lieu de les confondre avec une panne generale.
+         *
+         * Elle est SECURITY INVOKER : la RLS des six tables s'applique entierement, et
+         * le company_id porte par les lignes est verifie par le WITH CHECK des policies.
+         */
+        if (TABLES_CRM_IMMO.has(table)) {
+          const { data, error } = await supabase.rpc('crm_immo_restaurer_lot', {
+            p_table: table,
+            p_lignes: chunk,
+            p_company_cible: companyId,
+          });
+          if (error) {
+            result.errors.push(`Batch ${Math.floor(batch / BATCH_SIZE) + 1}: ${error.message}`);
+          } else {
+            const bilan = data as {
+              ecrites?: number;
+              anonymisees?: number;
+              refusees?: { id?: string; code?: string; message?: string }[];
+            } | null;
+            result.inserted += bilan?.ecrites ?? 0;
+            result.anonymized = (result.anonymized ?? 0) + (bilan?.anonymisees ?? 0);
+            /* Les refus sont NOMMES. Les taire ferait lire une restauration partielle
+               comme une reussite — c'est exactement le defaut qu'on corrige. */
+            for (const r of bilan?.refusees ?? []) {
+              result.errors.push(`Ligne ${r.id ?? '?'} refusée (${r.code ?? '?'}) : ${r.message ?? ''}`);
+            }
+          }
+          continue;
+        }
 
         const { error, data } = await supabase
           .from(table)

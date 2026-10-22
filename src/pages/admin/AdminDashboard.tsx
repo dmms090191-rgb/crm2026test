@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from 'react';
+import { useState, useRef, useMemo, useCallback } from 'react';
 import Sidebar from './Sidebar';
 import TopBar from './TopBar';
 import type { ChatLead } from './views/Crm';
@@ -11,6 +11,8 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useCompanyId } from '../../hooks/useCompanyId';
 import { useCrmImmoAccess } from '../../hooks/useCrmImmoAccess';
 import { useCrmImmoAlertes } from './views/crm-immo/useCrmImmoAlertes';
+import { useCrmImmoTableauDeBord } from './views/crm-immo/useCrmImmoTableauDeBord';
+import type { CategorieImmo } from '../../lib/crmImmoEcheancier';
 import { CrmImmoAlertesProvider } from '../../contexts/CrmImmoAlertesContext';
 import { peutOuvrirCrmImmo } from '../../lib/crmImmoAccess';
 import { useActiveLogo } from '../../hooks/useActiveLogo';
@@ -79,7 +81,28 @@ function AdminDashboardInner({ onLogout, onConnectAsVendor, onConnectAsClient, i
    * ouverture de panel.
    */
   const crmImmoOuvert = peutOuvrirCrmImmo(crmImmoAcces);
-  const alertesImmo = useCrmImmoAlertes(crmImmoOuvert);
+  /*
+   * ---------- L ORDRE DES DEUX HOOKS A ETE INVERSE LE 22 OCTOBRE 2026 ----------
+   *
+   * Le hook du TABLEAU DE BORD charge maintenant les PERIODES et les ENCAISSEMENTS,
+   * et porte l horloge. Celui des ALERTES les recoit.
+   *
+   * C est la regle des impayes anciens qui l impose : une dette d un contrat
+   * renouvele doit rester dans la cloche, or les trois colonnes du dossier ne
+   * refletent que la periode en cours. La cloche a donc besoin des periodes — et les
+   * relire de son cote donnerait deux jeux de lignes rafraichis a des instants
+   * differents, donc une cloche et des cartes qui se contredisent.
+   */
+  const tableauImmo = useCrmImmoTableauDeBord(crmImmoOuvert);
+  const alertesImmo = useCrmImmoAlertes(
+    crmImmoOuvert,
+    tableauImmo.aujourdhui,
+    tableauImmo.periodes,
+    tableauImmo.encaissements,
+    tableauImmo.recharger,
+  );
+  /* Le filtre qu une carte du dashboard demande d appliquer en arrivant sur la page. */
+  const [filtreImmoADemander, setFiltreImmoADemander] = useState<CategorieImmo | null>(null);
   /* Le dossier que le hub demande d ouvrir. Le hub est dans la barre du haut, la page
      dans la zone principale : ils ne se connaissent pas, le contexte les relie. */
   const [dossierImmoAOuvrir, setDossierImmoAOuvrir] = useState<string | null>(null);
@@ -88,7 +111,18 @@ function AdminDashboardInner({ onLogout, onConnectAsVendor, onConnectAsClient, i
     dossierAOuvrir: dossierImmoAOuvrir,
     demanderOuverture: (id: string) => setDossierImmoAOuvrir(id),
     ouvertureConsommee: () => setDossierImmoAOuvrir(null),
-  }), [crmImmoOuvert, alertesImmo, dossierImmoAOuvrir]);
+    filtreADemander: filtreImmoADemander,
+    demanderFiltre: (f: CategorieImmo) => setFiltreImmoADemander(f),
+    filtreConsomme: () => setFiltreImmoADemander(null),
+    tableauDeBord: crmImmoOuvert
+      ? {
+          compteurs: tableauImmo.compteurs,
+          dossiersParCategorie: tableauImmo.dossiersParCategorie,
+          chargement: tableauImmo.chargement,
+          recharger: tableauImmo.recharger,
+        }
+      : null,
+  }), [crmImmoOuvert, alertesImmo, dossierImmoAOuvrir, filtreImmoADemander, tableauImmo]);
   const { url: activeLogoUrl } = useActiveLogo(companyId);
   const { appIconUrl: configIconUrl, appName: configAppName } = useAppIcon(companyId, 'company');
   const [companyName, setCompanyName] = useState('');
@@ -176,6 +210,25 @@ function AdminDashboardInner({ onLogout, onConnectAsVendor, onConnectAsClient, i
     markClientRead, markVendorRead, markAgendaSeen, markAgendaEquipeSeen,
     pendingScrollRef,
   });
+
+  /*
+   * Le clic sur une carte CRM Immo du dashboard.
+   *
+   * CHAQUE carte ouvre la page du module sur SA categorie — c'est la demande de
+   * David : << Je ne veux pas qu'une carte ouvre simplement Tous si un filtre precis
+   * peut etre applique. >>
+   *
+   * On DEPOSE la demande avant de naviguer : la page du module n'est pas encore
+   * montee, et le contexte vit au-dessus du renderer, donc la demande survit au
+   * changement de vue.
+   *
+   * La page lira le classement dans le meme contexte, donc la liste qu'elle affichera
+   * est exactement celle que la carte a comptee — meme parcours, meme horloge.
+   */
+  const ouvrirCrmImmoDepuisDashboard = useCallback((categorie: CategorieImmo) => {
+    setFiltreImmoADemander(categorie);
+    handleNavigate('crm-immo');
+  }, [handleNavigate]);
 
   /*
    * ---------- L ALIMENTATION DE L HISTORIQUE ----------
@@ -430,6 +483,8 @@ function AdminDashboardInner({ onLogout, onConnectAsVendor, onConnectAsClient, i
             onConnectAsVendor={onConnectAsVendor}
             onConnectAsClient={onConnectAsClient}
             handleNavigate={handleNavigate}
+            immoDashboard={crmImmoOuvert ? { compteurs: tableauImmo.compteurs, chargement: tableauImmo.chargement } : null}
+            onOuvrirCrmImmo={ouvrirCrmImmoDepuisDashboard}
             handleReturnToCrm={handleReturnToCrm}
             setActiveView={setActiveView}
             markClientRead={markClientRead}

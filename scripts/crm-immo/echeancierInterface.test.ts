@@ -53,9 +53,23 @@ console.log('\n=== 1. UNE SEULE SOURCE DE CALCUL ===');
     ['la modale de renouvellement', renouv],
     ['les notifications', alertes],
   ] as const) {
-    t(`${nom} appelle construireEcheancier`, /construireEcheancier\(/.test(src));
+    /*
+     * DEUX portes d'entree, un seul moteur.
+     *
+     * construireEcheancier calcule les echeances d'UNE periode ; echeancierDuDossier
+     * recolle celles de TOUTES les periodes d'un dossier — et il appelle la premiere.
+     * Les notifications sont passees a la seconde le 22 octobre 2026, pour qu'un impaye
+     * d'un contrat renouvele reste reclame. Les deux sont acceptees ici ; ce qui compte
+     * est qu'aucune surface ne recalcule des mois de son cote.
+     */
+    t(`${nom} appelle une fonction partagee d echeancier`,
+      /construireEcheancier\(|echeancierDuDossier\(/.test(src));
     t(`${nom} l importe de crmImmoEcheancier`, /crmImmoEcheancier'/.test(src));
   }
+
+  /* Et echeancierDuDossier ne recalcule rien : il passe par construireEcheancier. */
+  t('echeancierDuDossier s appuie sur construireEcheancier',
+    /export function echeancierDuDossier[\s\S]{0,900}?construireEcheancier\(\{ debut: p\.debut/.test(coeur));
 
   /* Et le rabattement n'est implemente qu'une fois dans tout src/. */
   t('une seule implementation de jourRabattu dans le module',
@@ -130,19 +144,47 @@ console.log('\n=== 5. ENCAISSER, ANNULER ===');
   t('annuler enregistre son auteur', /annule_par:/.test(hook));
   t('le motif est borne a 500 caracteres', /slice\(0, 500\)/.test(hook));
 
-  /* Les ecritures se comptent : un refus de la RLS est muet. */
+  /*
+   * UN REFUS DE LA RLS NE DOIT JAMAIS PASSER EN SILENCE.
+   *
+   * supabase-js rend { error: null } et ZERO ligne quand une policy refuse un UPDATE ou
+   * un DELETE. Chaque ecriture doit donc demander ses lignes en retour et compter ce
+   * qui revient.
+   *
+   * Le renouvellement fait exception depuis le 22 octobre 2026, et pour une meilleure
+   * raison : il est passe en fonction SQL, qui compte ses lignes par GET DIAGNOSTICS et
+   * LEVE une exception. PostgREST la remonte comme une vraie erreur — plus besoin de
+   * deviner a partir d'un tableau vide.
+   *
+   * Il restait QUATRE ecritures gardees ici, dont DEUX pour le seul renouvellement (la
+   * cloture et l'insertion). Il en reste donc exactement deux : marquer encaisse, et
+   * annuler un encaissement. On fige ce nombre, pas un seuil : un `>=` laisserait
+   * passer une ecriture ajoutee sans garde.
+   */
   const ecritures = (hook.match(/\.select\('id'\)/g) ?? []).length;
-  t('les quatre ecritures demandent leurs lignes', ecritures >= 4);
-  /* Les quatre gardes n'ont pas tous la meme forme — l'un referme `enCours` avant de
-     rendre. On compte donc le COUPLE << zero ligne >> + << refus >>, pas une tournure. */
+  t('les deux ecritures directes demandent leurs lignes', ecritures === 2);
   t('un zero ligne est traite comme un refus',
-    (hook.match(/data\.length === 0\)[\s\S]{0,60}?Action refusée/g) ?? []).length === 4);
+    (hook.match(/data\.length === 0\)[\s\S]{0,60}?Action refusée/g) ?? []).length === 2);
+  t('le renouvellement, lui, passe par la fonction atomique',
+    /\.rpc\('crm_immo_renouveler'/.test(hook));
 
   /* L annulation rend l echeance due : seuls les encaissements ACTIFS comptent. */
   t('seuls les encaissements non annules comptent',
     /if \(e\.annule_le === null\) m\.set/.test(hook));
-  t('la cloche ne charge que les encaissements actifs',
-    /\.is\('annule_le', null\)/.test(code(D + 'useCrmImmoAlertes.ts')));
+  /*
+   * Le filtre des annulations a DEMENAGE le 22 octobre 2026.
+   *
+   * La cloche ne lit plus crm_immo_loyers : elle recoit les encaissements du hook qui
+   * alimente aussi le tableau de bord. Deux lectures separees donnaient deux jeux de
+   * lignes rafraichis a des instants differents — et une cloche qui reclamait un loyer
+   * que les cartes comptaient deja comme encaisse.
+   *
+   * La garde reste donc indispensable, mais a son nouvel endroit.
+   */
+  t('le chargeur partage ne prend que les encaissements actifs',
+    /\.is\('annule_le', null\)/.test(code(D + 'useCrmImmoTableauDeBord.ts')));
+  t('et la cloche ne les relit plus de son cote',
+    !/from\('crm_immo_loyers'\)/.test(code(D + 'useCrmImmoAlertes.ts')));
 }
 
 console.log('\n=== 6. LE RENOUVELLEMENT ===');
@@ -157,12 +199,24 @@ console.log('\n=== 6. LE RENOUVELLEMENT ===');
   t('un apercu montre ce qui sera cree', /crm-immo-renouveler-apercu/.test(renouv));
   t('on ne peut pas valider une periode vide', /disabled=\{enCours \|\| apercu\.length === 0\}/.test(renouv));
 
-  /* L ordre : cloturer PUIS creer. L inverse est refuse par l index partiel unique. */
-  const ordreCloture = hook.indexOf('cloture_le: new Date()');
-  const ordreInsert = hook.indexOf("insert({ company_id: companyId, dossier_id: dossierId, debut, fin");
+  /*
+   * L ORDRE — cloturer PUIS creer — A DEMENAGE EN BASE.
+   *
+   * Il n'est plus une discipline du client mais le corps d'une fonction, donc d'une
+   * seule transaction : soit les deux, soit aucune. L inverse reste refuse par l index
+   * partiel unique.
+   */
+  const sqlRenouv = readdirSync('supabase/migrations')
+    .filter(f => f.endsWith('_crm_immo_renouveler_atomique.sql'))
+    .map(f => readFileSync('supabase/migrations/' + f, 'utf8'))[0] ?? '';
+  t('la fonction de renouvellement existe', sqlRenouv !== '');
+  const ordreCloture = sqlRenouv.indexOf('SET cloture_le = now()');
+  const ordreInsert = sqlRenouv.indexOf('INSERT INTO public.crm_immo_contrats');
   t('on cloture AVANT de creer', ordreCloture > 0 && ordreInsert > ordreCloture);
   t('l ancienne periode est CONSERVEE, jamais supprimee',
-    !/from\('crm_immo_contrats'\)[\s\S]{0,80}?\.delete\(\)/.test(hook));
+    !/DELETE FROM public\.crm_immo_contrats/i.test(sqlRenouv));
+  t('et le client ne refait plus les deux requetes lui-meme',
+    !/cloture_le: new Date\(\)/.test(hook));
 
   t('l historique des periodes est consultable', /crm-immo-historique-periodes/.test(onglet));
   t('chaque periode close garde son propre echeancier', /echeancierDe\(p\)/.test(onglet));

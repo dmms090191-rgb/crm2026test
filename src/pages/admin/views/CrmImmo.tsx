@@ -4,7 +4,7 @@ import { useThemeTokens } from '../../../hooks/useThemeTokens';
 import { useTalixy } from '../../../talixy/useTalixy';
 import { toutesLesColonnes, colonnesVisibles, cleColonne } from '../../../lib/crmImmoColonnes';
 import { colonneParCle, preparerLignes, type FiltreDossiers, type Sens } from '../../../lib/crmImmoRecherche';
-import { journeeDeReference, fuseauLocal } from '../../../lib/crmImmoAlertes';
+import { COMPTEUR_DE_CATEGORIE } from '../../../lib/crmImmoEcheancier';
 import { COLONNES_SYSTEME, type DossierImmo, type SaisieDossier } from './crm-immo/crmImmoTypes';
 import { useCrmImmoDossiers } from './crm-immo/useCrmImmoDossiers';
 import { useCrmImmoColonnes } from './crm-immo/useCrmImmoColonnes';
@@ -92,12 +92,32 @@ export default function CrmImmo() {
 
   const [enCours, setEnCours] = useState(false);
   const [erreurFormulaire, setErreurFormulaire] = useState('');
+  /*
+   * L'AVERTISSEMENT DE LA BASE — pas une erreur, et c'est la nuance.
+   *
+   * Vider une date de bail alors qu'une periode est en cours : la base la remet aux
+   * valeurs du contrat, et c'est ce qui empeche le dossier de contredire sa periode.
+   * L'enregistrement REUSSIT donc. Mais l'utilisateur voit sa saisie revenir, et sans
+   * un mot il croit a un bug. On l'affiche, en information et non en rouge.
+   */
+  const [avertissement, setAvertissement] = useState('');
   const [erreurSuppression, setErreurSuppression] = useState('');
 
-  /* Le jour de reference, dans le fuseau du poste et jamais en UTC : un
-     `toISOString().slice(0,10)` rendrait la veille entre minuit et 2 h du matin. */
-  const fuseau = useMemo(() => fuseauLocal(), []);
-  const aujourdhui = useMemo(() => journeeDeReference(new Date(), fuseau), [fuseau]);
+  /*
+   * LE CLASSEMENT VIENT DU TABLEAU DE BORD, ET CETTE PAGE N'A PLUS D'HORLOGE.
+   *
+   * Elle en avait une — `journeeDeReference(new Date(), fuseau)` dans un useMemo a
+   * dependance vide — donc GELEE au montage, sans intervalle ni retour de visibilite.
+   * Celle du tableau de bord avance toutes les 60 s. Un panel laisse ouvert la nuit
+   * comparait donc une carte datee du 23 a une liste datee du 22, et le 1er du mois
+   * toutes les echeances basculaient d'un cote sans basculer de l'autre.
+   *
+   * Desormais le filtre lit l'appartenance calculee une seule fois, dans AdminDashboard,
+   * par le hook qui alimente les cartes. Plus de seconde horloge, donc plus de
+   * desaccord possible entre le chiffre d'une carte et la liste qu'elle ouvre.
+   */
+  const tableauDeBord = partage?.tableauDeBord ?? null;
+  const classement = tableauDeBord?.dossiersParCategorie ?? null;
 
   const colonnes = useMemo(
     () => toutesLesColonnes({ systeme: COLONNES_SYSTEME, perso: col.colonnes, reglage: col.reglage }),
@@ -107,8 +127,24 @@ export default function CrmImmo() {
 
   const lignes = useMemo(() => preparerLignes({
     dossiers: dos.dossiers, terme, colonnes: visibles,
-    triSur: colonneParCle(visibles, triSur), sens, filtre, aujourdhui,
-  }), [dos.dossiers, terme, visibles, triSur, sens, filtre, aujourdhui]);
+    triSur: colonneParCle(visibles, triSur), sens, filtre, classement,
+  }), [dos.dossiers, terme, visibles, triSur, sens, filtre, classement]);
+
+  /* Le compteur de la carte correspondant au filtre actif, pour dire a voix haute
+     l'ecart d'unite : neuf echeances en retard peuvent n'etre qu'un seul dossier. */
+  /*
+   * << Chargement >> et non << aucun dossier >>.
+   *
+   * Le classement arrive par le reseau, apres la liste. Pendant ce temps, un filtre
+   * de categorie rend une liste vide — et un tableau vide dit << aucun dossier ne
+   * correspond >>, ce qui est faux et decourage de chercher plus loin.
+   */
+  const enAttenteDuClassement = filtre !== 'tous' && (tableauDeBord ? tableauDeBord.chargement : true);
+
+  const compteurCategorie = useMemo(() => {
+    if (filtre === 'tous' || !tableauDeBord) return null;
+    return tableauDeBord.compteurs[COMPTEUR_DE_CATEGORIE[filtre]];
+  }, [filtre, tableauDeBord]);
 
   /* Un tri sur une colonne qu'on vient de masquer ou de supprimer n'a plus de sens : on
      le retire plutot que de laisser un en-tete fleche invisible decider de l'ordre. */
@@ -154,12 +190,32 @@ export default function CrmImmo() {
     if (d) { setEdite(d); setErreurFormulaire(''); }
   }, [partage, dos.dossiers, dos.loading]);
 
+  /*
+   * LE FILTRE DEMANDE PAR UNE CARTE DU DASHBOARD.
+   *
+   * << Contrats a renouveler >> et << Baux expires >> menent ici avec le filtre
+   * << Fin proche >> deja applique — il couvre exactement ces deux cas : fin dans le
+   * preavis, ou deja passee.
+   *
+   * Pas de garde sur dos.loading, contrairement a l ouverture d un dossier : poser un
+   * filtre ne demande AUCUNE donnee. Attendre le chargement ferait seulement voir la
+   * liste complete une fraction de seconde avant qu elle se filtre.
+   */
+  useEffect(() => {
+    const vise = partage?.filtreADemander;
+    if (!vise) return;
+    partage?.filtreConsomme();
+    setFiltre(vise);
+  }, [partage]);
+
   async function validerDossier(s: SaisieDossier) {
     setEnCours(true);
     setErreurFormulaire('');
+    setAvertissement('');
     const r = edite ? await dos.modifier(edite.id, s) : await dos.creer(s);
     setEnCours(false);
     if (r.error) { setErreurFormulaire(r.error); return; }
+    if (r.avertissement) setAvertissement(r.avertissement);
     setEdite(null);
     setCreation(false);
     /* Les echeances ont pu changer : la cloche ET le hub general doivent en tenir
@@ -183,9 +239,11 @@ export default function CrmImmo() {
     if (!details) return;
     setEnCours(true);
     setErreurFormulaire('');
+    setAvertissement('');
     const r = await dos.modifier(details.dossier.id, s);
     setEnCours(false);
     if (r.error) { setErreurFormulaire(r.error); return; }
+    if (r.avertissement) setAvertissement(r.avertissement);
     /* Les echeances ont pu changer : la cloche ET le hub general lisent la meme source. */
     void alertes?.recharger();
   }
@@ -267,6 +325,7 @@ export default function CrmImmo() {
         terme={terme} onTerme={setTerme}
         filtre={filtre} onFiltre={setFiltre}
         total={dos.dossiers.length} affiches={lignes.length}
+        compteurCategorie={compteurCategorie}
         onOuvrirColonnes={() => setColonnesOuvertes(true)}
       />
 
@@ -277,9 +336,24 @@ export default function CrmImmo() {
         </p>
       )}
 
+      {/* L'enregistrement a REUSSI, mais la base a conserve la periode du bail. Ton
+          d'information, pas d'erreur — et refermable, parce qu'il ne bloque rien. */}
+      {avertissement !== '' && (
+        <div className="text-xs px-3 py-2 rounded-lg flex items-start gap-2" data-testid="crm-immo-avertissement"
+          style={{ background: t.badge.liveBg, border: `1px solid ${t.badge.liveBorder}`, color: t.badge.liveText }}>
+          <span className="flex-1">{avertissement}</span>
+          <button type="button" onClick={() => setAvertissement('')}
+            aria-label="Fermer cet avertissement"
+            className="shrink-0 px-1 rounded max-md:min-h-[44px] max-md:min-w-[44px]"
+            style={{ color: t.badge.liveText }}>
+            ×
+          </button>
+        </div>
+      )}
+
       <div ref={zoneTableau} className="flex-1 min-h-0">
         <CrmImmoTable
-          dossiers={lignes} colonnes={visibles} loading={dos.loading}
+          dossiers={lignes} colonnes={visibles} loading={dos.loading || enAttenteDuClassement}
           triSur={triSur} sens={sens} onTrier={basculerTri}
           onModifier={(d) => { setEdite(d); setErreurFormulaire(''); }}
           onSupprimer={(d) => { setASupprimer(d); setErreurSuppression(''); }}
@@ -287,7 +361,7 @@ export default function CrmImmo() {
           nombreCommentaires={commentairesParDossier.parDossier}
         />
         <CrmImmoCards
-          dossiers={lignes} colonnes={visibles} loading={dos.loading}
+          dossiers={lignes} colonnes={visibles} loading={dos.loading || enAttenteDuClassement}
           onModifier={(d) => { setEdite(d); setErreurFormulaire(''); }}
           onSupprimer={(d) => { setASupprimer(d); setErreurSuppression(''); }}
           onDetails={ouvrirDetails}
@@ -316,6 +390,21 @@ export default function CrmImmo() {
           ongletInitial={details.onglet}
           enCours={enCours}
           erreur={erreurFormulaire}
+          /*
+           * La periode de bail vient de changer — renouvellement, encaissement,
+           * annulation. Trois surfaces doivent le savoir, et aucune ne le devine :
+           *   - la LISTE, qui porte les dates du dossier ;
+           *   - le CLASSEMENT, qui decide dans quel filtre ce dossier tombe ;
+           *   - la CLOCHE, qui derive ses alertes des memes dates.
+           * Sans ce signal, chacune attend son propre passage reseau — cinq minutes,
+           * et jamais en phase. Un bail renouveler resterait dans l'ancienne
+           * categorie pendant ce temps, avec les anciennes dates affichees.
+           */
+          onPeriodeChangee={() => {
+            void dos.recharger();
+            void partage?.tableauDeBord?.recharger();
+            void alertes?.recharger();
+          }}
           onFermer={() => {
             if (enCours) return;
             setDetails(null);

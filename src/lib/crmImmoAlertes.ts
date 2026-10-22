@@ -39,8 +39,8 @@
 
 import {
   jourRabattu, lireJour, dernierJourDuMois,
-  construireEcheancier, loyerAAlerter, statutDe, rangDuLoyer,
-  type StatutLoyer,
+  echeancierDuDossier, loyerAAlerter, statutDe, rangDuLoyer,
+  type StatutLoyer, type PeriodeDossier,
 } from './crmImmoEcheancier';
 
 /*
@@ -276,10 +276,31 @@ export function deriverAlertes(params: {
   aujourdhui: string;
   /** Les encaissements ACTIFS. Absents = aucun loyer n'a ete encaisse. */
   encaissements?: EncaissementConnu[];
+  /**
+   * TOUTES les periodes de contrat, cloturees comprises, de tous les dossiers.
+   *
+   * Depuis le 22 octobre 2026, l'alerte de loyer ne se construit plus sur les trois
+   * colonnes du dossier. Elles ne refletent que la periode EN COURS : un impaye d'un
+   * contrat renouvele en sortait, et la dette disparaissait de la cloche. Regle de
+   * David : << Le renouvellement ne doit jamais faire disparaitre une dette reelle. >>
+   *
+   * Absentes = aucune alerte de loyer. On ne retombe PAS sur les colonnes du dossier :
+   * ce serait une seconde source, et c'est precisement celle qui mentait.
+   */
+  periodes?: PeriodeDossier[];
 }): Alerte[] {
-  const { dossiers, etats, aujourdhui, encaissements = [] } = params;
+  const { dossiers, etats, aujourdhui, encaissements = [], periodes = [] } = params;
   const jour = lireJour(aujourdhui);
   if (!jour) return [];
+
+  /* Les periodes, regroupees par dossier. echeancierDuDossier se charge de les
+     recoller sans compter deux fois un loyer couvert par deux contrats. */
+  const periodesParDossier = new Map<string, PeriodeDossier[]>();
+  for (const p of periodes) {
+    const l = periodesParDossier.get(p.dossier_id) ?? [];
+    l.push(p);
+    periodesParDossier.set(p.dossier_id, l);
+  }
 
   /* Index des etats connus, par la meme cle que la contrainte d'unicite. */
   const cle = (dossierId: string, genre: GenreAlerte, periode: string) => `${dossierId}|${genre}|${periode}`;
@@ -330,17 +351,24 @@ export function deriverAlertes(params: {
      *   - le NUMERO et le TOTAL (<< 4e loyer sur 12 >>) tombent du meme calcul, donc la
      *     notification et l'onglet ne peuvent pas donner deux chiffres differents.
      *
-     * Et comme l'echeancier appartient a la PERIODE, un renouvellement recommence
-     * naturellement la numerotation a 1 : la nouvelle periode est un autre echeancier.
+     * Et comme chaque echeance garde le numero et le total DE SA PERIODE, un
+     * renouvellement recommence naturellement la numerotation a 1.
+     *
+     * ---------- TOUTES LES PERIODES, PAS SEULEMENT LA PERIODE EN COURS ----------
+     *
+     * Jusqu'au 22 octobre 2026, l'echeancier etait construit sur les trois colonnes du
+     * dossier, qui ne refletent que le contrat EN COURS. Un loyer impaye d'un contrat
+     * renouvele sortait donc de la cloche le jour du renouvellement : la dette restait,
+     * l'alerte disparaissait.
+     *
+     * echeancierDuDossier recolle toutes les periodes du dossier en coupant chacune au
+     * debut de la suivante — ni double comptage, ni dette oubliee.
      */
-    const echeancier = construireEcheancier({
-      debut: d.date_entree, fin: d.date_fin_contrat, jour: d.jour_encaissement,
-    });
+    const encaissesDuDossier = payes.get(d.id) ?? VIDE;
+    const estEncaisse = (date: string) => encaissesDuDossier.has(date);
+    const echeancier = echeancierDuDossier(periodesParDossier.get(d.id) ?? [], estEncaisse);
 
     if (echeancier.length > 0) {
-      const encaissesDuDossier = payes.get(d.id) ?? VIDE;
-      const estEncaisse = (date: string) => encaissesDuDossier.has(date);
-
       /*
        * Le plus ancien impaye deja echu, a defaut celui du mois en cours.
        *

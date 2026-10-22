@@ -16,6 +16,9 @@
 import {
   construireEcheancier, compterLoyers, statutDe, loyerActuel, loyerAAlerter,
   rangDuLoyer, compterParStatut, LIBELLE_STATUT, dernierJourDuMois,
+  compterTableauDeBord, classerTableauDeBord, echeancierDuDossier,
+  CATEGORIES_CONTRAT, COMPTEUR_DE_CATEGORIE,
+  PREAVIS_RENOUVELLEMENT, ajouterJours,
   type StatutLoyer,
 } from '../../src/lib/crmImmoEcheancier.ts';
 import { enDateFrancaise, jourRabattu } from '../../src/lib/crmImmoAlertes.ts';
@@ -280,6 +283,390 @@ console.log('\n=== 8. LES COMPTEURS ===');
   t('7 a venir (juin a decembre)', c['a-venir'] === 7);
   t('le compte total retombe sur l echeancier',
     c.encaisse + c['a-encaisser'] + c['en-retard'] + c['a-venir'] === an.length);
+}
+
+console.log('\n=== 8 bis. LES SEPT COMPTEURS DU TABLEAU DE BORD ===');
+{
+  const AUJ = '2026-10-22';
+  /* « cloturee: false » est ECRIT EXPRES : les tests de scripts/ ne sont pas
+     typecheckes (tsconfig.app.json n'inclut que src), donc un champ manquant y
+     passerait en silence comme « undefined » — faux, mais vert. */
+  const periode = (dossier_id: string, debut: string, fin: string, jour = 5) =>
+    ({ dossier_id, debut, fin, jour_encaissement: jour, cloturee: false });
+
+  /*
+   * LA PARTITION. Quatre categories de contrat, et un bail n'entre que dans UNE.
+   * L'ordre des tests est celui de la certitude : fini d'abord, pas commence ensuite,
+   * en cours par elimination.
+   */
+  const lot = [
+    periode('expire', '2025-01-01', '2026-10-21'),        // fini hier
+    periode('finAujourdhui', '2025-01-01', '2026-10-22'), // finit aujourd hui -> a renouveler
+    periode('finProche', '2026-01-01', '2026-11-10'),     // dans 19 jours -> a renouveler
+    periode('finLoin', '2026-01-01', '2027-12-31'),       // bien au-dela du preavis
+    periode('futur', '2026-10-23', '2027-10-22'),         // commence demain
+    periode('debutAujourdhui', '2026-10-22', '2027-10-21'),
+  ];
+  const classe = classerTableauDeBord({ periodes: lot, encaissements: [], aujourdhui: AUJ });
+  const c = classe.compteurs;
+
+  /*
+   * LA PARTITION STRICTE, exigee par David le 22 octobre 2026 :
+   * << Un contrat ne doit apparaitre que dans UNE seule de ces quatre categories. >>
+   *
+   * On verifie les deux faces : la somme couvre tout (aucun trou) ET l'union des
+   * quatre ensembles a exactement la taille de la somme (aucun recouvrement). Une
+   * somme juste avec un recouvrement serait invisible sans la seconde mesure.
+   */
+  const sommeContrats = c.bauxExpires + c.bauxAVenir + c.contratsARenouveler + c.dossiersEnCours;
+  const union = new Set(CATEGORIES_CONTRAT.flatMap(k => [...classe.dossiers[k]]));
+  t('les QUATRE categories couvrent TOUS les baux', sommeContrats === lot.length);
+  t('et aucun bail n est compte deux fois', union.size === lot.length);
+  t('1 bail expire', c.bauxExpires === 1);
+  t('1 bail a venir', c.bauxAVenir === 1);
+  t('2 contrats a renouveler', c.contratsARenouveler === 2);
+  t('2 dossiers en cours', c.dossiersEnCours === 2);
+
+  /* Et nommement : les deux baux a fin proche ne sont PLUS dans << en cours >>. */
+  t('finProche n est pas dans « dossiers en cours »',
+    !classe.dossiers['dossiers-en-cours'].has('finProche')
+    && classe.dossiers['contrats-a-renouveler'].has('finProche'));
+  t('finAujourdhui non plus',
+    !classe.dossiers['dossiers-en-cours'].has('finAujourdhui')
+    && classe.dossiers['contrats-a-renouveler'].has('finAujourdhui'));
+
+  /* Les deux bornes du jour meme, qui decident de la categorie. */
+  const finAuj = compterTableauDeBord({ periodes: [periode('x', '2025-01-01', AUJ)], encaissements: [], aujourdhui: AUJ });
+  t('un bail qui finit AUJOURD HUI n est pas expire : il est a renouveler',
+    finAuj.bauxExpires === 0 && finAuj.contratsARenouveler === 1 && finAuj.dossiersEnCours === 0);
+  t('un bail qui commence AUJOURD HUI est en cours, pas a venir',
+    compterTableauDeBord({ periodes: [periode('x', AUJ, '2027-01-01')], encaissements: [], aujourdhui: AUJ })
+      .dossiersEnCours === 1);
+  t('un bail fini HIER est expire',
+    compterTableauDeBord({ periodes: [periode('x', '2025-01-01', '2026-10-21')], encaissements: [], aujourdhui: AUJ })
+      .bauxExpires === 1);
+
+  /*
+   * LE DOUBLE COMPTAGE QUE DAVID A NOMME : un bail dont la fin est passee ne doit PAS
+   * apparaitre aussi dans << a renouveler >>, meme si cette fin tombe dans la fenetre
+   * de trente jours — ce qui est le cas d'un bail fini il y a deux jours.
+   */
+  const finiRecemment = compterTableauDeBord({
+    periodes: [periode('x', '2025-01-01', '2026-10-20')], encaissements: [], aujourdhui: AUJ,
+  });
+  t('un bail fini il y a deux jours : expire, et PAS a renouveler',
+    finiRecemment.bauxExpires === 1 && finiRecemment.contratsARenouveler === 0);
+
+  /* La borne des trente jours : de part et d'autre, et sur le jour meme. */
+  const finLoin = compterTableauDeBord({ periodes: [periode('x', '2026-01-01', '2026-11-22')], encaissements: [], aujourdhui: AUJ });
+  t('le bail qui finit dans 31 jours est EN COURS, pas a renouveler',
+    finLoin.contratsARenouveler === 0 && finLoin.dossiersEnCours === 1);
+  const finPile = compterTableauDeBord({ periodes: [periode('x', '2026-01-01', '2026-11-21')], encaissements: [], aujourdhui: AUJ });
+  t('celui qui finit le 30e jour PILE est a renouveler, et PAS en cours',
+    finPile.contratsARenouveler === 1 && finPile.dossiersEnCours === 0);
+
+  /*
+   * L'UNITE : le compteur et la liste ne mesurent pas la meme chose, et l'interface
+   * doit pouvoir le dire. Pour les CONTRATS, l'index partiel unique de la base garantit
+   * une periode en cours au plus par dossier, donc compteur = nombre de dossiers.
+   */
+  for (const k of CATEGORIES_CONTRAT) {
+    t(`« ${k} » : autant de dossiers que le compteur`,
+      classe.dossiers[k].size === c[COMPTEUR_DE_CATEGORIE[k]]);
+  }
+
+  /* Pour les LOYERS, l'unite est l'echeance : neuf retards peuvent n'etre qu'un dossier. */
+  const neufRetards = classerTableauDeBord({
+    periodes: [periode('solo', '2026-01-05', '2026-12-05', 5)], encaissements: [], aujourdhui: AUJ,
+  });
+  t('neuf loyers en retard pour UN SEUL dossier',
+    neufRetards.compteurs.loyersEnRetard === 9 && neufRetards.dossiers['loyers-en-retard'].size === 1);
+
+  /*
+   * CE QUI N'EST PAS UNE DATE NE SE RANGE NULLE PART.
+   *
+   * La comparaison des periodes est lexicographique : une chaine vide serait
+   * `< aujourdhui` et atterrirait sans bruit dans << Baux expires >>. Les colonnes sont
+   * `date NOT NULL` en base, donc ce cas ne vient pas de la — mais un chiffre faux et
+   * muet est pire qu'un chiffre manquant.
+   */
+  const illisible = classerTableauDeBord({
+    periodes: [periode('vide', '', ''), periode('texte', 'hier', 'demain'), periode('bon', '2026-01-01', '2027-12-31')],
+    encaissements: [], aujourdhui: AUJ,
+  });
+  t('une periode illisible n est rangee dans AUCUNE categorie',
+    CATEGORIES_CONTRAT.every(k => !illisible.dossiers[k].has('vide') && !illisible.dossiers[k].has('texte')));
+  t('et elle ne gonfle pas « baux expires »', illisible.compteurs.bauxExpires === 0);
+  t('la periode valide du meme lot est bien classee', illisible.compteurs.dossiersEnCours === 1);
+
+  /*
+   * UNE PERIODE A L'ENVERS (fin < debut) satisfait a la fois << fin < aujourd'hui >> et
+   * << debut > aujourd'hui >>. La chaine tranche pour << expiree >>, par l'ordre des
+   * branches. Le CHECK crm_immo_contrats_ordre la rend inatteignable depuis la base ;
+   * la decision est figee ici pour qu'elle ne depende pas de l'ordre d'ecriture.
+   */
+  const envers = classerTableauDeBord({
+    periodes: [periode('envers', '2027-12-01', '2026-01-01')], encaissements: [], aujourdhui: AUJ,
+  });
+  t('une periode a l envers est classee EXPIREE, et une seule fois',
+    envers.compteurs.bauxExpires === 1 && envers.compteurs.bauxAVenir === 0
+    && envers.compteurs.contratsARenouveler === 0 && envers.compteurs.dossiersEnCours === 0);
+
+  /*
+   * << ENCAISSES CE MOIS >> compte l'ARGENT RENTRE, pas les echeances du mois.
+   * David : un loyer de janvier regle en octobre compte en octobre.
+   */
+  const unAn = [periode('d', '2026-01-05', '2026-12-05', 5)];
+  const regles = compterTableauDeBord({
+    periodes: unAn, aujourdhui: AUJ,
+    encaissements: [
+      { dossier_id: 'd', echeance: '2026-01-05', encaisseLeJour: '2026-10-15' }, // vieux loyer, paye ce mois
+      { dossier_id: 'd', echeance: '2026-10-05', encaisseLeJour: '2026-10-05' }, // loyer du mois, paye
+      { dossier_id: 'd', echeance: '2026-02-05', encaisseLeJour: '2026-02-05' }, // paye en fevrier
+    ],
+  });
+  t('un loyer de janvier regle en octobre compte en OCTOBRE', regles.encaissesCeMois === 2);
+  t('un loyer regle en fevrier ne compte pas en octobre', regles.encaissesCeMois !== 3);
+  t('le loyer du mois regle n est plus « a encaisser »', regles.loyersAEncaisser === 0);
+  t('les loyers regles ne sont plus « en retard »', regles.loyersEnRetard === 7);
+
+  /* Une annulation n'arrive jamais ici : le hook ne charge que les encaissements
+     actifs. Sans encaissement du tout, les neuf echeances echues sont dues. */
+  const sansRien = compterTableauDeBord({ periodes: unAn, encaissements: [], aujourdhui: AUJ });
+  t('sans encaissement, tout l echu est du',
+    sansRien.loyersEnRetard === 9 && sansRien.loyersAEncaisser === 1);
+  t('et rien n est compte comme encaisse', sansRien.encaissesCeMois === 0);
+
+  /* Ce qui n'est pas calculable ne produit pas un chiffre invente. */
+  const vide = compterTableauDeBord({ periodes: [], encaissements: [], aujourdhui: AUJ });
+  t('aucune periode : tout a zero', Object.values(vide).every(v => v === 0));
+  t('une date illisible ne fabrique rien',
+    Object.values(compterTableauDeBord({ periodes: lot, encaissements: [], aujourdhui: 'n importe quoi' }))
+      .every(v => v === 0));
+
+  /* Le preavis est de 30 jours, et il est injectable pour les relevés. */
+  t('le preavis par defaut est de 30 jours', PREAVIS_RENOUVELLEMENT === 30);
+  t('ajouterJours ne change pas de jour selon le fuseau',
+    ajouterJours('2026-10-22', 30) === '2026-11-21' && ajouterJours('2026-12-31', 1) === '2027-01-01');
+  t('ajouterJours traverse un 29 fevrier', ajouterJours('2028-02-28', 1) === '2028-02-29');
+}
+
+console.log('\n=== 8 ter. UNE DETTE NE DISPARAIT PAS AVEC LE RENOUVELLEMENT ===');
+{
+  const AUJ = '2026-10-22';
+  const per = (debut: string, fin: string, jour: number, cloturee = false) =>
+    ({ dossier_id: 'd', debut, fin, jour_encaissement: jour, cloturee });
+
+  /*
+   * LA REGLE, POSEE PAR DAVID LE 22 OCTOBRE 2026 :
+   *
+   *   << Une echeance reelle comprise dans un ancien contrat et toujours non encaissee
+   *   doit continuer a apparaitre dans les loyers en retard / a encaisser selon sa
+   *   date, meme si la periode a ete cloturee ou renouvelee. Le renouvellement ne doit
+   *   jamais faire disparaitre une dette reelle. >>
+   *
+   * Avant, le tableau de bord ne chargeait que les periodes en cours : le jour du
+   * renouvellement, tous les impayes de l'ancien bail sortaient des compteurs. La dette
+   * restait en base, le chiffre l'oubliait.
+   */
+  const ancien = per('2026-01-05', '2026-12-05', 5, true);   // bail d'un an, renouvele en juillet
+  const nouveau = per('2026-07-10', '2027-07-09', 5);        // le remplacant
+
+  const avecHistorique = classerTableauDeBord({
+    periodes: [ancien, nouveau], encaissements: [], aujourdhui: AUJ,
+  });
+  const sansHistorique = classerTableauDeBord({
+    periodes: [nouveau], encaissements: [], aujourdhui: AUJ,
+  });
+
+  t('les impayes de l ancien bail sont encore comptes',
+    avecHistorique.compteurs.loyersEnRetard > sansHistorique.compteurs.loyersEnRetard);
+  t('le dossier apparait dans le filtre « loyers en retard »',
+    avecHistorique.dossiers['loyers-en-retard'].has('d'));
+
+  /*
+   * LE CHEVAUCHEMENT. L'ancien bail couvre janvier a decembre, le nouveau juillet a
+   * juillet : les echeances d'aout a octobre existent dans les DEUX. Un simple cumul
+   * les compterait deux fois.
+   *
+   * La regle appliquee : chaque periode ne fournit ses echeances que JUSQU'AU DEBUT de
+   * la suivante. L'ancien contrat etait en vigueur jusqu'a ce que le nouveau prenne le
+   * relais, ni avant ni apres.
+   */
+  const dates = echeancierDuDossier([ancien, nouveau]).map(e => e.date);
+  t('aucune date en double', new Set(dates).size === dates.length);
+  t('les dates sont en ordre croissant',
+    dates.every((d, i) => i === 0 || dates[i - 1] < d));
+  t('l ancien bail s arrete au debut du nouveau',
+    dates.includes('2026-07-05') && !dates.includes('2026-06-05') === false);
+  t('et le nouveau prend le relais apres son debut',
+    dates.includes('2026-08-05') && dates.includes('2027-07-05'));
+
+  /* Janvier a juillet viennent de l'ancien, aout et au-dela du nouveau : 7 + 12 = 19. */
+  t('19 echeances en tout, sans trou ni doublon', dates.length === 19);
+
+  /*
+   * LE PIEGE DU JOUR D'ENCAISSEMENT QUI CHANGE.
+   *
+   * Si le nouveau bail encaisse le 20 au lieu du 5, les echeances de septembre seraient
+   * le 05 ET le 20 : deux DATES differentes pour un seul loyer du. La coupure au debut
+   * de la periode suivante l'empeche, la ou un dedoublonnage par date ne verrait rien.
+   */
+  const jourChange = echeancierDuDossier([
+    per('2026-01-05', '2026-12-05', 5, true),
+    per('2026-07-10', '2027-07-09', 20),
+  ]).map(e => e.date);
+  t('un changement de jour ne fabrique pas deux loyers pour le meme mois',
+    !(jourChange.includes('2026-09-05') && jourChange.includes('2026-09-20')));
+  t('c est le NOUVEAU jour qui s applique apres le relais',
+    jourChange.includes('2026-09-20') && !jourChange.includes('2026-09-05'));
+  t('et l ANCIEN avant', jourChange.includes('2026-06-05'));
+
+  /*
+   * LE NUMERO RESTE CELUI DE SA PERIODE.
+   *
+   * David a valide que la numerotation reparte a 1 apres un renouvellement. Une
+   * echeance de l'ancien bail garde donc son rang dans l'ancien contrat — et son total
+   * aussi, meme si le contrat a ete interrompu avant son terme.
+   */
+  const complet = echeancierDuDossier([ancien, nouveau]);
+  const juin = complet.find(e => e.date === '2026-06-05');
+  const aout = complet.find(e => e.date === '2026-08-05');
+  t('une echeance de l ancien bail garde son rang d origine',
+    juin?.numero === 6 && juin?.total === 12 && juin?.ancienne === true);
+  t('la nouvelle periode recommence a 1',
+    complet.find(e => e.date === '2026-08-05')?.numero === 1 && aout?.ancienne === false);
+
+  /*
+   * LES CATEGORIES DE CONTRAT, ELLES, IGNORENT LES PERIODES CLOTUREES.
+   *
+   * Sinon un dossier renouvele serait a la fois << expire >> par son ancien bail et
+   * << en cours >> par le nouveau : la partition tomberait.
+   */
+  const cat = CATEGORIES_CONTRAT.filter(k => avecHistorique.dossiers[k].has('d'));
+  t('le dossier renouvele n est que dans UNE categorie de contrat', cat.length === 1);
+  t('et c est celle du bail en cours', cat[0] === 'dossiers-en-cours');
+  t('la somme des quatre vaut le nombre de periodes ACTIVES, pas total',
+    avecHistorique.compteurs.bauxExpires + avecHistorique.compteurs.bauxAVenir
+    + avecHistorique.compteurs.contratsARenouveler + avecHistorique.compteurs.dossiersEnCours === 1);
+
+  /* Un loyer ancien ENCAISSE ne revient pas, evidemment. */
+  const regleEnJuin = classerTableauDeBord({
+    periodes: [ancien, nouveau], aujourdhui: AUJ,
+    encaissements: [{ dossier_id: 'd', echeance: '2026-06-05', encaisseLeJour: '2026-06-06' }],
+  });
+  t('un ancien loyer encaisse sort des retards',
+    regleEnJuin.compteurs.loyersEnRetard === avecHistorique.compteurs.loyersEnRetard - 1);
+
+  /*
+   * LE PAIEMENT ORPHELIN — un defaut que CE code a eu, et qui a ete mesure.
+   *
+   * Un encaissement est rattache au DOSSIER et a une DATE : l'index unique de
+   * crm_immo_loyers porte sur (company_id, dossier_id, echeance), et la table n'a
+   * aucune colonne contrat_id. Une ligne payee le 5 juillet survit donc au
+   * renouvellement du 1er juillet.
+   *
+   * Premiere version de la coupure : cette echeance disparaissait de l'echeancier. Le
+   * paiement restait en base, rattache a une date que plus rien ne reconnaissait.
+   *
+   * Ce que ce defaut ne faisait PAS, et il faut le dire : il ne faussait aucun
+   * compteur. Une echeance payee n'est jamais comptee comme due, donc la supprimer ou
+   * la marquer encaissee donne le meme chiffre — mesure au 20 aout 2026, les deux cas
+   * rendent 7 en retard et 1 a encaisser.
+   *
+   * Ce qu'il faisait : effacer la trace d'un paiement reel. L'historique du dossier
+   * perdait une ligne, et toute reconciliation future aurait cherche en vain a quel
+   * loyer cet argent correspondait. Une echeance payee est un FAIT, pas une prevision :
+   * elle ne se recoupe pas.
+   */
+  const relaye = [
+    per('2026-01-05', '2026-12-05', 5, true),
+    per('2026-07-01', '2027-06-30', 20),
+  ];
+  const paye5juillet = (d: string) => d === '2026-07-05';
+
+  t('sans paiement, l echeance du 5 juillet est bien coupee',
+    !echeancierDuDossier(relaye).some(e => e.date === '2026-07-05'));
+  t('MAIS si elle a ete encaissee, elle survit a la coupure',
+    echeancierDuDossier(relaye, paye5juillet).some(e => e.date === '2026-07-05'));
+  t('et elle est comptee comme ENCAISSEE, pas comme due',
+    statutDe('2026-07-05', true, '2026-08-20') === 'encaisse');
+
+  const avecPaiement = classerTableauDeBord({
+    periodes: relaye, aujourdhui: '2026-08-20',
+    encaissements: [{ dossier_id: 'd', echeance: '2026-07-05', encaisseLeJour: '2026-07-05' }],
+  });
+  const sansPaiement = classerTableauDeBord({
+    periodes: relaye, encaissements: [], aujourdhui: '2026-08-20',
+  });
+  /* Et le sauvetage ne GONFLE rien : une echeance payee n'est pas une dette. */
+  t('garder l echeance payee ne change aucun compteur de dette',
+    avecPaiement.compteurs.loyersEnRetard === sansPaiement.compteurs.loyersEnRetard
+    && avecPaiement.compteurs.loyersAEncaisser === sansPaiement.compteurs.loyersAEncaisser);
+  t('mesure du 20 aout : 7 en retard, 1 a encaisser',
+    sansPaiement.compteurs.loyersEnRetard === 7 && sansPaiement.compteurs.loyersAEncaisser === 1);
+
+  /* Un paiement situe APRES une impayee du meme ancien contrat survit aussi : la
+     coupure saute l'impayee sans arreter le parcours. */
+  const paye5septembre = (d: string) => d === '2026-09-05';
+  t('un paiement plus tardif survit lui aussi a la coupure',
+    echeancierDuDossier(relaye, paye5septembre).some(e => e.date === '2026-09-05'));
+  t('et l impayee qui le precede reste bien coupee',
+    !echeancierDuDossier(relaye, paye5septembre).some(e => e.date === '2026-08-05'));
+
+  /*
+   * L'ORDRE D'ARRIVEE NE DOIT RIEN CHANGER.
+   *
+   * La coupure se fait au debut de la periode SUIVANTE — « suivante » au sens
+   * chronologique, pas au sens de l'ordre dans lequel la base a rendu les lignes. Une
+   * requete sans `ORDER BY` peut tres bien rendre la nouvelle periode en premier ; sans
+   * le tri, la coupure se ferait alors au debut de l'ANCIENNE, et tout l'historique
+   * disparaitrait.
+   *
+   * On passe donc le meme lot a l'envers, et on exige le meme resultat.
+   */
+  const ordreNaturel = echeancierDuDossier([ancien, nouveau]).map(e => e.date).join();
+  const ordreInverse = echeancierDuDossier([nouveau, ancien]).map(e => e.date).join();
+  t('l echeancier ne depend pas de l ordre des periodes recues',
+    ordreNaturel === ordreInverse && ordreNaturel !== '');
+
+  /*
+   * LE SEUL CHEMIN QUI REND LE DEDOUBLONNAGE NECESSAIRE.
+   *
+   * Apres la coupure, les dates gardees de chaque periode sont disjointes par
+   * construction : celles d'avant le relais sont strictement anterieures au debut de la
+   * suivante. Le `Set` serait donc inutile… s'il n'y avait pas l'exception du PAIEMENT.
+   *
+   * Une echeance payee est gardee MEME au-dela du relais. Si la periode suivante
+   * produit une echeance a la meme date — deux contrats au meme jour d'encaissement,
+   * qui se chevauchent — la date apparaitrait DEUX FOIS dans l'echeancier.
+   *
+   * On le mesure, au lieu de le supposer : sans le `Set`, cette liste a un doublon.
+   */
+  const memeJour = [
+    per('2026-01-05', '2026-12-05', 5, true),
+    per('2026-07-01', '2027-06-30', 5),
+  ];
+  const payeDansLeChevauchement = (d: string) => d === '2026-09-05';
+  const chevauche = echeancierDuDossier(memeJour, payeDansLeChevauchement).map(e => e.date);
+  t('les deux periodes produisent bien la meme date',
+    echeancierDuDossier([memeJour[1]]).some(e => e.date === '2026-09-05'));
+  t('une echeance payee au-dela du relais n apparait qu UNE fois',
+    chevauche.filter(d => d === '2026-09-05').length === 1);
+  t('et aucune date du lot n est en double',
+    new Set(chevauche).size === chevauche.length);
+  t('c est la version ANCIENNE qui est retenue — c est sous elle qu on a paye',
+    echeancierDuDossier(memeJour, payeDansLeChevauchement)
+      .find(e => e.date === '2026-09-05')?.ancienne === true);
+
+  /* Et une periode cloturee SEULE — bail termine, jamais renouvele — reste due. */
+  const seuleCloturee = classerTableauDeBord({
+    periodes: [per('2026-01-05', '2026-06-05', 5, true)], encaissements: [], aujourdhui: AUJ,
+  });
+  t('un bail cloture sans remplacant laisse quand meme ses impayes',
+    seuleCloturee.compteurs.loyersEnRetard === 6);
+  t('mais il n entre dans aucune categorie de contrat',
+    CATEGORIES_CONTRAT.every(k => seuleCloturee.dossiers[k].size === 0));
 }
 
 console.log('\n=== 9. L AFFICHAGE REUTILISE enDateFrancaise ===');

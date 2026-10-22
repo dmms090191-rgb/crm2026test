@@ -3,7 +3,7 @@ import { CheckCircle2, Undo2, CalendarClock, RefreshCw } from 'lucide-react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 import { enDateFrancaise } from '../../../../lib/crmImmoAlertes';
 import { LIBELLE_STATUT, rangDuLoyer, type StatutLoyer } from '../../../../lib/crmImmoEcheancier';
-import type { LigneEcheancier, PeriodeDossier, EncaissementDossier } from './useCrmImmoEcheancier';
+import type { LigneEcheancier, PeriodeEnregistree, EncaissementDossier } from './useCrmImmoEcheancier';
 
 /**
  * L'ONGLET ECHEANCIER LOYERS.
@@ -28,9 +28,9 @@ import type { LigneEcheancier, PeriodeDossier, EncaissementDossier } from './use
 
 interface Props {
   echeancier: LigneEcheancier[];
-  periodeAffichee: PeriodeDossier | null;
-  periodeActive: PeriodeDossier | null;
-  historique: PeriodeDossier[];
+  periodeAffichee: PeriodeEnregistree | null;
+  periodeActive: PeriodeEnregistree | null;
+  historique: PeriodeEnregistree[];
   encaissements: EncaissementDossier[];
   compteurs: Record<StatutLoyer, number>;
   chargement: boolean;
@@ -39,7 +39,7 @@ interface Props {
   onEncaisser: (echeance: string) => void;
   onAnnuler: (encaissement: EncaissementDossier) => void;
   onRenouveler: () => void;
-  echeancierDe: (p: PeriodeDossier) => { numero: number; total: number; date: string }[];
+  echeancierDe: (p: PeriodeEnregistree) => { numero: number; total: number; date: string }[];
 }
 
 /** La couleur d'un statut. Jamais une valeur en dur : le depot a 16 themes. */
