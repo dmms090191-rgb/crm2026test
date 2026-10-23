@@ -48,6 +48,7 @@ const SHELL = sansCommentaires(lire('src/app/AppShell.tsx'));
 const ROUTEUR = sansCommentaires(lire('src/app/AppDashboardRouter.tsx'));
 const MON_COMPTE = sansCommentaires(lire('src/pages/superadmin/views/mon-compte/SAMonComptePasswordSection.tsx'));
 const PARENT_MON_COMPTE = sansCommentaires(lire('src/pages/superadmin/views/SAMonCompte.tsx'));
+const CSA = sansCommentaires(lire('src/pages/company-super-admin/CSAInfoPasswordSection.tsx'));
 
 /** Le corps d'une fonction nommee, pour ne pas confondre deux handlers du meme fichier. */
 function corpsDe(src: string, debut: string): string {
@@ -71,6 +72,7 @@ console.log('\n=== 0. GARDE DU GARDE ===');
     ['update-admin-for-super-admin', FN_SOCIETE], ['update-company-super-admin', FN_GROUPE],
     ['TimezoneContext', TZ], ['AppShell', SHELL], ['AppDashboardRouter', ROUTEUR],
     ['SAMonComptePasswordSection', MON_COMPTE], ['SAMonCompte', PARENT_MON_COMPTE],
+    ['CSAInfoPasswordSection', CSA],
   ] as [string, string][]) {
     t(`${nom} n est pas vide apres retrait des commentaires`, src.length > 500);
   }
@@ -436,6 +438,81 @@ console.log('\n=== 13. L AUTO-SERVICE ELARGI RESTE ETROIT ===');
     /if \(!adminCompanyId && !isSelfService\)/.test(FN_SOCIETE));
   t('le controle de parente reste reserve au Groupe',
     /if \(callerRole === "company_super_admin"\) \{[\s\S]{0,500}parent_company_id/.test(FN_SOCIETE));
+}
+
+console.log('\n=== 14. PANEL GROUPE : LE TROISIEME ECRAN, ALIGNE ===');
+{
+  /*
+   * Ce fichier portait le MEME defaut que les deux autres. Il a ete trouve en VERIFIANT
+   * LA PRODUCTION, pas en le devinant : son ancien libelle « Enregistrer email et mot de
+   * passe » subsistait dans les paquets servis alors que les deux autres avaient disparu.
+   *
+   * Nuance a garder en tete : son email etait DEJA applique immediatement, parce qu il
+   * passe par `update-company-super-admin`. Ce qui manquait etait cote affichage.
+   */
+  const SAVE_EMAIL_CSA = corpsDe(CSA, 'const saveEmail = async () => {');
+  const SAVE_PWD_CSA = corpsDe(CSA, 'const savePassword = async () => {');
+
+  t('les deux handlers existent et sont isoles',
+    SAVE_EMAIL_CSA.length > 300 && SAVE_PWD_CSA.length > 200);
+  t('plus aucun handler saveCredentials qui couplait les deux',
+    !/const saveCredentials = async/.test(CSA));
+  t('plus aucun libelle pretendant enregistrer les deux a la fois',
+    !/Enregistrer email et mot de passe/.test(CSA));
+
+  /* La voie serveur, deja en place, mais appelee separement pour chaque champ. */
+  t('l email part vers update-company-super-admin',
+    /update-company-super-admin/.test(CSA));
+  t('l email n est jamais ecrit par auth.updateUser',
+    !/auth\.updateUser/.test(CSA));
+  t('l appel email ne porte PAS de mot de passe',
+    /appeler\(\{ email: vise \}\)/.test(SAVE_EMAIL_CSA) && !/password/.test(SAVE_EMAIL_CSA));
+  t('l appel mot de passe ne porte PAS d email',
+    /appeler\(\{ password: pinStr \}\)/.test(SAVE_PWD_CSA) && !/\bemail\b/.test(SAVE_PWD_CSA));
+  /* Un seul endroit sait construire la requete : deux constructeurs finiraient par
+     diverger sur la cible ou sur les en-tetes. */
+  t('un seul constructeur de requete, partage',
+    (CSA.match(/const appeler = async/g) ?? []).length === 1
+    && (CSA.match(/functions\/v1\/update-company-super-admin/g) ?? []).length === 1);
+  t('et il pose toujours la cible', /target_user_id: targetUserId/.test(CSA));
+
+  /* Aucune fausse confirmation. */
+  t('un email inchange n ecrit rien', /if \(!emailAChange\)/.test(SAVE_EMAIL_CSA));
+  t('et il le dit au lieu d afficher un succes',
+    /L.email n.a pas change/.test(CSA) && /type: 'info'/.test(CSA));
+  t('la reponse du serveur est relue', /corps\?\.email/.test(SAVE_EMAIL_CSA));
+  t('et comparee a ce qui etait demande',
+    /normaliser\(applique\) !== normaliser\(vise\)/.test(SAVE_EMAIL_CSA));
+  t('un serveur qui ne confirme pas rend une ERREUR',
+    /n.a pas confirme le nouvel email/.test(CSA));
+
+  /*
+   * LA DISTINCTION ACTEUR / CIBLE, ici aussi : cet ecran sert au Groupe sur son compte
+   * ET a Talvex qui l observe en Visu. Rafraichir la session de l observateur apres
+   * avoir modifie le compte d un autre serait sans effet au mieux, trompeur au pire.
+   */
+  t('la session n est rafraichie que si l acteur est la cible',
+    /if \(session\.user\.id === targetUserId\) await supabase\.auth\.refreshSession\(\)/.test(SAVE_EMAIL_CSA));
+
+  /* Deux boutons, deux messages. */
+  t('un bouton dedie a l email', /data-testid="csa-info-save-email-btn"/.test(CSA));
+  t('un bouton dedie au mot de passe', /data-testid="csa-info-save-password-btn"/.test(CSA));
+  t('deux etats d enregistrement distincts',
+    /setSavingEmail/.test(CSA) && /setSaving\(/.test(CSA));
+  t('deux messages distincts', /setEmailMsg/.test(CSA) && /setCredMsg/.test(CSA));
+
+  /* LES TROIS ECRANS DISENT DESORMAIS LA MEME CHOSE. Trois vocabulaires pour un seul
+     defaut, c est ce qu on vient de retirer : le test l interdit pour l avenir. */
+  for (const phrase of ["Enregistrer l'email", 'Enregistrer le mot de passe']) {
+    t(`« ${phrase} » est le libelle des TROIS ecrans`,
+      SECTION.includes(phrase) && MON_COMPTE.includes(phrase) && CSA.includes(phrase));
+  }
+  t('et aucun des trois ne garde l ancien libelle couple',
+    !/Enregistrer email et mot de passe/.test(SECTION)
+    && !/Enregistrer email et mot de passe/.test(MON_COMPTE)
+    && !/Enregistrer email et mot de passe/.test(CSA));
+  t('les trois relisent l email reellement pose',
+    /corps\.email/.test(SECTION) && /corps\.email/.test(MON_COMPTE) && /corps\?\.email/.test(CSA));
 }
 
 console.log(`\n=== RESULTAT : ${ok} OK, ${ko} ECHEC ===\n`);
