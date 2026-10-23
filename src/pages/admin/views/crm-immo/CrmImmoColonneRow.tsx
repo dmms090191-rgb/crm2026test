@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { ChevronUp, ChevronDown, Eye, EyeOff, Pencil, Trash2, Lock, Check, X } from 'lucide-react';
+import { ChevronUp, ChevronDown, Eye, EyeOff, Pencil, Trash2, Lock, Check, X, GripVertical } from 'lucide-react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 import { peutSupprimer, peutMasquer, cleColonne, type Colonne } from '../../../../lib/crmImmoColonnes';
 import { TYPES_COLONNE } from './crmImmoTypes';
+import type { GlisseLigne } from './useGlisserColonnes';
 
 /**
  * Une ligne de l'organisateur de colonnes.
@@ -18,6 +19,12 @@ import { TYPES_COLONNE } from './crmImmoTypes';
  * Les chevrons monter/descendre sont OBLIGATOIRES, pas un supplément : sur mobile un
  * glisser-déposer au doigt dans une liste qui défile est inutilisable. Ils sont le seul
  * moyen fiable de réordonner à une main.
+ *
+ * Ce verdict tient toujours, et la poignée ci-dessous ne le contredit pas : il vise le
+ * glisser-déposer posé sur la LIGNE ENTIÈRE, qui réclame `touch-action: none` sur toute
+ * sa largeur et tue le défilement de la liste. La poignée est la seule à le porter —
+ * partout ailleurs sur la ligne, le doigt continue de faire défiler. Les deux gestes
+ * cohabitent, et les chevrons restent le chemin clavier.
  */
 
 interface Props {
@@ -29,10 +36,13 @@ interface Props {
   onBasculerMasquage: () => void;
   onRenommer: (nom: string) => void;
   onSupprimer: () => void;
+  /** Absent : la ligne ne se saisit pas, et les chevrons restent seuls. */
+  glisse?: GlisseLigne;
 }
 
 export default function CrmImmoColonneRow({
   colonne, premier, dernier, onMonter, onDescendre, onBasculerMasquage, onRenommer, onSupprimer,
+  glisse,
 }: Props) {
   const t = useThemeTokens();
   const [edition, setEdition] = useState(false);
@@ -46,7 +56,37 @@ export default function CrmImmoColonneRow({
   return (
     <div className="flex items-center gap-2 px-3 py-2"
       data-testid={`crm-immo-colonne-${cle}`}
-      style={{ borderBottom: `1px solid ${t.surface.borderLight}`, opacity: colonne.masquee ? 0.55 : 1 }}>
+      /* C'est par cet attribut, et non par un conteneur, que le geste retrouve les lignes
+         de SA famille : les deux listes vivent dans la meme zone defilante, et leurs
+         ordres ne partent pas au meme endroit. */
+      data-glisse={glisse?.famille}
+      style={{
+        borderBottom: `1px solid ${t.surface.borderLight}`,
+        opacity: colonne.masquee ? 0.55 : 1,
+        background: glisse?.saisie ? t.surface.selected : undefined,
+        boxShadow: glisse?.saisie ? t.modal.shadow : undefined,
+        ...glisse?.style,
+      }}>
+
+      {/*
+        Un DIV, et non un bouton : l'action est deja offerte au clavier par les deux
+        chevrons juste a cote. Un huitieme bouton, sans effet au clic et redondant pour
+        un lecteur d'ecran, n'ajouterait qu'une annonce de plus — d'ou aria-hidden.
+      */}
+      {glisse && !edition && (
+        <div {...glisse.poignee}
+          title="Glisser pour déplacer"
+          aria-hidden="true"
+          data-testid={`crm-immo-colonne-glisser-${cle}`}
+          /* Une icone de 14 px, portee a 34 de large sur mobile, et a la hauteur PLEINE
+             de la ligne par self-stretch. Etroite mais haute : un glissement n'a pas
+             besoin de la precision d'un bouton — il commence n'importe ou dans la bande
+             et se poursuit bien au-dela d'elle, le pointeur etant capture. */
+          className="shrink-0 self-stretch flex items-center p-1 max-md:p-2.5 rounded"
+          style={{ ...glisse.poignee.style, color: t.label.muted }}>
+          <GripVertical className="w-3.5 h-3.5" />
+        </div>
+      )}
 
       <div className="flex flex-col shrink-0">
         <button type="button" onClick={onMonter} disabled={premier} title="Monter"

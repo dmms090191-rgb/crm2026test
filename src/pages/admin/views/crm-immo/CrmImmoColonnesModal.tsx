@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { X, Plus } from 'lucide-react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 import {
@@ -8,6 +8,7 @@ import {
 import { COLONNES_SYSTEME, TYPES_COLONNE, type ColonneImmo, type TypeColonne } from './crmImmoTypes';
 import CrmImmoColonneRow from './CrmImmoColonneRow';
 import { useFermetureModale } from './useFermetureModale';
+import { useGlisserColonnes } from './useGlisserColonnes';
 
 /**
  * L'organisateur de colonnes du module.
@@ -92,6 +93,21 @@ export default function CrmImmoColonnesModal({
   }
 
   /*
+   * LE GLISSEMENT, FAMILLE PAR FAMILLE.
+   *
+   * Deux instances et non une : une colonne systeme ne peut pas se deposer parmi les
+   * personnalisees, parce que son rang part dans localStorage et celui des autres en
+   * base. Chaque instance ne voit que ses lignes, et borne le geste a sa propre bande.
+   *
+   * Les deux partagent le MEME scroller — la zone defilante ci-dessous — parce que c'est
+   * lui qui defile quand on tient une ligne contre un bord, et lui dont il faut
+   * compenser le defilement pour que l'apercu ne derive pas.
+   */
+  const corps = useRef<HTMLDivElement>(null);
+  const glisseSys = useGlisserColonnes({ famille: 'systeme', scroller: corps, onDeplacer: deplacerSysteme });
+  const glissePers = useGlisserColonnes({ famille: 'perso', scroller: corps, onDeplacer: deplacerPerso });
+
+  /*
    * Tout ce qui est fait dans cette modale part en base immediatement : ajouter,
    * renommer, masquer, reordonner. Le seul etat qui vivrait une fermeture est le nom
    * en cours de frappe — d ou le second geste quand le champ n est pas vide.
@@ -123,7 +139,7 @@ export default function CrmImmoColonnesModal({
           </button>
         </div>
 
-        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+        <div ref={corps} className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
           {erreur !== '' && (
             <p className="text-xs m-3 px-3 py-2 rounded-lg break-words" data-testid="crm-immo-colonnes-erreur"
               style={{ background: t.danger.bg, border: `1px solid ${t.danger.border}`, color: t.danger.text }}>
@@ -142,6 +158,7 @@ export default function CrmImmoColonnesModal({
               onBasculerMasquage={() => basculerMasquageSysteme(c)}
               onRenommer={() => { /* un libelle systeme ne se renomme pas en V1 */ }}
               onSupprimer={() => { /* structurellement impossible : pas de bouton */ }}
+              glisse={glisseSys.pourLigne(i)}
             />
           ))}
 
@@ -161,6 +178,7 @@ export default function CrmImmoColonnesModal({
               onBasculerMasquage={() => onBasculerMasquagePerso(cleColonne(c), !c.masquee)}
               onRenommer={(nom) => onRenommer(cleColonne(c), nom)}
               onSupprimer={() => onSupprimerPerso(cleColonne(c))}
+              glisse={glissePers.pourLigne(i)}
             />
           ))}
         </div>
