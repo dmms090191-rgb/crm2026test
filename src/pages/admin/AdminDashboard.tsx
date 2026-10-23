@@ -281,13 +281,30 @@ function AdminDashboardInner({ onLogout, onConnectAsVendor, onConnectAsClient, i
     rdv: confirmedUnseen,
     decalages: rescheduleUnseen,
     'demandes-decalage': rescheduleRequestUnseen,
-    /* Les alertes ACTIVES, c est-a-dire le predicat du badge : ni lues ni traitees. */
-    'crm-immo': crmImmoOuvert ? alertesImmo.actives : [],
+    /*
+     * TOUTES les alertes derivees, et non les seules actives.
+     *
+     * ---------- POURQUOI CE CHANGEMENT, LE 23 OCTOBRE 2026 ----------
+     *
+     * Ce champ valait `alertesImmo.actives`, c'est-a-dire les non traitees. Une alerte
+     * traitee ne pouvait donc PLUS JAMAIS entrer dans l'historique : traiter une alerte
+     * avant qu'un Admin n'ouvre son panel la faisait disparaitre pour toujours. C'est
+     * ainsi que la table est restee a zero ligne — releve en base le 23 octobre 2026 —
+     * alors que deux alertes avaient bel et bien existe.
+     *
+     * L'historique est un JOURNAL : une alerte traitee reste un evenement qui a eu lieu.
+     * Son etat n'est pas perdu pour autant, il voyage avec elle : ligneImmo pose
+     * `read_at` et `treated_at` depuis crm_immo_etats.
+     *
+     * LA CLOCHE N'EST PAS TOUCHEE. Elle lit `actives` et `compteBadge` comme avant ;
+     * c'est seulement ce que l'historique RECOIT qui s'elargit.
+     */
+    'crm-immo': crmImmoOuvert ? alertesImmo.toutes : [],
   }), [
     unreadEntries, unreadVendorEntries, superAdminEntries,
     agendaNotifs, agendaEquipeNotifs,
     proposalUnseen, confirmedUnseen, rescheduleUnseen, rescheduleRequestUnseen,
-    crmImmoOuvert, alertesImmo.actives,
+    crmImmoOuvert, alertesImmo.toutes,
   ]);
 
   /*

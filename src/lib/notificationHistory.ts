@@ -74,6 +74,27 @@ export interface LigneHistorique {
   title: string;
   message: string | null;
   occurred_at: string;
+  /**
+   * L'ETAT PORTE PAR LA SOURCE — et seulement quand la source en a un.
+   *
+   * ---------- POURQUOI C'EST OPTIONNEL, ET POURQUOI CA COMPTE ----------
+   *
+   * Pour CRM Immo, « lu » et « traite » vivent en base, dans crm_immo_etats : c'est la
+   * source de verite, et l'historique n'en est que le reflet. Une alerte deja traitee
+   * doit donc entrer dans le journal AVEC son etat, sinon elle y apparaitrait comme
+   * neuve alors qu'on s'en est occupe.
+   *
+   * Pour les autres categories il n'existe aucun etat de ce genre : un message lu
+   * disparait de la source, il n'y a rien a reporter. Leur `read_at` appartient donc a
+   * l'historique SEUL, et l'alimentation ne doit surtout pas y toucher — c'est pourquoi
+   * ces deux champs sont ABSENTS de leurs lignes, et non poses a null.
+   *
+   * L'alimentation s'appuie sur cette absence pour separer ses lots : voir
+   * useNotificationHistory. Un upsert melangeant les deux formes remettrait a null le
+   * marquage de toutes les autres categories.
+   */
+  read_at?: string | null;
+  treated_at?: string | null;
 }
 
 /** Une ligne relue depuis la base : ce que la page affiche. */
@@ -129,6 +150,14 @@ export interface AlerteImmo {
   echeance: string;
   locataire: string;
   proprietaire: string;
+  /**
+   * Quand l'alerte a ete lue et traitee, tels que crm_immo_etats les porte.
+   *
+   * Optionnels pour que les releves qui fabriquent une alerte a la main n'aient pas a
+   * les declarer ; absents, ils valent null — jamais une date inventee.
+   */
+  lue_le?: string | null;
+  traitee_le?: string | null;
 }
 
 /** Tout ce que le hub tient a un instant donne, categorie par categorie. */
@@ -273,6 +302,20 @@ function ligneImmo(a: AlerteImmo, d: Destinataire): LigneHistorique {
      * reellement utilise.
      */
     occurred_at: `${a.echeance}T12:00:00.000Z`,
+    /*
+     * L'etat vient de crm_immo_etats, et l'historique le REFLETE.
+     *
+     * Sans ces deux dates, une alerte deja traitee entrerait dans le journal comme si
+     * personne ne s'en etait occupe. C'est pour cela que le journal recoit desormais
+     * TOUTES les alertes derivees et non les seules actives : une alerte traitee reste
+     * un evenement qui a eu lieu.
+     *
+     * Elles sont REECRITES a chaque alimentation, et c'est voulu : pour cette categorie
+     * la verite est en base, pas dans l'historique. Traiter dans la cloche se voit donc
+     * aussitot dans le journal.
+     */
+    read_at: a.lue_le ?? null,
+    treated_at: a.traitee_le ?? null,
   };
 }
 

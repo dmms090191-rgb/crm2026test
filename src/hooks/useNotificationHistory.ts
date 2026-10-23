@@ -127,26 +127,46 @@ export function useNotificationHistory({ companyId, userId, lectureSeule = false
     derniereSignature.current = signature;
 
     /*
-     * `ignoreDuplicates: false` : on veut bien que le titre et l'apercu se rafraichissent
-     * (« 2 messages non lus » devient « 3 »). C'est la pierre tombale, en base, qui
-     * decide de ce qui ne doit PAS etre rafraichi — pas le client.
+     * DEUX LOTS, ET C'EST INDISPENSABLE.
+     *
+     * PostgREST prend l'UNION des clefs d'un lot et met null pour celles qu'une ligne
+     * n'a pas. Envoyer ensemble des lignes qui portent `read_at` et d'autres qui ne le
+     * portent pas remettrait donc a NULL le marquage de toutes ces autres — un message
+     * lu dans l'historique redeviendrait non lu au passage suivant.
+     *
+     * On separe donc sur la PRESENCE de la clef, pas sur la categorie : le module pur
+     * decide quelles sources portent un etat, et ce hook n'a pas a le redire. Seul CRM
+     * Immo en porte un aujourd'hui, parce que crm_immo_etats est sa verite ; pour les
+     * autres, `read_at` appartient a l'historique seul et l'alimentation n'y touche pas.
+     *
+     * `ignoreDuplicates: false` dans les deux cas : on veut bien que le titre et
+     * l'apercu se rafraichissent (« 2 messages non lus » devient « 3 »). C'est la pierre
+     * tombale, en base, qui decide de ce qui ne doit PAS etre rafraichi — pas le client.
      */
-    const { data, error } = await supabase
-      .from('notification_history')
-      .upsert(lignes as LigneHistorique[], {
-        onConflict: 'company_id,recipient_user_id,category,source_id,occurrence',
-        ignoreDuplicates: false,
-      })
-      .select('id');
+    const avecEtat = lignes.filter(l => 'read_at' in l);
+    const sansEtat = lignes.filter(l => !('read_at' in l));
 
-    if (error) {
-      /* Signale sans casser : une notification non archivee reste visible dans la cloche. */
-      console.error('historique des notifications : alimentation refusee', error.message);
-      /* La signature est remise a zero pour que le prochain passage retente. */
-      derniereSignature.current = '';
-      return;
+    let ecrites = 0;
+    for (const lot of [sansEtat, avecEtat]) {
+      if (lot.length === 0) continue;
+      const { data, error } = await supabase
+        .from('notification_history')
+        .upsert(lot as LigneHistorique[], {
+          onConflict: 'company_id,recipient_user_id,category,source_id,occurrence',
+          ignoreDuplicates: false,
+        })
+        .select('id');
+
+      if (error) {
+        /* Signale sans casser : une notification non archivee reste visible dans la cloche. */
+        console.error('historique des notifications : alimentation refusee', error.message);
+        /* La signature est remise a zero pour que le prochain passage retente. */
+        derniereSignature.current = '';
+        return;
+      }
+      ecrites += data?.length ?? 0;
     }
-    if ((data?.length ?? 0) > 0) await charger();
+    if (ecrites > 0) await charger();
   }, [companyId, userId, lectureSeule, charger]);
 
   /** Ecrit un champ d'etat sur une entree, et dit si l'ecriture a vraiment eu lieu. */

@@ -445,6 +445,19 @@ console.log('\n=== 12. L ALIMENTATION EST IDEMPOTENTE ===');
    * alerte d agenda — le marquage ecrit read_at — puis l alimentation repasse une
    * seconde plus tard et remet la ligne a « non lue ». La notification reviendrait, et
    * rien ne le signalerait.
+   *
+   * ---------- L EXCEPTION DE CRM IMMO, DEPUIS LE 23 OCTOBRE 2026 ----------
+   *
+   * CRM Immo est la seule categorie dont l etat vit EN BASE, dans crm_immo_etats. Son
+   * historique en est le reflet, pas une seconde verite : ses lignes portent donc
+   * read_at et treated_at, et les reecrivent a chaque passage.
+   *
+   * Cela ne rouvre PAS le scenario perdant ci-dessus, et c est le point : useNotification
+   * History separe ses lots sur la PRESENCE de read_at. Les categories qui n en portent
+   * pas partent dans un upsert ou ces colonnes n apparaissent meme pas — donc intactes.
+   * Melanger les deux formes dans un seul lot les remettrait a null, parce que PostgREST
+   * prend l union des clefs. C est la raison d etre des deux lots, et le releve suivant
+   * la protege.
    */
   const ETATS_INTOUCHABLES = ['read_at', 'treated_at', 'archived_at', 'deleted_at'];
   const toutesLesCategories = construireLignes({
@@ -454,11 +467,37 @@ console.log('\n=== 12. L ALIMENTATION EST IDEMPOTENTE ===');
     rdv: [{ id: 'p', lead_name: 'L', created_at: '2026-10-20T08:00:00.000Z' }],
     'crm-immo': [{ dossier_id: 'd', genre: 'loyer', periode: '2026-11', echeance: '2026-11-05', locataire: 'A', proprietaire: 'P' }],
   }, DEST);
-  t('la fabrique ne produit AUCUNE colonne d etat',
-    toutesLesCategories.every(l =>
+
+  const horsImmo = toutesLesCategories.filter(l => l.category !== 'crm-immo');
+  const immo = toutesLesCategories.filter(l => l.category === 'crm-immo');
+
+  t('aucune categorie SAUF crm-immo ne produit de colonne d etat',
+    horsImmo.length >= 4 && horsImmo.every(l =>
       ETATS_INTOUCHABLES.every(c => !Object.prototype.hasOwnProperty.call(l, c))));
+  t('crm-immo porte read_at et treated_at, et RIEN de plus',
+    immo.length === 1
+    && Object.prototype.hasOwnProperty.call(immo[0], 'read_at')
+    && Object.prototype.hasOwnProperty.call(immo[0], 'treated_at')
+    && !Object.prototype.hasOwnProperty.call(immo[0], 'archived_at')
+    && !Object.prototype.hasOwnProperty.call(immo[0], 'deleted_at'));
+  t('une alerte jamais lue ni traitee donne null, pas une date inventee',
+    immo[0].read_at === null && immo[0].treated_at === null);
   t('elle ne produit pas non plus d identifiant de ligne',
     toutesLesCategories.every(l => !Object.prototype.hasOwnProperty.call(l, 'id')));
+
+  /*
+   * LA SEPARATION DES LOTS, lue dans le hook.
+   *
+   * C est elle qui empeche l union des clefs de PostgREST de remettre a null le marquage
+   * des autres categories. Un releve de source, parce qu il n existe pas de banc pour
+   * faire tourner le hook sans Supabase.
+   */
+  const hook = readFileSync('src/hooks/useNotificationHistory.ts', 'utf8');
+  t('le hook separe les lignes AVEC etat de celles SANS',
+    /const avecEtat = lignes\.filter\(l => 'read_at' in l\)/.test(hook)
+    && /const sansEtat = lignes\.filter\(l => !\('read_at' in l\)\)/.test(hook));
+  t('il envoie DEUX upserts, jamais un lot melange',
+    /for \(const lot of \[sansEtat, avecEtat\]\)/.test(hook));
 }
 
 console.log(`\n=== RESULTAT : ${ok} OK, ${ko} ECHEC ===\n`);

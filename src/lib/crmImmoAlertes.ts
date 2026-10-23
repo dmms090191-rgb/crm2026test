@@ -125,6 +125,19 @@ export interface Alerte {
   lue: boolean;
   traitee: boolean;
   /**
+   * QUAND elle a ete lue, et QUAND elle a ete traitee — null si elle ne l'a pas ete.
+   *
+   * `lue` et `traitee` suffisent a la cloche, qui ne montre qu'un etat. L'historique,
+   * lui, est un JOURNAL : il range chaque entree dans le temps, et une date vaut mieux
+   * qu'un booleen pour cela. Les deux viennent de la MEME ligne crm_immo_etats, donc il
+   * n'existe pas deux verites — seulement deux lectures de la meme.
+   *
+   * Ajoutes le 23 octobre 2026 avec le journal. La cloche ne les lit pas : son
+   * comportement est inchange.
+   */
+  lue_le: string | null;
+  traitee_le: string | null;
+  /**
    * Pour un LOYER : sa place dans le contrat, et son etat.
    *
    * Les deux sont CALCULES par construireEcheancier, jamais stockes : le numero et le
@@ -525,6 +538,7 @@ export function deriverAlertes(params: {
           echeance: periode, joursRestants: restants,
           locataire, proprietaire,
           lue: !!etat?.lue_le, traitee: !!etat?.traitee_le,
+          lue_le: etat?.lue_le ?? null, traitee_le: etat?.traitee_le ?? null,
         });
       }
     }
@@ -602,6 +616,7 @@ export function deriverAlertes(params: {
           joursRestants: joursEntre(aujourdhui, cible.date) ?? 0,
           locataire, proprietaire,
           lue: !!etat?.lue_le, traitee: !!etat?.traitee_le,
+          lue_le: etat?.lue_le ?? null, traitee_le: etat?.traitee_le ?? null,
           rang: { numero: cible.numero, total: cible.total },
           statut: statutDe(cible.date, false, aujourdhui),
         });
