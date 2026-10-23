@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '../../../../lib/supabase';
 import { lireToutesLesLignes } from '../../../../lib/lectureIntegrale';
 import { useCompanyId } from '../../../../hooks/useCompanyId';
-import { journeeDeReference, fuseauLocal } from '../../../../lib/crmImmoAlertes';
+import { journeeDeReference, FUSEAU_ALERTES } from '../../../../lib/crmImmoAlertes';
 import {
   construireEcheancier, statutDe, loyerActuel, compterParStatut,
   type EcheanceLoyer, type StatutLoyer,
@@ -72,7 +72,9 @@ export function useCrmImmoEcheancier(dossierId: string | null) {
   const [erreur, setErreur] = useState('');
   const [enCours, setEnCours] = useState(false);
 
-  const fuseau = useMemo(() => fuseauLocal(), []);
+  /* Israel, et pas le poste : le statut << en retard >> d'une echeance doit etre le meme
+     pour tout le monde. Voir FUSEAU_ALERTES. */
+  const fuseau = FUSEAU_ALERTES;
   const aujourdhui = useMemo(() => journeeDeReference(new Date(), fuseau), [fuseau]);
 
   const charger = useCallback(async () => {

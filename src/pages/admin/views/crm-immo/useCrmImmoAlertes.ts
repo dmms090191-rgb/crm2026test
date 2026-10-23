@@ -6,7 +6,7 @@ import type { PeriodeDossier } from '../../../../lib/crmImmoEcheancier';
 import {
   deriverAlertes, filtrer, compteBadge,
   type Alerte, type EtatConnu, type GenreAlerte, type FiltreAlertes, type DossierPourAlertes,
-  type EncaissementConnu,
+  type EncaissementConnu, type MomentIsrael,
 } from '../../../../lib/crmImmoAlertes';
 
 /**
@@ -70,7 +70,10 @@ const RYTHME_RESEAU = 300_000;
  */
 export function useCrmImmoAlertes(
   actif: boolean,
-  aujourdhui: string,
+  /* Le jour ET l'heure, en heure d'Israel : la cloche attend 08:00, elle ne peut donc
+     plus se contenter d'une date. Le moment vient du tableau de bord, qui porte
+     l'unique horloge du module. */
+  moment: MomentIsrael,
   periodes: PeriodeDossier[],
   encaissements: EncaissementConnu[],
   rechargerDonnees: () => Promise<void>,
@@ -155,8 +158,8 @@ export function useCrmImmoAlertes(
   }, [actif]);
 
   const toutes = useMemo(
-    () => deriverAlertes({ dossiers, etats, aujourdhui, encaissements, periodes }),
-    [dossiers, etats, aujourdhui, encaissements, periodes],
+    () => deriverAlertes({ dossiers, etats, moment, encaissements, periodes }),
+    [dossiers, etats, moment, encaissements, periodes],
   );
 
   const affichees = useMemo(() => filtrer(toutes, filtre), [toutes, filtre]);
@@ -223,7 +226,7 @@ export function useCrmImmoAlertes(
 
   return {
     alertes: affichees, toutes, actives, badge, filtre, setFiltre,
-    chargement, erreur, aujourdhui,
+    chargement, erreur, aujourdhui: moment.jour, moment,
     recharger, marquerLue, marquerTraitee,
   };
 }

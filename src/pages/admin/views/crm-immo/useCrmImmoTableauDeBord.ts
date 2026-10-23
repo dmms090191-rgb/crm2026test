@@ -1,7 +1,10 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '../../../../lib/supabase';
 import { useCompanyId } from '../../../../hooks/useCompanyId';
-import { journeeDeReference, fuseauLocal } from '../../../../lib/crmImmoAlertes';
+import {
+  journeeDeReference, momentDe, FUSEAU_ALERTES, HEURE_DECLENCHEMENT,
+  type MomentIsrael,
+} from '../../../../lib/crmImmoAlertes';
 import { lireToutesLesLignes } from '../../../../lib/lectureIntegrale';
 import {
   classerTableauDeBord,
@@ -99,7 +102,9 @@ export function useCrmImmoTableauDeBord(actif: boolean) {
   const [encaissements, setEncaissements] = useState<EncaissementActif[]>([]);
   const [chargement, setChargement] = useState(true);
   const [erreur, setErreur] = useState('');
-  const fuseau = useMemo(() => fuseauLocal(), []);
+  /* Le fuseau d'Israel, et lui seul. Voir FUSEAU_ALERTES : une seule notion de
+     << aujourd'hui >> dans tout le module, quel que soit le poste qui consulte. */
+  const fuseau = FUSEAU_ALERTES;
 
   /*
    * ---------- L'HORLOGE VIT ICI, ET NULLE PART AILLEURS ----------
@@ -116,11 +121,33 @@ export function useCrmImmoTableauDeBord(actif: boolean) {
    * qui change, pas d'une donnee qui bouge. Et elle est relue a chaque passage reseau,
    * parce qu'un onglet d'arriere-plan voit ses minuteurs geles par le navigateur.
    */
-  const [aujourdhui, setAujourdhui] = useState(() => journeeDeReference(new Date(), fuseau));
+  /*
+   * ---------- ELLE PORTE L'HEURE DEPUIS LE 23 OCTOBRE 2026 ----------
+   *
+   * Un jour seul ne permettait pas de dire << a partir de 08:00 >> : une alerte
+   * basculait a minuit. L'horloge rend desormais un MomentIsrael — jour ET minutes.
+   *
+   * ---------- POURQUOI ON NE REMPLACE PAS L'ETAT A CHAQUE MINUTE ----------
+   *
+   * Une chaine identique ne declenche aucun rendu : React compare par Object.is. Un
+   * OBJET neuf, lui, en declenche un a chaque passage, soit un rendu par minute pour
+   * rien. On ne remplace donc l'etat que si quelque chose d'OBSERVABLE a change : le
+   * jour, ou le franchissement de 08:00. Entre deux, `minutes` reste fige a sa derniere
+   * valeur utile, ce qui est sans consequence : personne ne lit les minutes autrement
+   * que pour les comparer a HEURE_DECLENCHEMENT.
+   */
+  const [moment, setMoment] = useState<MomentIsrael>(() => momentDe(new Date(), fuseau));
+  const aujourdhui = moment.jour;
 
   useEffect(() => {
     if (!actif) return;
-    const t = setInterval(() => setAujourdhui(journeeDeReference(new Date(), fuseau)), RYTHME_DERIVATION);
+    const avancer = () => setMoment(precedent => {
+      const suivant = momentDe(new Date(), fuseau);
+      const memeJour = precedent.jour === suivant.jour;
+      const memeCote = (precedent.minutes >= HEURE_DECLENCHEMENT) === (suivant.minutes >= HEURE_DECLENCHEMENT);
+      return memeJour && memeCote ? precedent : suivant;
+    });
+    const t = setInterval(avancer, RYTHME_DERIVATION);
     return () => clearInterval(t);
   }, [actif, fuseau]);
 
@@ -178,10 +205,10 @@ export function useCrmImmoTableauDeBord(actif: boolean) {
       })));
       setErreur('');
     }
-    /* Le jour est relu a chaque passage reseau : un onglet laisse ouvert la nuit doit
-       repartir sur la bonne date, meme si le battement de 60 s a ete gele par le
-       navigateur en arriere-plan. */
-    setAujourdhui(journeeDeReference(new Date(), fuseau));
+    /* Le moment est relu a chaque passage reseau : un onglet laisse ouvert la nuit doit
+       repartir sur la bonne date ET du bon cote de 08:00, meme si le battement de 60 s
+       a ete gele par le navigateur en arriere-plan. */
+    setMoment(momentDe(new Date(), fuseau));
     setChargement(false);
   }, [actif, companyId, fuseau]);
 
@@ -223,7 +250,10 @@ export function useCrmImmoTableauDeBord(actif: boolean) {
     dossiersParCategorie: classement.dossiers,
     /* Les lignes brutes : le hook des alertes derive les siennes des MEMES, pour que la
        cloche et les cartes ne puissent pas dire deux choses differentes. */
-    periodes, encaissements, aujourdhui,
+    /* `moment` porte le jour ET l'heure : c'est lui que la cloche doit recevoir, pour
+       pouvoir attendre 08:00. `aujourdhui` en est la seule projection, conservee pour
+       tout ce qui ne raisonne qu'en jour calendaire — statuts, classement, cartes. */
+    periodes, encaissements, aujourdhui, moment,
     chargement, erreur, recharger,
   };
 }

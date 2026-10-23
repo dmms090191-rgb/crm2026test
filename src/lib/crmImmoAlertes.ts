@@ -38,7 +38,7 @@
  */
 
 import {
-  jourRabattu, lireJour, dernierJourDuMois,
+  jourRabattu, lireJour, dernierJourDuMois, ajouterJours,
   echeancierDuDossier, loyerAAlerter, statutDe, rangDuLoyer,
   type StatutLoyer, type PeriodeDossier,
 } from './crmImmoEcheancier';
@@ -144,9 +144,141 @@ export function journeeDeReference(instant: Date, fuseau: string): string {
   return `${lire('year')}-${lire('month')}-${lire('day')}`;
 }
 
-/** Le fuseau du poste, pour l'appel courant. Isole afin de rester injectable. */
+/**
+ * Le fuseau du poste, pour l'appel courant. Isole afin de rester injectable.
+ *
+ * ---------- IL NE SERT PLUS DANS LE MODULE CRM IMMO ----------
+ *
+ * Conserve parce qu'il reste juste et qu'il peut servir ailleurs, mais le module CRM
+ * Immo ne doit PLUS l'appeler : son activite est en Israel, et le fuseau du poste
+ * donnait un << aujourd'hui >> different selon l'endroit d'ou l'on consulte. Un releve
+ * fait depuis Paris a 00 h 30 basculait la journee avant Jerusalem.
+ *
+ * C'est FUSEAU_ALERTES qui fait foi, partout dans le module — notifications, statut
+ * << en retard >>, cartes du tableau de bord, apercu du formulaire. Un test interdit son
+ * retour dans le module (voir scripts/crm-immo/declenchement.test.ts).
+ */
 export function fuseauLocal(): string {
   return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+}
+
+/* ---------------------------------------------------------------------------
+ * LE DECLENCHEMENT A 08:00, HEURE D'ISRAEL
+ * ------------------------------------------------------------------------- */
+
+/**
+ * LE fuseau du module. Une seule notion de << aujourd'hui >> dans tout le CRM.
+ *
+ * Regle posee par David : << Je ne veux pas deux notions differentes de aujourd'hui dans
+ * le meme CRM. >> Les dossiers, les baux et les encaissements sont israeliens ; la
+ * journee de reference l'est donc aussi, quel que soit le poste qui consulte.
+ */
+export const FUSEAU_ALERTES = 'Asia/Jerusalem';
+
+/** 08:00, en minutes depuis minuit. Les notifications ne sortent pas avant. */
+export const HEURE_DECLENCHEMENT = 8 * 60;
+
+/**
+ * L'instant courant, lu en heure d'Israel : un JOUR et une HEURE.
+ *
+ * Jusqu'ici le module n'avait que le jour : une alerte basculait donc a MINUIT. Pour
+ * dire << a partir de 08:00 >>, il faut l'heure, et il faut la lire dans le bon fuseau —
+ * 08:00 a Jerusalem, c'est 06:00 UTC en hiver et 05:00 UTC en ete.
+ */
+export interface MomentIsrael {
+  /** 'AAAA-MM-JJ' en heure d'Israel. */
+  jour: string;
+  /** Minutes depuis minuit, 0 a 1439, en heure d'Israel. */
+  minutes: number;
+}
+
+/**
+ * Un instant converti en jour + minutes dans un fuseau donne.
+ *
+ * ---------- LE PIEGE DE MINUIT ----------
+ *
+ * `hour: '2-digit'` sans `hourCycle` peut rendre << 24 >> a minuit selon la version
+ * d'ICU : minuit vaudrait alors 1440 minutes, donc superieur a 08:00, et l'alerte
+ * sortirait UN JOUR TROP TOT. On impose `hourCycle: 'h23'`, qui numerote les heures de
+ * 00 a 23, et un test fige le cas de minuit.
+ */
+export function momentDe(instant: Date, fuseau: string = FUSEAU_ALERTES): MomentIsrael {
+  const parties = new Intl.DateTimeFormat('en-US', {
+    timeZone: fuseau, hourCycle: 'h23',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit',
+  }).formatToParts(instant);
+  const lire = (type: string) => parties.find(p => p.type === type)?.value ?? '';
+  return {
+    jour: `${lire('year')}-${lire('month')}-${lire('day')}`,
+    minutes: Number(lire('hour')) * 60 + Number(lire('minute')),
+  };
+}
+
+/** Le mois precedent, le jour rabattu s'il n'existe pas. 31 mars → 28 ou 29 fevrier. */
+function moinsUnMois(iso: string): string | null {
+  const d = lireJour(iso);
+  if (!d) return null;
+  const annee = d.mois === 1 ? d.annee - 1 : d.annee;
+  const mois = d.mois === 1 ? 12 : d.mois - 1;
+  return `${annee}-${DEUX(mois)}-${DEUX(jourRabattu(d.jour, annee, mois))}`;
+}
+
+/**
+ * LE JOUR OU LA NOTIFICATION DE LOYER COMMENCE : la VEILLE de l'echeance.
+ *
+ * Echeance le 10 novembre → la notification sort le 9 novembre a 08:00. Elle ne sort pas
+ * avant — c'est un retrecissement assume par rapport a l'ancienne regle, qui l'affichait
+ * tout le mois.
+ */
+export function jourDeclenchementLoyer(echeance: string): string | null {
+  return lireJour(echeance) ? ajouterJours(echeance, -1) : null;
+}
+
+/**
+ * LE JOUR OU LA NOTIFICATION DE FIN DE CONTRAT COMMENCE.
+ *
+ * ---------- POURQUOI DEUX CALCULS, ET LE PLUS TOT DES DEUX ----------
+ *
+ * << Un mois moins un jour >> seul n'est PAS toujours plus tot que l'ancien J-30 : les
+ * mois n'ont pas la meme longueur. Pour une fin le 15 mars, un mois en arriere tombe le
+ * 15 fevrier, moins un jour le 14 — alors que J-30 tombe le 13. La regle de calendrier
+ * seule aurait donc prevenu UN JOUR PLUS TARD qu'avant, precisement sur les mois courts.
+ *
+ * David a tranche : << Je ne veux pas accepter le cas ou une fin de contrat en mars
+ * serait signalee plus tard qu'avec l'ancienne regle J-30. >> On calcule les deux et on
+ * garde le plus TOT. La notification ne peut donc jamais reculer par rapport a J-30 ;
+ * elle peut seulement avancer, de un a deux jours selon le mois.
+ *
+ * La comparaison de chaines 'AAAA-MM-JJ' est chronologique : meme largeur, champs du
+ * plus significatif au moins significatif.
+ */
+export function jourDeclenchementFinContrat(fin: string): string | null {
+  if (!lireJour(fin)) return null;
+  const parMois = moinsUnMois(fin);
+  const parPreavis = ajouterJours(fin, -PREAVIS_FIN_CONTRAT);
+  if (!parMois) return parPreavis;
+  const parCalendrier = ajouterJours(parMois, -1);
+  return parCalendrier < parPreavis ? parCalendrier : parPreavis;
+}
+
+/**
+ * LA NOTIFICATION DOIT-ELLE ETRE VISIBLE MAINTENANT ?
+ *
+ * ---------- IL N'Y A AUCUNE FENETRE A RATER ----------
+ *
+ * Le test est `>=`, jamais `==`. Le jour du declenchement, elle sort a partir de 08:00 —
+ * a 08:00, a 08:03, a 14 h — et tous les jours suivants sans condition d'heure. Rien ne
+ * s'execute a heure fixe dans ce systeme : les alertes sont DERIVEES a chaque affichage,
+ * donc personne n'a besoin d'etre la a 08:00 et il n'y a rien a rattraper. C'est la
+ * reponse a << et si le travail tourne quelques minutes apres 08:00 >> : la question ne
+ * se pose pas, parce qu'aucun travail ne tourne.
+ */
+export function estDeclenchee(jourDeclenchement: string | null, moment: MomentIsrael): boolean {
+  if (!jourDeclenchement) return false;
+  if (moment.jour > jourDeclenchement) return true;
+  if (moment.jour < jourDeclenchement) return false;
+  return moment.minutes >= HEURE_DECLENCHEMENT;
 }
 
 /** 'AAAA-MM' — la periode d'un loyer. Elle revient chaque mois, d'ou l'alerte recurrente. */
@@ -273,7 +405,14 @@ const VIDE: ReadonlySet<string> = new Set<string>();
 export function deriverAlertes(params: {
   dossiers: DossierPourAlertes[];
   etats: EtatConnu[];
-  aujourdhui: string;
+  /**
+   * L'instant courant en heure d'Israel — jour ET heure.
+   *
+   * C'etait un simple jour jusqu'au 23 octobre 2026. Une alerte basculait donc a MINUIT,
+   * et << a partir de 08:00 >> etait inexprimable. Le module reste PUR : il ne lit
+   * aucune horloge, il recoit le moment.
+   */
+  moment: MomentIsrael;
   /** Les encaissements ACTIFS. Absents = aucun loyer n'a ete encaisse. */
   encaissements?: EncaissementConnu[];
   /**
@@ -289,7 +428,8 @@ export function deriverAlertes(params: {
    */
   periodes?: PeriodeDossier[];
 }): Alerte[] {
-  const { dossiers, etats, aujourdhui, encaissements = [], periodes = [] } = params;
+  const { dossiers, etats, moment, encaissements = [], periodes = [] } = params;
+  const aujourdhui = moment.jour;
   const jour = lireJour(aujourdhui);
   if (!jour) return [];
 
@@ -325,7 +465,14 @@ export function deriverAlertes(params: {
     const fin = lireJour(d.date_fin_contrat);
     if (fin) {
       const restants = joursEntre(aujourdhui, d.date_fin_contrat!);
-      if (restants !== null && restants <= PREAVIS_FIN_CONTRAT) {
+      /*
+       * Le seuil n'est plus un nombre de jours mais une DATE DE DECLENCHEMENT, calculee
+       * en arithmetique de calendrier. Et une fois ce jour passe, l'alerte reste : une
+       * echeance depassee est encore un travail a faire, c'est le bouton << traite >>
+       * qui la retire, pas le calendrier. estDeclenchee rend vrai pour tout jour
+       * posterieur, donc cette regle-la est preservee sans etre reecrite.
+       */
+      if (restants !== null && estDeclenchee(jourDeclenchementFinContrat(d.date_fin_contrat!), moment)) {
         const periode = d.date_fin_contrat!;
         const etat = connus.get(cle(d.id, 'fin_contrat', periode));
         alertes.push({
@@ -377,7 +524,29 @@ export function deriverAlertes(params: {
        */
       const cible = loyerAAlerter(echeancier, estEncaisse, aujourdhui);
 
-      if (cible) {
+      /*
+       * LA VEILLE A 08:00 — ET LE VERROU EST POSE ICI, PAS DANS L'ECHEANCIER.
+       *
+       * loyerAAlerter et loyerActuel ne bougent pas : ils servent aussi l'onglet
+       * Echeancier, qui doit continuer de surligner le loyer du mois AVANT son
+       * echeance. Les y toucher aurait retire ce surlignage pour une regle qui ne
+       * concerne que la cloche.
+       *
+       * ---------- LA DETTE SORT, ET C'EST STRUCTUREL ----------
+       *
+       * << Une dette reelle ne disparait jamais >> est la regle de David, et elle tient
+       * ICI SANS CAS PARTICULIER : le jour de declenchement d'une echeance est sa
+       * VEILLE, donc pour une echeance deja echue cette veille est, elle aussi, passee,
+       * et estDeclenchee rend vrai a toute heure.
+       *
+       * Un `cible.date <= aujourdhui ||` avait d'abord ete ecrit en tete. Une mutation
+       * l'a retire sans faire echouer le moindre releve : il ne protegeait rien, il
+       * donnait seulement l'air de proteger. Retire plutot que garde.
+       */
+      const sortMaintenant = cible !== null
+        && estDeclenchee(jourDeclenchementLoyer(cible.date), moment);
+
+      if (cible && sortMaintenant) {
         const periode = cible.date.slice(0, 7);
         const etat = connus.get(cle(d.id, 'loyer', periode));
         alertes.push({

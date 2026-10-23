@@ -5,7 +5,7 @@ import {
   type ColonneImmo, type SaisieDossier, type ChampSysteme,
 } from './crmImmoTypes';
 import {
-  prochainsEncaissements, formatJourMoisCourt, journeeDeReference, fuseauLocal,
+  prochainsEncaissements, formatJourMoisCourt, journeeDeReference, FUSEAU_ALERTES,
   enDateFrancaise,
 } from '../../../../lib/crmImmoAlertes';
 import { construireEcheancier } from '../../../../lib/crmImmoEcheancier';
@@ -127,7 +127,9 @@ export default function CrmImmoChampsDossier({
    * minuit : la modale ne reste pas ouverte une journee, et un intervalle de plus dans
    * une modale de saisie couterait plus qu'il ne rapporte.
    */
-  const aujourdhui = useMemo(() => journeeDeReference(new Date(), fuseauLocal()), []);
+  /* Israel, comme partout ailleurs dans le module : l'apercu des prochaines echeances
+     doit partir du meme << aujourd'hui >> que la cloche et les cartes. */
+  const aujourdhui = useMemo(() => journeeDeReference(new Date(), FUSEAU_ALERTES), []);
   const apercuEcheances = useMemo(() => {
     const brut = (saisie.jour_encaissement as string ?? '').trim();
     if (brut === '') return '';

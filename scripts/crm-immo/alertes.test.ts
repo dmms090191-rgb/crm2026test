@@ -4,9 +4,10 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   journeeDeReference, dernierJourDuMois, jourRabattu, periodeLoyer, lireJour, joursEntre,
-  deriverAlertes, filtrer, compteBadge, PREAVIS_FIN_CONTRAT,
+  deriverAlertes, filtrer, compteBadge, PREAVIS_FIN_CONTRAT, HEURE_DECLENCHEMENT,
+  jourDeclenchementFinContrat,
   libelleAlerte, titreAlerte, detailAlerte, enDateFrancaise,
-  type DossierPourAlertes, type EtatConnu, type Alerte,
+  type DossierPourAlertes, type EtatConnu, type Alerte, type MomentIsrael,
 } from "../../src/lib/crmImmoAlertes.ts";
 import type { PeriodeDossier } from "../../src/lib/crmImmoEcheancier.ts";
 
@@ -66,9 +67,26 @@ const periodesDe = (dossiers: DossierPourAlertes[]): PeriodeDossier[] =>
         }]
       : []);
 
-type EntreeAlertes = Parameters<typeof deriverAlertes>[0];
+/*
+ * LES RELEVES PARLENT EN JOURS, LA FONCTION ATTEND UN MOMENT.
+ *
+ * deriverAlertes recoit depuis le 23 octobre 2026 un MomentIsrael — jour ET heure —
+ * parce qu'une notification n'apparait plus a minuit mais a 08:00. Les releves de ce
+ * fichier, eux, portent sur des JOURS : les convertir ici, a 08:00 pile, evite de
+ * reecrire quarante appels et dit la bonne chose — << ce jour-la, la notification etant
+ * due >>.
+ *
+ * Un releve qui veut mesurer l'HEURE passe `moment` directement ; c'est ce que fait
+ * declenchement.test.ts, qui est le fichier dedie a cette question.
+ */
+type EntreeAlertes = Omit<Parameters<typeof deriverAlertes>[0], "moment">
+  & { aujourdhui: string; moment?: MomentIsrael };
 const deriver = (p: EntreeAlertes) =>
-  deriverAlertes({ ...p, periodes: p.periodes ?? periodesDe(p.dossiers) });
+  deriverAlertes({
+    ...p,
+    moment: p.moment ?? { jour: p.aujourdhui, minutes: HEURE_DECLENCHEMENT },
+    periodes: p.periodes ?? periodesDe(p.dossiers),
+  });
 
 // ---------------------------------------------------------------------------
 // LE RABATTEMENT — le piege du 31 fevrier
@@ -179,16 +197,43 @@ test("lireJour refuse les dates impossibles au lieu de les corriger en silence",
 // J-30 — exactement, pas J-31
 // ---------------------------------------------------------------------------
 
-test("fin de contrat : active a J-30 PILE, pas a J-31", () => {
+test("fin de contrat : au PLUS TOT des deux calculs, jamais plus tard que J-30", () => {
+  /*
+   * LA REGLE A CHANGE LE 23 OCTOBRE 2026, ET CE TEST PORTE LE POURQUOI.
+   *
+   * Avant : J-30 pile. Maintenant : le plus TOT entre << un mois moins un jour >> et
+   * J-30. Les deux calculs sont necessaires parce que les mois n'ont pas la meme
+   * longueur — pour une fin le 15 mars, un mois en arriere moins un jour tombe le 14
+   * fevrier, alors que J-30 tombe le 13. La regle de calendrier SEULE aurait donc
+   * prevenu un jour plus TARD qu'avant, exactement sur les mois courts.
+   *
+   * Decision de David : << Je ne veux pas accepter le cas ou une fin de contrat en mars
+   * serait signalee plus tard qu'avec l'ancienne regle J-30. >>
+   */
   const fin = "2026-12-15";
   const d = [dossier({ date_fin_contrat: fin })];
   const a = (aujourdhui: string) => seulement(deriver({ dossiers: d, etats: [], aujourdhui }), "fin_contrat");
 
   assert.equal(joursEntre("2026-11-15", fin), 30, "le 15 novembre est bien J-30");
-  assert.equal(a("2026-11-15").length, 1, "a J-30 l alerte sort");
-  assert.equal(a("2026-11-14").length, 0, "a J-31 elle ne sort pas encore");
+  /* Decembre suit novembre, qui a 30 jours : << un mois moins un jour >> tombe le 14,
+     soit un jour AVANT J-30. C'est donc lui qui l'emporte. */
+  assert.equal(jourDeclenchementFinContrat(fin), "2026-11-14");
+  assert.equal(a("2026-11-14").length, 1, "le declenchement calcule : l alerte sort");
+  assert.equal(a("2026-11-13").length, 0, "la veille du declenchement : rien encore");
+  assert.equal(a("2026-11-15").length, 1, "J-30 reste couvert, forcement");
   assert.equal(a("2026-12-15").length, 1, "le jour meme");
-  assert.equal(PREAVIS_FIN_CONTRAT, 30);
+
+  /*
+   * LE CAS QUI A IMPOSE LE << PLUS TOT DES DEUX >> : une fin en mars.
+   * Fevrier etant court, un mois en arriere moins un jour tombe le 14 fevrier, APRES
+   * le J-30 du 13. C'est alors J-30 qui doit l'emporter.
+   */
+  const mars = "2027-03-15";
+  assert.equal(joursEntre("2027-02-13", mars), 30, "le 13 fevrier est bien J-30");
+  assert.equal(jourDeclenchementFinContrat(mars), "2027-02-13",
+    "sur un mois court, J-30 l emporte : la notification ne RECULE jamais");
+
+  assert.equal(PREAVIS_FIN_CONTRAT, 30, "le plancher reste 30 jours");
 });
 
 test("fin de contrat : une echeance DEPASSEE reste active jusqu a ce qu on la traite", () => {
@@ -227,11 +272,16 @@ test("loyer : la date est rabattue sur les mois courts", () => {
    * pas celui du mois en cours. Un bail qui commencerait des annees plus tot ferait donc
    * remonter sa premiere echeance, et le relevé ne mesurerait plus le rabattement.
    */
+  /*
+   * Le relevé se fait LA VEILLE de l'echeance depuis le 23 octobre 2026 : avant, une
+   * alerte de loyer n'existe plus. Ce test mesure le RABATTEMENT, pas le declenchement —
+   * on deplace donc la date d'observation sans toucher a ce qui est mesure.
+   */
   const cas: [string, string, string, string][] = [
-    ["2026-02-01", "2026-02-28", "2026-02-10", "2026-02-28"],
-    ["2028-02-01", "2028-02-29", "2028-02-10", "2028-02-29"],
-    ["2026-04-01", "2026-04-30", "2026-04-10", "2026-04-30"],
-    ["2026-01-01", "2026-01-31", "2026-01-10", "2026-01-31"],
+    ["2026-02-01", "2026-02-28", "2026-02-27", "2026-02-28"],
+    ["2028-02-01", "2028-02-29", "2028-02-28", "2028-02-29"],
+    ["2026-04-01", "2026-04-30", "2026-04-29", "2026-04-30"],
+    ["2026-01-01", "2026-01-31", "2026-01-30", "2026-01-31"],
   ];
   for (const [debut, fin, quand, attendue] of cas) {
     const d = [dossier({ date_entree: debut, date_fin_contrat: fin, jour_encaissement: 31 })];
@@ -274,13 +324,49 @@ test("loyer : traiter un mois ne traite pas le suivant", () => {
     "un novembre impaye doit rester reclame en decembre");
 });
 
-test("loyer : l alerte est visible tout le mois, avant comme apres l echeance", () => {
+test("loyer : l alerte n apparait QUE la veille, puis ne repart plus", () => {
+  /*
+   * CE TEST ETAIT L INVERSE, ET IL FIGEAIT L ANCIENNE REGLE.
+   *
+   * Il affirmait << visible tout le mois, avant comme apres l echeance >>. David a
+   * demande le contraire le 23 octobre 2026 : rien avant la veille. Le voici retourne,
+   * avec les trois memes dates de releve, pour que la comparaison soit lisible.
+   *
+   * Le trou du 1er au 13 est ASSUME : c'est le prix de la regle demandee. Ce qui n'est
+   * pas negociable, et qui est verifie plus bas, c'est qu'une echeance passee et
+   * impayee continue de sortir.
+   */
   const d = [dossier({ jour_encaissement: 15 })];
-  for (const jour of ["2026-11-01", "2026-11-15", "2026-11-30"]) {
-    const a = seulement(deriver({ dossiers: d, etats: [], aujourdhui: jour }), "loyer");
-    assert.equal(a.length, 1, `le ${jour}`);
-    assert.equal(a[0].echeance, "2026-11-15");
-  }
+  const a = (jour: string) => seulement(deriver({ dossiers: d, etats: [], aujourdhui: jour }), "loyer");
+
+  assert.equal(a("2026-11-01").length, 0, "le 1er : plus rien, c est le changement");
+  assert.equal(a("2026-11-13").length, 0, "l avant-veille : rien non plus");
+  assert.equal(a("2026-11-14").length, 1, "LA VEILLE : elle sort");
+  assert.equal(a("2026-11-14")[0].echeance, "2026-11-15");
+  assert.equal(a("2026-11-15").length, 1, "le jour meme");
+  assert.equal(a("2026-11-30").length, 1, "et apres, elle reste : c est une dette");
+  assert.equal(a("2026-11-30")[0].echeance, "2026-11-15");
+});
+
+test("loyer : la veille, l heure compte — rien avant 08:00, tout a partir de 08:00", () => {
+  /*
+   * Le seul endroit du depot ou l HEURE decide de quelque chose. Les releves passent
+   * donc un `moment` explicite au lieu d un jour.
+   *
+   * Et le test porte `>=`, pas `==` : a 08:00, a 08:03, a 23:59, l alerte est la. Il n y
+   * a AUCUNE fenetre a rater, parce qu aucun travail ne tourne a heure fixe — les
+   * alertes sont derivees a chaque affichage.
+   */
+  const d = [dossier({ jour_encaissement: 15 })];
+  const a = (jour: string, minutes: number) =>
+    seulement(deriver({ dossiers: d, etats: [], aujourdhui: jour, moment: { jour, minutes } }), "loyer");
+
+  assert.equal(a("2026-11-14", 0).length, 0, "minuit la veille : trop tot");
+  assert.equal(a("2026-11-14", 7 * 60 + 59).length, 0, "07:59 : toujours trop tot");
+  assert.equal(a("2026-11-14", 8 * 60).length, 1, "08:00 PILE : elle sort");
+  assert.equal(a("2026-11-14", 8 * 60 + 3).length, 1, "08:03 — quelques minutes apres, rien n est rate");
+  assert.equal(a("2026-11-14", 23 * 60 + 59).length, 1, "23:59 le meme jour");
+  assert.equal(a("2026-11-15", 0).length, 1, "le lendemain a minuit : l heure ne compte plus");
 });
 
 // ---------------------------------------------------------------------------
@@ -305,17 +391,27 @@ test("une date ou un jour invalide est ignore, pas devine", () => {
 });
 
 test("le badge compte les NON LUES et NON TRAITEES — traiter sans lire le retire aussi", () => {
+  /*
+   * Le relevé se fait APRES les trois echeances (5, 6 et 7 novembre), au 8.
+   *
+   * Pourquoi pas avant : depuis le 23 octobre 2026 une alerte de loyer n'existe que la
+   * veille de SON echeance, et trois echeances a trois jours differents n'ont pas la
+   * meme veille — il n'existe aucune date ou les trois seraient simultanement << a
+   * venir >>. Echues et impayees, en revanche, elles sortent toutes les trois : c'est la
+   * regle de la dette, et elle n'a pas change. Ce test mesure le BADGE, pas le
+   * declenchement.
+   */
   const d = [dossier({ id: "a", jour_encaissement: 5 }), dossier({ id: "b", jour_encaissement: 6 }), dossier({ id: "c", jour_encaissement: 7 })];
-  const nu = deriver({ dossiers: d, etats: [], aujourdhui: "2026-11-02" });
+  const nu = deriver({ dossiers: d, etats: [], aujourdhui: "2026-11-08" });
   assert.equal(nu.length, 3);
   assert.equal(compteBadge(nu), 3, "aucune ligne d etat : les trois comptent");
 
   const etats: EtatConnu[] = [
-    { dossier_id: "a", genre: "loyer", periode: "2026-11", lue_le: "2026-11-02T08:00:00Z" },
+    { dossier_id: "a", genre: "loyer", periode: "2026-11", lue_le: "2026-11-08T08:00:00Z" },
     /* Traitee SANS avoir ete lue : elle doit sortir du badge quand meme. */
-    { dossier_id: "b", genre: "loyer", periode: "2026-11", traitee_le: "2026-11-02T09:00:00Z" },
+    { dossier_id: "b", genre: "loyer", periode: "2026-11", traitee_le: "2026-11-08T09:00:00Z" },
   ];
-  const apres = deriver({ dossiers: d, etats, aujourdhui: "2026-11-02" });
+  const apres = deriver({ dossiers: d, etats, aujourdhui: "2026-11-08" });
   assert.equal(compteBadge(apres), 1, "seule c reste non lue et non traitee");
   assert.equal(filtrer(apres, "actives").length, 2, "a et c restent actives");
   assert.equal(filtrer(apres, "traitees").length, 1, "b est conservee dans l historique");
@@ -366,9 +462,11 @@ test("loyer : un bail PAS ENCORE COMMENCE ne reclame rien", () => {
   const d = [dossier({ date_entree: "2027-03-01", date_fin_contrat: "2028-02-29", jour_encaissement: 15 })];
   assert.equal(seulement(deriver({ dossiers: d, etats: [], aujourdhui: "2026-10-22" }), "loyer").length, 0,
     "un contrat qui commence en 2027 reclame deja son loyer en 2026");
-  /* Et des qu'il commence, il reclame. */
-  assert.equal(seulement(deriver({ dossiers: d, etats: [], aujourdhui: "2027-03-02" }), "loyer").length, 1,
-    "le contrat a commence : son loyer doit sortir");
+  /* Et des qu'il commence, il reclame — a la veille de sa premiere echeance. */
+  assert.equal(seulement(deriver({ dossiers: d, etats: [], aujourdhui: "2027-03-02" }), "loyer").length, 0,
+    "commence mais l echeance est le 15 : pas encore la veille");
+  assert.equal(seulement(deriver({ dossiers: d, etats: [], aujourdhui: "2027-03-14" }), "loyer").length, 1,
+    "la veille de la premiere echeance : son loyer doit sortir");
 });
 
 test("loyer : les BORNES sont incluses, des deux cotes", () => {
@@ -381,13 +479,15 @@ test("loyer : les BORNES sont incluses, des deux cotes", () => {
    * Chaque bail ne couvre qu'un seul mois : sans cela, l'alerte viserait une echeance
    * anterieure et le relevé ne mesurerait plus la borne.
    */
+  /* Relevé a la VEILLE de chaque echeance : ce test mesure les bornes du bail, pas le
+     declenchement. */
   const finPile = [dossier({ date_entree: "2026-11-01", date_fin_contrat: "2026-11-20", jour_encaissement: 20 })];
-  const a1 = seulement(deriver({ dossiers: finPile, etats: [], aujourdhui: "2026-11-10" }), "loyer");
+  const a1 = seulement(deriver({ dossiers: finPile, etats: [], aujourdhui: "2026-11-19" }), "loyer");
   assert.equal(a1.length, 1, "l'echeance EGALE a la fin du bail doit sortir");
   assert.equal(a1[0].echeance, "2026-11-20");
 
   const debutPile = [dossier({ date_entree: "2026-11-05", date_fin_contrat: "2026-11-30", jour_encaissement: 5 })];
-  const a2 = seulement(deriver({ dossiers: debutPile, etats: [], aujourdhui: "2026-11-01" }), "loyer");
+  const a2 = seulement(deriver({ dossiers: debutPile, etats: [], aujourdhui: "2026-11-04" }), "loyer");
   assert.equal(a2.length, 1, "l'echeance EGALE au debut du bail doit sortir");
   assert.equal(a2[0].echeance, "2026-11-05");
 
@@ -424,14 +524,21 @@ test("loyer : le rabattement joue AVANT la borne, pas apres", () => {
    * Si la borne etait comparee au jour BRUT (31), elle le trouverait apres le 28 et
    * ferait disparaitre un loyer parfaitement du.
    */
+  /* Relevé la VEILLE du 28 : ce test mesure le rabattement face a la borne, pas le
+     declenchement. */
   const d = [dossier({ date_entree: "2026-02-01", date_fin_contrat: "2026-02-28", jour_encaissement: 31 })];
-  const a = seulement(deriver({ dossiers: d, etats: [], aujourdhui: "2026-02-10" }), "loyer");
+  const a = seulement(deriver({ dossiers: d, etats: [], aujourdhui: "2026-02-27" }), "loyer");
   assert.equal(a.length, 1, "le loyer rabattu sur la fin du bail doit sortir");
   assert.equal(a[0].echeance, "2026-02-28");
 
-  /* Et en annee bissextile, le rabattement donne le 29, qui depasse une fin au 28. */
+  /*
+   * Et en annee bissextile, le rabattement donne le 29, qui depasse une fin au 28.
+   * On releve APRES le 28 : si une echeance existait, elle serait echue donc visible
+   * sans condition d'heure — le zero attendu ne peut donc pas venir du declenchement,
+   * il vient bien de la borne.
+   */
   const bissextile = [dossier({ date_entree: "2028-02-01", date_fin_contrat: "2028-02-28", jour_encaissement: 31 })];
-  assert.equal(seulement(deriver({ dossiers: bissextile, etats: [], aujourdhui: "2028-02-10" }), "loyer").length, 0,
+  assert.equal(seulement(deriver({ dossiers: bissextile, etats: [], aujourdhui: "2028-02-29" }), "loyer").length, 0,
     "rabattu au 29, le loyer depasse une fin de bail au 28 : il ne doit pas sortir");
 });
 
@@ -473,7 +580,9 @@ test("l affichage porte TOUJOURS locataire, proprietaire et echeance", () => {
      est la date >>. Un dossier sans locataire retombe sur le nom du client. */
   const a = deriver({
     dossiers: [dossier({ locataire: null, proprietaire: null, jour_encaissement: 5, date_fin_contrat: "2026-11-20" })],
-    etats: [], aujourdhui: "2026-11-01",
+    /* Le 4 : la veille de l echeance de loyer (le 5), et bien apres le declenchement de
+       la fin de contrat du 20. Les DEUX genres sortent, ce qui est l objet du relevé. */
+    etats: [], aujourdhui: "2026-11-04",
   });
   assert.equal(a.length, 2);
   for (const x of a) {

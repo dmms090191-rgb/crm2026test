@@ -114,7 +114,7 @@ function AdminDashboardInner({ onLogout, onConnectAsVendor, onConnectAsClient, i
   const tableauImmo = useCrmImmoTableauDeBord(crmImmoOuvert);
   const alertesImmo = useCrmImmoAlertes(
     crmImmoOuvert,
-    tableauImmo.aujourdhui,
+    tableauImmo.moment,
     tableauImmo.periodes,
     tableauImmo.encaissements,
     tableauImmo.recharger,

@@ -111,8 +111,11 @@ test('A2 — la bascule est commandee par has_crm_immo_access, via le droit deja
    */
   assert.match(DASH, /useCrmImmoTableauDeBord\(crmImmoOuvert\)/,
     'le chargeur partage doit etre arme par le DROIT');
-  assert.match(DASH, /useCrmImmoAlertes\([\s\S]{0,120}?tableauImmo\.aujourdhui,[\s\S]{0,60}?tableauImmo\.periodes,/,
-    'la cloche doit recevoir le jour ET les periodes du chargeur partage, pas les relire');
+  /* Depuis le 23 octobre 2026 la cloche recoit un MOMENT — jour ET heure — et non plus
+     un jour seul : elle doit pouvoir attendre 08:00. Ce qui est garde reste le meme :
+     elle RECOIT du chargeur partage au lieu de relire. */
+  assert.match(DASH, /useCrmImmoAlertes\([\s\S]{0,120}?tableauImmo\.moment,[\s\S]{0,60}?tableauImmo\.periodes,/,
+    'la cloche doit recevoir le moment ET les periodes du chargeur partage, pas les relire');
   assert.match(DASH, /immoDashboard=\{crmImmoOuvert \?/,
     'le dashboard ne doit recevoir les compteurs que si le droit est accorde');
 });
@@ -344,18 +347,28 @@ test('E2 — une seule horloge dans toute l application, et elle vit ici', () =>
    */
   assert.match(HOOK, /export function useCrmImmoTableauDeBord\(actif: boolean\)/,
     'le chargeur partage ne doit plus recevoir le jour : il le porte');
-  assert.match(HOOK, /const \[aujourdhui, setAujourdhui\] = useState\(\(\) => journeeDeReference/,
-    'le jour de reference doit etre un etat de ce hook');
-  assert.match(HOOK, /setInterval\(\(\) => setAujourdhui\(journeeDeReference\(new Date\(\), fuseau\)\), RYTHME_DERIVATION\)/,
-    'le jour doit avancer tout seul, sans aucune requete');
+  /*
+   * L HORLOGE PORTE DESORMAIS L HEURE, ET LA GARDE SUIT SANS CHANGER D INTENTION.
+   *
+   * Elle rendait un jour ; elle rend un MomentIsrael depuis le 23 octobre 2026, parce
+   * qu une notification de loyer n apparait plus a minuit mais a 08:00, heure d Israel.
+   * Ce qui est protege ici reste le meme : UNE horloge, et la cloche ne s en refabrique
+   * pas une seconde.
+   */
+  assert.match(HOOK, /const \[moment, setMoment\] = useState<MomentIsrael>\(\(\) => momentDe/,
+    'le moment de reference doit etre un etat de ce hook');
+  assert.match(HOOK, /setInterval\(avancer, RYTHME_DERIVATION\)/,
+    'le moment doit avancer tout seul, sans aucune requete');
+  assert.match(HOOK, /const aujourdhui = moment\.jour;/,
+    'le jour doit etre la PROJECTION du moment, pas un second etat');
 
   const cloche = sansCommentaires(lire(DOSSIER_MODULE + '/useCrmImmoAlertes.ts'));
-  assert.ok(!/journeeDeReference\(new Date\(\)/.test(cloche),
+  assert.ok(!/journeeDeReference\(new Date\(\)|momentDe\(new Date\(/.test(cloche),
     'la cloche s est refabrique une horloge : elle divergera du tableau de bord');
-  assert.ok(!/setAujourdhui/.test(cloche),
+  assert.ok(!/setAujourdhui|setMoment/.test(cloche),
     'la cloche fait avancer sa propre date : une seconde horloge');
-  assert.match(cloche, /aujourdhui: string,/,
-    'la cloche doit RECEVOIR le jour');
+  assert.match(cloche, /moment: MomentIsrael,/,
+    'la cloche doit RECEVOIR le moment');
 });
 
 test('E3 — encaisse_le est ramene au jour du poste, jamais a l UTC', () => {
