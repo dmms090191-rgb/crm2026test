@@ -423,6 +423,148 @@ test("F1 — le module n appelle plus fuseauLocal : Israel partout", () => {
   assert.equal(HEURE_DECLENCHEMENT, 480, "08:00 en minutes");
 });
 
+// ===========================================================================
+// G — LE CONTRAT PORTE PAR L ALERTE (phase D1)
+// ===========================================================================
+
+test("G1 — le LOYER porte le contrat d ou son echeance SORT, sans recherche", () => {
+  /*
+   * Exact par construction : echeancierDuDossier fabrique chaque echeance a partir
+   * d UNE periode, et lui attache son id. Aucune recherche a posteriori, donc aucune
+   * possibilite de se tromper de contrat.
+   */
+  const d = [dossier({ jour_encaissement: 10 })];
+  const periodes = [{
+    id: 'contrat-A', dossier_id: 'd1', debut: '2026-11-01', fin: '2026-11-30',
+    jour_encaissement: 10, cloturee: false,
+  }];
+  const a = deriverAlertes({ dossiers: d, etats: [], moment: { jour: '2026-11-09', minutes: 480 }, periodes })
+    .filter(x => x.genre === 'loyer');
+  assert.equal(a.length, 1);
+  assert.equal(a[0].contrat_id, 'contrat-A');
+});
+
+test("G2 — DEUX contrats : chaque loyer porte LE SIEN", () => {
+  /* C est tout l objet de l identite a cinq colonnes : deux baux d un meme dossier ne
+     doivent pas partager la meme ligne d etat. */
+  const d = [dossier({ jour_encaissement: 10, date_entree: '2026-01-01', date_fin_contrat: '2026-12-31' })];
+  const periodes = [
+    { id: 'ancien', dossier_id: 'd1', debut: '2026-01-01', fin: '2026-06-30', jour_encaissement: 10, cloturee: true },
+    { id: 'neuf', dossier_id: 'd1', debut: '2026-07-01', fin: '2026-12-31', jour_encaissement: 10, cloturee: false },
+  ];
+  /* Au 9 novembre tout est impaye : la cible est la PLUS ANCIENNE, du contrat 'ancien'. */
+  const a = deriverAlertes({ dossiers: d, etats: [], moment: { jour: '2026-11-09', minutes: 480 }, periodes })
+    .filter(x => x.genre === 'loyer');
+  assert.equal(a.length, 1);
+  assert.equal(a[0].echeance, '2026-01-10');
+  assert.equal(a[0].contrat_id, 'ancien', "le loyer de janvier appartient au contrat de janvier");
+});
+
+test("G3 — FIN DE CONTRAT : le contrat qui finit ce jour-la, et SEULEMENT s il est unique", () => {
+  const base = { dossier_id: 'd1', jour_encaissement: 10, cloturee: false };
+
+  /* UN seul contrat finit ce jour-la : il est designe. */
+  const un = deriverAlertes({
+    dossiers: [dossier({ date_fin_contrat: '2026-11-30' })], etats: [],
+    moment: { jour: '2026-11-15', minutes: 480 },
+    periodes: [{ ...base, id: 'c1', debut: '2026-11-01', fin: '2026-11-30' }],
+  }).filter(x => x.genre === 'fin_contrat');
+  assert.equal(un.length, 1);
+  assert.equal(un[0].contrat_id, 'c1');
+
+  /* DEUX contrats finissent le meme jour : on REFUSE de choisir. */
+  const deux = deriverAlertes({
+    dossiers: [dossier({ date_fin_contrat: '2026-11-30' })], etats: [],
+    moment: { jour: '2026-11-15', minutes: 480 },
+    periodes: [
+      { ...base, id: 'c1', debut: '2026-11-01', fin: '2026-11-30' },
+      { ...base, id: 'c2', debut: '2026-10-01', fin: '2026-11-30' },
+    ],
+  }).filter(x => x.genre === 'fin_contrat');
+  assert.equal(deux.length, 1, "l alerte sort quand meme : elle reste utilisable");
+  assert.equal(deux[0].contrat_id, null,
+    "deux contrats finissent le meme jour : aucun n est designe, plutot qu un invente");
+
+  /* AUCUN contrat enregistre : null, et l alerte sort tout de meme. */
+  const zero = deriverAlertes({
+    dossiers: [dossier({ date_fin_contrat: '2026-11-30' })], etats: [],
+    moment: { jour: '2026-11-15', minutes: 480 }, periodes: [],
+  }).filter(x => x.genre === 'fin_contrat');
+  assert.equal(zero.length, 1);
+  assert.equal(zero[0].contrat_id, null);
+});
+
+test("G4 — une periode SANS id ne fabrique pas d identifiant", () => {
+  /* Les releves d alertes.test.ts construisent des periodes a la main, sans id. Le
+     contrat vaut alors null — jamais une chaine vide ni un faux uuid. */
+  const d = [dossier({ jour_encaissement: 10 })];
+  const a = deriverAlertes({
+    dossiers: d, etats: [], moment: { jour: '2026-11-09', minutes: 480 },
+    periodes: [{ dossier_id: 'd1', debut: '2026-11-01', fin: '2026-11-30', jour_encaissement: 10, cloturee: false }],
+  }).filter(x => x.genre === 'loyer');
+  assert.equal(a.length, 1);
+  assert.equal(a[0].contrat_id, null);
+});
+
+test("G5 — l ecriture pose le contrat MAIS cible encore les QUATRE colonnes", () => {
+  /*
+   * LA PHASE DE COMPATIBILITE, ET POURQUOI ELLE EST DANS CET ORDRE.
+   *
+   * La base porte deux contraintes d unicite. Cibler les CINQ colonnes maintenant ne
+   * trouverait pas une ligne ancienne a contrat_id NULL — NULL n est egal a aucun uuid,
+   * meme sous NULLS NOT DISTINCT — et l INSERT buterait sur l ANCIENNE contrainte, en
+   * 23505. Mesure en transaction annulee sur la base reelle le 23 octobre 2026.
+   *
+   * En ciblant les QUATRE, on trouve ces lignes et le DO UPDATE pose contrat_id au
+   * passage : chaque marquage REPARE une ligne ancienne.
+   */
+  const hook = readFileSync("src/pages/admin/views/crm-immo/useCrmImmoAlertes.ts", "utf8");
+  assert.match(hook, /contrat_id: a\.contrat_id,/,
+    "l ecriture ne pose plus le contrat : les nouvelles lignes resteraient a NULL");
+  assert.match(hook, /onConflict: 'company_id,dossier_id,genre,periode'/,
+    "onConflict est passe aux cinq colonnes trop tot : une ligne ancienne a contrat_id "
+    + "NULL ferait alors echouer le marquage en 23505");
+  assert.doesNotMatch(hook, /onConflict: '[^']*contrat_id/,
+    "onConflict nomme deja contrat_id : c est l etape D2, pas celle-ci");
+});
+
+test("G6 — le contrat n est jamais DEVINE : aucune recherche par dates dans le module", () => {
+  /*
+   * Le rattachement d un LOYER doit venir de la periode qui l a produit, pas d une
+   * recherche. Une recherche par dates se tromperait des que deux contrats se
+   * chevauchent — exactement le cas que l identite a cinq colonnes existe pour servir.
+   */
+  const src = readFileSync("src/lib/crmImmoAlertes.ts", "utf8");
+  const debut = src.indexOf("const cible = loyerAAlerter");
+  assert.ok(debut > 0, "le choix du loyer a disparu");
+  const bloc = src.slice(debut, src.indexOf("statut: statutDe", debut));
+  assert.match(bloc, /contrat_id: cible\.contrat_id/,
+    "le loyer ne prend plus le contrat de SON echeance");
+  assert.doesNotMatch(bloc, /\.find\(|\.filter\(/,
+    "une recherche est apparue pour retrouver le contrat d un loyer : il doit venir de "
+    + "l echeance elle-meme, qui sait de quelle periode elle sort");
+});
+
+test("G7 — l id du contrat est REELLEMENT charge, et REELLEMENT transmis", () => {
+  /*
+   * LE TROU QUE CE RELEVE FERME, trouve par une mutation survivante.
+   *
+   * Tous les releves de la section G construisent leurs periodes A LA MAIN, avec un id.
+   * Si le hook cessait de transmettre `id: r.id`, ils resteraient tous VERTS — et en
+   * production chaque alerte porterait contrat_id null, en silence. Le defaut ne se
+   * verrait qu en base, des mois plus tard.
+   *
+   * On lit donc le chargement reel : la colonne demandee a PostgREST, et sa transmission
+   * jusqu a PeriodeDossier.
+   */
+  const tdb = readFileSync("src/pages/admin/views/crm-immo/useCrmImmoTableauDeBord.ts", "utf8");
+  assert.match(tdb, /CHAMPS_PERIODE = '(?=[^']*\bid\b)/,
+    "la colonne id n est plus demandee a crm_immo_contrats");
+  assert.match(tdb, /^\s*id: r\.id,$/m,
+    "l id charge n est plus transmis a PeriodeDossier : toutes les alertes porteraient "
+    + "contrat_id null en production, sans qu aucun releve ne s en apercoive");
+});
+
 test("F2 — garde du garde : le balayage de F1 voit vraiment les fichiers", () => {
   /* Si le dossier etait mal nomme, F1 passerait en ne lisant rien. */
   const fichiers = readdirSync("src/pages/admin/views/crm-immo/")

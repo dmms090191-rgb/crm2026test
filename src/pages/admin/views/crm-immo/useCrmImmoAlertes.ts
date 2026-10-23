@@ -184,9 +184,26 @@ export function useCrmImmoAlertes(
    * Marque une alerte lue ou traitee.
    *
    * UPSERT sur la contrainte d'unicite, et non INSERT : l'alerte peut deja avoir une
-   * ligne (lue puis traitee). `onConflict` nomme les quatre colonnes de
-   * crm_immo_etats_unique_par_echeance — company_id en tete depuis la migration qui l'a
-   * cloisonnee.
+   * ligne (lue puis traitee).
+   *
+   * ---------- PHASE DE COMPATIBILITE : ON ECRIT LE CONTRAT, ON CIBLE ENCORE LES 4 ----------
+   *
+   * La base porte DEUX contraintes d'unicite depuis le 23 octobre 2026 : l'ancienne sur
+   * quatre colonnes, et la nouvelle sur cinq, contrat_id compris. `onConflict` nomme
+   * encore les QUATRE, et c'est volontaire.
+   *
+   * Pourquoi. Entre la migration et ce deploiement, l'ancien code a pu creer des lignes
+   * sans contrat. Cibler les cinq colonnes ne les trouverait pas — NULL n'est egal a
+   * aucun uuid, meme sous NULLS NOT DISTINCT — et l'INSERT buterait alors sur l'ANCIENNE
+   * contrainte, en 23505. Mesure en transaction annulee avant d'ecrire une ligne de ce
+   * code : le cas echoue vraiment.
+   *
+   * En ciblant les quatre, on TROUVE ces lignes et on les REPARE : le DO UPDATE pose
+   * contrat_id au passage, puisque PostgREST met a jour toutes les colonnes fournies.
+   * Chaque marquage rattrape donc une ligne ancienne, au lieu de buter dessus.
+   *
+   * Le passage a cinq colonnes, puis le retrait de l'ancienne contrainte, sont l'etape
+   * suivante — et seulement une fois qu'aucune ligne ne porte plus contrat_id NULL.
    *
    * On ecrit TOUJOURS lue_le en meme temps que traitee_le : traiter sans avoir lu est
    * legitime, mais l'alerte doit alors sortir du badge, et le predicat du badge regarde
@@ -198,6 +215,8 @@ export function useCrmImmoAlertes(
     const ligne = {
       company_id: companyId,
       dossier_id: a.dossier_id,
+      /* null quand l'alerte n'a pas pu etablir son contrat : jamais une valeur devinee. */
+      contrat_id: a.contrat_id,
       genre: a.genre as GenreAlerte,
       periode: a.periode,
       lue_le: maintenant,

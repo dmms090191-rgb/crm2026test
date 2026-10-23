@@ -101,6 +101,19 @@ export interface EtatConnu {
 export interface Alerte {
   dossier_id: string;
   genre: GenreAlerte;
+  /**
+   * LE CONTRAT auquel cette alerte se rapporte, ou null si on ne peut pas l'etablir.
+   *
+   * Depuis le 23 octobre 2026, l'identite d'un etat lu/traite est
+   * (company_id, dossier_id, contrat_id, genre, periode) : sans le contrat, deux baux
+   * d'un meme dossier qui se chevauchent sur un mois partageaient la meme ligne, et
+   * traiter l'un marquait l'autre.
+   *
+   * null N'EST PAS UN ECHEC, c'est un refus de deviner. Pour un loyer il ne devrait
+   * jamais arriver — l'echeance sort d'une periode precise. Pour une fin de contrat il
+   * arrive des que la date de fin du dossier ne designe pas exactement un contrat.
+   */
+  contrat_id: string | null;
   /** La cle anti-doublon, avec dossier_id et genre : 'AAAA-MM' ou 'AAAA-MM-JJ'. */
   periode: string;
   /** La date a afficher, toujours 'AAAA-MM-JJ' — rabattue pour un loyer. */
@@ -494,8 +507,21 @@ export function deriverAlertes(params: {
       if (restants !== null && estDeclenchee(jourDeclenchementFinContrat(d.date_fin_contrat!), moment)) {
         const periode = d.date_fin_contrat!;
         const etat = connus.get(cle(d.id, 'fin_contrat', periode));
+        /*
+         * QUEL CONTRAT FINIT CE JOUR-LA — et on refuse de deviner.
+         *
+         * L'alerte nait de `date_fin_contrat`, une colonne du DOSSIER, pas d'un contrat.
+         * On cherche donc la periode dont la fin tombe exactement ce jour-la. S'il y en a
+         * ZERO (aucune periode enregistree) ou PLUSIEURS (deux baux finissant le meme
+         * jour), on laisse null : une alerte sans contrat reste parfaitement utilisable,
+         * un contrat invente ne l'est pas.
+         */
+        const finissant = (periodesParDossier.get(d.id) ?? [])
+          .filter(p => p.fin === periode && p.id);
         alertes.push({
-          dossier_id: d.id, genre: 'fin_contrat', periode,
+          dossier_id: d.id, genre: 'fin_contrat',
+          contrat_id: finissant.length === 1 ? finissant[0].id! : null,
+          periode,
           echeance: periode, joursRestants: restants,
           locataire, proprietaire,
           lue: !!etat?.lue_le, traitee: !!etat?.traitee_le,
@@ -569,7 +595,10 @@ export function deriverAlertes(params: {
         const periode = cible.date.slice(0, 7);
         const etat = connus.get(cle(d.id, 'loyer', periode));
         alertes.push({
-          dossier_id: d.id, genre: 'loyer', periode, echeance: cible.date,
+          dossier_id: d.id, genre: 'loyer',
+          /* Exact par construction : l'echeance SORT de cette periode-la. */
+          contrat_id: cible.contrat_id,
+          periode, echeance: cible.date,
           joursRestants: joursEntre(aujourdhui, cible.date) ?? 0,
           locataire, proprietaire,
           lue: !!etat?.lue_le, traitee: !!etat?.traitee_le,

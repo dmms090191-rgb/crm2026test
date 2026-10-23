@@ -186,6 +186,10 @@ export function useCrmImmoTableauDeBord(actif: boolean) {
        * c'est classerTableauDeBord qui fait le tri, sur le drapeau `cloturee`.
        */
       setPeriodes((k.data ?? []).map(r => ({
+        /* L'id etait deja CHARGE — CHAMPS_PERIODE le demande depuis toujours — et il
+           etait jete ici. Il sert desormais a rattacher chaque alerte a son contrat,
+           sans aucune recherche : l'echeance sort de cette periode-la. */
+        id: r.id,
         dossier_id: r.dossier_id,
         debut: r.debut,
         fin: r.fin,

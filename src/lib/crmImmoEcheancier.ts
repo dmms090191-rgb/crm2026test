@@ -185,7 +185,7 @@ export function statutDe(date: string, encaisse: boolean, aujourdhui: string): S
  * EN EST. Le loyer du mois en cours peut tres bien etre surligne ET << A venir >> — nous
  * sommes le 5, il tombe le 20. Les deux informations sont justes, et differentes.
  */
-export function loyerActuel(echeancier: EcheanceLoyer[], aujourdhui: string): EcheanceLoyer | null {
+export function loyerActuel<T extends EcheanceLoyer>(echeancier: T[], aujourdhui: string): T | null {
   const moisCourant = aujourdhui.slice(0, 7);
   return echeancier.find(e => e.date.slice(0, 7) === moisCourant) ?? null;
 }
@@ -204,11 +204,17 @@ export function loyerActuel(echeancier: EcheanceLoyer[], aujourdhui: string): Ec
  * venir. Il n'y a jamais plus d'une alerte de loyer par dossier : le volume de la cloche
  * ne change pas.
  */
-export function loyerAAlerter(
-  echeancier: EcheanceLoyer[],
+/*
+ * GENERIQUE, et pas par cosmetique : l'appelant passe des EcheanceDossier, qui portent
+ * le contrat_id d'ou l'echeance sort. Un retour type EcheanceLoyer aurait efface cette
+ * information en chemin, et il aurait fallu la RETROUVER par une recherche — c'est-a-dire
+ * la deviner. La forme de l'appel ne change pas.
+ */
+export function loyerAAlerter<T extends EcheanceLoyer>(
+  echeancier: T[],
   estEncaisse: (date: string) => boolean,
   aujourdhui: string,
-): EcheanceLoyer | null {
+): T | null {
   const impayeDu = echeancier.find(e => e.date <= aujourdhui && !estEncaisse(e.date));
   if (impayeDu) return impayeDu;
   const actuel = loyerActuel(echeancier, aujourdhui);
@@ -239,6 +245,17 @@ export function rangDuLoyer(e: { numero: number; total: number }): string {
  * (expire / a venir / a renouveler / en cours) ne regardent que la periode en cours.
  */
 export interface PeriodeDossier {
+  /**
+   * L'identifiant de la ligne crm_immo_contrats, quand l'appelant le connait.
+   *
+   * Il sert a RATTACHER une alerte a son contrat, depuis le 23 octobre 2026 : l'identite
+   * d'un etat lu/traite est (company_id, dossier_id, contrat_id, genre, periode).
+   *
+   * Optionnel a dessein : les releves construisent des periodes a la main, sans id, et
+   * tout ce qui ne concerne pas l'identite continue de fonctionner sans lui. Absent, il
+   * vaut null — jamais une valeur devinee.
+   */
+  id?: string;
   dossier_id: string;
   debut: string;
   fin: string;
@@ -251,6 +268,14 @@ export interface PeriodeDossier {
 export interface EcheanceDossier extends EcheanceLoyer {
   /** Vrai si elle vient d'une periode deja remplacee. */
   ancienne: boolean;
+  /**
+   * Le contrat d'ou cette echeance SORT — pas un contrat deduit apres coup.
+   *
+   * echeancierDuDossier construit chaque echeance a partir d'UNE periode precise : le
+   * rattachement est donc exact par construction, et non le resultat d'une recherche qui
+   * pourrait se tromper. null quand l'appelant n'a pas fourni l'id de la periode.
+   */
+  contrat_id: string | null;
 }
 
 /**
@@ -323,7 +348,8 @@ export function echeancierDuDossier(
       if (releve !== null && e.date >= releve && !estEncaisse(e.date)) continue;
       if (vues.has(e.date)) continue;
       vues.add(e.date);
-      sortie.push({ ...e, ancienne: p.cloturee });
+      /* `p.id` et pas une recherche : l'echeance SORT de cette periode-la. */
+      sortie.push({ ...e, ancienne: p.cloturee, contrat_id: p.id ?? null });
     }
   }
 
