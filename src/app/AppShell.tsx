@@ -17,7 +17,9 @@ interface Props {
 export default function AppShell({ panelRole, companyId, useCompanyProvider = false, effectiveUserId, children }: Props) {
   const content = (
     <ThemeProvider panelRole={panelRole} effectiveUserId={effectiveUserId} companyId={companyId} dashboardHost>
-      <TimezoneProvider panelRole={panelRole}>
+      {/* effectiveUserId descend AUSSI ici : le fuseau est une preference, et une
+          preference suit l entite VISUALISEE, pas l observateur. */}
+      <TimezoneProvider panelRole={panelRole} effectiveUserId={effectiveUserId}>
         <Suspense fallback={<AppLoadingScreen />}>
           {children}
         </Suspense>

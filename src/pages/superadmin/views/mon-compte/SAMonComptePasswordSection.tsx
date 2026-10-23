@@ -4,46 +4,77 @@ import { supabase } from '../../../../lib/supabase';
 import type { ThemeTokens } from '../../../../lib/themeTokens';
 import { useTalixy } from '../../../../talixy/useTalixy';
 
-function Toast({ message, type, tokens }: { message: string; type: 'success' | 'error'; tokens: ThemeTokens }) {
+type Ton = 'success' | 'error' | 'info';
+
+function Toast({ message, type, tokens, testid }: { message: string; type: Ton; tokens: ThemeTokens; testid?: string }) {
+  const fond = type === 'success' ? tokens.success.bg
+    : type === 'error' ? tokens.danger.bg : tokens.surface.secondary;
+  const bord = type === 'success' ? tokens.success.border
+    : type === 'error' ? tokens.danger.border : tokens.surface.border;
+  const texte = type === 'success' ? tokens.success.text
+    : type === 'error' ? tokens.danger.text : tokens.text.secondary;
   return (
     <div
       className="flex items-center gap-2.5 px-4 py-3 rounded-xl text-sm font-medium"
-      style={{
-        background: type === 'success' ? tokens.success.bg : tokens.danger.bg,
-        border: `1px solid ${type === 'success' ? tokens.success.border : tokens.danger.border}`,
-        color: type === 'success' ? tokens.success.text : tokens.danger.text,
-      }}
+      data-testid={testid}
+      style={{ background: fond, border: `1px solid ${bord}`, color: texte }}
     >
       {type === 'success'
         ? <CheckCircle className="w-4 h-4 flex-shrink-0" />
-        : <AlertCircle className="w-4 h-4 flex-shrink-0" />}
+        : type === 'error'
+          ? <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          : <Mail className="w-4 h-4 flex-shrink-0" />}
       {message}
     </div>
   );
 }
 
+/**
+ * TALVEX > MON COMPTE — ALIGNE SUR L ARCHITECTURE D INFO ADMIN (23 octobre 2026).
+ *
+ * Ce fichier portait le MEME defaut qu'« Acces & securite > Info Admin », au caractere
+ * pres : un seul bouton envoyait email + mot de passe dans un unique
+ * `auth.updateUser`, le mot de passe etait reecrit meme quand seul l email changeait,
+ * et le succes etait annonce sur le seul critere `error === null` — alors que
+ * `auth.updateUser({ email })` n'applique PAS l email : il enregistre une demande et
+ * attend une confirmation par courriel.
+ *
+ * Meme correction, donc : deux boutons, deux appels, deux messages ; l email par la voie
+ * serveur qui pose `email_confirm` ; et la verification de ce que le serveur a
+ * reellement enregistre.
+ */
 interface Props {
   userEmail: string;
+  /** L identifiant du compte. La voie serveur exige une cible, et ce sera SOI-MEME. */
+  userId: string | null;
   initialEmail: string;
   initialDigits: string[];
   initialPinSynced: boolean;
   tokens: ThemeTokens;
 }
 
-export default function SAMonComptePasswordSection({ userEmail, initialEmail, initialDigits, initialPinSynced, tokens: t }: Props) {
+export default function SAMonComptePasswordSection({ userEmail, userId, initialEmail, initialDigits, initialPinSynced, tokens: t }: Props) {
   const tx = useTalixy();
   const [email, setEmail] = useState(initialEmail);
+  /** L email REELLEMENT en place, reference du « a-t-il change ? ». */
+  const [emailEnPlace, setEmailEnPlace] = useState(initialEmail);
   const [digits, setDigits] = useState<string[]>(initialDigits);
   const [pinSynced, setPinSynced] = useState(initialPinSynced);
 
-  useEffect(() => { if (initialEmail) setEmail(initialEmail); }, [initialEmail]);
+  useEffect(() => { if (initialEmail) { setEmail(initialEmail); setEmailEnPlace(initialEmail); } }, [initialEmail]);
   useEffect(() => { if (initialDigits.some(d => d)) setDigits(initialDigits); }, [initialDigits]);
   useEffect(() => { setPinSynced(initialPinSynced); }, [initialPinSynced]);
   const [syncingPin, setSyncingPin] = useState(false);
   const [showPin, setShowPin] = useState(false);
-  const [credMsg, setCredMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+  const [credMsg, setCredMsg] = useState<{ text: string; type: Ton } | null>(null);
+  const [emailMsg, setEmailMsg] = useState<{ text: string; type: Ton } | null>(null);
   const [savingCred, setSavingCred] = useState(false);
+  const [savingEmail, setSavingEmail] = useState(false);
   const pinRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  /** Normalisation identique a celle du serveur : la casse n est pas un changement. */
+  const normaliser = (v: string) => v.trim().toLowerCase();
+  const emailAChange = normaliser(email) !== normaliser(emailEnPlace);
 
   const handlePinInput = useCallback((index: number, value: string) => {
     const digit = value.replace(/\D/g, '').slice(-1);
@@ -86,7 +117,7 @@ export default function SAMonComptePasswordSection({ userEmail, initialEmail, in
     setCredMsg(null);
 
     const { error: signInError } = await supabase.auth.signInWithPassword({
-      email: userEmail,
+      email: emailEnPlace || userEmail,
       password: pinStr,
     });
 
@@ -103,28 +134,107 @@ export default function SAMonComptePasswordSection({ userEmail, initialEmail, in
     setTimeout(() => setCredMsg(null), 3000);
   };
 
-  const saveCredentials = async () => {
+  /** ENREGISTRER LE MOT DE PASSE, ET LUI SEUL. L email n est PAS joint. */
+  const savePassword = async () => {
     const pinStr = digits.join('');
-    if (pinStr.length !== 6) {
+    if (pinStr.length !== 6 || !/^\d{6}$/.test(pinStr)) {
       setCredMsg({ text: 'Le mot de passe doit contenir 6 chiffres.', type: 'error' });
       return;
     }
     setSavingCred(true);
     setCredMsg(null);
 
-    const updates: { email?: string; password?: string; data?: Record<string, string> } = {
+    const { error } = await supabase.auth.updateUser({
+      password: pinStr,
       data: { pin: pinStr },
-    };
-    if (email) updates.email = email;
-    updates.password = pinStr;
-
-    const { error } = await supabase.auth.updateUser(updates);
+    });
     setSavingCred(false);
     if (error) {
       setCredMsg({ text: `Erreur : ${error.message}`, type: 'error' });
     } else {
-      setCredMsg({ text: 'Email et mot de passe enregistres.', type: 'success' });
+      setCredMsg({ text: 'Mot de passe enregistre.', type: 'success' });
       setTimeout(() => setCredMsg(null), 3000);
+    }
+  };
+
+  /**
+   * ENREGISTRER L EMAIL, ET LUI SEUL, PAR LA VOIE SERVEUR.
+   *
+   * `auth.updateUser({ email })` n applique pas l email : il ouvre une demande de
+   * confirmation. L option qui l applique tout de suite, `email_confirm`, n existe que
+   * sur l API Admin, laquelle exige la cle de service — qui ne doit jamais atteindre le
+   * navigateur. L email part donc vers l Edge Function, qui verifie elle-meme que
+   * l appelant ne vise que SON propre compte.
+   */
+  const saveEmail = async () => {
+    const vise = email.trim();
+    setEmailMsg(null);
+
+    if (!userId) { setEmailMsg({ text: 'Compte introuvable.', type: 'error' }); return; }
+    if (vise === '') { setEmailMsg({ text: "L'email est requis.", type: 'error' }); return; }
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(vise)) {
+      setEmailMsg({ text: 'Email invalide.', type: 'error' }); return;
+    }
+    /* Aucune confirmation verte si rien n a change. */
+    if (!emailAChange) {
+      setEmailMsg({ text: "L'email n'a pas change.", type: 'info' });
+      setTimeout(() => setEmailMsg(null), 3000);
+      return;
+    }
+
+    setSavingEmail(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setSavingEmail(false);
+        setEmailMsg({ text: 'Session expiree.', type: 'error' });
+        return;
+      }
+
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/update-admin-for-super-admin`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session.access_token}`,
+            Apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+          },
+          body: JSON.stringify({ admin_id: userId, email: vise }),
+        },
+      );
+      const corps = await res.json().catch(() => ({} as Record<string, unknown>));
+      setSavingEmail(false);
+
+      if (!res.ok) {
+        setEmailMsg({
+          text: typeof corps.error === 'string' ? corps.error : "L'email n'a pas pu etre enregistre.",
+          type: 'error',
+        });
+        return;
+      }
+
+      /* On ne croit pas l absence d erreur : on lit l email que le SERVEUR dit avoir pose. */
+      const applique = typeof corps.email === 'string' ? corps.email : null;
+      if (applique === null || normaliser(applique) !== normaliser(vise)) {
+        setEmailMsg({
+          text: "Le serveur n'a pas confirme le nouvel email. Rechargez la page pour voir l'email reellement en place.",
+          type: 'error',
+        });
+        return;
+      }
+
+      setEmail(applique);
+      setEmailEnPlace(applique);
+      /* Le jeton porte encore l ancien email : sans ce refresh, toute lecture serveur
+         qui part du JWT verrait l ancienne adresse. */
+      await supabase.auth.refreshSession();
+
+      setEmailMsg({ text: 'Email enregistre. La connexion se fait desormais avec cet email.', type: 'success' });
+      setTimeout(() => setEmailMsg(null), 4000);
+    } catch {
+      setSavingEmail(false);
+      setEmailMsg({ text: "L'email n'a pas pu etre enregistre.", type: 'error' });
     }
   };
 
@@ -155,7 +265,26 @@ export default function SAMonComptePasswordSection({ userEmail, initialEmail, in
               onChange={e => setEmail(e.target.value)}
               placeholder="votre@email.com"
             />
-            <p className="tx-hint">Modifier l'email changera vos identifiants de connexion.</p>
+            <p className="tx-hint">
+              Le changement prend effet immediatement : la connexion se fera avec le nouvel email
+              et le mot de passe actuel.
+            </p>
+            {emailMsg && (
+              <span className="tx-note" data-kind={emailMsg.type} data-testid="sa-mon-compte-email-message">
+                {emailMsg.type === 'success' ? <CheckCircle /> : emailMsg.type === 'error' ? <AlertCircle /> : <Mail />}
+                {emailMsg.text}
+              </span>
+            )}
+            <button
+              className="tx-btn"
+              data-variant="primary"
+              data-testid="sa-mon-compte-save-email-btn"
+              onClick={saveEmail}
+              disabled={savingEmail}
+            >
+              <Save />
+              {savingEmail ? 'Enregistrement…' : "Enregistrer l'email"}
+            </button>
           </div>
 
           <hr className="tx-divider" />
@@ -211,9 +340,15 @@ export default function SAMonComptePasswordSection({ userEmail, initialEmail, in
                 {syncingPin ? 'Vérification…' : 'Confirmer mon code actuel'}
               </button>
             ) : (
-              <button className="tx-btn" data-variant="primary" onClick={saveCredentials} disabled={savingCred}>
+              <button
+                className="tx-btn"
+                data-variant="primary"
+                data-testid="sa-mon-compte-save-password-btn"
+                onClick={savePassword}
+                disabled={savingCred}
+              >
                 <Save />
-                {savingCred ? 'Enregistrement…' : 'Enregistrer'}
+                {savingCred ? 'Enregistrement…' : 'Enregistrer le mot de passe'}
               </button>
             )}
           </div>
@@ -250,7 +385,30 @@ export default function SAMonComptePasswordSection({ userEmail, initialEmail, in
           onFocus={e => (e.currentTarget.style.borderColor = t.input.borderFocus)}
           onBlur={e => (e.currentTarget.style.borderColor = t.input.border)}
         />
-        <p className="text-[9px] md:text-[10px] mt-0.5 md:mt-1" style={{ color: t.label.hint }}>Modifier l'email changera vos identifiants de connexion</p>
+        <p className="text-[9px] md:text-[10px] mt-0.5 md:mt-1" style={{ color: t.label.hint }}>
+          Le changement prend effet immediatement : la connexion se fera avec le nouvel email et le mot de passe actuel.
+        </p>
+
+        {emailMsg && (
+          <div className="mt-2">
+            <Toast message={emailMsg.text} type={emailMsg.type} tokens={t} testid="sa-mon-compte-email-message" />
+          </div>
+        )}
+
+        <button
+          data-testid="sa-mon-compte-save-email-btn"
+          onClick={saveEmail}
+          disabled={savingEmail}
+          className="w-full flex items-center justify-center gap-2 py-2 md:py-2.5 mt-2 rounded-xl text-sm font-bold transition-all hover:brightness-110 disabled:opacity-60"
+          style={{
+            background: t.accent.solid,
+            color: '#ffffff',
+            boxShadow: '0 4px 14px rgba(6,182,212,0.30)',
+          }}
+        >
+          <Save className="w-4 h-4" />
+          {savingEmail ? 'Enregistrement...' : "Enregistrer l'email"}
+        </button>
       </div>
 
       <div>
@@ -300,7 +458,7 @@ export default function SAMonComptePasswordSection({ userEmail, initialEmail, in
         </p>
       </div>
 
-      {credMsg && <Toast message={credMsg.text} type={credMsg.type} tokens={t} />}
+      {credMsg && <Toast message={credMsg.text} type={credMsg.type} tokens={t} testid="sa-mon-compte-cred-message" />}
 
       {!pinSynced ? (
         <button
@@ -318,7 +476,8 @@ export default function SAMonComptePasswordSection({ userEmail, initialEmail, in
         </button>
       ) : (
         <button
-          onClick={saveCredentials}
+          data-testid="sa-mon-compte-save-password-btn"
+          onClick={savePassword}
           disabled={savingCred}
           className="w-full flex items-center justify-center gap-2 py-2 md:py-2.5 rounded-xl text-sm font-bold transition-all hover:brightness-110 disabled:opacity-60"
           style={{
@@ -328,7 +487,7 @@ export default function SAMonComptePasswordSection({ userEmail, initialEmail, in
           }}
         >
           <Save className="w-4 h-4" />
-          {savingCred ? 'Enregistrement...' : 'Enregistrer email et mot de passe'}
+          {savingCred ? 'Enregistrement...' : 'Enregistrer le mot de passe'}
         </button>
       )}
     </div>

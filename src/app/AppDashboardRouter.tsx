@@ -143,7 +143,11 @@ function RouterInner({
     const adminTargetName = `${impersonatedAdmin.first_name} ${impersonatedAdmin.last_name}`.trim() || impersonatedAdmin.email;
     return (
       <DemoSessionProvider saUserId={saUserId ?? undefined} saDisplayName={saDisplayName}>
-        <AppShell panelRole="admin" useCompanyProvider companyId={impersonatedAdmin.company_id}>
+        {/* effectiveUserId etait pose pour le Vendeur et le Client, mais PAS pour la
+            Societe : les contextes ne pouvaient donc pas distinguer l observateur de
+            l observe en Visu Societe. C est la cause structurelle du fuseau ecrit dans
+            le compte du Talvex Administrateur. */}
+        <AppShell panelRole="admin" useCompanyProvider companyId={impersonatedAdmin.company_id} effectiveUserId={impersonatedAdmin.id}>
           <AdminDashboard onLogout={onLogout} onConnectAsVendor={connectAsVendor} onConnectAsClient={connectAsClientFromAdmin}
             impersonatedAdmin={impersonatedAdmin} onBackToSuperAdmin={backFromAdmin} isSAViewing visuBadgeLabel={badge} backLabel={back} canHideTabs={canHideTabs}
             hideTabsTargetName={adminTargetName} hideTabsTargetUserId={impersonatedAdmin.id} />

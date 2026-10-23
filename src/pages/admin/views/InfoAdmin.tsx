@@ -209,6 +209,10 @@ export default function InfoAdmin({ onNameChange, impersonatedAdmin }: InfoAdmin
         initialDigits={digits}
         initialPinSynced={pinSynced}
         tokens={t}
+        /* L'email applique redescend ici : sans cela, cet ecran garderait l'ancienne
+           valeur en memoire et la reposerait au prochain rendu, par l'effet de la
+           prop `adminEmail`. */
+        onEmailApplique={setAdminEmail}
       />
     </div>
   );

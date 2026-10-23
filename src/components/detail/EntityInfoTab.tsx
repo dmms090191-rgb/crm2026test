@@ -70,6 +70,10 @@ export default function EntityInfoTab({ entity, companyLabel, editableFields, on
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entity.id]);
 
+  /** Normalisation identique a celle du serveur, pour que les deux soient d'accord. */
+  const normaliser = (v: string) => v.trim().toLowerCase();
+  const emailAChange = normaliser(email) !== normaliser(entity.email ?? '');
+
   async function save() {
     // Validation minimale, alignee sur l'existant : on refuse le vide, rien de
     // plus. Aucune regle de format qui rejetterait une donnee deja en base.
@@ -89,8 +93,21 @@ export default function EntityInfoTab({ entity, companyLabel, editableFields, on
         last_name: lastName.trim(),
         company: company.trim(),
         phone: phone.trim(),
-        // Vide quand le champ n'est pas editable : l'appelant n'enverra rien.
-        email: canEditEmail ? email.trim() : '',
+        /*
+         * L'EMAIL NE PART QUE S'IL A REELLEMENT CHANGE.
+         *
+         * Le contrat d'InfoDraft dit « Vide = inchange » depuis le debut, mais le code
+         * renvoyait l'email COURANT a chaque enregistrement, parce que l'etat part de
+         * `entity.email` (ligne 54). Consequence mesuree le 23 octobre 2026 : chaque
+         * sauvegarde, meme un simple changement de telephone, emportait le champ email
+         * jusqu'a l'API Admin — et un email entre-temps devenu indisponible faisait
+         * echouer la modification entiere, telephone compris.
+         *
+         * Comparaison insensible a la casse et aux espaces de bord, comme le serveur :
+         * « Jean@X.fr » et « jean@x.fr » sont le meme email, et renvoyer l'un pour
+         * l'autre ne serait pas un changement.
+         */
+        email: canEditEmail && emailAChange ? email.trim() : '',
       });
       setSaved(true);
       onUpdate();

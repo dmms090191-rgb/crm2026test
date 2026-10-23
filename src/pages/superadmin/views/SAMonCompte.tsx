@@ -40,11 +40,15 @@ export default function SAMonCompte({ onNameChange }: SAMonCompteProps) {
   const [identityMsg, setIdentityMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [savingIdentity, setSavingIdentity] = useState(false);
   const [userEmail, setUserEmail] = useState('');
+  /* L identifiant du compte : la voie serveur qui pose l email a besoin d une cible,
+     et cette cible doit etre SOI-MEME, verifiee cote serveur. */
+  const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
     setAccountLoading(true);
     supabase.auth.refreshSession().then(() => supabase.auth.getUser()).then(({ data: { user } }) => {
       if (user) {
+        setUserId(user.id);
         setEmail(user.email ?? '');
         setUserEmail(user.email ?? '');
         const meta = user.user_metadata ?? {};
@@ -175,6 +179,7 @@ export default function SAMonCompte({ onNameChange }: SAMonCompteProps) {
 
               <SAMonComptePasswordSection
                 userEmail={userEmail}
+                userId={userId}
                 initialEmail={email}
                 initialDigits={digits}
                 initialPinSynced={pinSynced}
@@ -313,6 +318,7 @@ export default function SAMonCompte({ onNameChange }: SAMonCompteProps) {
 
         <SAMonComptePasswordSection
           userEmail={userEmail}
+          userId={userId}
           initialEmail={email}
           initialDigits={digits}
           initialPinSynced={pinSynced}
