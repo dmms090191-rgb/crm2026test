@@ -506,26 +506,25 @@ test("G4 — une periode SANS id ne fabrique pas d identifiant", () => {
   assert.equal(a[0].contrat_id, null);
 });
 
-test("G5 — l ecriture pose le contrat MAIS cible encore les QUATRE colonnes", () => {
+test("G5 — l ecriture cible l identite COMPLETE : cinq colonnes, contrat compris", () => {
   /*
-   * LA PHASE DE COMPATIBILITE, ET POURQUOI ELLE EST DANS CET ORDRE.
+   * L ETAT FINAL, atteint le 23 octobre 2026 en deux temps.
    *
-   * La base porte deux contraintes d unicite. Cibler les CINQ colonnes maintenant ne
-   * trouverait pas une ligne ancienne a contrat_id NULL — NULL n est egal a aucun uuid,
-   * meme sous NULLS NOT DISTINCT — et l INSERT buterait sur l ANCIENNE contrainte, en
-   * 23505. Mesure en transaction annulee sur la base reelle le 23 octobre 2026.
+   * Il a d abord fallu ECRIRE le contrat en ciblant encore les QUATRE colonnes : cibler
+   * les cinq d emblee n aurait pas trouve les lignes anciennes a contrat_id NULL — NULL
+   * n est egal a aucun uuid, meme sous NULLS NOT DISTINCT — et l INSERT aurait bute sur
+   * l ancienne contrainte, en 23505. Mesure en transaction annulee sur la base reelle.
    *
-   * En ciblant les QUATRE, on trouve ces lignes et le DO UPDATE pose contrat_id au
-   * passage : chaque marquage REPARE une ligne ancienne.
+   * Ce premier passage a repare chaque ligne. Les cinq colonnes sont donc desormais
+   * sures, et elles seules permettent a deux contrats d un meme dossier de porter chacun
+   * leur etat sur un meme mois.
    */
   const hook = readFileSync("src/pages/admin/views/crm-immo/useCrmImmoAlertes.ts", "utf8");
   assert.match(hook, /contrat_id: a\.contrat_id,/,
     "l ecriture ne pose plus le contrat : les nouvelles lignes resteraient a NULL");
-  assert.match(hook, /onConflict: 'company_id,dossier_id,genre,periode'/,
-    "onConflict est passe aux cinq colonnes trop tot : une ligne ancienne a contrat_id "
-    + "NULL ferait alors echouer le marquage en 23505");
-  assert.doesNotMatch(hook, /onConflict: '[^']*contrat_id/,
-    "onConflict nomme deja contrat_id : c est l etape D2, pas celle-ci");
+  assert.match(hook, /onConflict: 'company_id,dossier_id,contrat_id,genre,periode'/,
+    "onConflict ne nomme plus l identite complete : deux contrats d un meme dossier "
+    + "repartageraient la meme ligne d etat sur un meme mois");
 });
 
 test("G6 — le contrat n est jamais DEVINE : aucune recherche par dates dans le module", () => {

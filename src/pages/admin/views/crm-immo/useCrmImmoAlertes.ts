@@ -186,24 +186,28 @@ export function useCrmImmoAlertes(
    * UPSERT sur la contrainte d'unicite, et non INSERT : l'alerte peut deja avoir une
    * ligne (lue puis traitee).
    *
-   * ---------- PHASE DE COMPATIBILITE : ON ECRIT LE CONTRAT, ON CIBLE ENCORE LES 4 ----------
+   * ---------- L IDENTITE COMPLETE : CINQ COLONNES, CONTRAT COMPRIS ----------
    *
-   * La base porte DEUX contraintes d'unicite depuis le 23 octobre 2026 : l'ancienne sur
-   * quatre colonnes, et la nouvelle sur cinq, contrat_id compris. `onConflict` nomme
-   * encore les QUATRE, et c'est volontaire.
+   * `onConflict` nomme les cinq colonnes de crm_immo_etats_identite_unique. C'est ce qui
+   * permet a DEUX contrats d'un meme dossier de porter chacun son etat sur un meme mois —
+   * le cas d'un renouvellement dont les echeances se chevauchent.
    *
-   * Pourquoi. Entre la migration et ce deploiement, l'ancien code a pu creer des lignes
-   * sans contrat. Cibler les cinq colonnes ne les trouverait pas — NULL n'est egal a
-   * aucun uuid, meme sous NULLS NOT DISTINCT — et l'INSERT buterait alors sur l'ANCIENNE
-   * contrainte, en 23505. Mesure en transaction annulee avant d'ecrire une ligne de ce
-   * code : le cas echoue vraiment.
+   * ---------- POURQUOI CE PASSAGE N A PAS ETE FAIT PLUS TOT ----------
    *
-   * En ciblant les quatre, on TROUVE ces lignes et on les REPARE : le DO UPDATE pose
-   * contrat_id au passage, puisque PostgREST met a jour toutes les colonnes fournies.
-   * Chaque marquage rattrape donc une ligne ancienne, au lieu de buter dessus.
+   * Il a fallu deux etapes, et l'ordre n'etait pas negociable. Entre l'ajout de la
+   * colonne et le deploiement precedent, l'ancien code pouvait encore ecrire des lignes
+   * SANS contrat. Cibler les cinq colonnes ne les aurait pas trouvees — NULL n'est egal a
+   * aucun uuid, meme sous NULLS NOT DISTINCT — et l'INSERT aurait bute sur l'ancienne
+   * contrainte a quatre colonnes, en 23505. Mesure en transaction annulee : le cas
+   * echouait vraiment.
    *
-   * Le passage a cinq colonnes, puis le retrait de l'ancienne contrainte, sont l'etape
-   * suivante — et seulement une fois qu'aucune ligne ne porte plus contrat_id NULL.
+   * Le deploiement precedent visait donc les QUATRE colonnes tout en ECRIVANT le contrat,
+   * ce qui a repare chaque ligne au passage. Verifie avant ce changement : plus aucune
+   * ligne ne porte contrat_id NULL, aucune collision sur l'une ou l'autre cle.
+   *
+   * L'ancienne contrainte a quatre colonnes est retiree juste apres ce deploiement. Entre
+   * les deux, un marquage ordinaire fonctionne — c'est mesure ; seul un renouvellement
+   * chevauchant serait refuse, et il n'en existe aucun.
    *
    * On ecrit TOUJOURS lue_le en meme temps que traitee_le : traiter sans avoir lu est
    * legitime, mais l'alerte doit alors sortir du badge, et le predicat du badge regarde
@@ -225,7 +229,7 @@ export function useCrmImmoAlertes(
 
     const { data, error } = await supabase
       .from('crm_immo_etats')
-      .upsert(ligne, { onConflict: 'company_id,dossier_id,genre,periode' })
+      .upsert(ligne, { onConflict: 'company_id,dossier_id,contrat_id,genre,periode' })
       .select('dossier_id,genre,periode,lue_le,traitee_le');
 
     if (error) return { error: error.message };
