@@ -3,6 +3,7 @@ import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 import { cleColonne, type Colonne } from '../../../../lib/crmImmoColonnes';
 import { valeurAffichee } from '../../../../lib/crmImmoRecherche';
 import { formatDateImmo, type DossierImmo } from './crmImmoTypes';
+import CrmImmoChoixCellule from './CrmImmoChoixCellule';
 
 /**
  * LA PRESENTATION MOBILE : des fiches, pas un tableau comprime.
@@ -36,10 +37,12 @@ interface Props {
   /** Ouvre la modale Details sur l onglet demande. La MEME que sur desktop. */
   onDetails: (d: DossierImmo, onglet: 'informations' | 'commentaires') => void;
   nombreCommentaires: Record<string, number>;
+  /** Ecrit la valeur d une colonne a choix. Rend l erreur, ou null. */
+  onChoisir: (d: DossierImmo, cle: string, valeur: string) => Promise<{ error: string | null }>;
 }
 
 export default function CrmImmoCards({
-  dossiers, colonnes, loading, onModifier, onSupprimer, onDetails, nombreCommentaires,
+  dossiers, colonnes, loading, onModifier, onSupprimer, onDetails, nombreCommentaires, onChoisir,
 }: Props) {
   const t = useThemeTokens();
 
@@ -125,9 +128,23 @@ export default function CrmImmoCards({
               <dl className="grid grid-cols-2 gap-x-3 gap-y-2 mt-3 pt-3"
                 style={{ borderTop: `1px solid ${t.surface.borderLight}` }}>
                 {reste.map(c => (
-                  <div key={cleColonne(c)} className="min-w-0">
+                  <div key={cleColonne(c)} className={"min-w-0" + (c.famille === "systeme" && c.choix !== undefined ? " col-span-2" : "")}>
                     <dt className="text-[11px] uppercase tracking-wide" style={{ color: t.label.hint }}>{c.nom}</dt>
-                    <dd className="text-sm break-words" style={{ color: t.text.primary }}>{valeur(d, c)}</dd>
+                    {/* Une colonne A CHOIX se touche. Elle prend les DEUX colonnes de la
+                        grille : une demi-largeur de 170 px a 375 px laisserait un bouton
+                        trop etroit pour son libelle et son chevron. */}
+                    {c.famille === "systeme" && c.choix !== undefined ? (
+                      <dd className="mt-1">
+                        <CrmImmoChoixCellule
+                          valeur={(d as unknown as Record<string, string | null>)[c.cle] ?? null}
+                          choix={c.choix} libelleColonne={c.nom}
+                          nomDossier={titre}
+                          testid={"crm-immo-carte-choix-" + c.cle + "-" + d.id}
+                          onChoisir={v => onChoisir(d, c.cle, v)} />
+                      </dd>
+                    ) : (
+                      <dd className="text-sm break-words" style={{ color: t.text.primary }}>{valeur(d, c)}</dd>
+                    )}
                   </div>
                 ))}
               </dl>

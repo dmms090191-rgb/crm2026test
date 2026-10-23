@@ -44,7 +44,7 @@ function versSaisie(d: DossierImmo): SaisieDossier {
     date_entree: s(d.date_entree), date_fin_contrat: s(d.date_fin_contrat),
     locataire: s(d.locataire), proprietaire: s(d.proprietaire),
     jour_encaissement: d.jour_encaissement === null ? '' : String(d.jour_encaissement),
-    commentaire: s(d.commentaire), valeurs,
+    commentaire: s(d.commentaire), mode_paiement: s(d.mode_paiement), valeurs,
   };
 }
 

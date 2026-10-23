@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 import {
-  COLONNES_SYSTEME, TYPES_COLONNE, formatDateImmo,
+  CHAMPS_DOSSIER, TYPES_COLONNE, formatDateImmo,
   type ColonneImmo, type SaisieDossier, type ChampSysteme,
 } from './crmImmoTypes';
 import {
@@ -37,6 +37,10 @@ const TYPE_HTML: Record<ChampSysteme, string> = {
   date_entree: 'date', date_fin_contrat: 'date',
   locataire: 'text', proprietaire: 'text',
   jour_encaissement: 'number', commentaire: 'textarea',
+  /* `select` et non `text` : cette valeur ne sert ici qu'a dire ce que le champ N'EST
+     pas — ni une zone de texte, qui prendrait les deux colonnes de la grille, ni un
+     champ libre. Le rendu, lui, se decide sur la presence de `def.choix`. */
+  mode_paiement: 'select',
 };
 
 /**
@@ -96,14 +100,21 @@ export default function CrmImmoChampsDossier({
     return v;
   }
 
-  const Valeur = ({ v, type, testid }: { v: string; type: string; testid: string }) => (
+  const Valeur = ({ v, type, testid, choix }: {
+    v: string; type: string; testid: string;
+    choix?: readonly { valeur: string; libelle: string }[];
+  }) => (
     <p className="text-sm break-words min-h-[1.25rem]" data-testid={testid}
       style={{ color: v.trim() === '' ? t.label.muted : t.modal.fieldValue }}>
-      {lisible(v, type)}
+      {/* En lecture, un champ a choix montre son LIBELLE : la valeur technique `cheque`
+          au milieu de « Chèque » ailleurs laisserait croire a deux modes differents. */}
+      {choix !== undefined
+        ? (v === '' ? lisible('', type) : (choix.find(o => o.valeur === v)?.libelle ?? lisible('', type)))
+        : lisible(v, type)}
     </p>
   );
 
-  const systeme = COLONNES_SYSTEME.filter(d => !(sansCommentaire && d.cle === 'commentaire'));
+  const systeme = CHAMPS_DOSSIER.filter(d => !(sansCommentaire && d.cle === 'commentaire'));
 
   /*
    * L'APERCU DES PROCHAINES ECHEANCES.
@@ -148,7 +159,7 @@ export default function CrmImmoChampsDossier({
     && ((saisie.jour_encaissement as string) ?? '').trim() !== '';
 
   const champ = (cle: ChampSysteme) => {
-    const def = COLONNES_SYSTEME.find(d => d.cle === cle)!;
+    const def = CHAMPS_DOSSIER.find(d => d.cle === cle)!;
     const type = TYPE_HTML[cle];
     const commun = {
       value: saisie[cle] as string,
@@ -166,9 +177,21 @@ export default function CrmImmoChampsDossier({
           {def.libelle}{cle === 'nom' && !lectureSeule && ' *'}
         </span>
         {lectureSeule
-          ? <Valeur v={saisie[cle] as string} type={def.type} testid={`crm-immo-lecture-${cle}`} />
+          ? <Valeur v={saisie[cle] as string} type={def.type} testid={`crm-immo-lecture-${cle}`}
+              choix={def.choix} />
           : type === 'textarea'
             ? <textarea {...commun} rows={3} />
+            /* Un champ A CHOIX est une liste, pas un texte libre — et c'est la presence
+               de `def.choix` qui le dit, jamais sa cle. L'option vide est le SEUL endroit
+               d'ou l'on peut remettre un dossier a << non renseigne >> : la cellule du
+               tableau, elle, ne propose que les valeurs. */
+            : def.choix !== undefined
+              ? <select {...commun} style={{ ...commun.style, background: t.selectBg }}>
+                  <option value="">—</option>
+                  {def.choix.map(o => (
+                    <option key={o.valeur} value={o.valeur}>{o.libelle}</option>
+                  ))}
+                </select>
             : cle === 'jour_encaissement'
               /* Une liste, et non plus un champ libre : ni faute de frappe, ni valeur
                  impossible, et les trois jours delicats s'expliquent au moment du choix.

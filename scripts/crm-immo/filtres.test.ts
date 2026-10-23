@@ -25,9 +25,13 @@
  * calcul de preavis avec l'horloge de la page, gelee au montage.
  */
 import { readFileSync } from 'node:fs';
-import { filtrerDossiers, preparerLignes, type FiltreDossiers } from '../../src/lib/crmImmoRecherche.ts';
+import {
+  filtrerDossiers, preparerLignes, valeurAffichee, type FiltreDossiers,
+} from '../../src/lib/crmImmoRecherche.ts';
 import type { DossierImmo } from '../../src/pages/admin/views/crm-immo/crmImmoTypes.ts';
-import { COLONNES_SYSTEME } from '../../src/pages/admin/views/crm-immo/crmImmoTypes.ts';
+import {
+  COLONNES_SYSTEME, CHAMPS_DOSSIER, MODES_PAIEMENT,
+} from '../../src/pages/admin/views/crm-immo/crmImmoTypes.ts';
 import { toutesLesColonnes, REGLAGE_VIDE } from '../../src/lib/crmImmoColonnes.ts';
 import { CATEGORIES_IMMO, type CategorieImmo } from '../../src/lib/crmImmoEcheancier.ts';
 
@@ -219,12 +223,16 @@ console.log('\n=== 5. LE PIPELINE COMPLET REPOND ENCORE ===');
   t('filtre et recherche se combinent', rendu('contrats-a-renouveler', 'martin') === '');
 }
 
-console.log('\n=== 6. LES LIBELLES DES QUATRE CHAMPS ===');
+console.log('\n=== 6. LES LIBELLES DES QUATRE CHAMPS, COTE FORMULAIRE ===');
 {
   /*
-   * Quatre champs, deux personnes. Les deux dernieres CLES ne disent plus ce que leur
+   * Quatre champs, deux personnes. Les deux dernieres CLES ne disent pas ce que leur
    * libelle affiche : c est assume, renommer ces colonnes exigerait une migration.
    * Ce test est la pour que personne ne << corrige >> l incoherence en renommant la base.
+   *
+   * Depuis le 23 octobre 2026 ces quatre libelles vivent dans CHAMPS_DOSSIER, la liste
+   * du FORMULAIRE : le tableau, lui, n en montre plus que deux colonnes fusionnees. La
+   * distinction nom/prenom reste donc entiere la ou on SAISIT.
    */
   const attendus: [string, string][] = [
     ['nom', 'Nom locataire'],
@@ -233,23 +241,127 @@ console.log('\n=== 6. LES LIBELLES DES QUATRE CHAMPS ===');
     ['proprietaire', 'Prénom propriétaire'],
   ];
   for (const [cle, libelle] of attendus) {
-    const d = COLONNES_SYSTEME.find(c => c.cle === cle);
-    t(`${cle} s affiche « ${libelle} »`, d?.libelle === libelle);
+    const d = CHAMPS_DOSSIER.find(c => c.cle === cle);
+    t(`le formulaire saisit ${cle} sous « ${libelle} »`, d?.libelle === libelle);
   }
-
-  /* Et ces libelles arrivent bien jusqu aux colonnes que le tableau et les cartes lisent. */
-  const colonnes = toutesLesColonnes({ systeme: COLONNES_SYSTEME, perso: [], reglage: REGLAGE_VIDE });
-  for (const [cle, libelle] of attendus) {
-    t(`le tableau et les cartes affichent « ${libelle} »`,
-      colonnes.some(c => c.nom === libelle && c.cle === cle));
-  }
-
-  t('plus aucun libelle systeme ne dit « N/P »',
-    COLONNES_SYSTEME.every(c => !c.libelle.includes('N/P')));
-  t('plus aucun libelle systeme ne dit « Nom du client »',
-    COLONNES_SYSTEME.every(c => c.libelle !== 'Nom du client'));
-  t('les quatre libelles sont tous differents',
+  t('les quatre libelles du formulaire sont tous differents',
     new Set(attendus.map(a => a[1])).size === 4);
+  t('plus aucun libelle de champ ne dit « Nom du client »',
+    CHAMPS_DOSSIER.every(c => c.libelle !== 'Nom du client'));
+
+  /* Le tableau ne porte PLUS ces quatre colonnes separement : si l une revenait, la
+     fusion demandee par David serait defaite sans que rien ne le signale. */
+  for (const [, libelle] of attendus) {
+    t(`le tableau ne montre plus de colonne « ${libelle} »`,
+      COLONNES_SYSTEME.every(c => c.libelle !== libelle));
+  }
+}
+
+console.log('\n=== 7. LES DEUX COLONNES FUSIONNEES ===');
+{
+  /*
+   * David : « fusionne Nom et Prenom locataire en UNE seule colonne visible », et la
+   * meme chose pour le proprietaire — sans fusionner les colonnes techniques en base.
+   * Ce qui suit verrouille les deux moities de cette phrase.
+   */
+  const npL = COLONNES_SYSTEME.find(c => c.cle === 'np_locataire');
+  const npP = COLONNES_SYSTEME.find(c => c.cle === 'np_proprietaire');
+
+  t('« N/P locataire » existe cote tableau', npL?.libelle === 'N/P locataire');
+  t('« N/P propriétaire » existe cote tableau', npP?.libelle === 'N/P propriétaire');
+  t('N/P locataire reunit nom puis prenom',
+    JSON.stringify(npL?.composeDe) === JSON.stringify(['nom', 'prenom']));
+  /* LE PIEGE : ce sont `locataire` et `proprietaire` qui portent le nom et le prenom
+     du PROPRIETAIRE. Une inversion ici afficherait le prenom avant le nom sans qu aucun
+     compilateur ne s en apercoive. */
+  t('N/P propriétaire reunit locataire puis proprietaire — et dans cet ordre',
+    JSON.stringify(npP?.composeDe) === JSON.stringify(['locataire', 'proprietaire']));
+
+  /* Une colonne composee n existe nulle part en SQL : elle ne doit donc JAMAIS se
+     retrouver dans la liste des champs que le formulaire ecrit. */
+  const clesChamps = new Set(CHAMPS_DOSSIER.map(c => c.cle as string));
+  t('np_locataire n est pas un champ ecrivable', !clesChamps.has('np_locataire'));
+  t('np_proprietaire n est pas un champ ecrivable', !clesChamps.has('np_proprietaire'));
+
+  /* Et la composition arrive REELLEMENT jusqu a la cellule. */
+  const colonnes = toutesLesColonnes({ systeme: COLONNES_SYSTEME, perso: [], reglage: REGLAGE_VIDE });
+  const colL = colonnes.find(c => c.famille === 'systeme' && c.cle === 'np_locataire')!;
+  const colP = colonnes.find(c => c.famille === 'systeme' && c.cle === 'np_proprietaire')!;
+  const bail = dossier({
+    nom: 'Dupont', prenom: 'Marie', locataire: 'Fournier', proprietaire: 'Paul',
+  });
+  t('la cellule rend « Dupont Marie »', valeurAffichee(bail, colL) === 'Dupont Marie');
+  t('la cellule rend « Fournier Paul »', valeurAffichee(bail, colP) === 'Fournier Paul');
+
+  /* Un prenom vide ne doit pas laisser d espace en trop : « Dupont », pas « Dupont  ». */
+  const sansPrenom = dossier({ nom: 'Dupont', prenom: null, locataire: null, proprietaire: 'Paul' });
+  t('un prenom absent ne laisse pas d espace', valeurAffichee(sansPrenom, colL) === 'Dupont');
+  t('un nom absent ne laisse pas d espace devant', valeurAffichee(sansPrenom, colP) === 'Paul');
+
+  /* La recherche herite de la fusion : chercher le nom ET le prenom ensemble marche,
+     ce qu aucune des deux colonnes separees ne permettait. */
+  const lot = [bail, dossier({ id: 'z', nom: 'Martin', prenom: 'Luc' })];
+  const trouve = preparerLignes({
+    dossiers: lot, terme: 'dupont marie', colonnes, triSur: null, sens: 'asc',
+    filtre: 'tous', classement: vide(),
+  });
+  t('la recherche trouve « dupont marie » d un seul tenant', trouve.length === 1);
+}
+
+console.log('\n=== 8. LE MODE DE PAIEMENT ===');
+{
+  const col = COLONNES_SYSTEME.find(c => c.cle === 'mode_paiement');
+  t('la colonne « Mode de paiement » existe', col?.libelle === 'Mode de paiement');
+  t('elle porte EXACTEMENT trois choix', col?.choix?.length === 3);
+  t('ce sont cheque, especes, virement',
+    JSON.stringify(col?.choix?.map(c => c.valeur)) === JSON.stringify(['cheque', 'especes', 'virement']));
+  t('et leurs libelles portent les accents',
+    JSON.stringify(col?.choix?.map(c => c.libelle)) === JSON.stringify(['Chèque', 'Espèces', 'Virement']));
+  /* La valeur technique va en base, et la contrainte SQL ne connait que ces trois mots
+     sans accent : un accent cote valeur rendrait toute comparaison dependante de la
+     normalisation Unicode. */
+  t('aucune valeur technique ne porte d accent',
+    MODES_PAIEMENT.every(m => m.valeur === m.valeur.normalize('NFD').replace(/[̀-ͯ]/g, '')));
+  t('le formulaire propose les memes trois choix',
+    CHAMPS_DOSSIER.find(c => c.cle === 'mode_paiement')?.choix === MODES_PAIEMENT);
+
+  /* C est la PRESENCE de `choix` qui rend une colonne modifiable au menu. Si une autre
+     colonne systeme en recevait un par megarde, elle deviendrait modifiable sans que
+     personne l ait decide. */
+  t('une seule colonne systeme porte des choix',
+    COLONNES_SYSTEME.filter(c => c.choix !== undefined).length === 1);
+
+  /* La cellule affiche le LIBELLE, jamais la valeur technique. */
+  const colonnes = toutesLesColonnes({ systeme: COLONNES_SYSTEME, perso: [], reglage: REGLAGE_VIDE });
+  const c = colonnes.find(x => x.famille === 'systeme' && x.cle === 'mode_paiement')!;
+  t('un dossier en cheque affiche « Chèque »',
+    valeurAffichee(dossier({ mode_paiement: 'cheque' }), c) === 'Chèque');
+  t('un dossier en especes affiche « Espèces »',
+    valeurAffichee(dossier({ mode_paiement: 'especes' }), c) === 'Espèces');
+  t('un dossier en virement affiche « Virement »',
+    valeurAffichee(dossier({ mode_paiement: 'virement' }), c) === 'Virement');
+  /* Un ancien dossier n a pas de mode : il rend une chaine vide, que la cellule
+     transforme en tiret. Il ne doit SURTOUT pas rendre « null ». */
+  t('un dossier sans mode rend une chaine vide',
+    valeurAffichee(dossier({ mode_paiement: null }), c) === '');
+  /* Et une valeur inconnue venue d un vieil enregistrement ne s affiche pas brute. */
+  t('une valeur inconnue ne s affiche pas telle quelle',
+    valeurAffichee(dossier({ mode_paiement: 'carte' }), c) === '');
+}
+
+console.log('\n=== 9. L ORDRE DES COLONNES DEMANDE PAR DAVID ===');
+{
+  /*
+   * L ordre est celui du message du 23 octobre 2026, mot pour mot. Actions n y figure
+   * pas : ce n est pas une colonne du modele, c est une colonne epinglee du tableau.
+   */
+  t('l ordre est exactement celui demande',
+    JSON.stringify(COLONNES_SYSTEME.map(c => c.libelle)) === JSON.stringify([
+      'N/P locataire', 'Email', 'Téléphone', "Date d'entrée", 'Fin de contrat',
+      'N/P propriétaire', 'Encaissement loyer', 'Commentaire', 'Mode de paiement',
+    ]));
+  t('« N/P locataire » reste la seule colonne non masquable',
+    COLONNES_SYSTEME.filter(c => !c.masquable).map(c => c.cle).join() === 'np_locataire');
 }
 
 console.log(`\n=== RESULTAT : ${ok} OK, ${ko} ECHEC ===\n`);

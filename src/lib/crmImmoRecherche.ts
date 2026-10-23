@@ -15,10 +15,40 @@ import type { CategorieImmo } from './crmImmoEcheancier';
  */
 
 /** La valeur affichable d'une colonne pour un dossier, systeme ou personnalisee. */
+/** La valeur BRUTE d'un champ du dossier, vide si absente. */
+function brut(dossier: DossierImmo, cle: string): string {
+  const v = (dossier as unknown as Record<string, unknown>)[cle];
+  return v === null || v === undefined ? '' : String(v);
+}
+
 export function valeurAffichee(dossier: DossierImmo, colonne: Colonne): string {
   if (colonne.famille === 'systeme') {
-    const v = (dossier as unknown as Record<string, unknown>)[colonne.cle];
-    return v === null || v === undefined ? '' : String(v);
+    /*
+     * UNE COLONNE COMPOSEE REUNIT DEUX CHAMPS RESTES SEPARES EN BASE.
+     *
+     * Les vides sont ECARTES avant la jointure, et non joints puis nettoyes : un dossier
+     * dont le prenom manque afficherait sinon « paul » suivi d'une espace orpheline, que
+     * la recherche verrait comme un mot de plus et que le tri classerait a part.
+     */
+    if (colonne.composeDe !== undefined) {
+      return colonne.composeDe.map(c => brut(dossier, c)).filter(s => s !== '').join(' ');
+    }
+    const v = brut(dossier, colonne.cle);
+    /*
+     * UNE COLONNE A CHOIX S'AFFICHE PAR SON LIBELLE, ET C'EST AUSSI CE QU'ON CHERCHE.
+     *
+     * La base porte `cheque`, l'ecran lit « Chèque ». Rendre le libelle plutot que la
+     * valeur technique sert les deux : l'affichage, et la recherche — qui normalise les
+     * accents, donc « cheque » comme « Chèque » trouvent la ligne.
+     *
+     * Une valeur hors liste — une ligne plus ancienne que la contrainte, ou une base
+     * trafiquee — rend une chaine VIDE plutot que la valeur brute : afficher `cheque`
+     * sans accent au milieu de « Chèque » laisserait croire a deux modes differents.
+     */
+    if (colonne.choix !== undefined) {
+      return v === '' ? '' : (colonne.choix.find(c => c.valeur === v)?.libelle ?? '');
+    }
+    return v;
   }
   const v = dossier.valeurs?.[colonne.id];
   if (v === null || v === undefined) return '';

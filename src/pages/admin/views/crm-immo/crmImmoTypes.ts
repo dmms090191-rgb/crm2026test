@@ -33,6 +33,15 @@ export interface DossierImmo {
   jour_encaissement: number | null;
   commentaire: string | null;
   /**
+   * `cheque` | `especes` | `virement`, ou null si non renseigne.
+   *
+   * Le type reste `string | null` et non `ModePaiement | null` : ce qui arrive de la base
+   * n'est pas verifie par TypeScript, et se declarer une garantie qu'on n'a pas fait
+   * tomber l'interface sur une valeur inattendue au lieu de l'afficher vide. La
+   * contrainte SQL, elle, est reelle.
+   */
+  mode_paiement: string | null;
+  /**
    * Valeurs des colonnes personnalisees, indexees par l'ID de la colonne.
    *
    * La cle est l'id et non le nom : renommer une colonne ne reecrit donc AUCUN dossier.
@@ -72,10 +81,36 @@ export interface EtatImmo {
 export type ChampSysteme =
   | 'nom' | 'prenom' | 'email' | 'telephone'
   | 'date_entree' | 'date_fin_contrat'
-  | 'locataire' | 'proprietaire' | 'jour_encaissement' | 'commentaire';
+  | 'locataire' | 'proprietaire' | 'jour_encaissement' | 'commentaire'
+  | 'mode_paiement';
 
-export interface DefinitionSysteme {
-  cle: ChampSysteme;
+/**
+ * LE MODE DE PAIEMENT — trois valeurs, et deux ecritures qu'il ne faut pas confondre.
+ *
+ * La valeur TECHNIQUE est sans accent : c'est elle qui va en base, c'est elle que la
+ * contrainte SQL crm_immo_dossiers_mode_paiement_connu accepte, et c'est elle qu'on
+ * compare. Mettre l'accent en base rendrait toute comparaison dependante de la
+ * normalisation Unicode — « Chèque » peut s'ecrire de deux facons en UTF-8, et les deux
+ * ne sont pas egales octet pour octet.
+ *
+ * Le LIBELLE porte l'accent, et ne sert qu'a l'affichage.
+ *
+ * NULL n'est pas une quatrieme valeur : c'est l'absence de renseignement, et les anciens
+ * dossiers ont le droit d'y rester.
+ */
+export type ModePaiement = 'cheque' | 'especes' | 'virement';
+
+export const MODES_PAIEMENT: { valeur: ModePaiement; libelle: string }[] = [
+  { valeur: 'cheque', libelle: 'Chèque' },
+  { valeur: 'especes', libelle: 'Espèces' },
+  { valeur: 'virement', libelle: 'Virement' },
+];
+
+/**
+ * Ce qu'une definition porte, qu'elle decrive un champ du formulaire ou une colonne du
+ * tableau. Rien de plus : ce qui distingue les deux, c'est la CLE.
+ */
+interface DefinitionCommune {
   libelle: string;
   type: TypeColonne;
   /**
@@ -83,51 +118,121 @@ export interface DefinitionSysteme {
    * identifier. C'est le seul champ non masquable.
    */
   masquable: boolean;
+  /**
+   * La liste fermee des valeurs, quand la colonne en a une.
+   *
+   * Sa presence est ce qui rend une colonne MODIFIABLE PAR MENU dans le tableau : ni un
+   * nom, ni une cle en dur quelque part dans l'interface. Ajouter demain une seconde
+   * colonne a choix ne demandera donc aucune ligne dans le tableau ni dans les cartes.
+   */
+  choix?: readonly { valeur: string; libelle: string }[];
 }
 
 /**
- * LES 10 COLONNES SYSTEME, dans l'ordre du brief de David.
- *
- * Elles ne sont PAS des lignes de crm_immo_colonnes : ce sont de vraies colonnes de
- * crm_immo_dossiers. Elles sont donc STRUCTURELLEMENT hors d'atteinte du bouton
- * Supprimer — pas protegees par un drapeau qu'un bug pourrait contourner.
+ * UN CHAMP DU FORMULAIRE. Sa cle est forcement une vraie colonne de crm_immo_dossiers :
+ * on ne peut pas SAISIR une colonne composee, qui n'existe nulle part en SQL. Le type le
+ * rend impossible, plutot que de compter sur la vigilance a l'ecriture.
  */
-export const COLONNES_SYSTEME: DefinitionSysteme[] = [
+export interface DefinitionChamp extends DefinitionCommune {
+  cle: ChampSysteme;
+}
+
+/** UNE COLONNE DU TABLEAU. Sa cle peut etre composee, et donc absente de la base. */
+export interface DefinitionSysteme extends DefinitionCommune {
+  cle: ChampSysteme | ColonneComposee;
+  /**
+   * Les deux champs reels qu'une colonne COMPOSEE reunit a l'affichage.
+   *
+   * La base garde ses colonnes separees : la fusion est un fait d'affichage, et rien
+   * d'autre. Le formulaire continue donc de saisir un nom et un prenom distincts, et
+   * aucune migration n'a ete necessaire pour cette partie-la.
+   */
+  composeDe?: readonly [ChampSysteme, ChampSysteme];
+}
+
+/** Les colonnes du tableau qui n'existent pas en base : elles en reunissent deux. */
+export type ColonneComposee = 'np_locataire' | 'np_proprietaire';
+
+/**
+ * ---------- QUATRE CHAMPS, DEUX PERSONNES, ET DES CLES QUI MENTENT ----------
+ *
+ * Le module suit un bail : il y a un LOCATAIRE et un PROPRIETAIRE, chacun avec un nom et
+ * un prenom. Les quatre colonnes SQL sont :
+ *
+ *     nom          -> le nom    du LOCATAIRE
+ *     prenom       -> le prenom du LOCATAIRE
+ *     locataire    -> le nom    du PROPRIETAIRE     <-- la cle ne dit pas son contenu
+ *     proprietaire -> le prenom du PROPRIETAIRE     <-- idem
+ *
+ * Les deux dernieres cles ne disent PAS ce qu'elles portent, et c'est assume : les
+ * renommer exigerait une migration, casserait les sauvegardes deja prises et les
+ * restaurations qui les relisent, et ne changerait rien a ce que l'utilisateur lit.
+ * Un libelle se corrige sans risque ; une colonne, non.
+ */
+
+/**
+ * LES CHAMPS DU FORMULAIRE — ce qu'on SAISIT.
+ *
+ * ---------- POURQUOI DEUX LISTES, ET PAS UNE ----------
+ *
+ * Jusqu'au 23 octobre 2026 cette liste etait AUSSI celle des colonnes du tableau. C'etait
+ * tenable tant que les deux disaient la meme chose. Elles ne le disent plus : David veut
+ * voir UNE colonne « N/P locataire », et continuer a saisir un nom et un prenom separes.
+ *
+ * Confondre les deux obligerait a choisir entre un tableau trop large et un formulaire qui
+ * perd la distinction nom/prenom. Les separer coute une liste de plus et rend chacune
+ * lisible : ici ce qu'on ecrit, plus bas ce qu'on lit.
+ */
+export const CHAMPS_DOSSIER: DefinitionChamp[] = [
   { cle: 'nom', libelle: 'Nom locataire', type: 'texte', masquable: false },
   { cle: 'prenom', libelle: 'Prénom locataire', type: 'texte', masquable: true },
   { cle: 'email', libelle: 'Email', type: 'texte', masquable: true },
   { cle: 'telephone', libelle: 'Téléphone', type: 'texte', masquable: true },
   { cle: 'date_entree', libelle: "Date d'entrée", type: 'date', masquable: true },
   { cle: 'date_fin_contrat', libelle: 'Fin de contrat', type: 'date', masquable: true },
-  /*
-   * ---------- QUATRE CHAMPS, DEUX PERSONNES ----------
-   *
-   * Le module suit un bail : il y a un LOCATAIRE et un PROPRIETAIRE, et chacun a un nom
-   * et un prenom. Les quatre libelles le disent desormais sans abreviation :
-   *
-   *     nom          -> Nom locataire
-   *     prenom       -> Prénom locataire
-   *     locataire    -> Nom propriétaire
-   *     proprietaire -> Prénom propriétaire
-   *
-   * ATTENTION, et c'est deliberé : les deux dernieres CLES ne disent plus ce que leur
-   * libelle affiche. La colonne SQL `locataire` porte le nom du PROPRIETAIRE, et
-   * `proprietaire` son prenom.
-   *
-   * C'est le choix de David, et il est le bon : renommer ces colonnes exigerait une
-   * migration, casserait les sauvegardes deja prises et les restaurations qui les
-   * relisent, et ne changerait rien a ce que l'utilisateur lit. Un libelle se corrige
-   * sans risque ; une colonne, non.
-   *
-   * Ce libelle sert a QUATRE endroits a la fois — l'en-tete du tableau, les cartes
-   * mobiles, le formulaire du dossier et l'organisateur de colonnes — parce que tous
-   * lisent `d.libelle` via toutesLesColonnes(). Les changer ici les change partout,
-   * ensemble. C'est ce qui garantit qu'aucun ecran ne garde l'ancien vocabulaire.
-   */
   { cle: 'locataire', libelle: 'Nom propriétaire', type: 'texte', masquable: true },
   { cle: 'proprietaire', libelle: 'Prénom propriétaire', type: 'texte', masquable: true },
   { cle: 'jour_encaissement', libelle: 'Encaissement loyer', type: 'nombre', masquable: true },
   { cle: 'commentaire', libelle: 'Commentaire', type: 'texte', masquable: true },
+  { cle: 'mode_paiement', libelle: 'Mode de paiement', type: 'texte', masquable: true, choix: MODES_PAIEMENT },
+];
+
+/**
+ * LES COLONNES DU TABLEAU — ce qu'on LIT, dans l'ordre demande par David.
+ *
+ * Elles ne sont PAS des lignes de crm_immo_colonnes : ce sont de vraies colonnes de
+ * crm_immo_dossiers, ou la reunion de deux d'entre elles. Elles sont donc
+ * STRUCTURELLEMENT hors d'atteinte du bouton Supprimer — pas protegees par un drapeau
+ * qu'un bug pourrait contourner.
+ *
+ * DEUX COLONNES SONT COMPOSEES, et la base n'en sait rien : `np_locataire` et
+ * `np_proprietaire` n'existent nulle part en SQL. Elles reunissent a l'affichage deux
+ * champs restes separes. Aucune migration n'a ete faite pour cette fusion, et c'est
+ * voulu — elle est reversible d'une ligne, ce qu'une migration ne serait pas.
+ *
+ * `mode_paiement`, lui, EXISTE en base depuis la migration 20261023000021. Il portait
+ * auparavant une colonne PERSONNALISEE de type texte libre, incapable d'imposer trois
+ * valeurs ; sa valeur a ete reprise et la colonne personnalisee retiree, pour qu'il n'y
+ * ait qu'UNE source de verite.
+ */
+export const COLONNES_SYSTEME: DefinitionSysteme[] = [
+  {
+    cle: 'np_locataire', libelle: 'N/P locataire', type: 'texte', masquable: false,
+    composeDe: ['nom', 'prenom'],
+  },
+  { cle: 'email', libelle: 'Email', type: 'texte', masquable: true },
+  { cle: 'telephone', libelle: 'Téléphone', type: 'texte', masquable: true },
+  { cle: 'date_entree', libelle: "Date d'entrée", type: 'date', masquable: true },
+  { cle: 'date_fin_contrat', libelle: 'Fin de contrat', type: 'date', masquable: true },
+  {
+    /* Rappel du bloc ci-dessus : ce sont bien `locataire` et `proprietaire` qui portent
+       le nom et le prenom du PROPRIETAIRE. L'ordre est nom puis prenom, comme « N/P ». */
+    cle: 'np_proprietaire', libelle: 'N/P propriétaire', type: 'texte', masquable: true,
+    composeDe: ['locataire', 'proprietaire'],
+  },
+  { cle: 'jour_encaissement', libelle: 'Encaissement loyer', type: 'nombre', masquable: true },
+  { cle: 'commentaire', libelle: 'Commentaire', type: 'texte', masquable: true },
+  { cle: 'mode_paiement', libelle: 'Mode de paiement', type: 'texte', masquable: true, choix: MODES_PAIEMENT },
 ];
 
 /**
@@ -161,6 +266,8 @@ export interface SaisieDossier {
   /** Chaine, parce qu'un champ de formulaire vide doit rester distinct de 0. */
   jour_encaissement: string;
   commentaire: string;
+  /** Chaine vide = « non renseigne », qui deviendra NULL en base. */
+  mode_paiement: string;
   valeurs: Record<string, string>;
 }
 
@@ -201,6 +308,7 @@ export const SAISIE_VIDE: SaisieDossier = {
   nom: '', prenom: '', email: '', telephone: '',
   date_entree: '', date_fin_contrat: '',
   locataire: '', proprietaire: '', jour_encaissement: '', commentaire: '',
+  mode_paiement: '',
   valeurs: {},
 };
 

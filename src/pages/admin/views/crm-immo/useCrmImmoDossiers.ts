@@ -4,6 +4,7 @@ import { lireToutesLesLignes } from '../../../../lib/lectureIntegrale';
 import { useCompanyId } from '../../../../hooks/useCompanyId';
 import { supprimerDossiersEtLeursDocuments } from '../../../../lib/crmImmoSuppressionDossier';
 import { operationsSuppressionDossier } from './useCrmImmoDocuments';
+import { decisionEcriture } from '../../../../lib/crmImmoModePaiement';
 import type { DossierImmo, SaisieDossier } from './crmImmoTypes';
 
 /**
@@ -93,6 +94,9 @@ export function useCrmImmoDossiers() {
          0 ne voudrait rien dire pour un jour du mois. */
       jour_encaissement: jour === '' ? null : Number(jour),
       commentaire: vide(s.commentaire),
+      /* Chaine vide -> NULL, comme les autres champs : « non renseigne » n'est pas une
+         quatrieme valeur, et la contrainte SQL n'accepterait pas '' de toute facon. */
+      mode_paiement: vide(s.mode_paiement),
       /* Les valeurs personnalisees : on retire les cles vides plutot que de stocker des
          chaines vides qui alourdiraient chaque ligne sans rien apporter. */
       valeurs: Object.fromEntries(
@@ -222,5 +226,61 @@ export function useCrmImmoDossiers() {
     return { error: r.error, supprimees: r.supprimees };
   }, [load]);
 
-  return { dossiers, loading, error, companyId, recharger: load, creer, modifier, supprimer };
+  /**
+   * CHANGER LE SEUL MODE DE PAIEMENT, SANS PASSER PAR LE FORMULAIRE.
+   *
+   * ---------- POURQUOI PAS modifier() ----------
+   *
+   * modifier() reecrit les ONZE champs du dossier depuis une saisie complete. L'employer
+   * pour une liste deroulante demanderait de reconstituer cette saisie a partir de la
+   * ligne affichee — et tout champ mal reconstitue serait ECRASE au passage. Pire, le
+   * declencheur d'alignement sur la periode de bail se declencherait pour rien.
+   *
+   * Ici, un seul champ part, et un seul revient.
+   *
+   * ---------- L'AFFICHAGE CHANGE D'ABORD, ET REVIENT SI LA BASE REFUSE ----------
+   *
+   * Attendre la reponse avant d'afficher rendrait le menu poussif sur un telephone en 4G.
+   * On pose donc la valeur tout de suite, et on la REMET COMME AVANT si l'ecriture
+   * echoue — en disant pourquoi. Un retour en arriere muet laisserait l'utilisateur
+   * croire que c'est enregistre.
+   *
+   * ---------- ET LE PIEGE DE supabase-js ----------
+   *
+   * Un UPDATE refuse par la RLS rend { error: null } et ZERO ligne. On termine donc par
+   * .select(), et zero ligne est traite comme l'echec que c'est — c'est la quatrieme
+   * fois que ce piege se presente dans ce module.
+   */
+  const changerModePaiement = useCallback(async (
+    id: string, valeur: string | null,
+  ): Promise<{ error: string | null }> => {
+    const avant = dossiers.find(d => d.id === id);
+    if (avant === undefined) return { error: 'Dossier introuvable.' };
+    if ((avant.mode_paiement ?? null) === valeur) return { error: null };
+
+    setDossiers(prev => prev.map(d => (d.id === id ? { ...d, mode_paiement: valeur } : d)));
+
+    const { data, error: err } = await supabase
+      .from('crm_immo_dossiers')
+      .update({ mode_paiement: valeur })
+      .eq('id', id)
+      .select('id,mode_paiement');
+
+    /* Les quatre cas de reponse sont tranches par un modele pur, teste a part : ici on
+       ne fait qu'appliquer sa decision a l'etat. */
+    const decision = decisionEcriture({
+      message: err === null ? null : err.message,
+      lignes: (data ?? []).length,
+    });
+    if (decision.revenirEnArriere) {
+      setDossiers(prev =>
+        prev.map(d => (d.id === id ? { ...d, mode_paiement: avant.mode_paiement } : d)));
+    }
+    return { error: decision.erreur };
+  }, [dossiers]);
+
+  return {
+    dossiers, loading, error, companyId, recharger: load,
+    creer, modifier, supprimer, changerModePaiement,
+  };
 }

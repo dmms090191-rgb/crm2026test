@@ -3,6 +3,7 @@ import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 import { cleColonne, type Colonne } from '../../../../lib/crmImmoColonnes';
 import { valeurAffichee, type Sens } from '../../../../lib/crmImmoRecherche';
 import { formatDateImmo, type DossierImmo } from './crmImmoTypes';
+import CrmImmoChoixCellule from './CrmImmoChoixCellule';
 
 /**
  * Le tableau DESKTOP des dossiers CRM Immo.
@@ -30,6 +31,8 @@ interface Props {
   onDetails: (d: DossierImmo, onglet: 'informations' | 'commentaires') => void;
   /** Le nombre de commentaires par dossier, pour << Commentaires (3) >>. */
   nombreCommentaires: Record<string, number>;
+  /** Ecrit la valeur d une colonne a choix. Rend l erreur, ou null. */
+  onChoisir: (d: DossierImmo, cle: string, valeur: string) => Promise<{ error: string | null }>;
 }
 
 /**
@@ -62,7 +65,7 @@ function BoutonCommentaires({ dossier, nombre, onOuvrir }: {
 
 export default function CrmImmoTable({
   dossiers, colonnes, loading, triSur, sens, onTrier, onModifier, onSupprimer,
-  onDetails, nombreCommentaires,
+  onDetails, nombreCommentaires, onChoisir,
 }: Props) {
   const t = useThemeTokens();
 
@@ -174,6 +177,16 @@ export default function CrmImmoTable({
                     {c.famille === 'systeme' && c.cle === 'commentaire'
                       ? <BoutonCommentaires dossier={d} nombre={nombreCommentaires[d.id] ?? 0}
                           onOuvrir={() => onDetails(d, 'commentaires')} />
+                      /* Une colonne A CHOIX se modifie sur place. Le declencheur est la
+                         presence de `choix`, jamais le nom ni la cle de la colonne : une
+                         seconde colonne a choix n ajoutera donc aucune ligne ici. */
+                      : c.famille === 'systeme' && c.choix !== undefined
+                        ? <CrmImmoChoixCellule
+                            valeur={(d as unknown as Record<string, string | null>)[c.cle] ?? null}
+                            choix={c.choix} libelleColonne={c.nom}
+                            nomDossier={[d.nom, d.prenom].filter(Boolean).join(' ').trim() || d.nom}
+                            testid={`crm-immo-choix-${c.cle}-${d.id}`}
+                            onChoisir={v => onChoisir(d, c.cle, v)} />
                       : cellule(d, c)}
                   </td>
                 ))}

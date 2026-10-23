@@ -30,7 +30,14 @@ import type { ColonneImmo, DefinitionSysteme, TypeColonne } from '../pages/admin
 
 /** Une colonne telle que le tableau la manipule, les deux familles reunies. */
 export type Colonne =
-  | { famille: 'systeme'; cle: string; nom: string; type: TypeColonne; masquee: boolean; masquable: boolean }
+  | {
+    famille: 'systeme'; cle: string; nom: string; type: TypeColonne;
+    masquee: boolean; masquable: boolean;
+    /** Les deux champs reels qu'une colonne composee reunit a l'affichage. */
+    composeDe?: readonly [string, string];
+    /** La liste fermee des valeurs, quand la colonne en a une. */
+    choix?: readonly { valeur: string; libelle: string }[];
+  }
   | { famille: 'perso'; id: string; nom: string; type: TypeColonne; masquee: boolean; masquable: true };
 
 /** Ce que le navigateur retient : l'ordre des cles systeme et celles qui sont masquees. */
@@ -96,6 +103,8 @@ export function toutesLesColonnes(params: {
        de ce qui identifie ses lignes. */
     masquee: d.masquable && masquees.has(d.cle as string),
     masquable: d.masquable,
+    composeDe: d.composeDe,
+    choix: d.choix,
   }));
   const pers: Colonne[] = trierPerso(perso).map(c => ({
     famille: 'perso', id: c.id, nom: c.nom, type: c.type, masquee: c.masquee, masquable: true,

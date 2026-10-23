@@ -162,6 +162,30 @@ export default function CrmImmo() {
     });
   }, [sens]);
 
+  /*
+   * L ECRITURE D UNE COLONNE A CHOIX.
+   *
+   * Les deux vues ne connaissent qu une chose : une colonne qui porte `choix` se
+   * modifie sur place. Elles ne savent PAS ou la valeur est rangee — c est ici qu on
+   * le decide, et nulle part ailleurs.
+   *
+   * Un registre, et non un `if` : le jour ou une deuxieme colonne a choix arrive, elle
+   * s ajoute sur une ligne. Une colonne absente du registre rend une erreur lisible au
+   * lieu d un echec muet qui laisserait croire que la valeur est enregistree.
+   */
+  const ECRITURE_PAR_COLONNE: Record<string, (id: string, v: string) => Promise<{ error: string | null }>> = useMemo(
+    () => ({ mode_paiement: (id, v) => dos.changerModePaiement(id, v) }),
+    [dos],
+  );
+
+  const changerChoix = useCallback(async (
+    d: DossierImmo, cle: string, valeur: string,
+  ): Promise<{ error: string | null }> => {
+    const ecrire = ECRITURE_PAR_COLONNE[cle];
+    if (ecrire === undefined) return { error: 'Cette colonne ne se modifie pas depuis le tableau.' };
+    return ecrire(d.id, valeur);
+  }, [ECRITURE_PAR_COLONNE]);
+
   /* Ouvrir le dossier d'une alerte : la cloche appelle, on fait defiler et on ouvre. */
   const zoneTableau = useRef<HTMLDivElement | null>(null);
   const ouvrirDepuisAlerte = useCallback((dossierId: string) => {
@@ -362,6 +386,7 @@ export default function CrmImmo() {
           onSupprimer={(d) => { setASupprimer(d); setErreurSuppression(''); }}
           onDetails={ouvrirDetails}
           nombreCommentaires={commentairesParDossier.parDossier}
+          onChoisir={changerChoix}
         />
         <CrmImmoCards
           dossiers={lignes} colonnes={visibles} loading={dos.loading || enAttenteDuClassement}
@@ -369,6 +394,7 @@ export default function CrmImmo() {
           onSupprimer={(d) => { setASupprimer(d); setErreurSuppression(''); }}
           onDetails={ouvrirDetails}
           nombreCommentaires={commentairesParDossier.parDossier}
+          onChoisir={changerChoix}
         />
       </div>
 

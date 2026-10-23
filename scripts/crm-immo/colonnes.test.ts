@@ -69,30 +69,34 @@ test("une colonne SYSTEME n est JAMAIS supprimable", () => {
   const colonnes = toutesLesColonnes({ systeme: COLONNES_SYSTEME, perso: [perso({})], reglage: REGLAGE_VIDE });
   const sys = colonnes.filter(c => c.famille === "systeme");
   const pers = colonnes.filter(c => c.famille === "perso");
-  assert.equal(sys.length, 10, "les 10 champs systeme du brief");
+  /* NEUF, et non plus dix : nom+prenom et locataire+proprietaire ne font plus qu une
+     colonne chacune a l affichage, et `mode_paiement` est arrive. Les champs reels,
+     eux, sont toujours onze — ils vivent dans CHAMPS_DOSSIER. */
+  assert.equal(sys.length, 9, "les 9 colonnes systeme du tableau");
   assert.equal(pers.length, 1);
   for (const c of sys) assert.equal(peutSupprimer(c), false, `${c.nom} ne doit pas etre supprimable`);
   for (const c of pers) assert.equal(peutSupprimer(c), true);
 });
 
-test("`nom` n est jamais masquable, meme si le reglage memorise pretend le contraire", () => {
+test("`np_locataire` n est jamais masquable, meme si le reglage memorise pretend le contraire", () => {
   /* Un localStorage bricole a la main ne doit pas pouvoir vider le tableau de ce qui
-     identifie ses lignes. `nom` est NOT NULL en base ; il reste toujours a l ecran. */
-  const reglage: ReglageLocal = { ordreSysteme: [], masqueesSysteme: ["nom", "email"] };
+     identifie ses lignes. La colonne porte desormais le nom ET le prenom du locataire,
+     et son premier composant `nom` est NOT NULL en base : elle reste a l ecran. */
+  const reglage: ReglageLocal = { ordreSysteme: [], masqueesSysteme: ["np_locataire", "email"] };
   const colonnes = toutesLesColonnes({ systeme: COLONNES_SYSTEME, perso: [], reglage });
-  const nom = colonnes.find(c => c.famille === "systeme" && c.cle === "nom")!;
+  const nom = colonnes.find(c => c.famille === "systeme" && c.cle === "np_locataire")!;
   const email = colonnes.find(c => c.famille === "systeme" && c.cle === "email")!;
-  assert.equal(nom.masquee, false, "le reglage est IGNORE pour `nom`, pas obei");
+  assert.equal(nom.masquee, false, "le reglage est IGNORE pour `np_locataire`, pas obei");
   assert.equal(peutMasquer(nom), false);
   assert.equal(email.masquee, true, "les autres se masquent normalement");
   assert.equal(peutMasquer(email), true);
-  assert.ok(colonnesVisibles(colonnes).some(c => cleColonne(c) === "nom"));
+  assert.ok(colonnesVisibles(colonnes).some(c => cleColonne(c) === "np_locataire"));
 });
 
 test("l ordre memorise des colonnes systeme est respecte, et une colonne neuve arrive VISIBLE a la fin", () => {
-  const reglage: ReglageLocal = { ordreSysteme: ["commentaire", "nom"], masqueesSysteme: [] };
+  const reglage: ReglageLocal = { ordreSysteme: ["commentaire", "np_locataire"], masqueesSysteme: [] };
   const ordre = ordonnerSysteme(COLONNES_SYSTEME, reglage).map(d => d.cle);
-  assert.deepEqual(ordre.slice(0, 2), ["commentaire", "nom"], "l ordre memorise passe d abord");
+  assert.deepEqual(ordre.slice(0, 2), ["commentaire", "np_locataire"], "l ordre memorise passe d abord");
   assert.equal(ordre.length, COLONNES_SYSTEME.length, "aucune colonne perdue");
   assert.deepEqual([...ordre].sort(), COLONNES_SYSTEME.map(d => d.cle).sort(), "les memes, reordonnees");
   /* Une cle inconnue dans le reglage — colonne retiree du code — est ignoree. */
@@ -118,24 +122,31 @@ test("le nom d une colonne personnalisee est refuse AVANT l aller-retour", () =>
   /*
    * Et le heurt avec un libelle systeme : la base ne l interdit pas, l interface doit.
    *
-   * ATTENTION AU PIEGE : ce heurt porte sur le LIBELLE AFFICHE, pas sur le nom de la
-   * colonne SQL. Les colonnes s appellent toujours `locataire` et `proprietaire`, mais
-   * elles s affichent depuis le 22 octobre 2026 << Nom propriétaire >> et
-   * << Prénom propriétaire >> — et c est le libelle qui ferait deux en-tetes identiques
-   * dans le tableau.
-   *
-   * Consequence assumee : une Societe peut creer une colonne personnalisee nommee
-   * << Locataire >>, puisque plus aucun libelle systeme ne porte ce mot seul. Elle n en
-   * aurait aucune raison, et rien ne casse : les en-tetes resteraient distincts.
+   * ATTENTION AU PIEGE : ce heurt porte sur le LIBELLE AFFICHE DANS LE TABLEAU, pas
+   * sur le nom de la colonne SQL ni sur le libelle du FORMULAIRE. Depuis le 23 octobre
+   * 2026 le tableau montre << N/P locataire >> et << N/P propriétaire >> : ce sont ces
+   * deux libelles qui feraient deux en-tetes identiques.
    */
-  assert.equal(nomHeurteSysteme("Nom locataire", COLONNES_SYSTEME), true);
-  assert.equal(nomHeurteSysteme("  prénom locataire ", COLONNES_SYSTEME), true);
-  assert.equal(nomHeurteSysteme("Nom propriétaire", COLONNES_SYSTEME), true);
-  assert.equal(nomHeurteSysteme("Prénom propriétaire", COLONNES_SYSTEME), true);
+  assert.equal(nomHeurteSysteme("N/P locataire", COLONNES_SYSTEME), true);
+  assert.equal(nomHeurteSysteme("  n/p propriétaire ", COLONNES_SYSTEME), true);
   assert.equal(nomHeurteSysteme("Adresse du bien", COLONNES_SYSTEME), false);
-  /* Les anciens libelles ne heurtent plus rien : ils n existent plus nulle part. */
-  assert.equal(nomHeurteSysteme("N/P Locataire", COLONNES_SYSTEME), false);
-  assert.equal(nomHeurteSysteme("N/P Propriétaire", COLONNES_SYSTEME), false);
+  /*
+   * << Mode de paiement >> DOIT heurter, et c est la raison la plus importante de ce
+   * test : avant la migration 20261023000021, ce mode vivait dans une colonne
+   * PERSONNALISEE de texte libre. Elle a ete reprise puis retiree pour qu il n y ait
+   * qu'UNE source de verite. Laisser recreer une colonne personnalisee du meme nom la
+   * recreerait exactement — avec deux cellules cote a cote qui se contrediraient.
+   */
+  assert.equal(nomHeurteSysteme("Mode de paiement", COLONNES_SYSTEME), true);
+  assert.equal(nomHeurteSysteme("  MODE DE PAIEMENT  ", COLONNES_SYSTEME), true);
+  /*
+   * Consequence assumee : les quatre libelles du FORMULAIRE ne sont plus des en-tetes
+   * de tableau, donc une Societe peut creer une colonne personnalisee << Nom locataire
+   * >>. Elle n en aurait aucune raison, et rien ne casse : aucun en-tete ne serait
+   * double, et le formulaire garde ses libelles a lui.
+   */
+  assert.equal(nomHeurteSysteme("Nom locataire", COLONNES_SYSTEME), false);
+  assert.equal(nomHeurteSysteme("Prénom propriétaire", COLONNES_SYSTEME), false);
 });
 
 test("deux Societes ne partagent pas leur mise en page", () => {
@@ -144,13 +155,22 @@ test("deux Societes ne partagent pas leur mise en page", () => {
   assert.equal(cleReglage(null), cleReglage(null), "stable quand la Societe est inconnue");
 });
 
-test("les 10 colonnes systeme sont celles du brief, dans l ordre, et une seule est non masquable", () => {
+test("les 9 colonnes systeme sont celles du brief, dans l ordre, et une seule est non masquable", () => {
+  /* L ordre est celui demande par David le 23 octobre 2026. Les deux cles en `np_` ne
+     designent AUCUNE colonne SQL : elles reunissent a l'affichage deux champs restes
+     separes en base, ce qui rend la fusion reversible sans migration. */
   assert.deepEqual(COLONNES_SYSTEME.map(d => d.cle), [
-    "nom", "prenom", "email", "telephone", "date_entree", "date_fin_contrat",
-    "locataire", "proprietaire", "jour_encaissement", "commentaire",
+    "np_locataire", "email", "telephone", "date_entree", "date_fin_contrat",
+    "np_proprietaire", "jour_encaissement", "commentaire", "mode_paiement",
   ]);
   const nonMasquables = COLONNES_SYSTEME.filter(d => !d.masquable).map(d => d.cle);
-  assert.deepEqual(nonMasquables, ["nom"], "seul `nom` est non masquable (NOT NULL en base)");
+  assert.deepEqual(nonMasquables, ["np_locataire"],
+    "seule la colonne qui identifie la ligne est non masquable (`nom` est NOT NULL en base)");
+  /* Une colonne composee reunit EXACTEMENT deux champs, jamais un ni trois : la cellule
+     et la recherche lisent ce couple tel quel. */
+  for (const d of COLONNES_SYSTEME) {
+    if (d.composeDe !== undefined) assert.equal(d.composeDe.length, 2, `${d.cle} : paire attendue`);
+  }
   /* Les types annonces doivent etre parmi les quatre que la base accepte. */
   for (const d of COLONNES_SYSTEME) {
     assert.ok(["texte", "nombre", "date", "oui_non"].includes(d.type), `${d.cle} : type inconnu`);
