@@ -124,7 +124,23 @@ export interface Alerte {
   statut?: StatutLoyer;
 }
 
-/** Combien de jours avant l'echeance une fin de contrat s'annonce. */
+/**
+ * Combien de jours avant l'echeance une fin de contrat s'annoncait.
+ *
+ * ---------- ELLE NE COMMANDE PLUS RIEN DEPUIS LE 23 OCTOBRE 2026 ----------
+ *
+ * Le declenchement est passe a une arithmetique de CALENDRIER — un mois en arriere, puis
+ * un jour — sur decision de David, qui a explicitement refuse tout repli en nombre de
+ * jours. Voir jourDeclenchementFinContrat.
+ *
+ * Conservee, et non supprimee : elle est exportee, donc publique, et le depot ne retire
+ * rien sans accord. Mais plus aucun code ne la lit. SIGNALE, PAS DECIDE : elle peut
+ * disparaitre le jour ou David le dira.
+ *
+ * A ne pas confondre avec PREAVIS_RENOUVELLEMENT (crmImmoEcheancier), qui vaut aussi 30
+ * et qui, LUI, sert toujours — il classe les contrats << a renouveler >> dans le tableau
+ * de bord. Deux constantes a 30 pour deux usages distincts : la confusion est facile.
+ */
 export const PREAVIS_FIN_CONTRAT = 30;
 
 const DEUX = (n: number) => String(n).padStart(2, '0');
@@ -238,28 +254,31 @@ export function jourDeclenchementLoyer(echeance: string): string | null {
 /**
  * LE JOUR OU LA NOTIFICATION DE FIN DE CONTRAT COMMENCE.
  *
- * ---------- POURQUOI DEUX CALCULS, ET LE PLUS TOT DES DEUX ----------
+ * UN MOIS CALENDAIRE EN ARRIERE, PUIS UN JOUR. Rien d'autre.
  *
- * << Un mois moins un jour >> seul n'est PAS toujours plus tot que l'ancien J-30 : les
- * mois n'ont pas la meme longueur. Pour une fin le 15 mars, un mois en arriere tombe le
- * 15 fevrier, moins un jour le 14 — alors que J-30 tombe le 13. La regle de calendrier
- * seule aurait donc prevenu UN JOUR PLUS TARD qu'avant, precisement sur les mois courts.
+ *   fin le 20 decembre  ->  20 novembre  ->  19 novembre
+ *   fin le 15 mars      ->  15 fevrier   ->  14 fevrier
  *
- * David a tranche : << Je ne veux pas accepter le cas ou une fin de contrat en mars
- * serait signalee plus tard qu'avec l'ancienne regle J-30. >> On calcule les deux et on
- * garde le plus TOT. La notification ne peut donc jamais reculer par rapport a J-30 ;
- * elle peut seulement avancer, de un a deux jours selon le mois.
+ * ---------- IL N'Y A NI PLANCHER NI REPLI EN NOMBRE DE JOURS ----------
  *
- * La comparaison de chaines 'AAAA-MM-JJ' est chronologique : meme largeur, champs du
- * plus significatif au moins significatif.
+ * Une version intermediaire prenait le plus tot entre ce calcul et un J-30, pour qu'une
+ * fin sur un mois court ne soit jamais annoncee plus tard qu'avant. David l'a REFUSEE le
+ * 23 octobre 2026 : << Je ne veux PAS au plus tot entre 1 mois moins 1 jour et J-30, ni
+ * de regle J-30 supplementaire. >> La seule regle autorisee est l'arithmetique de
+ * calendrier.
+ *
+ * Consequence assumee, et c'est bien une consequence et non un defaut : sur un mois
+ * court le preavis reel est plus COURT que trente jours. Une fin le 15 mars se declenche
+ * le 14 fevrier, soit J-29. C'est ce que << un mois moins un jour >> veut dire quand le
+ * mois precedent en compte 28.
+ *
+ * Le rabattement de moinsUnMois reste, lui, indispensable : un 31 mars n'a pas de 31
+ * fevrier en face, et `new Date(2027, 1, 31)` renverrait le 3 mars sans la moindre
+ * erreur.
  */
 export function jourDeclenchementFinContrat(fin: string): string | null {
-  if (!lireJour(fin)) return null;
   const parMois = moinsUnMois(fin);
-  const parPreavis = ajouterJours(fin, -PREAVIS_FIN_CONTRAT);
-  if (!parMois) return parPreavis;
-  const parCalendrier = ajouterJours(parMois, -1);
-  return parCalendrier < parPreavis ? parCalendrier : parPreavis;
+  return parMois ? ajouterJours(parMois, -1) : null;
 }
 
 /**

@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import {
   momentDe, estDeclenchee, jourDeclenchementLoyer, jourDeclenchementFinContrat,
-  deriverAlertes, FUSEAU_ALERTES, HEURE_DECLENCHEMENT, PREAVIS_FIN_CONTRAT, joursEntre,
+  deriverAlertes, FUSEAU_ALERTES, HEURE_DECLENCHEMENT, joursEntre,
   type MomentIsrael, type DossierPourAlertes,
 } from "../../src/lib/crmImmoAlertes.ts";
 import type { PeriodeDossier } from "../../src/lib/crmImmoEcheancier.ts";
@@ -115,42 +115,62 @@ test("A4 — une echeance ECHUE et impayee sort sans condition d heure", () => {
 // B — LA FIN DE CONTRAT : LE PLUS TOT DES DEUX CALCULS
 // ===========================================================================
 
-test("B1 — fin de contrat : le declenchement est le PLUS TOT des deux calculs", () => {
-  /* Decembre : un mois moins un jour (14/11) tombe avant J-30 (15/11). */
+test("B1 — fin de contrat : UN MOIS CALENDAIRE puis UN JOUR, et rien d autre", () => {
+  /*
+   * LA SEULE REGLE AUTORISEE, arretee par David le 23 octobre 2026 :
+   * date_fin -> moins 1 mois calendaire -> moins 1 jour -> 08:00 Asia/Jerusalem.
+   *
+   * Une version intermediaire prenait le plus tot entre ce calcul et un J-30, pour
+   * qu un mois court n annonce jamais plus tard qu avant. Elle a ete REFUSEE :
+   * << Je ne veux PAS au plus tot entre 1 mois moins 1 jour et J-30, ni de regle J-30
+   * supplementaire. >> Ce releve existe pour qu elle ne revienne pas.
+   */
+  assert.equal(jourDeclenchementFinContrat("2026-12-20"), "2026-11-19", "l exemple de David");
   assert.equal(jourDeclenchementFinContrat("2026-12-15"), "2026-11-14");
-  assert.equal(joursEntre("2026-11-15", "2026-12-15"), 30, "temoin : J-30 est le 15");
-
-  /* Mars : un mois moins un jour (14/02) tombe APRES J-30 (13/02). J-30 l emporte. */
-  assert.equal(jourDeclenchementFinContrat("2027-03-15"), "2027-02-13");
-  assert.equal(joursEntre("2027-02-13", "2027-03-15"), 30, "temoin : J-30 est le 13");
+  assert.equal(jourDeclenchementFinContrat("2027-03-15"), "2027-02-14",
+    "mars : le calcul de CALENDRIER, pas un J-30 qui donnerait le 13");
 });
 
-test("B2 — la notification ne RECULE jamais par rapport a J-30, sur douze mois", () => {
+test("B2 — AUCUN plancher de trente jours : un mois court donne un preavis plus court", () => {
   /*
-   * LA GARANTIE DEMANDEE PAR DAVID, MESUREE SUR L ANNEE ENTIERE :
-   * << Je ne veux pas accepter le cas ou une fin de contrat en mars serait signalee
-   * plus tard qu avec l ancienne regle J-30. >>
+   * LA CONSEQUENCE ASSUMEE DE LA REGLE STRICTE, et elle est mesuree plutot que subie.
    *
-   * On balaye les douze mois et on verifie l inegalite, plutot que de citer deux ou
-   * trois exemples : un seul mois non couvert suffirait a faire passer le defaut.
+   * << Un mois moins un jour >> ne vaut pas trente jours quand le mois precedent en
+   * compte 28 : une fin le 15 mars se declenche le 14 fevrier, soit J-29. C est ce que
+   * la regle VEUT DIRE, et ce releve l affirme pour qu un futur lecteur ne le prenne
+   * pas pour un defaut et ne reintroduise pas un plancher.
    */
-  for (let mois = 1; mois <= 12; mois++) {
-    for (const jour of ["01", "15", "28"]) {
-      const fin = `2027-${String(mois).padStart(2, "0")}-${jour}`;
-      const declenche = jourDeclenchementFinContrat(fin);
-      assert.ok(declenche, fin);
-      const restants = joursEntre(declenche!, fin);
-      assert.ok(restants !== null && restants >= PREAVIS_FIN_CONTRAT,
-        `${fin} : declenchee a ${declenche}, soit J-${restants} — moins de 30 jours de preavis`);
-    }
-  }
+  assert.equal(joursEntre("2027-02-14", "2027-03-15"), 29,
+    "mars 2027 : le preavis reel est de 29 jours, et c est voulu");
+  assert.equal(joursEntre("2028-02-14", "2028-03-15"), 30,
+    "mars 2028, bissextile : 30 jours, par le seul jeu du calendrier");
+  assert.equal(joursEntre("2026-11-19", "2026-12-20"), 31,
+    "decembre : 31 jours, toujours sans aucun plancher");
+
+  /*
+   * ET LE CORPS DE LA FONCTION NE CONTIENT AUCUN REPLI.
+   *
+   * On lit le corps reel plutot que de compter des occurrences dans tout le fichier :
+   * une mention en commentaire est legitime — l en-tete RACONTE justement pourquoi le
+   * J-30 a ete retire — alors qu un PREAVIS ou un 30 dans le calcul ne l est pas.
+   */
+  const src = readFileSync("src/lib/crmImmoAlertes.ts", "utf8");
+  const debut = src.indexOf("export function jourDeclenchementFinContrat");
+  assert.ok(debut > 0, "jourDeclenchementFinContrat a disparu");
+  const corps = src.slice(debut, src.indexOf("\n}", debut));
+  assert.ok(!/PREAVIS|30|ajouterJours\(fin/.test(corps),
+    "un repli en nombre de jours est revenu commander le declenchement de fin de contrat :\n  "
+    + corps.trim());
+
+  /* Et plus aucun code du depot ne lit la constante : sa declaration est sa seule trace. */
+  assert.equal(src.split("PREAVIS_FIN_CONTRAT").length - 1, 1,
+    "PREAVIS_FIN_CONTRAT est relue quelque part : elle ne doit plus commander rien");
 });
 
 test("B3 — fin de contrat : exactement 1 mois + 1 jour, et exactement le declenchement", () => {
   const fin = "2026-12-10";
   const d = [dossier({ date_fin_contrat: fin, jour_encaissement: null })];
-  /* << 1 mois moins 1 jour >> avant le 10 decembre, c est le 9 novembre — l exemple
-     meme de David. Mais J-30 tombe le 10 novembre, donc le 9 l emporte. */
+  /* << 1 mois moins 1 jour >> avant le 10 decembre : le 9 novembre. */
   assert.equal(jourDeclenchementFinContrat(fin), "2026-11-09");
 
   assert.equal(fins(d, "2026-11-08", 23 * 60 + 59).length, 0, "la veille du declenchement");
@@ -190,7 +210,50 @@ test("C2 — annee bissextile : une fin au 29 fevrier a bien un declenchement", 
 test("C3 — bascule d annee : janvier remonte sur decembre", () => {
   assert.equal(jourDeclenchementFinContrat("2026-01-01"), "2025-11-30",
     "1er janvier : un mois en arriere le 1er decembre, moins un jour le 30 novembre");
-  assert.equal(jourDeclenchementFinContrat("2026-03-01"), "2026-01-30");
+  /* Le 1er mars remonte au 1er fevrier, moins un jour : le 31 JANVIER. L ancienne regle
+     du plus-tot-des-deux donnait le 30 janvier, par son J-30. Elle a ete retiree. */
+  assert.equal(jourDeclenchementFinContrat("2026-03-01"), "2026-01-31");
+});
+
+test("C6 — LOYER ET FIN DE CONTRAT TOMBENT ENSEMBLE quand leurs dates coincident", () => {
+  /*
+   * EXIGENCE DE DAVID, 23 octobre 2026 : << Je veux aussi que cette notification de fin
+   * de contrat tombe en meme temps que la notification du dernier loyer, quand les dates
+   * correspondent. >> Deux notifications DISTINCTES, parce qu elles disent deux choses
+   * differentes, mais au meme instant.
+   *
+   * Ce n est pas une regle de plus a coder, et c est precisement ce que ce releve
+   * verifie : les deux declenchements sont calcules independamment, et ils coincident
+   * d eux-memes des que les dates s y pretent.
+   *
+   *   dernier loyer le 20 novembre  ->  veille : 19 novembre
+   *   fin de contrat le 20 decembre ->  un mois moins un jour : 19 novembre
+   *
+   * Le bail court donc jusqu au 20 decembre avec un loyer au 20 ; son dernier loyer
+   * reellement du tombe le 20 novembre si l echeance de decembre est hors bornes, ou le
+   * 20 decembre sinon. On prend ici le cas ou les DEUX declenchements se rejoignent.
+   */
+  assert.equal(jourDeclenchementLoyer("2026-11-20"), "2026-11-19");
+  assert.equal(jourDeclenchementFinContrat("2026-12-20"), "2026-11-19");
+
+  const d = [dossier({
+    date_entree: "2026-11-01", date_fin_contrat: "2026-12-20", jour_encaissement: 20,
+  })];
+
+  /* La veille au soir : ni l une ni l autre. */
+  assert.equal(alertes(d, "2026-11-18", 23 * 60 + 59).length, 0, "l avant-veille : rien");
+
+  /* 07:59 le 19 : toujours rien, pour les DEUX. */
+  assert.equal(alertes(d, "2026-11-19", 7 * 60 + 59).length, 0, "07:59 : rien encore");
+
+  /* 08:00 le 19 : les DEUX sortent, ensemble. */
+  const a = alertes(d, "2026-11-19", HEURE_DECLENCHEMENT);
+  assert.equal(a.length, 2, "a 08:00, les deux notifications doivent sortir ENSEMBLE");
+  const genres = a.map(x => x.genre).sort();
+  assert.deepEqual(genres, ["fin_contrat", "loyer"],
+    "deux notifications DISTINCTES : le loyer a encaisser, et la fin de contrat");
+  assert.equal(a.find(x => x.genre === "loyer")!.echeance, "2026-11-20");
+  assert.equal(a.find(x => x.genre === "fin_contrat")!.echeance, "2026-12-20");
 });
 
 test("C4 — loyer : la veille d un 1er du mois est le dernier jour du mois precedent", () => {

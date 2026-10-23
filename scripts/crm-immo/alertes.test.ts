@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   journeeDeReference, dernierJourDuMois, jourRabattu, periodeLoyer, lireJour, joursEntre,
-  deriverAlertes, filtrer, compteBadge, PREAVIS_FIN_CONTRAT, HEURE_DECLENCHEMENT,
+  deriverAlertes, filtrer, compteBadge, HEURE_DECLENCHEMENT,
   jourDeclenchementFinContrat,
   libelleAlerte, titreAlerte, detailAlerte, enDateFrancaise,
   type DossierPourAlertes, type EtatConnu, type Alerte, type MomentIsrael,
@@ -197,43 +197,37 @@ test("lireJour refuse les dates impossibles au lieu de les corriger en silence",
 // J-30 — exactement, pas J-31
 // ---------------------------------------------------------------------------
 
-test("fin de contrat : au PLUS TOT des deux calculs, jamais plus tard que J-30", () => {
+test("fin de contrat : UN MOIS CALENDAIRE puis UN JOUR, sans aucun repli en jours", () => {
   /*
    * LA REGLE A CHANGE LE 23 OCTOBRE 2026, ET CE TEST PORTE LE POURQUOI.
    *
-   * Avant : J-30 pile. Maintenant : le plus TOT entre << un mois moins un jour >> et
-   * J-30. Les deux calculs sont necessaires parce que les mois n'ont pas la meme
-   * longueur — pour une fin le 15 mars, un mois en arriere moins un jour tombe le 14
-   * fevrier, alors que J-30 tombe le 13. La regle de calendrier SEULE aurait donc
-   * prevenu un jour plus TARD qu'avant, exactement sur les mois courts.
+   * Avant : J-30 pile. Maintenant : un mois calendaire en arriere, puis un jour. Rien
+   * d'autre — pas de plancher, pas de repli.
    *
-   * Decision de David : << Je ne veux pas accepter le cas ou une fin de contrat en mars
-   * serait signalee plus tard qu'avec l'ancienne regle J-30. >>
+   * Une version intermediaire prenait le plus tot entre ce calcul et un J-30, pour
+   * qu'un mois court n'annonce jamais plus tard qu'avant. David l'a REFUSEE :
+   * << Je ne veux PAS au plus tot entre 1 mois moins 1 jour et J-30, ni de regle J-30
+   * supplementaire. >> Ce releve existe pour qu'elle ne revienne pas.
    */
   const fin = "2026-12-15";
   const d = [dossier({ date_fin_contrat: fin })];
   const a = (aujourdhui: string) => seulement(deriver({ dossiers: d, etats: [], aujourdhui }), "fin_contrat");
 
-  assert.equal(joursEntre("2026-11-15", fin), 30, "le 15 novembre est bien J-30");
-  /* Decembre suit novembre, qui a 30 jours : << un mois moins un jour >> tombe le 14,
-     soit un jour AVANT J-30. C'est donc lui qui l'emporte. */
-  assert.equal(jourDeclenchementFinContrat(fin), "2026-11-14");
+  assert.equal(jourDeclenchementFinContrat(fin), "2026-11-14",
+    "15 decembre moins un mois : le 15 novembre ; moins un jour : le 14");
   assert.equal(a("2026-11-14").length, 1, "le declenchement calcule : l alerte sort");
   assert.equal(a("2026-11-13").length, 0, "la veille du declenchement : rien encore");
-  assert.equal(a("2026-11-15").length, 1, "J-30 reste couvert, forcement");
   assert.equal(a("2026-12-15").length, 1, "le jour meme");
 
   /*
-   * LE CAS QUI A IMPOSE LE << PLUS TOT DES DEUX >> : une fin en mars.
-   * Fevrier etant court, un mois en arriere moins un jour tombe le 14 fevrier, APRES
-   * le J-30 du 13. C'est alors J-30 qui doit l'emporter.
+   * LE CAS D'UN MOIS COURT, et c'est le calendrier qui parle, pas un plancher.
+   * Fevrier n'ayant que 28 jours en 2027, le preavis reel vaut 29 jours — assume.
    */
   const mars = "2027-03-15";
-  assert.equal(joursEntre("2027-02-13", mars), 30, "le 13 fevrier est bien J-30");
-  assert.equal(jourDeclenchementFinContrat(mars), "2027-02-13",
-    "sur un mois court, J-30 l emporte : la notification ne RECULE jamais");
-
-  assert.equal(PREAVIS_FIN_CONTRAT, 30, "le plancher reste 30 jours");
+  assert.equal(jourDeclenchementFinContrat(mars), "2027-02-14",
+    "15 mars moins un mois : le 15 fevrier ; moins un jour : le 14");
+  assert.equal(joursEntre("2027-02-14", mars), 29,
+    "soit J-29 : un mois court donne un preavis plus court, et c'est la regle voulue");
 });
 
 test("fin de contrat : une echeance DEPASSEE reste active jusqu a ce qu on la traite", () => {
