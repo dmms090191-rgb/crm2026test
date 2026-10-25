@@ -3,7 +3,9 @@ import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 import ErrorBoundary from './components/ErrorBoundary';
 import SitePreviewEntry, { prepareSitePreviewRealm } from './pages/public/SitePreviewEntry';
+import TelechargerPage from './pages/public/TelechargerPage';
 import './lib/pwaPromptCapture';
+import { estDesktop } from './lib/runtime';
 import './index.css';
 import './talixy/talixy.css';
 import './talixy/talixyUI.css';
@@ -32,6 +34,17 @@ const IS_PWA = window.matchMedia('(display-mode: standalone)').matches
 // Apercu interne du module Site (iframe). Monte a la place de App : aucune detection de role ;
 // connexion, inscription et ecritures neutralisees dans l'iframe (sitePreviewGuard.ts).
 const IS_SITE_PREVIEW = window.location.pathname === '/site-apercu';
+/*
+ * LE CENTRE DE TELECHARGEMENT PUBLIC. Monte A LA PLACE de App, comme l'apercu de site
+ * juste au-dessus : aucune detection de role, aucune resolution de domaine, aucune fenetre
+ * de connexion. La page est donc accessible sans compte, et la connexion y est
+ * physiquement inatteignable — la landing n'est ni modifiee ni contournee, on ne passe
+ * simplement pas par elle.
+ *
+ * Les deux ecritures sont acceptees parce que l'adresse circulera par ecrit et par
+ * oral : le francais pour les utilisateurs, l'anglais parce que c'est le reflexe.
+ */
+const IS_TELECHARGER = /^\/(telecharger|download)\/?$/.test(window.location.pathname);
 // Une page affichee dans un cadre (iframe) partage la session de l'onglet : elle ne doit jamais l'effacer.
 const IS_EMBEDDED = window.self !== window.top;
 
@@ -48,14 +61,50 @@ if (IS_PWA && !IS_SITE_PREVIEW && !IS_EMBEDDED) {
   } catch { /* storage unavailable */ }
 }
 
-if ('serviceWorker' in navigator) {
+/*
+ * LE SERVICE WORKER EST POUR LE WEB ET LA PWA, PAS POUR L'APPLICATION INSTALLEE.
+ *
+ * Mesure du 25/10/2026 : en Tauri, la fenetre s'ouvrait BLANCHE apres chaque nouvelle
+ * version. La cause n'est pas le service worker en lui-meme, c'est ce qu'il garde en
+ * cache. Il sert un index.html d'une version precedente, lequel cite un chunk de script
+ * dont le nom a change au build suivant ; le navigateur demande un fichier qui n'existe
+ * plus, aucun module ne s'execute, et #root reste vide. Rien ne le signale : ni erreur
+ * visible, ni releve rouge. Le contournement etait de desinscrire le worker a la main
+ * avant chaque lancement.
+ *
+ * Sur le web ce cache a un sens : il fait tenir l'application hors connexion et evite de
+ * retelecharger les memes fichiers. Dans l'application installee il n'en a AUCUN — les
+ * assets sont embarques dans talvex.exe et servis depuis le binaire. Le cache n'y apporte
+ * donc rien, et c'est lui qui casse les mises a jour.
+ *
+ * CE QUE CETTE GARDE NE FAIT PAS. Un profil DEJA pollue ne peut pas se reparer tout seul :
+ * quand le worker a servi un index.html perime, aucun script de l'application ne s'execute,
+ * donc la desinscription ci-dessous n'est pas atteinte. Elle protege les lancements a venir
+ * et nettoie les profils ou la page charge encore ; une installation deja cassee demande un
+ * nettoyage du profil WebView2, une fois.
+ */
+if (estDesktop()) {
+  // Defensif : un worker installe par une version anterieure doit partir, sinon il
+  // reprendrait la main au prochain demarrage. Pas de rechargement ici — si ce code
+  // s'execute, la page est deja saine, et un reload automatique risquerait de boucler.
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations()
+      .then((rs) => Promise.all(rs.map((r) => r.unregister())))
+      .catch(() => { /* rien a desinscrire */ });
+  }
+  if ('caches' in window) {
+    caches.keys()
+      .then((ks) => Promise.all(ks.map((k) => caches.delete(k))))
+      .catch(() => { /* pas de cache accessible */ });
+  }
+} else if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/service-worker.js').catch(() => {});
 }
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>
-      {IS_SITE_PREVIEW ? <SitePreviewEntry /> : <App />}
+      {IS_TELECHARGER ? <TelechargerPage /> : IS_SITE_PREVIEW ? <SitePreviewEntry /> : <App />}
     </ErrorBoundary>
   </StrictMode>
 );

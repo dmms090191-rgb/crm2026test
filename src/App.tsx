@@ -3,6 +3,7 @@ import PwaLoginPage from './components/PwaLoginPage';
 import type { ImpersonatedVendor } from './pages/vendor/VendorDashboard';
 import type { ImpersonatedClientInfo } from './pages/client/ClientDashboard';
 import { supabase } from './lib/supabase';
+import { deconnecterSupabase } from './lib/deconnexion';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { AppLoadingScreen, AppAccessBlocked, AppDomainBlocked } from './app/AppStatusScreens';
 import AppUnauthorizedPage from './app/AppUnauthorizedPage';
@@ -18,6 +19,8 @@ import { SessionTimeoutProvider } from './contexts/SessionTimeoutContext';
 import AppDashboardRouter from './app/AppDashboardRouter';
 import AppShell from './app/AppShell';
 import PwaMobileShell from './app/PwaMobileShell';
+import TalvexDesktopLauncher from './components/TalvexDesktopLauncher';
+import { estDesktop } from './lib/runtime';
 
 const IS_PWA_STANDALONE = window.matchMedia('(display-mode: standalone)').matches
   || (navigator as unknown as Record<string, boolean>).standalone === true;
@@ -88,7 +91,16 @@ function App() {
       setDomainBlocked(false);
       const cid = (meta?.company_id as string) ?? null;
       setUserCompanyId(cid);
-      try { if (cid) localStorage.setItem('crm_company_id', cid); } catch { /* ignore */ }
+      /* On EFFACE quand il n'y a pas de Societe, au lieu de laisser l'ancienne valeur.
+         Sans ce `else`, un utilisateur sans Societe heriterait de celle du compte
+         precedent — et src/lib/vueArriveeAdmin.ts, qui lit cette cle pour decider la vue
+         d'arrivee avant le premier rendu, l'enverrait sur CRM Immo sans aucune raison.
+         Cette cle n'a qu'un lecteur et qu'un ecrivain, donc l'effacer ne touche rien
+         d'autre. */
+      try {
+        if (cid) localStorage.setItem('crm_company_id', cid);
+        else localStorage.removeItem('crm_company_id');
+      } catch { /* ignore */ }
       if (appRole === 'super_admin') {
         setRole('super_admin'); setSaUserId(session.user.id);
         const um = session.user.user_metadata ?? {};
@@ -151,7 +163,9 @@ function App() {
       window.parent.postMessage({ type: 'talvex-phone-logout' }, '*');
       return;
     }
-    try { await supabase.auth.signOut(); } catch { /* ignore signout errors */ }
+    // Portee selon le runtime : locale en desktop, pour ne pas fermer la session du
+    // telephone. Le try/catch est conserve tel quel : seule la portee change.
+    try { await deconnecterSupabase(); } catch { /* ignore signout errors */ }
     try {
       const keys = Object.keys(sessionStorage);
       for (const key of keys) {
@@ -188,7 +202,11 @@ function App() {
   }
 
   if (role) {
-    if ((IS_PWA_STANDALONE || IS_VIRTUAL_PHONE) && !impersonatedAdmin && !impersonatedVendor && !impersonatedClient) {
+    // REGLE PRODUIT : si le runtime est desktop, Talvex ne rend JAMAIS la coquille mobile,
+    // meme si un parametre virtualPhone apparaissait dans l'URL de la fenetre. Un PC n'est
+    // pas un telephone, et la mesure du 25/10/2026 montre que les deux termes ci-dessous
+    // valent deja faux en Tauri : ce !estDesktop() ferme le seul chemin qui restait.
+    if (!estDesktop() && (IS_PWA_STANDALONE || IS_VIRTUAL_PHONE) && !impersonatedAdmin && !impersonatedVendor && !impersonatedClient) {
       const panelRole = role === 'super_admin' ? 'super_admin' as const : role === 'company_super_admin' ? 'company_super_admin' as const : role === 'vendor' ? 'vendor' as const : role === 'client' ? 'client' as const : 'admin' as const;
       return (
         <SessionTimeoutProvider value={sessionCtxValue}>
@@ -213,6 +231,19 @@ function App() {
         {expiryWarning}
       </SessionTimeoutProvider>
     );
+  }
+
+  /* Runtime desktop (Tauri) : portail dedie. Branche volontairement SEPAREE de celle de la
+     PWA ci-dessous, bien que les deux rendent le meme composant aujourd'hui — c'est celle-ci
+     qui recevra le launcher Talvex, et la PWA ne doit pas suivre. Ne jamais fusionner. */
+  if (estDesktop()) {
+    // Le launcher de bureau est un composant A PART, pas PwaLoginPage recolore : decision
+    // de David du 25/10/2026, pour que la PWA mobile ne derive pas vers le logiciel de
+    // bureau par petites touches. Il porte la palette Talixy en propre et n'appelle AUCUN
+    // useTheme — c'est pourquoi il n'a pas besoin de ThemeProvider, contrairement a
+    // PwaLoginPage qui, lui, LEVE sans fournisseur (via RegisterModal -> useThemeTokens).
+    // Un releve interdit qu'un useTheme entre un jour dans sa chaine sans qu'on le voie.
+    return <TalvexDesktopLauncher onLogin={handleLogin} />;
   }
 
   if (IS_PWA_STANDALONE) {

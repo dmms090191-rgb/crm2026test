@@ -1,8 +1,25 @@
 import { supabase } from './supabase';
+import { estDesktop } from './runtime';
 
 export type PushPermissionState = 'granted' | 'denied' | 'default' | 'unsupported';
 
 export function getPushSupport(): { supported: boolean; needsPwa: boolean } {
+  /*
+   * L'application installee n'enregistre aucun service worker (voir src/main.tsx), et les
+   * notifications web en exigent un. Il faut le declarer ICI, et pas seulement refuser
+   * l'enregistrement plus bas : sans worker, navigator.serviceWorker.ready est une
+   * promesse qui NE SE RESOUT JAMAIS. Les DEUX fonctions qui l'attendent — unsubscribeFromPush
+   * et getActiveSubscription, cette derniere etant appelee par usePushNotifications des le
+   * montage — resteraient donc pendantes, et l'etat d'abonnement ne serait jamais connu.
+   * subscribeToPush, lui, se protege deja : registerServiceWorker rend null et il repond
+   * sw_unavailable. Mieux vaut annoncer franchement que ce n'est pas disponible.
+   *
+   * Consequence a assumer : pas de notifications poussees dans l'application Windows tant
+   * qu'elles ne passent pas par les notifications natives de Tauri. Le web et la PWA, eux,
+   * ne changent pas d'un octet.
+   */
+  if (estDesktop()) return { supported: false, needsPwa: false };
+
   const hasSW = 'serviceWorker' in navigator;
   const hasPush = 'PushManager' in window;
   const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent);
@@ -39,6 +56,10 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
 }
 
 export async function registerServiceWorker(): Promise<ServiceWorkerRegistration | null> {
+  // Ceinture et bretelles : getPushSupport ci-dessus empeche deja l'appel par le hook,
+  // mais cette fonction est exportee et un futur appelant ne passerait pas forcement par
+  // lui. C'est le dernier point ou l'enregistrement peut encore etre arrete.
+  if (estDesktop()) return null;
   if (!('serviceWorker' in navigator)) return null;
   try {
     return await navigator.serviceWorker.register('/service-worker.js');

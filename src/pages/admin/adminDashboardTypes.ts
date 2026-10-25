@@ -26,6 +26,7 @@ export interface AdminDashboardProps {
 
 export type ActiveView =
   | 'vue-ensemble'
+  | 'telecharger'
   | 'site'
   | 'logo'
   | 'info-admin'

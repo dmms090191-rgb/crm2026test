@@ -34,3 +34,12 @@ test-results/
 playwright-report/
 tsconfig.*.tsbuildinfo
 vite.config.ts.timestamp-*.mjs
+
+# Application de bureau (Tauri) : artefacts de compilation Rust et fichiers generes.
+src-tauri/target/
+src-tauri/gen/
+
+# Clefs de signature : CE DEPOT EST PUBLIC, elles ne doivent JAMAIS y entrer.
+*.key
+*.pfx
+*.p12

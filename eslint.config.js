@@ -5,7 +5,10 @@ import reactRefresh from 'eslint-plugin-react-refresh';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['dist'] },
+  // src-tauri/target et src-tauri/gen sont des artefacts de compilation Rust : les
+  // parcourir n'ajouterait aucun probleme (la regle ne cible que **/*.{ts,tsx}) mais
+  // allongerait inutilement chaque passage du lint.
+  { ignores: ['dist', 'src-tauri/target', 'src-tauri/gen'] },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ['**/*.{ts,tsx}'],

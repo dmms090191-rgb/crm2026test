@@ -1,0 +1,41 @@
+{
+  "_lisez_moi": [
+    "LA SOURCE DE VERITE DES TELECHARGEMENTS TALVEX.",
+    "",
+    "Une plateforme n'a un bouton ACTIF que si son entree porte statut='disponible' AVEC",
+    "url, version et sha256 non vides. Tout le reste - champ oublie, statut mal",
+    "orthographie, fichier absent - donne 'Bientot disponible'. L'etat par defaut est",
+    "inactif : il faut une declaration complete pour en sortir, jamais l'inverse.",
+    "",
+    "LA SOMME DE CONTROLE EST OBLIGATOIRE. La page ne la verifie pas : elle est la pour",
+    "qu'on ne puisse pas declarer un telechargement sans avoir tenu le fichier reel.",
+    "On l'obtient par : Get-FileHash <fichier> -Algorithm SHA256",
+    "",
+    "POURQUOI CE FICHIER EST DANS LE DEPOT. Parce qu'ainsi 'la page annonce la version X'",
+    "et 'la version X existe' arrivent dans le MEME commit, relisibles dans un diff. Le",
+    "binaire, lui, vit sur une Release GitHub : 36 Mo par version dans l'historique git",
+    "seraient definitifs, et chaque clone les telechargerait."
+  ],
+
+  "windows": {
+    "statut": "bientot",
+    "_note": "Installateur NSIS construit et teste le 25/10/2026 (Talvex_0.1.0_x64-setup.exe, 37389337 o, SHA-256 81C21B18FE6BBA8B29335F0416B4F2E6981CC2F5471142F5DBA0739B0F0F8137). Passe a 'disponible' AVEC url, version et sha256 une fois la Release publiee ET le telechargement verifie depuis une machine qui n'a pas compile."
+  },
+
+  "macos": {
+    "statut": "bientot",
+    "_note": "Impossible a produire depuis Windows : un build macOS exige un hote Apple, un Developer ID et la notarisation."
+  },
+
+  "android": {
+    "statut": "bientot",
+    "magasin": "Google Play",
+    "_note": "Aucun projet natif dans le depot. Le mobile Talvex d'aujourd'hui est la PWA, installable depuis le navigateur."
+  },
+
+  "ios": {
+    "statut": "bientot",
+    "magasin": "App Store",
+    "_note": "Aucun projet natif dans le depot. Le mobile Talvex d'aujourd'hui est la PWA, installable depuis le navigateur."
+  }
+}

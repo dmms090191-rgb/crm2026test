@@ -3,7 +3,7 @@ import {
   LayoutDashboard, Info, UserPlus, Upload, Users, Database, UserCheck, List,
   MessageCircle, MessageSquare, Shield, Calendar, CalendarRange, CalendarCheck,
   Settings, Globe, Brain, Image as ImageIcon, GraduationCap, Smartphone, Sparkles, CopySlash, Store,
-  Briefcase, Building2, History,
+  Briefcase, Building2, History, Download,
 } from 'lucide-react';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
 import { peutOuvrirCrmImmo, accesResolu, type EtatAcces } from '../../lib/crmImmoAccess';
@@ -68,6 +68,11 @@ const LAYOUT_SECTIONS: LayoutDefaultSection[] = [
     { id: 'logo', label: 'Logo', hidden: true },
     { id: 'calquer-logo', label: 'Calquer logo', hidden: true },
     { id: 'application', label: 'Application', hidden: true },
+    /* Centre de telechargement. VISIBLE par defaut, pour tous les panneaux Admin : le
+       logiciel de bureau s'adresse a tout le monde. Talvex Administrateur peut toujours
+       le masquer societe par societe, par le mecanisme habituel. Il ne remplace pas
+       « Application », qui configure la PWA d'une societe et fait autre chose. */
+    { id: 'telecharger', label: 'Télécharger' },
   ] },
   { title: 'Gestion des leads', items: [
     { id: 'inscription', label: 'Inscriptions leads' },
@@ -111,6 +116,7 @@ const ICONS: Record<string, React.ReactNode> = {
   'logo': <ImageIcon className="w-4 h-4" />,
   'calquer-logo': <CopySlash className="w-4 h-4" />,
   'application': <Smartphone className="w-4 h-4" />,
+  'telecharger': <Download className="w-4 h-4" />,
   'info-admin': <Info className="w-4 h-4" />,
   'inscription': <UserPlus className="w-4 h-4" />,
   'import-leads': <Upload className="w-4 h-4" />,

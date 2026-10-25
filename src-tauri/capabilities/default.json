@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Socle minimal. Talvex n'appelle AUCUNE API Tauri a ce stade : aucune permission n'est accordee au-dela du necessaire pour afficher la fenetre. Toute capacite native (coffre, notifications, fichiers) devra etre ajoutee ici explicitement, et justifiee.",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}

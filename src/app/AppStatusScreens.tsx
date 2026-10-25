@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Box, ShieldAlert } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { deconnecterSupabase } from '../lib/deconnexion';
 
 function isHighLevelTheme(): boolean {
   const attr = document.documentElement.getAttribute('data-theme');
@@ -51,7 +51,7 @@ export function AppAccessBlocked({ onClear }: { onClear: () => void }) {
           </p>
         </div>
         <button
-          onClick={async () => { await supabase.auth.signOut(); onClear(); }}
+          onClick={async () => { await deconnecterSupabase(); onClear(); }}
           className="px-6 py-2.5 text-sm font-medium rounded-xl transition-colors"
           style={{
             background: hl ? '#e2e8f0' : '#334155',
@@ -85,7 +85,7 @@ export function AppDomainBlocked({ onClear }: { onClear: () => void }) {
           </p>
         </div>
         <button
-          onClick={async () => { await supabase.auth.signOut(); onClear(); }}
+          onClick={async () => { await deconnecterSupabase(); onClear(); }}
           className="px-6 py-2.5 text-sm font-medium rounded-xl transition-colors"
           style={{ background: '#334155', color: '#ffffff' }}
         >

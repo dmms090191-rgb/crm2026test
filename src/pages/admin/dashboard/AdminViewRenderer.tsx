@@ -14,6 +14,7 @@ import {
   Boutiques, Cabinets,
 } from './adminLazyViews';
 import CrmImmoGate from './CrmImmoGate';
+import AdminTelechargerView from '../views/AdminTelechargerView';
 import type { EtatAcces } from '../../../lib/crmImmoAccess';
 import type { ImmoPourDashboard } from '../views/VueEnsemble';
 import type { CategorieImmo } from '../../../lib/crmImmoEcheancier';
@@ -155,6 +156,10 @@ export default function AdminViewRenderer({
           case 'sauvegarde': return <Suspense fallback={lazyFallback}><SauvegardeRestauration /></Suspense>;
           case 'cerveau-ia': return <Suspense fallback={lazyFallback}><AdminCerveauIA /></Suspense>;
           case 'application': return <Suspense fallback={lazyFallback}><AdminApplicationPage /></Suspense>;
+          /* Centre de telechargement. Le MEME composant que la page publique /telecharger :
+             une seule source pour la liste des versions, donc aucune divergence possible entre
+             ce que voit un visiteur et ce que voit une Societe connectee. */
+          case 'telecharger': return <AdminTelechargerView />;
           case 'editeur-ia': return <Suspense fallback={lazyFallback}><EditeurIA /></Suspense>;
           case 'calquer-logo': return <Suspense fallback={lazyFallback}><AdminCalquerLogo /></Suspense>;
           case 'mes-logos-ra': return <Suspense fallback={lazyFallback}><AdminMesLogosRA /></Suspense>;

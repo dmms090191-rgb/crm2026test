@@ -3,7 +3,7 @@ import type { ImpersonatedCompanySuperAdmin, ImpersonatedAdmin } from '../../App
 import { ThemeProvider, useTheme } from '../../contexts/ThemeContext';
 import { TimezoneProvider } from '../../contexts/TimezoneContext';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
-import { supabase } from '../../lib/supabase';
+import { deconnecterSupabase } from '../../lib/deconnexion';
 import { EditorModeProvider, useEditorMode, resolveZoneEffective } from '../../contexts/EditorModeContext';
 import EditorSaveThemeModal from '../../components/editor/EditorSaveThemeModal';
 import { useEditorSessionPersistence } from '../superadmin/useEditorSessionPersistence';
@@ -207,7 +207,7 @@ function CSADashboardInner({ impersonated, onBack, isImpersonation = true, onCon
   } = useCsaNotifications(impersonated.id, impersonated.company_id, setActiveView);
 
   const handleLogout = useCallback(async () => {
-    await supabase.auth.signOut();
+    await deconnecterSupabase();
     window.location.reload();
   }, []);
 

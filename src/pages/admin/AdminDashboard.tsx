@@ -6,6 +6,7 @@ import type { Vendor } from './views/ListeVendeurs';
 import { SimulationProvider } from '../../contexts/SimulationContext';
 import { SimulationBanner } from './views/sauvegarde/SimulationBanner';
 import type { AdminDashboardProps, ActiveView } from './adminDashboardTypes';
+import { vueArriveeAdmin, societeMemorisee, VUE_ARRIVEE_CRM_IMMO_COMPANY_ID } from '../../lib/vueArriveeAdmin';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useCompanyId } from '../../hooks/useCompanyId';
@@ -190,7 +191,63 @@ function AdminDashboardInner({ onLogout, onConnectAsVendor, onConnectAsClient, i
   const { notifications: agendaNotifs, count: agendaPersoCount, markAsSeen: markAgendaSeen } = useAgendaNotifications('admin', adminAuthId, persistanceAgenda);
   const { notifications: agendaEquipeNotifs, count: agendaEquipeCount, markAsSeen: markAgendaEquipeSeen } = useAgendaEquipeNotifications(adminAuthId, persistanceAgenda);
   const { unreadCount: unreadSuperAdminCount, entries: superAdminEntries, markAsRead: markSuperAdminRead } = useUnreadFromSuperAdmin(effectiveAdminId);
-  const [activeView, setActiveView] = useState<ActiveView>('vue-ensemble');
+  /*
+   * La vue de depart est DECIDEE, pas corrigee. Une premiere version basculait dans
+   * l'effet ci-dessous : elle marchait, mais David voyait le Dashboard apparaitre une
+   * fraction de seconde avant la bascule. On tranche donc des le premier rendu, a partir
+   * de la Societe que App.tsx a deja ecrite dans le stockage (voir src/lib/vueArriveeAdmin.ts).
+   *
+   * Partir sur 'crm-immo' n'OUVRE PAS le module pour autant : CrmImmoGate n'evalue son
+   * lazy() que sur un droit 'accorde', affiche un spinner tant qu'il vaut 'inconnu', et
+   * explique sur 'refuse'. Le droit reste donc seul maitre de l'ouverture.
+   */
+  const [activeView, setActiveView] = useState<ActiveView>(() =>
+    vueArriveeAdmin(societeMemorisee(), isSAViewing === true),
+  );
+  /*
+   * ---------- LA VUE D'ARRIVEE DE BELLISIMMO ----------
+   *
+   * Demande de David du 25/10/2026 : les utilisateurs de cette Societe arrivent sur
+   * CRM Immo, pas sur la vue d'ensemble. Toutes les autres Societes sont inchangees.
+   *
+   * POURQUOI PAS DANS LE useState CI-DESSUS, qui serait pourtant plus court. Au montage,
+   * le droit d'ouvrir CRM Immo vaut 'inconnu' : il n'est NI accorde NI refuse, l'appel est
+   * encore en vol (voir src/lib/crmImmoAccess.ts). Partir sur 'crm-immo' des le premier
+   * rendu monterait donc le module AVANT de savoir s'il est autorise. On attend que
+   * l'etat soit resolu, et seul 'accorde' ouvre.
+   *
+   * POURQUOI isSAViewing PLUTOT QUE LE ROLE D'ORIGINE. Le commentaire de la ligne 160
+   * reproche a ce signal d'etre trop large : il vaut pour N'IMPORTE QUELLE Visu, Groupe
+   * compris. C'est un defaut la-bas, c'est exactement ce qu'il faut ici — David a demande
+   * que ni le Super Admin ni le Groupe ne soient deplaces. Tester le seul super_admin
+   * aurait laisse passer la Visu d'un Groupe.
+   *
+   * POURQUOI UN DRAPEAU. Sans lui, l'effet se rejouerait a chaque changement de ses
+   * dependances et ramenerait l'utilisateur sur CRM Immo pendant qu'il navigue ailleurs.
+   * C'est la difference entre une vue d'ARRIVEE et une redirection permanente, que David
+   * a explicitement exclue. Le garde sur activeView dit la meme chose autrement : si la
+   * vue n'est plus celle du depart, c'est que l'utilisateur a deja choisi, on le laisse.
+   *
+   * CET EFFET EST UN RATTRAPAGE, plus le mecanisme principal. La vue de depart est
+   * desormais decidee au premier rendu ci-dessus. Il ne sert que si le stockage n'a rien
+   * rendu — navigation privee, quota, magasin verrouille — auquel cas companyId finit par
+   * arriver par le contexte et la bascule se fait, avec le clignotement mais sans rien
+   * casser. Le retirer rendrait ces cas silencieusement inoperants.
+   *
+   * POUR GENERALISER UN JOUR : remplacer la constante de src/lib/vueArriveeAdmin.ts par une
+   * colonne de vue initiale sur companies. L'identifiant est en dur parce qu'une seule
+   * Societe est concernee et que David a demande de ne pas toucher a la base.
+   */
+  const [arriveeInitialeAppliquee, setArriveeInitialeAppliquee] = useState(false);
+  useEffect(() => {
+    if (arriveeInitialeAppliquee) return;
+    if (isSAViewing) return;
+    if (companyId !== VUE_ARRIVEE_CRM_IMMO_COMPANY_ID) return;
+    if (!crmImmoOuvert) return;
+    if (activeView !== 'vue-ensemble') return;
+    setActiveView('crm-immo');
+    setArriveeInitialeAppliquee(true);
+  }, [arriveeInitialeAppliquee, isSAViewing, companyId, crmImmoOuvert, activeView]);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [chatLead, setChatLead] = useState<ChatLead | null>(null);

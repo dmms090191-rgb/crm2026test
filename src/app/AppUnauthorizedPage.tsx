@@ -1,5 +1,5 @@
 import { ShieldAlert, LogOut } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { deconnecterSupabase } from '../lib/deconnexion';
 
 interface Props {
   onClear: () => void;
@@ -25,7 +25,7 @@ export default function AppUnauthorizedPage({ onClear }: Props) {
           </p>
         </div>
         <button
-          onClick={async () => { await supabase.auth.signOut(); onClear(); }}
+          onClick={async () => { await deconnecterSupabase(); onClear(); }}
           className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-medium rounded-xl transition-colors"
           style={{ background: '#334155', color: '#ffffff' }}
         >
