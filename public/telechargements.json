@@ -18,8 +18,13 @@
   ],
 
   "windows": {
-    "statut": "bientot",
-    "_note": "Installateur NSIS construit et teste le 25/10/2026 (Talvex_0.1.0_x64-setup.exe, 37389337 o, SHA-256 81C21B18FE6BBA8B29335F0416B4F2E6981CC2F5471142F5DBA0739B0F0F8137). Passe a 'disponible' AVEC url, version et sha256 une fois la Release publiee ET le telechargement verifie depuis une machine qui n'a pas compile."
+    "statut": "disponible",
+    "version": "0.1.0",
+    "url": "https://github.com/dmms090191-rgb/crm2026test/releases/download/v0.1.0/Talvex_0.1.0_x64-setup.exe",
+    "taille": 37389337,
+    "sha256": "81C21B18FE6BBA8B29335F0416B4F2E6981CC2F5471142F5DBA0739B0F0F8137",
+    "publie_le": "2026-10-25",
+    "_note": "Installateur NSIS, installation par utilisateur sans droits administrateur. Passe a 'disponible' seulement APRES verification : le fichier a ete retelecharge depuis cette URL publique et son empreinte comparee a celle du fichier bati - identique. Non signe : SmartScreen avertira au premier lancement."
   },
 
   "macos": {
