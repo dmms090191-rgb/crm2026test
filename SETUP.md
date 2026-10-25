@@ -142,7 +142,7 @@ Accepts a POST request with:
 ```json
 {
   "auth_user_id": "uuid-of-the-user",
-  "password": "123456"
+  "password": "<code retire>"
 }
 ```
 

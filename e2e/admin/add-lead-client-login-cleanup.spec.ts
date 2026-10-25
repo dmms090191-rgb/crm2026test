@@ -1,15 +1,37 @@
 import { test, expect } from '@playwright/test';
 import { connectAdmin, connectSuperAdmin, loginWith } from '../helpers/auth';
+import { pinAleatoire } from '../helpers/pinAleatoire';
+
+/*
+ * LES IDENTIFIANTS VIENNENT DE L ENVIRONNEMENT, SANS REPLI DANS LE DEPOT.
+ *
+ * Ce fichier portait l adresse et le PIN d un compte CLIENT que le test cree reellement, plus
+ * l adresse du compte Admin servant a le retrouver dans la liste. Le depot GitHub etant
+ * PUBLIC, tout cela etait lisible. Le PIN est desormais tire au sort a chaque execution : le
+ * compte client existe le temps du test, il n a aucune raison de naitre avec un mot de passe
+ * connu de tous.
+ */
+const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL || '';
 
 const TEST_LEAD = {
   prenom: 'test',
   nom: 'leads',
-  email: 'testleads@gmail.com',
+  email: process.env.E2E_LEAD_EMAIL || '',
   telephone: '0606060606',
-  pin: '000000',
+  pin: pinAleatoire(),
 };
 
 test.describe('Ajouter lead, connexion client, suppression', () => {
+  test.beforeEach(() => {
+    // Ce test CREE un vrai compte client avec l'adresse fournie. Sans elle, il ne peut pas
+    // tourner — et il doit le dire plutot que d'echouer sur un champ vide, ce qui ferait
+    // chercher un bogue du produit.
+    test.skip(
+      !TEST_LEAD.email || !ADMIN_EMAIL,
+      'E2E_LEAD_EMAIL / E2E_ADMIN_EMAIL absents de l\'environnement : les adresses ne sont pas dans le depot',
+    );
+  });
+
   test('parcours complet : ajout lead, login client, cleanup via SA', async ({ page }) => {
     // ── 1. Connexion Admin ──
     await connectAdmin(page);
@@ -69,9 +91,9 @@ test.describe('Ajouter lead, connexion client, suppression', () => {
     await page.getByText('Liste admins').click();
     await expect(page.getByText('admin').first()).toBeVisible({ timeout: 10_000 });
 
-    // Trouver la ligne de l'admin dmms090191@gmail.com et cliquer Connecter
+    // Trouver la ligne de l'admin et cliquer Connecter
     const adminRow = page.locator('[data-testid="admin-row"]').filter({
-      has: page.getByText('dmms090191@gmail.com'),
+      has: page.getByText(ADMIN_EMAIL),
     });
     await adminRow.getByRole('button', { name: 'Connecter' }).click();
 

@@ -1176,9 +1176,9 @@ retourne les leads correspondants **de toutes les sociétés**, en contournant l
 ### 🟠 S11 — Identifiants de test par défaut dans le dépôt
 
 `e2e/helpers/auth.ts` : adresses e-mail réelles (dont celle du propriétaire du projet et
-`contact@talvex.fr`) associées au PIN de repli `'000000'` pour les 4 rôles.
+`<adresse retiree>`) associées au PIN de repli `'<code retire>'` pour les 4 rôles.
 Si ces comptes existent réellement avec ce PIN, ils constituent une porte d'entrée directe.
-`e2e/helpers/createTestAdmin.ts` utilise `'123456'`.
+`e2e/helpers/createTestAdmin.ts` utilise `'<code retire>'`.
 
 ### 🟡 S12 — `get-user-pin` expose le mot de passe par conception
 

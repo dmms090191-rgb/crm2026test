@@ -1,3 +1,4 @@
+import { pinAleatoire } from './pinAleatoire';
 import { type Page, expect } from '@playwright/test';
 
 export interface TestAdminData {
@@ -21,7 +22,7 @@ export async function createTestAdmin(page: Page): Promise<TestAdminData> {
     lastName: 'Dupont',
     company: '[TEST] Societe Auto',
     email: `test.admin.auto+${timestamp}@gmail.com`,
-    pin: '123456',
+    pin: pinAleatoire(),
     phone: '0606060606',
   };
 

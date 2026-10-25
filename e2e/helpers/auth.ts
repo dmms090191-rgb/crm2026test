@@ -1,17 +1,17 @@
-import { type Page, expect } from '@playwright/test';
+import { type Page, expect, test } from '@playwright/test';
 import { TEST_IDS } from './testIds';
 
-const SUPER_ADMIN_EMAIL = process.env.E2E_SUPER_ADMIN_EMAIL || 'contact@talvex.fr';
-const SUPER_ADMIN_PIN = process.env.E2E_SUPER_ADMIN_PIN || '000000';
+const SUPER_ADMIN_EMAIL = process.env.E2E_SUPER_ADMIN_EMAIL || '';
+const SUPER_ADMIN_PIN = process.env.E2E_SUPER_ADMIN_PIN || '';
 
-const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL || 'dmms090191@gmail.com';
-const ADMIN_PIN = process.env.E2E_ADMIN_PIN || '000000';
+const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL || '';
+const ADMIN_PIN = process.env.E2E_ADMIN_PIN || '';
 
-const CLIENT_EMAIL = process.env.E2E_CLIENT_EMAIL || 'client@gmail.com';
-const CLIENT_PIN = process.env.E2E_CLIENT_PIN || '000000';
+const CLIENT_EMAIL = process.env.E2E_CLIENT_EMAIL || '';
+const CLIENT_PIN = process.env.E2E_CLIENT_PIN || '';
 
-const VENDOR_EMAIL = process.env.E2E_VENDOR_EMAIL || 'm.a@gmail.com';
-const VENDOR_PIN = process.env.E2E_VENDOR_PIN || '000000';
+const VENDOR_EMAIL = process.env.E2E_VENDOR_EMAIL || '';
+const VENDOR_PIN = process.env.E2E_VENDOR_PIN || '';
 
 export async function loginWith(page: Page, email: string, pin: string) {
   if (pin.length !== 6 || !/^\d{6}$/.test(pin)) {
@@ -65,9 +65,40 @@ export async function loginWith(page: Page, email: string, pin: string) {
 }
 
 /**
+ * LES IDENTIFIANTS N'ONT PLUS DE REPLI DANS LE DEPOT, ET C'EST LE POINT DE CE FICHIER.
+ *
+ * Jusqu'au 25/10/2026, les quatre couples adresse + PIN etaient ecrits ici comme valeurs de
+ * repli de process.env. Ce sont des comptes REELS — le Super Admin, un Admin, un Client, un
+ * Vendeur — et une seule et meme valeur de PIN ouvrait les quatre roles. Le depot GitHub
+ * etant PUBLIC, ces mots de passe etaient lisibles par tout le monde depuis le 19 mai 2026.
+ *
+ * Changer le code ne suffit pas a reparer cela : les anciennes valeurs restent lisibles dans
+ * l'historique des commits. Ce fichier referme la porte pour l'avenir ; la REVOCATION (changer
+ * le PIN des comptes) est la seule mesure qui ferme celle du passe.
+ *
+ * La regle appliquee ici existait deja dans ce depot, chez les tests plus recents :
+ * e2e/crm-immo.spec.ts lit E2E_IMMO_EMAIL / E2E_IMMO_PIN sans repli et saute le test quand ils
+ * manquent, avec ce commentaire — « Le PIN de l'administratrice de la Societe equipee lui
+ * appartient. Il n'a rien a faire dans un depot public. » C'est le meme principe, etendu aux
+ * quatre roles.
+ *
+ * Pour lancer ces tests, poser les variables dans l'environnement du shell, jamais dans un
+ * fichier suivi par git.
+ */
+function exigeIdentifiants(email: string, pin: string, variables: string) {
+  // On SAUTE, on n'echoue pas : sans les variables, l'absence d'identifiants n'est pas un
+  // defaut du produit, et un echec ici ferait chercher un bogue qui n'existe pas.
+  test.skip(
+    !email || !pin,
+    `${variables} absents de l'environnement : les identifiants ne sont pas dans le depot`,
+  );
+}
+
+/**
  * Connecte le Super Admin au CRM depuis la page d'accueil.
  */
 export async function connectSuperAdmin(page: Page) {
+  exigeIdentifiants(SUPER_ADMIN_EMAIL, SUPER_ADMIN_PIN, 'E2E_SUPER_ADMIN_EMAIL / E2E_SUPER_ADMIN_PIN');
   await loginWith(page, SUPER_ADMIN_EMAIL, SUPER_ADMIN_PIN);
 }
 
@@ -75,6 +106,7 @@ export async function connectSuperAdmin(page: Page) {
  * Connecte un Admin au CRM depuis la page d'accueil.
  */
 export async function connectAdmin(page: Page) {
+  exigeIdentifiants(ADMIN_EMAIL, ADMIN_PIN, 'E2E_ADMIN_EMAIL / E2E_ADMIN_PIN');
   await loginWith(page, ADMIN_EMAIL, ADMIN_PIN);
 }
 
@@ -82,6 +114,7 @@ export async function connectAdmin(page: Page) {
  * Connecte un Client au CRM depuis la page d'accueil.
  */
 export async function connectClient(page: Page) {
+  exigeIdentifiants(CLIENT_EMAIL, CLIENT_PIN, 'E2E_CLIENT_EMAIL / E2E_CLIENT_PIN');
   await loginWith(page, CLIENT_EMAIL, CLIENT_PIN);
 }
 
@@ -89,5 +122,6 @@ export async function connectClient(page: Page) {
  * Connecte un Vendeur au CRM depuis la page d'accueil.
  */
 export async function connectVendor(page: Page) {
+  exigeIdentifiants(VENDOR_EMAIL, VENDOR_PIN, 'E2E_VENDOR_EMAIL / E2E_VENDOR_PIN');
   await loginWith(page, VENDOR_EMAIL, VENDOR_PIN);
 }

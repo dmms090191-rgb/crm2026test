@@ -40,6 +40,33 @@ src-tauri/target/
 src-tauri/gen/
 
 # Clefs de signature : CE DEPOT EST PUBLIC, elles ne doivent JAMAIS y entrer.
+# Un .p12 ou un .pfx porte la CLE PRIVEE d un certificat : publie, il permettrait a un tiers
+# de signer une application au nom de Talvex.
 *.key
 *.pfx
 *.p12
+
+# Android : un keystore ou un key.properties dans un depot PUBLIC donnerait a
+# n importe qui le droit de signer une mise a jour de Talvex. Jamais ici.
+*.jks
+*.keystore
+key.properties
+android/key.properties
+android/local.properties
+
+# iOS : profils de provisionnement, certificats et demandes de signature. Ils identifient
+# le compte developpeur ; la cle privee, elle, est couverte par *.p12 plus haut.
+# La cle d API App Store Connect est un .p8 : elle permet de televerser et de gerer
+# les applications du compte. Elle ne se retelecharge pas, et le depot est PUBLIC.
+*.p8
+AuthKey_*.p8
+*.mobileprovision
+*.cer
+*.certSigningRequest
+ios/App/ExportOptions.plist
+
+# Le SDK telecharge et les sorties Gradle : lourds et reconstructibles.
+android/.gradle/
+android/build/
+android/app/build/
+android/capacitor-cordova-android-plugins/build/

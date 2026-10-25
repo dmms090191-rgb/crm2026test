@@ -1,9 +1,27 @@
+/*
+ * LES IDENTIFIANTS DE CE TEST SONT LUS DANS L ENVIRONNEMENT, SANS REPLI.
+ *
+ * Ce fichier portait l adresse et le PIN REELS d un compte Admin, en clair. Le test modifie
+ * le PIN du compte puis le RESTAURE a cette valeur et se reconnecte avec : la valeur ecrite
+ * ici etait donc, par construction, le mot de passe courant du compte. Le depot GitHub etant
+ * PUBLIC, il etait lisible par tout le monde depuis le 19 mai 2026. Quatre commentaires le
+ * recopiaient en plus du code.
+ *
+ * Le PIN TEMPORAIRE est desormais tire au sort a chaque execution : il etait lui aussi ecrit
+ * en clair, si bien que le compte portait un mot de passe publie pendant toute la duree du
+ * test.
+ *
+ * Changer ce fichier ne repare pas le passe : les anciennes valeurs restent lisibles dans
+ * l historique des commits. Seule la REVOCATION — changer le PIN du compte — ferme cette
+ * porte-la.
+ */
 import { test, expect } from '@playwright/test';
 import { connectAdmin, loginWith } from '../helpers/auth';
+import { pinAleatoireDifferentDe } from '../helpers/pinAleatoire';
 
-const EMAIL = 'dmms090191@gmail.com';
-const DEFAULT_PIN = '000000';
-const TEMP_PIN = '111111';
+const EMAIL = process.env.E2E_ADMIN_EMAIL || '';
+const DEFAULT_PIN = process.env.E2E_ADMIN_PIN || '';
+const TEMP_PIN = pinAleatoireDifferentDe(DEFAULT_PIN);
 const DEFAULT_FIRST_NAME = 'David';
 const DEFAULT_LAST_NAME = 'Schemmama';
 const TEMP_FIRST_NAME = 'Eric';
@@ -87,13 +105,13 @@ test.describe('Info Admin', () => {
     // 6. Verifier topbar
     await verifyTopBarName(page, TEMP_FIRST_NAME, TEMP_LAST_NAME);
 
-    // 7-8. Modifier PIN a 111111
+    // 7-8. Basculer le compte sur le PIN temporaire
     await saveCredentialsWithoutChangingEmail(page, TEMP_PIN);
 
     // 9. Deconnexion
     await logout(page);
 
-    // 10-11. Reconnexion avec PIN 111111
+    // 10-11. Reconnexion avec le PIN temporaire
     await loginWith(page, EMAIL, TEMP_PIN);
     await verifyDashboard(page);
 
@@ -106,13 +124,13 @@ test.describe('Info Admin', () => {
     // 15. Verifier topbar
     await verifyTopBarName(page, DEFAULT_FIRST_NAME, DEFAULT_LAST_NAME);
 
-    // 16-17. Restaurer PIN a 000000
+    // 16-17. Restaurer le PIN d origine
     await saveCredentialsWithoutChangingEmail(page, DEFAULT_PIN);
 
     // 18. Deconnexion
     await logout(page);
 
-    // 19-20. Reconnexion finale avec PIN 000000
+    // 19-20. Reconnexion finale avec le PIN d origine
     await loginWith(page, EMAIL, DEFAULT_PIN);
     await verifyDashboard(page);
 
