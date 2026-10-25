@@ -321,10 +321,36 @@ test("G1 Android est ouvert au public, et son entree est COMPLETE", () => {
    * statut 'disponible' sans url ni empreinte serait un bouton vers rien.
    */
   const m = JSON.parse(readFileSync("public/telechargements.json", "utf8"));
-  assert.equal(estTelechargeable(m.android), true, "le bouton Android est eteint");
+
+  // L'entree reste COMPLETE en permanence : c'est elle qui permet d'activer d'un mot.
   assert.ok(m.android.url.endsWith(".apk"), "l'url Android ne pointe plus vers un APK");
-  assert.equal(m.android.version, "0.1.0");
-  assert.ok(m.android.publie_le, "la date de publication n'est plus renseignee");
+  assert.match(m.android.sha256, /^[0-9A-F]{64}$/, "l'empreinte Android n'a pas la forme d'un SHA-256");
+  assert.ok(m.android.taille > 1_000_000, "la taille declaree ne ressemble pas a celle d'un APK");
+
+  // La version n'est PAS figee : elle suit celle du produit. Un numero en dur se perimerait
+  // a la premiere montee de version, et ce releve rougirait pour rien.
+  const produit = JSON.parse(readFileSync("src-tauri/tauri.conf.json", "utf8")).version;
+  assert.equal(m.android.version, produit, "la version annoncee ne suit plus celle du produit");
+  assert.ok(m.android.url.includes(`/v${produit}/`), "l'url ne pointe pas vers la version annoncee");
+
+  /*
+   * LE STATUT, LUI, N'EST PAS FIGE NON PLUS — et c'est une lecon du 25/10/2026.
+   *
+   * La premiere version de ce releve exigeait statut === 'disponible'. Il a rougi des la
+   * premiere REPUBLICATION : corriger un defaut bloquant oblige a eteindre le bouton le
+   * temps que le nouveau binaire soit en ligne, sinon il pointerait vers un 404. Un releve
+   * qui interdit cette fenetre interdit de corriger.
+   *
+   * Ce qui compte n'est donc pas « Android est allume », mais « le manifeste ne ment pas » :
+   * si l'entree est declaree disponible, elle doit etre complete ; si elle ne l'est pas,
+   * estTelechargeable doit rendre faux et la page afficher « Bientot disponible ».
+   */
+  if (m.android.statut === "disponible") {
+    assert.equal(estTelechargeable(m.android), true, "Android est declare disponible mais incomplet");
+    assert.ok(m.android.publie_le, "une entree disponible doit porter sa date de publication");
+  } else {
+    assert.equal(estTelechargeable(m.android), false, "une entree non disponible ne doit jamais etre telechargeable");
+  }
 });
 
 test("G2 iOS reste eteint tant qu'aucune application n'existe", () => {

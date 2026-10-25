@@ -278,3 +278,73 @@ test("F3 la purge des jetons de session epargne le mobile", () => {
   const code = sansCommentaires(lire("src/main.tsx"));
   assert.match(code, /if \(IS_PWA && !IS_SITE_PREVIEW && !IS_EMBEDDED\) \{/, "la garde de la purge a change");
 });
+
+/* ==================================================================================
+ * G. DEUX DEFAUTS QUI N'APPARAISSAIENT QUE SUR UN VRAI TELEPHONE
+ *
+ * L'APK s'installait, se lancait, et restait sur un rond qui tourne. Rien dans les
+ * releves, le typecheck, le lint ou les builds ne le voyait : les deux causes tiennent a
+ * ce qui se passe quand window.Capacitor existe VRAIMENT, et aucun de ces outils ne met
+ * l'application dans cette situation. Reproduits le 25/10/2026 en simulant window.Capacitor
+ * dans un navigateur, sur le paquet bati.
+ * ================================================================================== */
+
+test("G1 le coffre n'est JAMAIS rendu nu depuis une promesse", () => {
+  /*
+   * PREMIER DEFAUT, ET LE PLUS COUTEUX.
+   *
+   * coffre() rendait l'objet du plugin directement depuis un `.then()`. En resolvant une
+   * promesse, JavaScript verifie si la valeur rendue est « thenable » : il LIT sa propriete
+   * `.then`. Or cet objet est un proxy Capacitor, qui transforme toute lecture de propriete
+   * en APPEL DE METHODE NATIVE. Il a donc appele un SecureStorage.then() inexistant :
+   *
+   *     Uncaught (in promise): "SecureStorage.then()" is not implemented
+   *
+   * Ce rejet survient DANS le mecanisme de resolution, pas dans la chaine : le .catch() ne
+   * l'attrape pas, et la promesse n'est jamais reglee. getItem ne rend jamais,
+   * getSession() attend pour toujours, et App.tsx reste sur son ecran de chargement.
+   *
+   * La regle : on rend un objet ordinaire qui PORTE l'api, jamais l'api elle-meme.
+   */
+  const code = sansCommentaires(lire("src/lib/stockageSession.ts"));
+  assert.match(
+    code,
+    /return \{ api \}/,
+    "le coffre est rendu nu depuis une promesse : l'application se figera au demarrage",
+  );
+  assert.doesNotMatch(
+    code,
+    /\n\s*return api;?\s*\n/,
+    "un `return api` est revenu : son `.then` serait lu par le moteur et appele sur le natif",
+  );
+  // Et les appelants doivent destructurer, sinon ils manipuleraient l'enveloppe.
+  assert.doesNotMatch(
+    code,
+    /const api = await coffre\(\)/,
+    "un appelant prend l'enveloppe pour l'api",
+  );
+  assert.match(code, /const \{ api \} = await coffre\(\)/, "les appelants ne destructurent plus");
+});
+
+test("G2 la coquille telephone est rendue DANS un ThemeProvider", () => {
+  /*
+   * SECOND DEFAUT, masque par le premier.
+   *
+   * PwaLoginPage rend <RegisterModal> inconditionnellement — ferme, mais monte — et
+   * RegisterModal appelle useTheme. Hors d'un ThemeProvider, le hook leve et l'ecran
+   * d'erreur remplace la page de connexion.
+   *
+   * Le defaut precedait le portage mobile : cette branche n'etait atteinte qu'en PWA
+   * installee, un cas que personne n'ouvrait. Le telephone l'a revele au premier lancement.
+   */
+  const code = sansCommentaires(lire("src/App.tsx"));
+  // ` {2}` et non deux espaces ecrits a la suite : eslint refuse les espaces consecutifs
+  // dans une expression reguliere, parce qu'on ne les compte pas a la lecture.
+  const branche = code.match(/if \(IS_COQUILLE_TELEPHONE\) \{([\s\S]*?)\n {2}\}/);
+  assert.ok(branche, "la branche de la coquille telephone est introuvable");
+  assert.match(
+    branche[1],
+    /<ThemeProvider[\s\S]*<PwaLoginPage[\s\S]*<\/ThemeProvider>/,
+    "PwaLoginPage est rendu hors ThemeProvider : useTheme levera chez ses enfants",
+  );
+});

@@ -42,12 +42,12 @@
     "_note": "Impossible a produire depuis Windows : un build macOS exige un hote Apple, un Developer ID et la notarisation."
   },
   "android": {
-    "statut": "disponible",
+    "statut": "bientot",
     "_note": "APK release signe (CN=Talvex, RSA 4096, schemas v2+v3), versionCode 100, debuggable absent, allowBackup=false, permissions limitees a INTERNET. Distribution DIRECTE, hors Google Play. PREPARE MAIS NON ACTIVE le 25/10/2026 : des identifiants de comptes reels restent lisibles dans l historique public du depot, et la rotation des PIN doit precede toute distribution. Activer par : preparerArtefact.mjs android --activer, apres avoir publie le fichier a son adresse.",
-    "taille": 38827464,
-    "sha256": "2606EA7487277386D7B85B910BB6AD2433290E64D97F8E4FAEF5B2AC5BC8C634",
-    "version": "0.1.0",
-    "url": "https://github.com/dmms090191-rgb/crm2026test/releases/download/v0.1.0/Talvex_0.1.0.apk",
+    "taille": 38828456,
+    "sha256": "A9E3A869CF9EF366C9D8B212D4D386B7B7102AA013EDE5DB6FAD76D31999991D",
+    "version": "0.1.1",
+    "url": "https://github.com/dmms090191-rgb/crm2026test/releases/download/v0.1.1/Talvex_0.1.1.apk",
     "aide": "Android demandera d autoriser l installation depuis cette source : ouvrez le fichier telecharge, puis acceptez. Le telechargement peut aussi afficher un avertissement du navigateur, normal pour un fichier .apk.",
     "publie_le": "2026-10-25"
   },

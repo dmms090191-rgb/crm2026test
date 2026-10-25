@@ -22,6 +22,10 @@ export default tseslint.config(
       'android/app/build',
       'android/capacitor-cordova-android-plugins',
       'android/app/src/main/assets/public',
+      'ios/App/App/public',
+      'ios/App/build',
+      'ios/DerivedData',
+      'ios/capacitor-cordova-ios-plugins',
     ],
   },
   {

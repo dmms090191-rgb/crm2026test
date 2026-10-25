@@ -65,9 +65,36 @@ interface CoffreSecurise {
  *
  * La promesse est gardee : le plugin n'est charge qu'une fois, a la premiere lecture.
  */
-let chargement: Promise<CoffreSecurise | null> | null = null;
+/*
+ * LE COFFRE EST ENVELOPPE, ET CE N'EST PAS UN DETAIL DE STYLE.
+ *
+ * La premiere version retournait l'objet du plugin DIRECTEMENT depuis un `.then()`. Sur un
+ * telephone, l'application restait bloquee sur son ecran de chargement, indefiniment.
+ *
+ * POURQUOI. En resolvant une promesse, JavaScript verifie si la valeur rendue est « thenable » :
+ * il LIT la propriete `.then` de cet objet. Or l'objet du plugin est un proxy Capacitor, qui
+ * transforme toute lecture de propriete en APPEL DE METHODE NATIVE. Il a donc appele un
+ * `SecureStorage.then()` qui n'existe pas :
+ *
+ *     Uncaught (in promise): "SecureStorage.then()" is not implemented
+ *
+ * Et comme ce rejet survient DANS le mecanisme de resolution de la promesse, et non dans la
+ * chaine, le `.catch()` ci-dessous ne l'attrape pas : la promesse `chargement` n'est jamais
+ * reglee. `getItem` ne rend donc jamais, `supabase.auth.getSession()` attend pour toujours,
+ * `loading` reste vrai dans App.tsx, et l'utilisateur voit tourner un rond.
+ *
+ * Mesure du 25/10/2026, reproduite dans un navigateur en simulant window.Capacitor.
+ *
+ * LA CORRECTION : rendre un objet ordinaire `{ api }`. Un objet simple n'a pas de `.then`,
+ * donc rien n'est intercepte, et le proxy n'est touche qu'au moment ou on s'en sert.
+ */
+interface CoffreCharge {
+  api: (CoffreSecurise & { setDefaultKeychainAccess?: (acces: number) => Promise<void> }) | null;
+}
 
-function coffre(): Promise<CoffreSecurise | null> {
+let chargement: Promise<CoffreCharge> | null = null;
+
+function coffre(): Promise<CoffreCharge> {
   if (chargement) return chargement;
   chargement = import('@aparajita/capacitor-secure-storage')
     .then(async (module) => {
@@ -95,9 +122,11 @@ function coffre(): Promise<CoffreSecurise | null> {
          */
         await api.setDefaultKeychainAccess?.(3);
       } catch { /* reglage indisponible : le defaut du plugin s'applique */ }
-      return api;
+      // `{ api }` et NON `api` : voir le commentaire ci-dessus. Rendre le proxy ici ferait
+      // lire son `.then` par le moteur, et l'application resterait bloquee au demarrage.
+      return { api };
     })
-    .catch(() => null);
+    .catch(() => ({ api: null }));
   return chargement;
 }
 
@@ -131,7 +160,7 @@ const adaptateurMobile: StockageSupabase = {
     // rendrait une valeur PERIMEE, et l'ecraserait par-dessus la fraiche.
     if (ecrituresEnEchec.has(cle)) return memoire.get(cle) ?? null;
     try {
-      const api = await coffre();
+      const { api } = await coffre();
       const valeur = api ? await api.getItem(cle) : null;
       if (valeur !== null && valeur !== undefined) {
         memoire.set(cle, valeur);
@@ -146,7 +175,7 @@ const adaptateurMobile: StockageSupabase = {
     // jusqu'a la fermeture de l'application.
     memoire.set(cle, valeur);
     try {
-      const api = await coffre();
+      const { api } = await coffre();
       if (!api) { ecrituresEnEchec.add(cle); return; }
       await api.setItem(cle, valeur);
       ecrituresEnEchec.delete(cle);
@@ -160,7 +189,7 @@ const adaptateurMobile: StockageSupabase = {
     memoire.delete(cle);
     ecrituresEnEchec.delete(cle);
     try {
-      const api = await coffre();
+      const { api } = await coffre();
       await api?.removeItem(cle);
     } catch { /* une suppression qui echoue ne doit pas empecher la deconnexion */ }
   },
@@ -213,7 +242,7 @@ export async function effacerJetonsSession(): Promise<void> {
   ecrituresEnEchec.clear();
 
   try {
-    const api = await coffre();
+    const { api } = await coffre();
     if (!api?.keys) return;
     for (const cle of await api.keys()) {
       if (estJetonDeSession(cle)) await api.removeItem(cle);

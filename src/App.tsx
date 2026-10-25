@@ -271,7 +271,27 @@ function App() {
   }
 
   if (IS_COQUILLE_TELEPHONE) {
-    return <PwaLoginPage onLogin={handleLogin} />;
+    /*
+     * LE THEME EST OBLIGATOIRE ICI, et son absence ne se voyait pas.
+     *
+     * PwaLoginPage rend <RegisterModal> INCONDITIONNELLEMENT — fermé, mais monté — et
+     * RegisterModal appelle useTheme. Hors d'un ThemeProvider, ce hook leve, et l'ecran
+     * d'erreur remplace la page de connexion : « useTheme must be used within ThemeProvider ».
+     *
+     * Le defaut existait avant le portage mobile, mais restait invisible : cette branche
+     * n'etait atteinte qu'en PWA installee, un cas que personne n'ouvrait. Le telephone l'a
+     * rendu visible au premier lancement. Mesure du 25/10/2026, reproduite en simulant
+     * window.Capacitor dans un navigateur.
+     *
+     * Toutes les autres branches de ce fichier enveloppent deja leur rendu. La seule qui ne
+     * le fait pas est le launcher de bureau, et c'est delibere : il a ete ecrit sans useTheme,
+     * et un releve interdit qu'un useTheme entre un jour dans sa chaine.
+     */
+    return (
+      <ThemeProvider panelRole="admin">
+        <PwaLoginPage onLogin={handleLogin} />
+      </ThemeProvider>
+    );
   }
 
   if (!landingTemplateLoaded) return <AppLoadingScreen />;
