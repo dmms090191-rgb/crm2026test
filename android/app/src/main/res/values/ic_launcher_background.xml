@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Le gris Talvex du logotype, releve sur src-tauri/icons/icon.png. Le gabarit
+         Capacitor posait du blanc, qui faisait disparaitre l icone sur un fond clair. -->
+    <color name="ic_launcher_background">#AEB8C7</color>
+</resources>

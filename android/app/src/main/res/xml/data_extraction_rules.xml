@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  REGLES D'EXTRACTION — Android 12 et au-dela.
+
+  POURQUOI CE FICHIER EXISTE. Le gabarit Android de Capacitor arrive avec
+  android:allowBackup="true" et AUCUNE regle. Les SharedPreferences et les bases de
+  l'application partent alors dans la sauvegarde Google Drive ET dans le transfert
+  d'appareil a appareil, puis se restaurent sur un telephone neuf. Pour un CRM, cela
+  reviendrait a cloner une session sur un autre appareil.
+
+  DEUX CANAUX, PAS UN. <cloud-backup> couvre la sauvegarde Google Drive ; <device-transfer>
+  couvre le transfert direct lors de la configuration d'un nouveau telephone. Ne fermer que
+  le premier laisserait le second grand ouvert — et c'est l'erreur facile, parce que les
+  deux se configurent separement et que rien ne le signale.
+
+  POURQUOI ON EXCLUT TOUT. Talvex n'a rien a gagner a restaurer ses donnees locales sur un
+  autre appareil : la session se refait en se connectant, et le reste vient du serveur.
+  L'inclusion par defaut ne pourrait donc qu'exposer, jamais servir.
+
+  LE COFFRE N'EST PAS CONCERNE, et ce n'est pas une raison de s'en passer : la cle du
+  Keystore n'est pas exportable, donc elle ne part dans aucune sauvegarde. Ces regles
+  protegent ce qui l'entoure — preferences, bases, fichiers — et constituent la seconde
+  barriere.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="sharedpref" />
+        <exclude domain="database" />
+        <exclude domain="file" />
+        <exclude domain="root" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="sharedpref" />
+        <exclude domain="database" />
+        <exclude domain="file" />
+        <exclude domain="root" />
+    </device-transfer>
+</data-extraction-rules>

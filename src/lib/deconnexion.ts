@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
-import { estDesktop } from './runtime';
+import { estApplicationInstallee } from './runtime';
 import { porteeDeconnexion } from './porteeDeconnexion';
+import { effacerJetonsSession } from './stockageSession';
 
 /**
  * LA DECONNEXION, ET SA PORTEE SELON LE RUNTIME.
@@ -38,11 +39,28 @@ import { porteeDeconnexion } from './porteeDeconnexion';
  * sur le web. La justification du undefined (plutot qu'un objet vide) est detaillee dans
  * src/lib/porteeDeconnexion.ts.
  *
- * CE QUE CETTE FONCTION NE FAIT PAS : elle n'avale aucune erreur et ne nettoie aucun
- * stockage. Chaque appelant garde EXACTEMENT la gestion qu'il avait — certains ont un
- * try/catch, d'autres non, et plusieurs enchainent sur onClear() ou un rechargement. Le
- * seul changement introduit ici est la portee.
+ * CE QUE CETTE FONCTION N'AVALE PAS : aucune erreur. Chaque appelant garde EXACTEMENT la
+ * gestion qu'il avait — certains ont un try/catch, d'autres non, et plusieurs enchainent sur
+ * onClear() ou un rechargement.
+ *
+ * CE QU'ELLE FAIT DEPUIS LE 25/10/2026, ET POURQUOI. Elle efface le jeton du magasin, dans
+ * un `finally`, quoi qu'il arrive au-dessus. Lu dans auth-js (GoTrueClient, _signOut) :
+ * signOut ne retire la session du stockage qu'APRES un aller-retour reseau reussi ; si
+ * l'appel echoue autrement que par un 401, 403 ou 404, la fonction rend l'erreur et
+ * n'atteint jamais son `_removeSession()`. Hors ligne, le jeton restait donc en place.
+ *
+ * App.tsx avait un filet pour cela — purger les cles `sb-*-auth-token` de sessionStorage —
+ * mais sur MOBILE le jeton vit dans le coffre, pas dans sessionStorage : le filet balayait
+ * un magasin vide. L'utilisateur qui se deconnectait sans reseau revenait connecte. Le
+ * nettoyage est donc fait ICI, au point de passage commun, pour que les CINQ chemins de
+ * deconnexion en beneficient et pas seulement celui du bouton principal.
  */
 export async function deconnecterSupabase(): Promise<void> {
-  await supabase.auth.signOut(porteeDeconnexion(estDesktop()));
+  try {
+    await supabase.auth.signOut(porteeDeconnexion(estApplicationInstallee()));
+  } finally {
+    // Dans un `finally` : signOut peut aussi bien RENDRE une erreur que LEVER. Dans les deux
+    // cas, l'utilisateur a demande a sortir, et le jeton ne doit pas lui survivre.
+    await effacerJetonsSession();
+  }
 }

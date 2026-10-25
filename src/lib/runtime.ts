@@ -30,7 +30,7 @@
  * peut s'afficher dans n'importe lequel des trois.
  */
 
-export type Runtime = 'web' | 'pwa' | 'desktop';
+export type Runtime = 'web' | 'pwa' | 'desktop' | 'mobile';
 
 /** Les signaux bruts, pour que la decision soit une fonction PURE, donc verifiable. */
 export interface SignauxRuntime {
@@ -40,6 +40,16 @@ export interface SignauxRuntime {
   afficheAutonome: boolean;
   /** `navigator.standalone === true` : la forme propre a Safari iOS. */
   standaloneApple: boolean;
+  /**
+   * `window.Capacitor.isNativePlatform() === true` : l'application empaquetee par
+   * Capacitor, sur Android ou iOS.
+   *
+   * ON APPELLE LA METHODE, ON NE REGARDE PAS SI L'OBJET EXISTE. `window.Capacitor` est
+   * aussi pose sur le WEB des que @capacitor/core entre dans le paquet : tester sa
+   * presence classerait donc le site ordinaire en « mobile ». Seul isNativePlatform()
+   * distingue l'application native de la page web qui embarque la meme bibliotheque.
+   */
+  capacitorNatif: boolean;
 }
 
 /**
@@ -50,6 +60,16 @@ export interface SignauxRuntime {
  */
 export function runtimeDepuisSignaux(signaux: SignauxRuntime): Runtime {
   if (signaux.tauri) return 'desktop';
+  /*
+   * MOBILE AVANT PWA, ET CE N'EST PAS UN DETAIL D'ORDRE. Une application Capacitor peut
+   * tres bien repondre vrai a `display-mode: standalone` : la tester apres la PWA la
+   * ferait classer « pwa », avec deux consequences mesurees — main.tsx purgerait ses
+   * jetons de session a chaque lancement (donc reconnexion forcee), et la deconnexion
+   * repasserait en portee globale, si bien que fermer sa session sur le telephone
+   * fermerait aussi celle de Windows. L'ordre voulu par David est donc :
+   * desktop > mobile > pwa > web.
+   */
+  if (signaux.capacitorNatif) return 'mobile';
   if (signaux.afficheAutonome || signaux.standaloneApple) return 'pwa';
   return 'web';
 }
@@ -61,7 +81,7 @@ export function runtimeDepuisSignaux(signaux: SignauxRuntime): Runtime {
  */
 export function lireSignauxRuntime(): SignauxRuntime {
   if (typeof window === 'undefined') {
-    return { tauri: false, afficheAutonome: false, standaloneApple: false };
+    return { tauri: false, afficheAutonome: false, standaloneApple: false, capacitorNatif: false };
   }
   const fenetre = window as unknown as Record<string, unknown>;
   let afficheAutonome = false;
@@ -73,7 +93,29 @@ export function lireSignauxRuntime(): SignauxRuntime {
     tauri: fenetre.isTauri === true,
     afficheAutonome,
     standaloneApple: (navigator as unknown as Record<string, unknown>).standalone === true,
+    capacitorNatif: lireCapacitorNatif(fenetre),
   };
+}
+
+/**
+ * ON N'IMPORTE PAS @capacitor/core ICI, A DESSEIN. Ce module doit rester sans aucune
+ * dependance : les releves l'importent sous Node, ou un paquet qui touche au natif
+ * echouerait au chargement — c'est deja la raison pour laquelle porteeDeconnexion vit a
+ * part de deconnexion. Capacitor pose lui-meme `window.Capacitor` avant le premier script
+ * de la page, exactement comme Tauri pose `window.isTauri` : le lire suffit, et cela
+ * fonctionne aussi quand le paquet n'est pas installe.
+ *
+ * Tout est enveloppe : sur une implementation inattendue, isNativePlatform peut ne pas
+ * etre une fonction, ou lever. On retombe alors sur faux, donc sur le comportement web
+ * deja eprouve.
+ */
+function lireCapacitorNatif(fenetre: Record<string, unknown>): boolean {
+  try {
+    const cap = fenetre.Capacitor as { isNativePlatform?: () => boolean } | undefined;
+    return typeof cap?.isNativePlatform === 'function' && cap.isNativePlatform() === true;
+  } catch {
+    return false;
+  }
 }
 
 let memoire: Runtime | null = null;
@@ -91,6 +133,18 @@ export function runtimeActuel(): Runtime {
 export function estWeb(): boolean { return runtimeActuel() === 'web'; }
 export function estPwa(): boolean { return runtimeActuel() === 'pwa'; }
 export function estDesktop(): boolean { return runtimeActuel() === 'desktop'; }
+/** L'application Capacitor sur Android ou iOS. */
+export function estMobile(): boolean { return runtimeActuel() === 'mobile'; }
+/**
+ * Les deux runtimes INSTALLES : bureau et mobile. C'est la distinction qui compte pour la
+ * session (persistante dans une application installee, pas sur le web), pour la portee de
+ * la deconnexion, et pour le service worker. L'ecrire une fois evite que chaque appelant
+ * reinvente « desktop ou mobile » et en oublie un.
+ */
+export function estApplicationInstallee(): boolean {
+  const r = runtimeActuel();
+  return r === 'desktop' || r === 'mobile';
+}
 
 /** Reservee aux releves : oublie la valeur memoisee. N'a aucun appelant applicatif. */
 export function oublierRuntimeMemoise(): void { memoire = null; }

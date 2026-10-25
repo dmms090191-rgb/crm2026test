@@ -30,7 +30,7 @@ import {
  *      l'application installee afficherait la LANDING WEB. C'est precisement ce que David
  *      refuse, et aucune regle du CLAUDE.md n'aurait ete enfreinte pour autant.
  *
- *   2. REMPLACER IS_PWA_STANDALONE dans App.tsx au lieu d'AJOUTER une branche. Le signal y
+ *   2. REMPLACER IS_COQUILLE_TELEPHONE dans App.tsx au lieu d'AJOUTER une branche. Le signal y
  *      sert a DEUX endroits : choisir PwaMobileShell quand l'utilisateur est connecte, et
  *      PwaLoginPage quand il ne l'est pas. Un remplacement ferait afficher la coquille
  *      MOBILE sur un PC. David a explicitement demande que la distinction soit ajoutee, pas
@@ -150,14 +150,14 @@ test("D1 la branche du PORTAIL PWA est intacte, a la lettre", () => {
   // occurrences dans le fichier (la declaration et la branche de la coquille mobile), donc
   // un seuil de deux survivait. On exige donc la ligne ELLE-MEME.
   assert.ok(
-    APP_TSX.includes("if (IS_PWA_STANDALONE) {"),
+    APP_TSX.includes("if (IS_COQUILLE_TELEPHONE) {"),
     "la branche du portail PWA a ete substituee au lieu d'etre completee : la PWA perdrait son ecran",
   );
 });
 
 test("D2 la branche de la coquille mobile reste conditionnee au signal PWA", () => {
   assert.ok(
-    APP_TSX.includes("(IS_PWA_STANDALONE || IS_VIRTUAL_PHONE)"),
+    APP_TSX.includes("(IS_COQUILLE_TELEPHONE || IS_VIRTUAL_PHONE)"),
     "la garde de PwaMobileShell a change : un PC ne doit JAMAIS recevoir la coquille mobile",
   );
 });
@@ -189,7 +189,10 @@ test("E2 la lecture de l'environnement est DEFENSIVE : hors navigateur, on retom
   // sous Node, navigator existe et navigator.platform vaut « Win32 ».
   assert.ok(RUNTIME_TS.includes("typeof window === 'undefined'"), "la garde hors navigateur a disparu");
   const signaux = lireSignauxRuntime();
-  assert.deepEqual(signaux, { tauri: false, afficheAutonome: false, standaloneApple: false });
+  // Le contrat compte QUATRE signaux depuis l ajout du runtime mobile. Ce deepEqual est
+  // volontairement exact : un signal ajoute sans etre lu defensivement ferait rougir ici,
+  // et c est le but — hors navigateur, TOUT doit valoir faux.
+  assert.deepEqual(signaux, { tauri: false, afficheAutonome: false, standaloneApple: false, capacitorNatif: false });
   oublierRuntimeMemoise();
   assert.equal(runtimeActuel(), "web", "hors navigateur, le defaut sur est web");
 });
@@ -251,7 +254,7 @@ test("E4 le runtime est memoise : un signal qui change en cours de route ne le c
 
 test("G1 la coquille mobile est explicitement interdite au runtime desktop", () => {
   assert.ok(
-    APP_TSX.includes("if (!estDesktop() && (IS_PWA_STANDALONE || IS_VIRTUAL_PHONE)"),
+    APP_TSX.includes("if (!estDesktop() && (IS_COQUILLE_TELEPHONE || IS_VIRTUAL_PHONE)"),
     "la garde de PwaMobileShell doit commencer par !estDesktop() : un PC ne recoit jamais la coquille mobile",
   );
 });
@@ -270,7 +273,7 @@ test("G2bis la branche desktop rend le LAUNCHER, pas PwaLoginPage", () => {
   assert.ok(i > -1, "la branche desktop a disparu");
   // Borne a la branche SUIVANTE, pas a un nombre de caracteres : sinon la fenetre deborde
   // sur la branche PWA et le releve se trompe de cible (vu au premier passage).
-  const fin = APP_TSX.indexOf("if (IS_PWA_STANDALONE) {", i);
+  const fin = APP_TSX.indexOf("if (IS_COQUILLE_TELEPHONE) {", i);
   assert.ok(fin > i, "la branche PWA ne suit plus la branche desktop : ordre ou structure modifie");
   const branche = APP_TSX.slice(i, fin);
   assert.ok(branche.includes("<TalvexDesktopLauncher"), "la branche desktop ne rend plus le launcher");
@@ -326,7 +329,7 @@ test("G2quater le launcher n'ecrit PAS le code en clair dans user_metadata", () 
 
 test("G3 la branche desktop PRECEDE la branche PWA", () => {
   const posDesktop = APP_TSX.indexOf("if (estDesktop()) {");
-  const posPwa = APP_TSX.indexOf("if (IS_PWA_STANDALONE) {");
+  const posPwa = APP_TSX.indexOf("if (IS_COQUILLE_TELEPHONE) {");
   assert.ok(posDesktop > -1 && posPwa > -1, "une des deux branches de connexion a disparu");
   assert.ok(posDesktop < posPwa, "la branche desktop doit etre examinee avant la branche PWA");
 });
@@ -335,8 +338,8 @@ test("G4 les deux branches de connexion ne sont PAS fusionnees", () => {
   // Une condition fusionnee rendrait le meme composant aujourd'hui, donc rien ne casserait
   // — et le jour du launcher, la PWA le recevrait aussi.
   for (const fusion of [
-    "if (estDesktop() || IS_PWA_STANDALONE)",
-    "if (IS_PWA_STANDALONE || estDesktop())",
+    "if (estDesktop() || IS_COQUILLE_TELEPHONE)",
+    "if (IS_COQUILLE_TELEPHONE || estDesktop())",
     "if (runtimeActuel() !== 'web')",
     'if (runtimeActuel() !== "web")',
   ]) {
@@ -355,7 +358,7 @@ test("G6 le telephone virtuel reste un terme INDEPENDANT de la garde", () => {
   // Il doit continuer de fonctionner sur le web et dans la PWA : on ne l'a pas retire,
   // on a seulement ferme le cas ou il se combinerait au bureau.
   assert.ok(
-    APP_TSX.includes("IS_PWA_STANDALONE || IS_VIRTUAL_PHONE"),
+    APP_TSX.includes("IS_COQUILLE_TELEPHONE || IS_VIRTUAL_PHONE"),
     "IS_VIRTUAL_PHONE a ete retire de la garde : l'apercu telephone cesserait de fonctionner",
   );
   assert.ok(

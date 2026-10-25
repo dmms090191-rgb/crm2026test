@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getPwaPrompt, wasPwaPromptCaptured, clearPwaPrompt, subscribePwaPrompt } from '../lib/pwaPromptCapture';
+import { estApplicationInstallee } from '../lib/runtime';
 
 export type PwaInstallState =
   | 'prompt-ready'
@@ -18,6 +19,10 @@ function isAndroid(): boolean {
 }
 
 function isStandalone(): boolean {
+  /* Une application deja installee — bureau ou mobile — est consideree comme autonome :
+     lui proposer « installer l'application » n'a aucun sens, et en mobile le signal
+     display-mode ne suffit pas a le dire. */
+  if (estApplicationInstallee()) return true;
   if (window.matchMedia('(display-mode: standalone)').matches) return true;
   if ((navigator as unknown as Record<string, boolean>).standalone) return true;
   return document.referrer.includes('android-app://');

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  REGLES DE SAUVEGARDE — Android 11 et anterieurs.
+
+  Le format a change avec Android 12 : data_extraction_rules.xml ne s'applique PAS aux
+  versions plus anciennes, qui lisent ce fichier-ci. N'en poser qu'un seul laisserait donc
+  une partie du parc sans protection, et rien ne le signalerait.
+
+  <exclude domain="root" /> couvre tout le repertoire de l'application, preferences et
+  bases comprises. Combine a android:allowBackup="false", c'est une double fermeture
+  assumee : si un jour quelqu'un remettait allowBackup a true sans y penser, ce fichier
+  tiendrait encore.
+-->
+<full-backup-content>
+    <exclude domain="root" />
+    <exclude domain="sharedpref" />
+    <exclude domain="database" />
+    <exclude domain="file" />
+</full-backup-content>

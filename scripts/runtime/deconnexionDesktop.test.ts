@@ -80,10 +80,17 @@ test("A4 la portee locale ne vaut jamais 'global' ni 'others'", () => {
 
 test("A5 l'appel reel branche bien la portee sur le runtime", () => {
   const code = sansCommentaires(lire("src/lib/deconnexion.ts"));
+  // Elargi au mobile : un logout sur le telephone ne doit pas davantage fermer la session
+  // de Windows que l'inverse. estApplicationInstallee() couvre les deux, et vaut toujours
+  // vrai en desktop : le comportement valide par David le 25/10/2026 est intact.
   assert.match(
     code,
-    /signOut\(porteeDeconnexion\(estDesktop\(\)\)\)/,
+    /signOut\(porteeDeconnexion\(estApplicationInstallee\(\)\)\)/,
     "deconnecterSupabase ne relie plus la portee au runtime",
+  );
+  assert.ok(
+    !/porteeDeconnexion\(estDesktop\(\)\)/.test(code),
+    "la portee est revenue au seul bureau : le mobile repasserait en portee globale",
   );
 });
 

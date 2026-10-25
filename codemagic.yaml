@@ -1,0 +1,100 @@
+# Compilation de Talvex iOS sur un Mac distant, pilotee depuis Windows.
+#
+# POURQUOI CE FICHIER EXISTE. Produire un .ipa exige xcodebuild et codesign, qui n existent
+# que sur macOS. Rien dans ce projet n exige de POSSEDER un Mac : la generation du projet, la
+# synchronisation, les icones et la configuration se font toutes sous Windows — elles l ont
+# toutes ete. Seules l archive, la signature et l envoi demandent une machine Apple, et c est
+# ce que loue le service.
+#
+# CE FICHIER NE SOUSCRIT A RIEN et ne declenche rien tant que le depot n est pas connecte a un
+# compte Codemagic. Il peut rester la sans effet.
+#
+# ============================= DEUX PIEGES, MESURES =============================
+#
+# 1. PAS DE `pod install`. Le modele officiel de Codemagic pour Capacitor en contient un.
+#    Capacitor 8 est passe a Swift Package Manager : `npx cap add ios` n a produit AUCUN
+#    Podfile (verifie le 25/10/2026), et la commande echouerait. La resolution des paquets
+#    Swift est faite par xcodebuild lui-meme.
+#
+# 2. `npm ci` AVANT TOUT. ios/App/CapApp-SPM/Package.swift declare le plugin de coffre par un
+#    CHEMIN RELATIF : path: "../../../node_modules/@aparajita/capacitor-secure-storage".
+#    Si la resolution Swift tourne avant l installation des dependances npm, ce chemin
+#    n existe pas et la compilation s arrete sur une erreur qui ne designe pas sa cause.
+#
+# ============================= CE QU IL FAUT FOURNIR =============================
+#
+# Le depot ne contient AUCUN secret, et ne doit jamais en contenir. Deux choses sont donc a
+# poser dans l interface de Codemagic, pas ici :
+#
+#   - le groupe de variables `talvex_web` : VITE_SUPABASE_URL et VITE_SUPABASE_ANON_KEY.
+#     Sans elles, `npm run build` produit un paquet qui ne sait pas a quel projet Supabase
+#     parler. La cle « anon » est publique par conception — c est la RLS qui protege — mais
+#     elle n a pas sa place dans un depot public pour autant.
+#   - la cle d API App Store Connect (un fichier .p8), televersee une seule fois. Codemagic
+#     s en sert pour creer le certificat de distribution et pour envoyer vers TestFlight.
+#     Elle ne se retelecharge jamais chez Apple : a conserver hors du depot (*.p8 est ignore).
+
+workflows:
+  talvex-ios:
+    name: Talvex iOS - TestFlight
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+
+    environment:
+      # Xcode 26.6 est l image par defaut annoncee par Codemagic au 06/09/2026. A relire
+      # avant le premier lancement : les images bougent, et une version absente fait echouer
+      # le build des la premiere seconde.
+      xcode: 26.6
+      node: 24
+      groups:
+        - talvex_web
+      vars:
+        XCODE_PROJECT: "ios/App/App.xcodeproj"
+        XCODE_SCHEME: "App"
+        BUNDLE_ID: "fr.talvex.app"
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: fr.talvex.app
+
+    scripts:
+      - name: Dependances npm
+        # EN PREMIER : Package.swift pointe node_modules par un chemin relatif.
+        script: npm ci
+
+      - name: Paquet web
+        script: npm run build
+
+      - name: Synchronisation du projet iOS
+        # Copie dist/ dans ios/App/App/public et met a jour Package.swift. Aucun pod.
+        script: npx cap sync ios
+
+      - name: Version alignee sur celle du produit
+        # CFBundleVersion doit STRICTEMENT croitre : Apple refuse un numero deja televerse,
+        # et le refus arrive apres l envoi. Le script derive 0.1.0 en 100, comme Android.
+        script: node scripts/ios/synchroniserVersion.mjs
+
+      - name: Controles de non-regression
+        # On ne televerse pas une version dont les garde-fous sont rouges.
+        script: npm test
+
+      - name: Profils de provisionnement
+        script: xcode-project use-profiles
+
+      - name: Archive et IPA
+        script: |
+          xcode-project build-ipa \
+            --project "$XCODE_PROJECT" \
+            --scheme "$XCODE_SCHEME"
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+
+    publishing:
+      app_store_connect:
+        auth: integration
+        # TestFlight seulement : rien ne part vers l App Store sans decision explicite.
+        submit_to_testflight: true
+        # Aucun groupe externe : la distribution externe passe par une revue Apple.
+        # Les testeurs internes, eux, recoivent la version en quelques minutes.
+        submit_to_app_store: false

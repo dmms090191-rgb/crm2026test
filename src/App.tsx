@@ -20,9 +20,33 @@ import AppDashboardRouter from './app/AppDashboardRouter';
 import AppShell from './app/AppShell';
 import PwaMobileShell from './app/PwaMobileShell';
 import TalvexDesktopLauncher from './components/TalvexDesktopLauncher';
-import { estDesktop } from './lib/runtime';
+import { estDesktop, estMobile } from './lib/runtime';
 
-const IS_PWA_STANDALONE = window.matchMedia('(display-mode: standalone)').matches
+/*
+ * QUI RECOIT LA COQUILLE TELEPHONE : la PWA installee, ET l'application native mobile.
+ *
+ * CE DRAPEAU A PORTE `!estMobile()`, ET C'ETAIT UNE FAUTE. Elle vient du chantier Android :
+ * une application Capacitor peut repondre vrai a display-mode: standalone, et il fallait
+ * l'empecher d'etre traitee comme une PWA par main.tsx, qui PURGE les jetons de
+ * sessionStorage a chaque lancement — ce qui forcerait une reconnexion a chaque ouverture.
+ * Cette soustraction est juste LA-BAS, et elle y reste.
+ *
+ * Elle a ete recopiee ICI, ou le meme signal sert a tout autre chose : choisir le RENDU.
+ * Consequence, mesuree le 25/10/2026 : en natif, estMobile() vaut vrai, donc ce drapeau
+ * valait TOUJOURS faux, donc ni <PwaMobileShell> ni <PwaLoginPage> n'etaient jamais rendus.
+ * Sur un telephone, l'utilisateur connecte recevait le tableau de bord concu pour un ecran
+ * de PC, et l'utilisateur deconnecte la landing du site. C'etait deja le comportement de
+ * l'APK Android livre.
+ *
+ * La lecon est la meme que pour le piege d'origine : un signal ne se corrige pas en soi, il
+ * se corrige POUR UN USAGE. Les deux fichiers lisent les memes signaux et en veulent des
+ * choses opposees.
+ *
+ * Le bureau, lui, est exclu a l'endroit ou il doit l'etre : par le !estDesktop() de la
+ * branche de rendu, et par le launcher qui intercepte avant.
+ */
+const IS_COQUILLE_TELEPHONE = estMobile()
+  || window.matchMedia('(display-mode: standalone)').matches
   || (navigator as unknown as Record<string, boolean>).standalone === true;
 
 const IS_VIRTUAL_PHONE = new URLSearchParams(window.location.search).has('virtualPhone');
@@ -206,7 +230,7 @@ function App() {
     // meme si un parametre virtualPhone apparaissait dans l'URL de la fenetre. Un PC n'est
     // pas un telephone, et la mesure du 25/10/2026 montre que les deux termes ci-dessous
     // valent deja faux en Tauri : ce !estDesktop() ferme le seul chemin qui restait.
-    if (!estDesktop() && (IS_PWA_STANDALONE || IS_VIRTUAL_PHONE) && !impersonatedAdmin && !impersonatedVendor && !impersonatedClient) {
+    if (!estDesktop() && (IS_COQUILLE_TELEPHONE || IS_VIRTUAL_PHONE) && !impersonatedAdmin && !impersonatedVendor && !impersonatedClient) {
       const panelRole = role === 'super_admin' ? 'super_admin' as const : role === 'company_super_admin' ? 'company_super_admin' as const : role === 'vendor' ? 'vendor' as const : role === 'client' ? 'client' as const : 'admin' as const;
       return (
         <SessionTimeoutProvider value={sessionCtxValue}>
@@ -246,7 +270,7 @@ function App() {
     return <TalvexDesktopLauncher onLogin={handleLogin} />;
   }
 
-  if (IS_PWA_STANDALONE) {
+  if (IS_COQUILLE_TELEPHONE) {
     return <PwaLoginPage onLogin={handleLogin} />;
   }
 

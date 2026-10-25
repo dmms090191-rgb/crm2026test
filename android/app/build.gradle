@@ -1,0 +1,120 @@
+apply plugin: 'com.android.application'
+
+// SIGNATURE DE PUBLICATION — la cle n est PAS dans le depot, et ne doit jamais y entrer.
+//
+// Pourquoi ce bloc existe. Sans lui, 'assembleRelease' produit un APK NON SIGNE, qu Android
+// refuse d installer ; le seul artefact installable serait alors l APK de debogage, qui porte
+// android:debuggable=true et la cle generique « CN=Android Debug » (mesure du 25/10/2026 sur
+// app-debug.apk). Les deux sont disqualifiants pour une application qui garde un jeton de
+// session : debuggable laisse 'adb run-as' lire le repertoire prive sur un telephone
+// ordinaire et un debogueur s attacher au processus — lequel detient legitimement la cle du
+// coffre ; et une cle de debogage identique sur toutes les machines n identifie plus rien.
+//
+// Fonctionnement : si android/key.properties existe, la release est signee avec ; sinon le
+// build continue comme avant, sans signature. Aucun secret n est donc necessaire pour
+// compiler, et key.properties comme *.jks sont deja couverts par .gitignore.
+
+// LA VERSION VIENT D UNE SEULE SOURCE, et versionCode DOIT croitre.
+//
+// Android refuse d installer une mise a jour dont le versionCode est inferieur ou egal a
+// celui de la version deja posee. Un versionCode fige a 1, comme le posait le gabarit
+// Capacitor, condamne donc l application a ne jamais recevoir de mise a jour — et rien ne le
+// signale avant l echec sur le telephone.
+//
+// On le derive de la version du produit, lue dans src-tauri/tauri.conf.json : 0.1.0 donne
+// 100, 0.1.1 donne 101, 0.2.0 donne 200, 1.0.0 donne 10000. La suite est strictement
+// croissante tant que la version l est, et il n y a plus de second endroit ou penser a
+// reporter le numero.
+def versionProduit = '0.1.0'
+try {
+    def conf = new groovy.json.JsonSlurper().parse(rootProject.file('../src-tauri/tauri.conf.json'))
+    if (conf.version) { versionProduit = conf.version }
+} catch (Exception e) {
+    logger.warn("tauri.conf.json illisible : on retombe sur " + versionProduit)
+}
+// Un suffixe comme « 0.2.0-beta » est ecarte avant le decoupage, sinon toInteger() leverait.
+def morceaux = versionProduit.replaceAll(/[^0-9.].*/, '').tokenize('.')
+def maj = morceaux.size() > 0 ? morceaux[0].toInteger() : 0
+def min = morceaux.size() > 1 ? morceaux[1].toInteger() : 0
+def cor = morceaux.size() > 2 ? morceaux[2].toInteger() : 0
+def codeVersion = maj * 10000 + min * 100 + cor
+
+def fichierCles = rootProject.file('key.properties')
+def cles = new Properties()
+// withReader('UTF-8') et NON withInputStream : Properties.load(InputStream) decode en
+// ISO-8859-1, ce qui corromprait silencieusement un mot de passe contenant un accent ou tout
+// caractere hors ASCII — le build echouerait alors sur un « mot de passe invalide » trompeur.
+if (fichierCles.exists()) { fichierCles.withReader('UTF-8') { cles.load(it) } }
+
+android {
+    namespace = "fr.talvex.app"
+    compileSdk = rootProject.ext.compileSdkVersion
+    defaultConfig {
+        applicationId "fr.talvex.app"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode codeVersion
+        versionName versionProduit
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        aaptOptions {
+             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
+             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
+            ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+        }
+    }
+    signingConfigs {
+        if (fichierCles.exists()) {
+            release {
+                storeFile rootProject.file(cles['storeFile'])
+                storePassword cles['storePassword']
+                keyAlias cles['keyAlias']
+                keyPassword cles['keyPassword']
+
+                // minSdk vaut 24 : le schema v1 (signature JAR) ne sert plus a rien, il
+                // n etait necessaire que sous Android 7.0. v2 protege l archive entiere.
+                // v3 porte en plus la ROTATION DE CLE : sans lui, on ne pourrait jamais
+                // changer de cle de signature sans casser toutes les mises a jour. Il ne
+                // coute rien aujourd hui et ouvre cette porte pour plus tard.
+                enableV1Signing false
+                enableV2Signing true
+                enableV3Signing true
+            }
+        }
+    }
+    buildTypes {
+        release {
+            if (fichierCles.exists()) { signingConfig signingConfigs.release }
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+repositories {
+    flatDir{
+        dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
+    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+    implementation project(':capacitor-android')
+    testImplementation "junit:junit:$junitVersion"
+    androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
+    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+    implementation project(':capacitor-cordova-android-plugins')
+}
+
+apply from: 'capacitor.build.gradle'
+
+try {
+    def servicesJSON = file('google-services.json')
+    if (servicesJSON.text) {
+        apply plugin: 'com.google.gms.google-services'
+    }
+} catch(Exception e) {
+    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+}

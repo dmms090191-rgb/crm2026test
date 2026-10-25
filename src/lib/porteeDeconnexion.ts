@@ -34,6 +34,6 @@
  * gardant celle-ci. auth-js precise au passage qu'aucun evenement SIGNED_OUT n'est alors
  * emis, ce qui laisserait l'interface croire l'utilisateur encore connecte.
  */
-export function porteeDeconnexion(desktop: boolean): { scope: 'local' } | undefined {
-  return desktop ? { scope: 'local' } : undefined;
+export function porteeDeconnexion(applicationInstallee: boolean): { scope: 'local' } | undefined {
+  return applicationInstallee ? { scope: 'local' } : undefined;
 }

@@ -38,7 +38,11 @@ const PUSH = "src/lib/pushNotifications.ts";
 
 test("A1 l'enregistrement au demarrage est garde par le runtime", () => {
   const code = sansCommentaires(lire(MAIN));
-  assert.match(code, /if \(estDesktop\(\)\) \{/, "la garde de runtime a disparu de main.tsx");
+  // La garde s'est ELARGIE : elle couvrait le seul bureau, elle couvre desormais toute
+  // application installee, mobile compris. Le comportement du bureau est inchange —
+  // estApplicationInstallee() est vrai en desktop — mais la forme litterale a bouge.
+  assert.match(code, /if \(estApplicationInstallee\(\)\) \{/, "la garde de runtime a disparu de main.tsx");
+  assert.ok(!/if \(estDesktop\(\)\) \{/.test(code), "la garde est revenue au seul bureau : le mobile enregistrerait");
   assert.match(code, /from '\.\/lib\/runtime'/, "main.tsx n'importe plus le runtime");
 });
 
@@ -56,7 +60,7 @@ test("A2 le WEB et la PWA enregistrent TOUJOURS le service worker", () => {
 test("A3 le bureau desinscrit ce qui traine, et vide les caches", () => {
   // Un worker pose par une version anterieure reprendrait la main au demarrage suivant.
   const code = sansCommentaires(lire(MAIN));
-  const bureau = code.slice(code.indexOf("if (estDesktop()) {"), code.indexOf("} else if"));
+  const bureau = code.slice(code.indexOf("if (estApplicationInstallee()) {"), code.indexOf("} else if"));
   assert.match(bureau, /getRegistrations\(\)/, "le bureau ne desinscrit pas les workers existants");
   assert.match(bureau, /\.unregister\(\)/, "le bureau n'appelle pas unregister");
   assert.match(bureau, /caches\.keys\(\)/, "le bureau ne vide pas les caches");
@@ -85,8 +89,8 @@ test("B1 le support des notifications est declare indisponible en desktop", () =
   const code = sansCommentaires(lire(PUSH));
   assert.match(
     code,
-    /if \(estDesktop\(\)\) return \{ supported: false, needsPwa: false \};/,
-    "getPushSupport ne ferme plus la porte en desktop",
+    /if \(estApplicationInstallee\(\)\) return \{ supported: false, needsPwa: false \};/,
+    "getPushSupport ne ferme plus la porte dans les applications installees",
   );
 });
 
@@ -94,13 +98,13 @@ test("B2 l'enregistrement par les notifications est refuse en desktop", () => {
   const code = sansCommentaires(lire(PUSH));
   const fn = code.slice(code.indexOf("export async function registerServiceWorker"));
   const corps = fn.slice(0, fn.indexOf("export async function subscribeToPush"));
-  assert.match(corps, /if \(estDesktop\(\)\) return null;/, "registerServiceWorker enregistre encore en desktop");
+  assert.match(corps, /if \(estApplicationInstallee\(\)\) return null;/, "registerServiceWorker enregistre encore dans une application installee");
 });
 
 test("B3 la garde precede l'enregistrement, elle ne le suit pas", () => {
   // Une garde posee APRES le register ne garderait rien du tout.
   const code = sansCommentaires(lire(PUSH));
-  const garde = code.indexOf("if (estDesktop()) return null;");
+  const garde = code.indexOf("if (estApplicationInstallee()) return null;");
   const reg = code.indexOf("navigator.serviceWorker.register(");
   assert.ok(garde > 0 && reg > 0, "garde ou enregistrement introuvable");
   assert.ok(garde < reg, "la garde est placee apres l'enregistrement : elle ne protege rien");

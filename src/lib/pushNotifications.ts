@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { estDesktop } from './runtime';
+import { estApplicationInstallee } from './runtime';
 
 export type PushPermissionState = 'granted' | 'denied' | 'default' | 'unsupported';
 
@@ -18,12 +18,15 @@ export function getPushSupport(): { supported: boolean; needsPwa: boolean } {
    * qu'elles ne passent pas par les notifications natives de Tauri. Le web et la PWA, eux,
    * ne changent pas d'un octet.
    */
-  if (estDesktop()) return { supported: false, needsPwa: false };
+  if (estApplicationInstallee()) return { supported: false, needsPwa: false };
 
   const hasSW = 'serviceWorker' in navigator;
   const hasPush = 'PushManager' in window;
   const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent);
-  const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+  /* En mobile natif, inviter a « installer la PWA » serait absurde : l'application EST
+     installee. Les notifications y passeront par le canal natif Capacitor, pas par le web. */
+  const isStandalone = estApplicationInstallee()
+    || window.matchMedia('(display-mode: standalone)').matches
     || (navigator as unknown as { standalone?: boolean }).standalone === true;
 
   if (!hasSW || !hasPush) {
@@ -59,7 +62,7 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
   // Ceinture et bretelles : getPushSupport ci-dessus empeche deja l'appel par le hook,
   // mais cette fonction est exportee et un futur appelant ne passerait pas forcement par
   // lui. C'est le dernier point ou l'enregistrement peut encore etre arrete.
-  if (estDesktop()) return null;
+  if (estApplicationInstallee()) return null;
   if (!('serviceWorker' in navigator)) return null;
   try {
     return await navigator.serviceWorker.register('/service-worker.js');

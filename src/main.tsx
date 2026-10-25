@@ -5,7 +5,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import SitePreviewEntry, { prepareSitePreviewRealm } from './pages/public/SitePreviewEntry';
 import TelechargerPage from './pages/public/TelechargerPage';
 import './lib/pwaPromptCapture';
-import { estDesktop } from './lib/runtime';
+import { estMobile, estApplicationInstallee } from './lib/runtime';
 import './index.css';
 import './talixy/talixy.css';
 import './talixy/talixyUI.css';
@@ -28,8 +28,15 @@ try {
 // sessionStorage so the user must log in again. During normal SPA usage
 // (sidebar nav, tab switches inside the app), this file does NOT re-run,
 // so the active session is preserved.
-const IS_PWA = window.matchMedia('(display-mode: standalone)').matches
-  || (navigator as unknown as Record<string, boolean>).standalone === true;
+/*
+ * « AFFICHAGE AUTONOME », PAS « PWA ». Le runtime mobile en est soustrait : sans cela, la
+ * purge des jetons ci-dessous s'executerait a CHAQUE lancement de l'application Android,
+ * et l'utilisateur devrait se reconnecter a chaque fois. C'est le defaut le plus grave
+ * que l'audit du 25/10/2026 ait trouve, et il ne se voit pas a la relecture.
+ */
+const IS_PWA = !estMobile()
+  && (window.matchMedia('(display-mode: standalone)').matches
+    || (navigator as unknown as Record<string, boolean>).standalone === true);
 
 // Apercu interne du module Site (iframe). Monte a la place de App : aucune detection de role ;
 // connexion, inscription et ecritures neutralisees dans l'iframe (sitePreviewGuard.ts).
@@ -62,7 +69,14 @@ if (IS_PWA && !IS_SITE_PREVIEW && !IS_EMBEDDED) {
 }
 
 /*
- * LE SERVICE WORKER EST POUR LE WEB ET LA PWA, PAS POUR L'APPLICATION INSTALLEE.
+ * LE SERVICE WORKER EST POUR LE WEB ET LA PWA, PAS POUR LES APPLICATIONS INSTALLEES.
+ *
+ * Bureau ET mobile en sont ecartes, pour la meme raison de fond : les assets sont
+ * embarques dans l'application (talvex.exe, ou l'APK), donc le cache n'apporte rien — et
+ * c'est lui qui casse les mises a jour. Precision mesuree pour le mobile : une WebView
+ * Capacitor sert bien les requetes de service worker (Capacitor cable un
+ * ServiceWorkerClient), si bien que le worker FONCTIONNERAIT et pourrait reproduire la
+ * fenetre blanche connue. On ne compte donc pas sur son echec : on ne l'enregistre pas.
  *
  * Mesure du 25/10/2026 : en Tauri, la fenetre s'ouvrait BLANCHE apres chaque nouvelle
  * version. La cause n'est pas le service worker en lui-meme, c'est ce qu'il garde en
@@ -83,7 +97,7 @@ if (IS_PWA && !IS_SITE_PREVIEW && !IS_EMBEDDED) {
  * et nettoie les profils ou la page charge encore ; une installation deja cassee demande un
  * nettoyage du profil WebView2, une fois.
  */
-if (estDesktop()) {
+if (estApplicationInstallee()) {
   // Defensif : un worker installe par une version anterieure doit partir, sinon il
   // reprendrait la main au prochain demarrage. Pas de rechargement ici — si ce code
   // s'execute, la page est deja saine, et un reload automatique risquerait de boucler.
