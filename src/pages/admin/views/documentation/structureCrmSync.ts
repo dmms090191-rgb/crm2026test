@@ -2,12 +2,30 @@ import type { TreeNode, FolderSection } from './structureCrmData';
 import { insertIntoTree, sortTree, countFiles, countFolders, renderTreeText } from './structureCrmSyncHelpers';
 import { buildFolderSections } from './structureCrmSyncFolders';
 
-// --- Glob all project files at build time ---
-const SRC_FILES = Object.keys(import.meta.glob('/src/**/*.{ts,tsx,css,json}', { eager: false }));
-const SUPABASE_FUNCTIONS = Object.keys(import.meta.glob('/supabase/functions/**/*.ts', { eager: false, query: '?raw' }));
-const SUPABASE_MIGRATIONS = Object.keys(import.meta.glob('/supabase/migrations/**/*.sql', { eager: false, query: '?raw' }));
-const SUPABASE_ROOT = Object.keys(import.meta.glob('/supabase/*.{toml,sql}', { eager: false, query: '?raw' }));
-const SCRIPTS_FILES = Object.keys(import.meta.glob('/scripts/**/*.{ts,js}', { eager: false, query: '?raw' }));
+// --- La liste des fichiers du projet, etablie au build ---
+//
+// Ces cinq listes venaient d'import.meta.glob. Seules les CLES etaient utilisees, jamais le
+// contenu — mais un glob, meme en eager:false, oblige Vite a emettre un module par fichier
+// trouve. Le code source du projet partait donc dans le paquet public, et depuis la creation
+// du projet Android, dans l'APK : tout src/, les 218 migrations SQL, les 49 edge functions,
+// les 82 scripts. Mesure du 25/10/2026, en ne changeant que ces cinq lignes : 1 190 fichiers
+// et 12 Mo dans dist/assets avec les globs, contre 119 fichiers et 5,7 Mo sans.
+//
+// Retirer le seul query:'?raw' ne suffisait pas : le build ECHOUE alors, Rollup essayant de
+// resoudre les .sql et les .toml comme des modules JavaScript.
+//
+// scripts/structureProjetPlugin.ts ecrit donc la seule chose utile ici — les chemins — dans
+// src/generated/structureProjet.json, en reprenant le motif de auditSnapshot.json. Aucun
+// contenu de fichier n est lu, donc rien ne peut fuiter. La forme des chemins est identique
+// a celle que rendait import.meta.glob, barre oblique de tete comprise, car syncStructure()
+// depouille « /supabase/functions/ » pour compter les edge functions.
+import structureProjet from '../../../../generated/structureProjet.json';
+
+const SRC_FILES: string[] = structureProjet.src;
+const SUPABASE_FUNCTIONS: string[] = structureProjet.supabaseFunctions;
+const SUPABASE_MIGRATIONS: string[] = structureProjet.supabaseMigrations;
+const SUPABASE_ROOT: string[] = structureProjet.supabaseRoot;
+const SCRIPTS_FILES: string[] = structureProjet.scripts;
 
 const ROOT_FILES = [
   'package.json',
