@@ -6,6 +6,7 @@ import { readFileSync } from "node:fs";
 
 import {
   estTelechargeable,
+  estInstallableParMagasin,
   plateformeDepuisSignaux,
   PLATEFORMES,
   type EntreeTelechargement,
@@ -224,4 +225,145 @@ test("E3 l'onglet « Application » n'a pas ete remplace", () => {
     /case 'application': return <Suspense fallback=\{lazyFallback\}><AdminApplicationPage \/><\/Suspense>;/,
     "la vue Application a ete modifiee",
   );
+});
+
+/* ==================================================================================
+ * F. LA VOIE MAGASIN — iOS ne se pose pas depuis une page web
+ *
+ * Apple n'autorise pas l'installation d'un binaire depuis un site : elle passe par
+ * TestFlight ou par l'App Store. Il n'y a donc ni fichier, ni taille, ni somme de controle.
+ * Exiger `sha256` sur cette voie, par symetrie avec le telechargement direct, aurait
+ * condamne iOS a rester eteint pour toujours — ou pousse a inventer une valeur, ce qui est
+ * pire : une empreinte qui ne correspond a aucun fichier est un mensonge verifiable.
+ *
+ * La regle de fond ne change pas pour autant : rien ne s'allume sans destination.
+ * ================================================================================== */
+
+const MAGASIN_COMPLET: EntreeTelechargement = {
+  statut: "disponible",
+  magasin: "TestFlight",
+  lien: "https://testflight.apple.com/join/XXXXXXXX",
+};
+
+test("F1 une entree magasin COMPLETE active le bouton", () => {
+  assert.equal(estInstallableParMagasin(MAGASIN_COMPLET), true);
+});
+
+test("F2 sans lien, ou sans nom de magasin, rien ne s'allume", () => {
+  assert.equal(estInstallableParMagasin({ ...MAGASIN_COMPLET, lien: undefined }), false);
+  assert.equal(estInstallableParMagasin({ ...MAGASIN_COMPLET, magasin: undefined }), false);
+  assert.equal(estInstallableParMagasin({ ...MAGASIN_COMPLET, lien: "" }), false);
+});
+
+test("F3 'bientot' n'active jamais la voie magasin non plus", () => {
+  assert.equal(estInstallableParMagasin({ ...MAGASIN_COMPLET, statut: "bientot" }), false);
+});
+
+test("F4 un lien non HTTPS est refuse", () => {
+  // Une invitation TestFlight est toujours en https. Un lien http ouvrirait une page non
+  // chiffree depuis un bouton qui promet une installation : on refuse plutot que d'avertir.
+  assert.equal(estInstallableParMagasin({ ...MAGASIN_COMPLET, lien: "http://exemple.fr" }), false);
+  assert.equal(estInstallableParMagasin({ ...MAGASIN_COMPLET, lien: "javascript:alert(1)" }), false);
+});
+
+test("F5 les deux voies s'excluent : le telechargement direct l'emporte", () => {
+  // Si les deux etaient remplies, c'est le fichier qui gagne : c'est le seul dont on ait
+  // verifie l'empreinte. Et surtout, la page ne doit jamais afficher DEUX boutons.
+  const lesDeux: EntreeTelechargement = {
+    statut: "disponible",
+    version: "1.0.0",
+    url: "https://exemple.fr/app.apk",
+    sha256: "AB".repeat(32),
+    magasin: "TestFlight",
+    lien: "https://testflight.apple.com/join/XXXXXXXX",
+  };
+  assert.equal(estTelechargeable(lesDeux), true);
+  assert.equal(estInstallableParMagasin(lesDeux), false);
+});
+
+test("F6 le composant rend les DEUX voies, et un seul bouton a la fois", () => {
+  const code = readFileSync("src/components/telechargement/CentreTelechargement.tsx", "utf8");
+  // L'APPEL, pas le nom : le nom reste dans la ligne d'import meme quand la voie est
+  // debranchee. La mutation `const parMagasin = false` passait ce releve.
+  assert.match(
+    code,
+    /const parMagasin = estInstallableParMagasin\(entree\);/,
+    "la voie magasin n'est plus calculee : iOS ne pourrait jamais s'allumer",
+  );
+  assert.match(code, /Installer via \{entree!\.magasin\}/, "le bouton ne nomme plus sa destination");
+  assert.match(code, /target="_blank"/, "le lien magasin n'ouvre plus un nouvel onglet");
+  assert.match(code, /rel="noopener noreferrer"/, "le lien magasin n'est plus isole de l'onglet parent");
+  // La chaine ternaire doit rester EXCLUSIVE : actif, sinon magasin, sinon bientot.
+  assert.match(code, /actif \?[\s\S]{0,900}\) : parMagasin \?[\s\S]{0,1400}\) : \(/,
+    "les trois etats ne s'excluent plus : deux boutons pourraient s'afficher");
+});
+
+/* ==================================================================================
+ * G. CE QUE LE MANIFESTE LIVRE DECLARE AUJOURD'HUI
+ * ================================================================================== */
+
+test("G1 Android est PREPARE mais PAS ouvert au public", () => {
+  /*
+   * Decision du 25/10/2026 : l'APK est bati, signe (CN=Talvex, RSA 4096, v2+v3), verifie —
+   * mais des identifiants de comptes REELS restent lisibles dans l'historique public du
+   * depot. La rotation des PIN precede la distribution. L'entree porte donc deja son url,
+   * sa version et son empreinte, et reste a 'bientot' : l'activation est un mot a changer,
+   * pas un travail a refaire.
+   *
+   * Ce releve rougira le jour ou Android passera a 'disponible'. C'est voulu : ce sera le
+   * moment de relire cette note et de confirmer que la raison du blocage a disparu.
+   */
+  const m = JSON.parse(readFileSync("public/telechargements.json", "utf8"));
+  assert.equal(m.android.statut, "bientot", "Android a ete active : la rotation des PIN est-elle faite ?");
+  assert.ok(m.android.url, "l'url Android n'est plus preparee");
+  assert.ok(m.android.sha256, "l'empreinte Android n'est plus preparee");
+  assert.equal(m.android.version, "0.1.0");
+  assert.equal(estTelechargeable(m.android), false, "une entree 'bientot' ne doit jamais etre telechargeable");
+});
+
+test("G2 iOS reste eteint tant qu'aucune application n'existe", () => {
+  const m = JSON.parse(readFileSync("public/telechargements.json", "utf8"));
+  assert.equal(m.ios.statut, "bientot");
+  assert.equal(estTelechargeable(m.ios), false);
+  assert.equal(estInstallableParMagasin(m.ios), false, "iOS afficherait un bouton sans application installable");
+  assert.equal(m.ios.magasin, "TestFlight", "la voie d'installation prevue n'est plus declaree");
+  assert.ok(!m.ios.url && !m.ios.sha256, "iOS ne doit pas porter de fichier : l'installation passe par un magasin");
+});
+
+test("G3 l'empreinte declaree pour Android est bien celle d'un APK existant", () => {
+  // Non pas « une empreinte est presente », mais « elle a 64 caracteres hexadecimaux ».
+  // Une valeur inventee ou tronquee passerait le premier controle, pas celui-ci.
+  const m = JSON.parse(readFileSync("public/telechargements.json", "utf8"));
+  assert.match(m.android.sha256, /^[0-9A-F]{64}$/, "l'empreinte Android n'a pas la forme d'un SHA-256");
+  assert.ok(m.android.taille > 1_000_000, "la taille declaree ne ressemble pas a celle d'un APK");
+});
+
+test("G4 l'aide a l'installation n'apparait que sous un bouton ACTIF", () => {
+  /*
+   * Un APK telecharge depuis un navigateur Android se heurte a deux obstacles d'affilee :
+   * Chrome avertit que le fichier peut endommager l'appareil, puis Android refuse
+   * l'installation tant que la source n'est pas autorisee. Sans une ligne d'explication,
+   * l'utilisateur telecharge puis reste devant un fichier qu'il ne sait pas ouvrir.
+   *
+   * Mais cette ligne n'a de sens QUE sous un bouton actif : sous une attente, elle
+   * expliquerait comment installer ce qui n'existe pas encore.
+   */
+  const code = readFileSync("src/components/telechargement/CentreTelechargement.tsx", "utf8");
+  assert.match(
+    code,
+    /\(actif \|\| parMagasin\) && entree\?\.aide/,
+    "l'aide s'afficherait aussi sous « Bientot disponible »",
+  );
+});
+
+test("G5 les plateformes dont l'installation demande un geste portent une aide", () => {
+  const m = JSON.parse(readFileSync("public/telechargements.json", "utf8"));
+  // Windows : SmartScreen avertit, l'installateur n'etant pas signe.
+  // Android : autorisation d'installer depuis une source inconnue.
+  for (const cle of ["windows", "android"]) {
+    assert.ok(
+      typeof m[cle].aide === "string" && m[cle].aide.length > 40,
+      `${cle} ne dit plus a l'utilisateur ce qui l'attend apres le telechargement`,
+    );
+  }
 });

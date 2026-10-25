@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Monitor, Apple, Smartphone, Download, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Monitor, Apple, Smartphone, Download, Clock, CheckCircle2, AlertCircle, ExternalLink } from 'lucide-react';
 import type { useThemeTokens } from '../../hooks/useThemeTokens';
 import {
   PLATEFORMES,
   estTelechargeable,
+  estInstallableParMagasin,
   lireSignauxPlateforme,
   plateformeDepuisSignaux,
   type Manifeste,
@@ -116,6 +117,9 @@ export default function CentreTelechargement({ tokens: t, avecEntete = true }: P
             {PLATEFORMES.filter((p) => p.famille === famille).map((p) => {
               const entree = manifeste?.[p.cle];
               const actif = estTelechargeable(entree);
+              /* iOS ne se pose pas depuis une page web : l'installation passe par un
+                 magasin. Deuxieme voie, meme exigence — rien ne s'allume sans destination. */
+              const parMagasin = estInstallableParMagasin(entree);
               const enAvant = plateforme === p.cle;
               const Icone = ICONES[p.cle] ?? Monitor;
 
@@ -138,7 +142,7 @@ export default function CentreTelechargement({ tokens: t, avecEntete = true }: P
                         background: t.surface.tertiary, border: `1px solid ${t.surface.border}`,
                       }}
                     >
-                      <Icone className="w-4 h-4" style={{ color: actif ? t.accent.text : t.label.muted }} />
+                      <Icone className="w-4 h-4" style={{ color: actif || parMagasin ? t.accent.text : t.label.muted }} />
                     </span>
                     <div style={{ minWidth: 0 }}>
                       <div style={{ color: t.heading.primary, fontSize: 15, fontWeight: 650 }}>{p.nom}</div>
@@ -167,6 +171,11 @@ export default function CentreTelechargement({ tokens: t, avecEntete = true }: P
                           </>
                         ) : null}
                       </>
+                    ) : parMagasin ? (
+                      <>
+                        Installation via {entree?.magasin}
+                        {entree?.version ? ` · version ${entree.version}` : ''}
+                      </>
                     ) : entree?.magasin ? (
                       `Sera publie sur ${entree.magasin}.`
                     ) : (
@@ -189,6 +198,25 @@ export default function CentreTelechargement({ tokens: t, avecEntete = true }: P
                       <Download className="w-4 h-4" />
                       Telecharger pour {p.nom}
                     </a>
+                  ) : parMagasin ? (
+                    /* Un lien vers un magasin, pas un telechargement : il ouvre un onglet,
+                       et son libelle NOMME la destination. Un bouton qui dit « Telecharger »
+                       alors qu'il emmene ailleurs ment, meme si la page d'arrivee est bonne. */
+                    <a
+                      href={entree!.lien}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      data-testid={`magasin-${p.cle}`}
+                      style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                        height: 44, borderRadius: 10, textDecoration: 'none',
+                        background: t.accent.solid, color: t.text.inverse,
+                        fontSize: 14, fontWeight: 650,
+                      }}
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                      Installer via {entree!.magasin}
+                    </a>
                   ) : (
                     /* UN DIV, PAS UN BOUTON DESACTIVE. Un <button disabled> reste un bouton :
                        il se survole, il attire le clic, et il promet quelque chose qui
@@ -207,6 +235,20 @@ export default function CentreTelechargement({ tokens: t, avecEntete = true }: P
                       <Clock className="w-4 h-4" />
                       Bientot disponible
                     </div>
+                  )}
+
+                  {/* L'aide ne s'affiche que sous un bouton ACTIF : sous une attente, elle
+                      n'ajouterait que du bruit. */}
+                  {(actif || parMagasin) && entree?.aide && (
+                    <p
+                      data-testid={`aide-${p.cle}`}
+                      style={{
+                        color: t.label.muted, fontSize: 11.5, lineHeight: 1.45,
+                        margin: '9px 0 0', textAlign: 'center',
+                      }}
+                    >
+                      {entree.aide}
+                    </p>
                   )}
                 </div>
               );

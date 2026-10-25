@@ -82,6 +82,27 @@ export interface EntreeTelechargement {
   publie_le?: string;
   /** Pour les stores : le texte du bouton differe d'un telechargement direct. */
   magasin?: string;
+  /**
+   * L'adresse d'un MAGASIN, pas d'un fichier : une invitation TestFlight, une fiche App
+   * Store ou Google Play. Distincte d'`url` a dessein — on ne telecharge rien, on ouvre une
+   * page qui installera elle-meme. Une somme de controle n'y aurait aucun sens : il n'y a
+   * pas de fichier a comparer.
+   */
+  lien?: string;
+  /**
+   * Une phrase affichee SOUS un bouton actif, quand l installation demande un geste que le
+   * telechargement ne suffit pas a expliquer.
+   *
+   * Le cas qui l a motivee : un APK telecharge depuis un navigateur Android se heurte a deux
+   * obstacles d affilee — Chrome avertit que le fichier peut endommager l appareil, puis
+   * Android refuse l installation tant que la source n est pas autorisee. L utilisateur
+   * telecharge, puis reste bloque devant un fichier qu il ne sait pas ouvrir. Une ligne au
+   * bon moment vaut mieux qu une page d aide que personne n ouvre.
+   *
+   * Facultative : rien ne s affiche si elle est absente, et elle n apparait jamais sous un
+   * bouton eteint — ou elle ne ferait qu ajouter du bruit a une attente.
+   */
+  aide?: string;
 }
 
 export type Manifeste = Partial<Record<Exclude<Plateforme, 'inconnue'>, EntreeTelechargement>>;
@@ -106,6 +127,31 @@ export function estTelechargeable(e: EntreeTelechargement | undefined): boolean 
   if (e.statut !== 'disponible') return false;
   if (!e.url || !e.version || !e.sha256) return false;
   return true;
+}
+
+/**
+ * L'AUTRE FACON D'INSTALLER : par un magasin, sans telecharger de fichier.
+ *
+ * iOS n'autorise pas la pose d'un fichier depuis une page web : l'installation passe par
+ * TestFlight ou par l'App Store. Il n'y a donc ni fichier, ni taille, ni somme de controle a
+ * exiger — rien de tout cela n'existe. Exiger `sha256` ici, par souci de symetrie avec le
+ * telechargement direct, aurait condamne iOS a rester eteint pour toujours, ou pousse a
+ * inventer une valeur, ce qui est pire.
+ *
+ * CE QUI EST EXIGE A LA PLACE : le statut, le nom du magasin et un lien HTTPS. Le nom sert
+ * au libelle du bouton — « Installer via TestFlight » dit a l'utilisateur ou il va, et un
+ * bouton qui ment sur sa destination est aussi mauvais qu'un bouton mort.
+ *
+ * LES DEUX VOIES S'EXCLUENT : une entree porte un fichier ou un magasin, jamais les deux.
+ * Si les deux etaient remplis, le telechargement direct l'emporte — c'est le plus precis des
+ * deux, et le seul dont on ait verifie l'empreinte.
+ */
+export function estInstallableParMagasin(e: EntreeTelechargement | undefined): boolean {
+  if (!e) return false;
+  if (estTelechargeable(e)) return false;
+  if (e.statut !== 'disponible') return false;
+  if (!e.lien || !e.magasin) return false;
+  return /^https:\/\//.test(e.lien);
 }
 
 /** Les quatre cartes, dans l'ordre d'affichage, quelle que soit la plateforme detectee. */

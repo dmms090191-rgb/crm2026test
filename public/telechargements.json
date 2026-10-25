@@ -2,21 +2,31 @@
   "_lisez_moi": [
     "LA SOURCE DE VERITE DES TELECHARGEMENTS TALVEX.",
     "",
-    "Une plateforme n'a un bouton ACTIF que si son entree porte statut='disponible' AVEC",
-    "url, version et sha256 non vides. Tout le reste - champ oublie, statut mal",
-    "orthographie, fichier absent - donne 'Bientot disponible'. L'etat par defaut est",
-    "inactif : il faut une declaration complete pour en sortir, jamais l'inverse.",
+    "DEUX FACONS D INSTALLER, ET DEUX CONTRATS DISTINCTS.",
     "",
-    "LA SOMME DE CONTROLE EST OBLIGATOIRE. La page ne la verifie pas : elle est la pour",
-    "qu'on ne puisse pas declarer un telechargement sans avoir tenu le fichier reel.",
-    "On l'obtient par : Get-FileHash <fichier> -Algorithm SHA256",
+    "  TELECHARGEMENT DIRECT (Windows, macOS, Android) : bouton actif seulement si l entree",
+    "  porte statut=disponible AVEC url, version et sha256 non vides.",
     "",
-    "POURQUOI CE FICHIER EST DANS LE DEPOT. Parce qu'ainsi 'la page annonce la version X'",
-    "et 'la version X existe' arrivent dans le MEME commit, relisibles dans un diff. Le",
-    "binaire, lui, vit sur une Release GitHub : 36 Mo par version dans l'historique git",
-    "seraient definitifs, et chaque clone les telechargerait."
+    "  MAGASIN (iOS) : bouton actif seulement si l entree porte statut=disponible AVEC lien",
+    "  (https) et magasin. Pas de somme de controle : il n y a pas de fichier a comparer, iOS",
+    "  n autorisant pas la pose d un binaire depuis une page web.",
+    "",
+    "Tout le reste - champ oublie, statut mal orthographie, fichier absent - donne",
+    "\"Bientot disponible\". L etat par defaut est inactif : il faut une declaration complete",
+    "pour en sortir, jamais l inverse.",
+    "",
+    "NE PAS EDITER CE FICHIER A LA MAIN. Taille et empreinte se lisent sur le binaire, elles",
+    "ne se recopient pas :",
+    "  node scripts/telechargement/preparerArtefact.mjs android <fichier> --url <adresse>",
+    "  node scripts/telechargement/preparerArtefact.mjs android --activer",
+    "L activation retelecharge le fichier depuis son adresse publique et refuse si l empreinte",
+    "differe. Preparer et ouvrir au public sont deux decisions, donc deux commandes.",
+    "",
+    "POURQUOI CE FICHIER EST DANS LE DEPOT. Parce qu ainsi \"la page annonce la version X\" et",
+    "\"la version X existe\" arrivent dans le MEME commit, relisibles dans un diff. Le binaire,",
+    "lui, vit sur une Release GitHub : 36 Mo par version dans l historique git seraient",
+    "definitifs, et chaque clone les telechargerait."
   ],
-
   "windows": {
     "statut": "disponible",
     "version": "0.1.0",
@@ -24,23 +34,25 @@
     "taille": 37389337,
     "sha256": "81C21B18FE6BBA8B29335F0416B4F2E6981CC2F5471142F5DBA0739B0F0F8137",
     "publie_le": "2026-10-25",
-    "_note": "Installateur NSIS, installation par utilisateur sans droits administrateur. Passe a 'disponible' seulement APRES verification : le fichier a ete retelecharge depuis cette URL publique et son empreinte comparee a celle du fichier bati - identique. Non signe : SmartScreen avertira au premier lancement."
+    "_note": "Installateur NSIS, installation par utilisateur sans droits administrateur. Passe a 'disponible' seulement APRES verification : le fichier a ete retelecharge depuis cette URL publique et son empreinte comparee a celle du fichier bati - identique. Non signe : SmartScreen avertira au premier lancement.",
+    "aide": "Windows SmartScreen peut avertir au premier lancement : cliquez sur « Informations complementaires », puis « Executer quand meme ». L installateur ne demande pas de droits administrateur."
   },
-
   "macos": {
     "statut": "bientot",
     "_note": "Impossible a produire depuis Windows : un build macOS exige un hote Apple, un Developer ID et la notarisation."
   },
-
   "android": {
     "statut": "bientot",
-    "magasin": "Google Play",
-    "_note": "Aucun projet natif dans le depot. Le mobile Talvex d'aujourd'hui est la PWA, installable depuis le navigateur."
+    "_note": "APK release signe (CN=Talvex, RSA 4096, schemas v2+v3), versionCode 100, debuggable absent, allowBackup=false, permissions limitees a INTERNET. Distribution DIRECTE, hors Google Play. PREPARE MAIS NON ACTIVE le 25/10/2026 : des identifiants de comptes reels restent lisibles dans l historique public du depot, et la rotation des PIN doit precede toute distribution. Activer par : preparerArtefact.mjs android --activer, apres avoir publie le fichier a son adresse.",
+    "taille": 38827464,
+    "sha256": "2606EA7487277386D7B85B910BB6AD2433290E64D97F8E4FAEF5B2AC5BC8C634",
+    "version": "0.1.0",
+    "url": "https://github.com/dmms090191-rgb/crm2026test/releases/download/v0.1.0/Talvex_0.1.0.apk",
+    "aide": "Android demandera d autoriser l installation depuis cette source : ouvrez le fichier telecharge, puis acceptez. Le telechargement peut aussi afficher un avertissement du navigateur, normal pour un fichier .apk."
   },
-
   "ios": {
     "statut": "bientot",
-    "magasin": "App Store",
-    "_note": "Aucun projet natif dans le depot. Le mobile Talvex d'aujourd'hui est la PWA, installable depuis le navigateur."
+    "magasin": "TestFlight",
+    "_note": "Projet natif ios/ cree depuis Windows (Capacitor 8, Swift Package Manager, coffre Keychain). Aucune application installable n existe encore : la compilation exige un Mac distant (codemagic.yaml est pret) et une adhesion Apple Developer. Reste donc en bientot. Pour activer le jour venu, renseigner le champ \"lien\" avec l invitation TestFlight (https://testflight.apple.com/join/...) puis --activer : aucune somme de controle n est exigee sur cette voie, puisqu il n y a pas de fichier."
   }
 }
