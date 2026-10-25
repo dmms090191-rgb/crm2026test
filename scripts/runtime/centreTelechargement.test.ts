@@ -302,23 +302,29 @@ test("F6 le composant rend les DEUX voies, et un seul bouton a la fois", () => {
  * G. CE QUE LE MANIFESTE LIVRE DECLARE AUJOURD'HUI
  * ================================================================================== */
 
-test("G1 Android est PREPARE mais PAS ouvert au public", () => {
+test("G1 Android est ouvert au public, et son entree est COMPLETE", () => {
   /*
-   * Decision du 25/10/2026 : l'APK est bati, signe (CN=Talvex, RSA 4096, v2+v3), verifie —
-   * mais des identifiants de comptes REELS restent lisibles dans l'historique public du
-   * depot. La rotation des PIN precede la distribution. L'entree porte donc deja son url,
-   * sa version et son empreinte, et reste a 'bientot' : l'activation est un mot a changer,
-   * pas un travail a refaire.
+   * CE RELEVE A CHANGE DE SENS LE 25/10/2026, ET C'ETAIT SON ROLE.
    *
-   * Ce releve rougira le jour ou Android passera a 'disponible'. C'est voulu : ce sera le
-   * moment de relire cette note et de confirmer que la raison du blocage a disparu.
+   * Il exigeait d'abord qu'Android reste a 'bientot' : l'APK etait bati, signe et verifie,
+   * mais quatre couples adresse + PIN de comptes REELS restaient lisibles dans l'historique
+   * du depot public. J'avais ecrit ce releve pour qu'il ROUGISSE au moment de l'activation,
+   * et force a relire la raison du blocage plutot qu'a l'oublier. Il a rougi ; la decision a
+   * ete prise en connaissance de cause — le SaaS ne porte aucune donnee reelle a cette date.
+   *
+   * LA ROTATION DES PIN RESTE A FAIRE. Elle n'est pas devenue inutile, elle a ete remise a
+   * plus tard : les quatre valeurs sont toujours extractibles par `git log`, et aucune
+   * modification de fichier n'y changera rien. Le jour ou Talvex portera de vraies donnees,
+   * cela devra etre regle AVANT, pas apres.
+   *
+   * Ce que le releve verifie desormais : qu'Android est complet, pas seulement allume. Un
+   * statut 'disponible' sans url ni empreinte serait un bouton vers rien.
    */
   const m = JSON.parse(readFileSync("public/telechargements.json", "utf8"));
-  assert.equal(m.android.statut, "bientot", "Android a ete active : la rotation des PIN est-elle faite ?");
-  assert.ok(m.android.url, "l'url Android n'est plus preparee");
-  assert.ok(m.android.sha256, "l'empreinte Android n'est plus preparee");
+  assert.equal(estTelechargeable(m.android), true, "le bouton Android est eteint");
+  assert.ok(m.android.url.endsWith(".apk"), "l'url Android ne pointe plus vers un APK");
   assert.equal(m.android.version, "0.1.0");
-  assert.equal(estTelechargeable(m.android), false, "une entree 'bientot' ne doit jamais etre telechargeable");
+  assert.ok(m.android.publie_le, "la date de publication n'est plus renseignee");
 });
 
 test("G2 iOS reste eteint tant qu'aucune application n'existe", () => {
