@@ -1,6 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
+import BandeauMiseAJour from './components/BandeauMiseAJour';
 import ErrorBoundary from './components/ErrorBoundary';
 import SitePreviewEntry, { prepareSitePreviewRealm } from './pages/public/SitePreviewEntry';
 import TelechargerPage from './pages/public/TelechargerPage';
@@ -118,7 +119,21 @@ if (estApplicationInstallee()) {
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>
-      {IS_TELECHARGER ? <TelechargerPage /> : IS_SITE_PREVIEW ? <SitePreviewEntry /> : <App />}
+      {IS_TELECHARGER ? <TelechargerPage /> : IS_SITE_PREVIEW ? <SitePreviewEntry /> : (
+        <>
+          <App />
+          {/*
+            MONTE ICI, ET NON DANS App. App rend une branche differente selon le runtime et
+            l'etat de connexion ; un bandeau pose a l'interieur devrait etre repete dans
+            chacune, ou disparaitrait selon l'ecran. A ce niveau, il couvre tout.
+
+            PAS sur /telecharger : la page y annonce deja les versions, un bandeau par-dessus
+            dirait deux fois la meme chose. Pas non plus sur l'apercu de site, qui n'est pas
+            l'application.
+          */}
+          <BandeauMiseAJour />
+        </>
+      )}
     </ErrorBoundary>
   </StrictMode>
 );

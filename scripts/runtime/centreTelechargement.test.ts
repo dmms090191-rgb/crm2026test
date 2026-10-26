@@ -154,15 +154,33 @@ test("C2 aucune entree du manifeste livre n'est 'disponible' sans etre COMPLETE"
 // ------------------------------------------------ D. LA PAGE PUBLIQUE
 
 test("D1 la page est montee A LA PLACE de App, pas a l'interieur", () => {
-  // C'est ce qui rend la connexion inatteignable depuis cette page : App n'est jamais
-  // monte, donc ni detection de role, ni resolution de domaine, ni fenetre de connexion.
+  /*
+   * C'est ce qui rend la connexion inatteignable depuis cette page : App n'est jamais
+   * monte, donc ni detection de role, ni resolution de domaine, ni fenetre de connexion.
+   *
+   * CE RELEVE A ETE REECRIT LE 25/10/2026. Il figeait la forme LITTERALE du ternaire, si
+   * bien que l'ajout d'un bandeau a cote de <App /> — qui ne touche en rien a la propriete
+   * surveillee — l'a fait rougir. Un releve qui epingle une forme reclame d'etre reecrit a
+   * chaque remaniement innocent, et on prend l'habitude de le corriger sans reflechir : le
+   * jour ou il signale un vrai defaut, on le corrige de la meme facon distraite.
+   *
+   * On verifie donc la PROPRIETE : dans la branche de la page publique, TelechargerPage est
+   * seule et App n'y est pas. La forme du reste du montage est libre.
+   */
   const m = sansCommentaires(lire("src/main.tsx"));
   assert.match(m, /const IS_TELECHARGER = /, "la route publique a disparu de main.tsx");
-  assert.match(
-    m,
-    /\{IS_TELECHARGER \? <TelechargerPage \/> : IS_SITE_PREVIEW \? <SitePreviewEntry \/> : <App \/>\}/,
-    "le montage a change de forme : verifier que App n'est pas monte en meme temps",
+
+  const branchePublique = m.match(/IS_TELECHARGER \?([\s\S]*?):/);
+  assert.ok(branchePublique, "le ternaire de la route publique a disparu du montage");
+  assert.match(branchePublique[1], /<TelechargerPage \/>/, "la page publique n'est plus montee");
+  assert.doesNotMatch(
+    branchePublique[1],
+    /<App\b/,
+    "App est monte DANS la branche de la page publique : la connexion y redeviendrait joignable",
   );
+
+  // Et il doit rester monte ailleurs, sinon c'est toute l'application qui disparait.
+  assert.match(m, /<App \/>/, "App n'est plus monte du tout");
 });
 
 test("D2 la page revele #root elle-meme", () => {
