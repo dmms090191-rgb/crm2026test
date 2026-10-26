@@ -29,11 +29,11 @@
   ],
   "windows": {
     "statut": "disponible",
-    "version": "0.1.0",
-    "url": "https://github.com/dmms090191-rgb/crm2026test/releases/download/v0.1.0/Talvex_0.1.0_x64-setup.exe",
-    "taille": 36089547,
-    "sha256": "CBFDA394361EB2E87BC41967CAFADC6D19FE95DDA771B8BB6C0A1B5A7D5F3404",
-    "publie_le": "2026-10-25",
+    "version": "0.1.1",
+    "url": "https://github.com/dmms090191-rgb/crm2026test/releases/download/v0.1.1/Talvex_0.1.1_x64-setup.exe",
+    "taille": 36092742,
+    "sha256": "9AD6CD384790CECF6C9055E84FBAB569FEBE8465C31F9DAEE1D6533ED9A0BFC6",
+    "publie_le": "2026-10-26",
     "_note": "Installateur NSIS, installation par utilisateur sans droits administrateur. Passe a 'disponible' seulement APRES verification : le fichier a ete retelecharge depuis cette URL publique et son empreinte comparee a celle du fichier bati - identique. Non signe : SmartScreen avertira au premier lancement.",
     "aide": "Windows SmartScreen peut avertir au premier lancement : cliquez sur « Informations complementaires », puis « Executer quand meme ». L installateur ne demande pas de droits administrateur."
   },
@@ -42,14 +42,14 @@
     "_note": "Impossible a produire depuis Windows : un build macOS exige un hote Apple, un Developer ID et la notarisation."
   },
   "android": {
-    "statut": "bientot",
-    "_note": "APK release signe (CN=Talvex, RSA 4096, schemas v2+v3), versionCode 100, debuggable absent, allowBackup=false, permissions limitees a INTERNET. Distribution DIRECTE, hors Google Play. PREPARE MAIS NON ACTIVE le 25/10/2026 : des identifiants de comptes reels restent lisibles dans l historique public du depot, et la rotation des PIN doit precede toute distribution. Activer par : preparerArtefact.mjs android --activer, apres avoir publie le fichier a son adresse.",
-    "taille": 38828456,
-    "sha256": "A9E3A869CF9EF366C9D8B212D4D386B7B7102AA013EDE5DB6FAD76D31999991D",
+    "statut": "disponible",
+    "_note": "APK release signe (CN=Talvex, RSA 4096, schemas v2+v3), versionCode 101, debuggable absent, allowBackup=false, permissions limitees a INTERNET. Distribution DIRECTE, hors Google Play. ACTIVE le 26/10/2026 apres verification : le fichier a ete retelecharge depuis cette URL publique et son empreinte comparee a celle du fichier bati - identique. MISE A JOUR SANS DESINSTALLATION : certificat identique a celui de la 0.1.0 (SHA-256 99ab915fc3b1a0a5d580139a111b116e7bbac4e81e729a18a68b3552a2676dd8, mesure sur les deux APK) et versionCode 101 > 100. Ce sont les deux conditions qu Android exige ; changer de cle de signature les romprait et imposerait une desinstallation a tous les porteurs. La rotation des identifiants lisibles dans l historique public du depot RESTE A FAIRE : la distribution a ete ouverte sur decision explicite, le SaaS ne portant pas encore de donnees reelles. A traiter avant qu il en porte.",
+    "taille": 38829152,
+    "sha256": "FA576CEB845C5E68D194AE1BB5EBAF17679668D85A62C34B7DB5CE1E6F310979",
     "version": "0.1.1",
     "url": "https://github.com/dmms090191-rgb/crm2026test/releases/download/v0.1.1/Talvex_0.1.1.apk",
     "aide": "Android demandera d autoriser l installation depuis cette source : ouvrez le fichier telecharge, puis acceptez. Le telechargement peut aussi afficher un avertissement du navigateur, normal pour un fichier .apk.",
-    "publie_le": "2026-10-25"
+    "publie_le": "2026-10-26"
   },
   "ios": {
     "statut": "bientot",
