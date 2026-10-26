@@ -253,9 +253,51 @@ test("E4 le runtime est memoise : un signal qui change en cours de route ne le c
  */
 
 test("G1 la coquille mobile est explicitement interdite au runtime desktop", () => {
-  assert.ok(
-    APP_TSX.includes("if (!estDesktop() && (IS_COQUILLE_TELEPHONE || IS_VIRTUAL_PHONE)"),
-    "la garde de PwaMobileShell doit commencer par !estDesktop() : un PC ne recoit jamais la coquille mobile",
+  /*
+   * CE RELEVE A ETE REECRIT LE 26/10/2026, POUR LA MEME RAISON QUE CELUI DU CENTRE DE
+   * TELECHARGEMENT AVANT LUI. Il epinglait la chaine LITTERALE de la garde. Ajouter un
+   * terme legitime au milieu — l'exclusion du Groupe, qui recevait sinon le panel
+   * Client — le faisait rougir alors que la propriete surveillee n'avait pas bouge.
+   *
+   * Un releve qui reclame d'etre reecrit a chaque remaniement innocent finit par etre
+   * corrige sans reflechir ; le jour ou il signale un vrai defaut, on le corrige de la
+   * meme facon distraite. On verifie donc la PROPRIETE : la garde commence par
+   * !estDesktop(), et les autres termes s'y ajoutent par ET. La composition du reste
+   * est libre.
+   */
+  const garde = APP_TSX.split("\n").find(
+    (l) => l.includes("IS_COQUILLE_TELEPHONE || IS_VIRTUAL_PHONE") && l.trimStart().startsWith("if ("),
+  );
+  assert.ok(garde, "la garde de PwaMobileShell a disparu de App.tsx");
+
+  assert.match(
+    garde,
+    /^\s*if \(!estDesktop\(\)\s*&&/,
+    "la garde ne commence plus par !estDesktop() : un PC pourrait recevoir la coquille mobile",
+  );
+  assert.doesNotMatch(
+    garde,
+    /\|\|\s*!estDesktop\(\)/,
+    "!estDesktop() est passe en OU : il ne fermerait plus rien",
+  );
+});
+
+test("G1bis le Groupe ne recoit PAS la coquille mobile", () => {
+  /*
+   * PwaMobileShell ne connait que quatre roles. Mesure du 26/10/2026 : un
+   * company_super_admin traversait ses trois `if` sans correspondre et tombait dans le
+   * switch du CLIENT — il recevait le tableau de bord Client, sous le nom « Client ».
+   * Tant qu'il n'a pas ses propres onglets et ses propres vues, il doit rester sur
+   * AppDashboardRouter, qui sait le rendre depuis toujours.
+   */
+  const garde = APP_TSX.split("\n").find(
+    (l) => l.includes("IS_COQUILLE_TELEPHONE || IS_VIRTUAL_PHONE") && l.trimStart().startsWith("if ("),
+  );
+  assert.ok(garde, "la garde de PwaMobileShell a disparu de App.tsx");
+  assert.match(
+    garde,
+    /role !== 'company_super_admin'/,
+    "le Groupe n'est plus exclu : il recevrait de nouveau le panel Client",
   );
 });
 

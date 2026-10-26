@@ -3,7 +3,19 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="google" content="notranslate" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!--
+      viewport-fit=cover : SANS LUI, TOUTES LES env(safe-area-inset-*) VALENT ZERO.
+
+      Mesure du 26/10/2026 sur l'APK : l'en-tete de la coquille telephone etait dessine
+      SOUS la barre d'etat d'Android, et la barre d'onglets SOUS la barre de gestes. Les
+      classes safe-area-top et safe-area-bottom etaient pourtant deja posees dans
+      PwaMobileShell : elles ne produisaient simplement aucun retrait, faute de cette
+      declaration. Android 15 (targetSdk 36) dessine desormais bord a bord par defaut, ce
+      qui rend l'oubli visible la ou il ne l'etait pas avant.
+
+      Sans effet sur le web ni sur le bureau, qui n'ont pas d'encoche.
+    -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 
     <title>Talvex CRM</title>
     <meta name="description" content="Plateforme CRM SaaS professionnelle pour gérer vos leads, vendeurs, clients, rendez-vous et messages." />

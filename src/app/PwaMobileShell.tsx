@@ -8,6 +8,7 @@ import { LogOut } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAppIcon } from '../hooks/useAppIcon';
 import { useThemeTokens } from '../hooks/useThemeTokens';
+import { useCompanyId } from '../contexts/CompanyIdContext';
 import {
   type UserRole, getTabsForRole, getMoreTabs, PwaSpinner,
   SADashboard, SAAdmins, SAchatAdmin, SACrmSociete, SAStatuts, SAApiIa, SACerveauIA,
@@ -50,6 +51,29 @@ export default function PwaMobileShell({ role, onLogout }: Props) {
   const [userEmail, setUserEmail] = useState('');
   const [userId, setUserId] = useState('');
   const [vendorDbId, setVendorDbId] = useState<string | null>(null);
+
+  /*
+   * LE NOM DE LA SOCIETE, QUE CETTE COQUILLE NE LISAIT PAS.
+   *
+   * MESURE DU 26/10/2026 SUR L'APK : la carte d'identite affichait « — » pour la
+   * Societe, et « ? » pour l'avatar. Ce n'etait pas de la lenteur — AUCUNE requete ne
+   * partait. Sur le bureau, cette lecture vit dans useAdminDashboardEffects, un fichier
+   * que la coquille telephone ne monte jamais : elle importe la VUE toute seule et saute
+   * toute la couche qui l'alimente.
+   *
+   * On ne monte pas AdminDashboard ici pour autant — ce serait monter un panel entier
+   * pour trois chaines. On recopie la seule requete qui manque, a l'identique
+   * (useAdminDashboardEffects.ts:90-94). Le companyId vient du fournisseur pose par
+   * AppShell, qui est deja la.
+   */
+  const companyId = useCompanyId();
+  const [companyName, setCompanyName] = useState('');
+
+  useEffect(() => {
+    if (!companyId) return;
+    supabase.from('companies').select('name').eq('id', companyId).maybeSingle()
+      .then(({ data }) => { if (data?.name) setCompanyName(data.name); });
+  }, [companyId]);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -106,8 +130,20 @@ export default function PwaMobileShell({ role, onLogout }: Props) {
       }
     }
     if (role === 'admin') {
+      /*
+       * LES TROIS PROPS D'IDENTITE, QUI MANQUAIENT ICI ET NULLE PART AILLEURS.
+       *
+       * Les roles vendeur et client passaient deja les leurs (vendorName, clientName) ;
+       * seul l'admin montait sa vue nue. Or VueEnsemble declare des defauts VIDES
+       * (VueEnsemble.tsx:43-45) et SocieteIdentityCard affiche `valeur || '—'` : une
+       * chaine vide donne donc « — » de facon PERMANENTE, pas transitoire. C'est, champ
+       * pour champ, la capture d'ecran du 26/10/2026.
+       *
+       * Le bureau les passe de la meme facon (AdminViewRenderer.tsx:144).
+       */
+      const identite = { fullName: userName, companyName, email: userEmail };
       switch (activeTab) {
-        case 'vue-ensemble': return <AdminVueEnsemble />;
+        case 'vue-ensemble': return <AdminVueEnsemble {...identite} />;
         case 'crm': return <AdminCrm />;
         case 'chat-client': return <AdminChatClient />;
         case 'chat-vendeur': return <AdminChatVendeur />;
@@ -115,7 +151,7 @@ export default function PwaMobileShell({ role, onLogout }: Props) {
         case 'agenda': return <AdminAgenda />;
         case 'propositions-rdv': return <AdminPropositionsRdv />;
         case 'statuts': return <AdminStatuts />;
-        default: return <AdminVueEnsemble />;
+        default: return <AdminVueEnsemble {...identite} />;
       }
     }
     if (role === 'vendor') {
@@ -164,7 +200,19 @@ export default function PwaMobileShell({ role, onLogout }: Props) {
         </button>
       </header>
 
-      <main data-tx-mobile-body={arcMobile ? "" : undefined} className={`flex-1 min-h-0 ${isChat ? 'overflow-hidden' : 'overflow-y-auto'}`}>
+      {/*
+        DEUX MANQUES, MESURES LE 26/10/2026 SUR L'APK, ET LA MEME LIGNE LES CORRIGE.
+
+        `flex flex-col` : les vues de messagerie se dimensionnent par rapport a un parent
+        en colonne. Sans lui, leur liste de conversations n'a pas de hauteur et la zone de
+        saisie sort de l'ecran. Le conteneur du bureau, lui, l'a toujours eu.
+
+        `p-3` : les neuf vues montees ici n'ont AUCUNE gouttiere a elles — c'est le
+        conteneur qui la donne, comme sur le bureau. Sans elle, chaque carte, chaque titre
+        et chaque bordure touche les deux bords de l'ecran. C'est le premier motif qui
+        fait dire « l'interface n'est pas bonne » : rien ne respire.
+      */}
+      <main data-tx-mobile-body={arcMobile ? "" : undefined} className={`flex-1 min-h-0 flex flex-col ${isChat ? 'p-2 overflow-hidden' : 'p-3 overflow-y-auto'}`}>
         <Suspense fallback={<PwaSpinner />}>
           {renderView()}
         </Suspense>

@@ -18,6 +18,7 @@ import SessionExpiryWarning from './components/SessionExpiryWarning';
 import { SessionTimeoutProvider } from './contexts/SessionTimeoutContext';
 import AppDashboardRouter from './app/AppDashboardRouter';
 import AppShell from './app/AppShell';
+import { SimulationProvider } from './contexts/SimulationContext';
 import PwaMobileShell from './app/PwaMobileShell';
 import TalvexDesktopLauncher from './components/TalvexDesktopLauncher';
 import { estDesktop, estMobile } from './lib/runtime';
@@ -230,12 +231,37 @@ function App() {
     // meme si un parametre virtualPhone apparaissait dans l'URL de la fenetre. Un PC n'est
     // pas un telephone, et la mesure du 25/10/2026 montre que les deux termes ci-dessous
     // valent deja faux en Tauri : ce !estDesktop() ferme le seul chemin qui restait.
-    if (!estDesktop() && (IS_COQUILLE_TELEPHONE || IS_VIRTUAL_PHONE) && !impersonatedAdmin && !impersonatedVendor && !impersonatedClient) {
-      const panelRole = role === 'super_admin' ? 'super_admin' as const : role === 'company_super_admin' ? 'company_super_admin' as const : role === 'vendor' ? 'vendor' as const : role === 'client' ? 'client' as const : 'admin' as const;
+    /*
+     * LE GROUPE EST EXCLU DE LA COQUILLE, ET CE N'EST PAS UN OUBLI.
+     *
+     * MESURE DU 26/10/2026. PwaMobileShell ne connait que quatre roles. Un
+     * company_super_admin traversait donc ses trois `if` sans correspondre a aucun et
+     * tombait dans le switch du CLIENT : un Groupe qui installait l'APK recevait le
+     * tableau de bord Client, sous le nom « Client », avec les onglets du client. Pas
+     * un ecran vide — la MAUVAISE interface, en silence.
+     *
+     * Le typecheck le signalait deja (deux TS2322 sur les lignes suivantes), mais
+     * `npm run build` vaut `vite build` seul, qui ne type-verifie pas : l'APK est parti
+     * avec. En l'excluant ici, il retombe sur AppDashboardRouter, qui sait le rendre
+     * depuis toujours — et les deux erreurs de typage disparaissent du meme coup.
+     */
+    if (!estDesktop() && role !== 'company_super_admin' && (IS_COQUILLE_TELEPHONE || IS_VIRTUAL_PHONE) && !impersonatedAdmin && !impersonatedVendor && !impersonatedClient) {
+      const panelRole = role === 'super_admin' ? 'super_admin' as const : role === 'vendor' ? 'vendor' as const : role === 'client' ? 'client' as const : 'admin' as const;
       return (
         <SessionTimeoutProvider value={sessionCtxValue}>
           <AppShell panelRole={panelRole} useCompanyProvider={role !== 'super_admin'}>
-            <PwaMobileShell key={sessionKey} role={role} onLogout={handleLogout} />
+            {/*
+             * SimulationProvider : SANS LUI, QUATRE ONGLETS SUR HUIT FONT PLANTER TOUT.
+             *
+             * useSimulation LEVE hors fournisseur (SimulationContext.tsx:51), et les vues
+             * de messagerie l'appellent. Sur le bureau, AdminDashboard enveloppe tout
+             * (AdminDashboard.tsx:428) ; la coquille telephone monte ces memes vues sans
+             * passer par lui. Resultat mesure : appuyer sur CRM ou Clients remplacait
+             * l'ecran ENTIER, barre d'onglets comprise, par « Une erreur est survenue ».
+             */}
+            <SimulationProvider>
+              <PwaMobileShell key={sessionKey} role={role} onLogout={handleLogout} />
+            </SimulationProvider>
           </AppShell>
           {expiryWarning}
         </SessionTimeoutProvider>
