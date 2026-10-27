@@ -271,6 +271,10 @@ export default function ListeVendeurs({ ownerUserId = null, onConnectAsVendor, o
           onDetail={() => { setActionsSourceVendor(actionVendor); setSelectedVendor(actionVendor); setActionVendor(null); }}
           onConnect={() => { onConnectAsVendor?.(actionVendor); setActionVendor(null); setActionsSourceVendor(null); }}
           onChat={() => { onOpenChat?.(actionVendor); setActionVendor(null); setActionsSourceVendor(null); }}
+          /* Aucun faux bouton : ces deux poignees sont optionnelles, et la coquille
+             telephone ne peut pas cabler la prise de controle. */
+          peutConnecter={Boolean(onConnectAsVendor)}
+          peutDiscuter={Boolean(onOpenChat)}
         />
       )}
 

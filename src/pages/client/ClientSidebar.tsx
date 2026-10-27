@@ -1,19 +1,11 @@
 import { useState, useMemo } from 'react';
-import {
-  LayoutDashboard,
-  MessageCircle,
-  CalendarDays,
-  CalendarClock,
-  Hexagon,
-  GraduationCap,
-  Activity,
-  Eye,
-  EyeOff,
-} from 'lucide-react';
+import { Hexagon, Eye, EyeOff } from 'lucide-react';
 import type { ClientActiveView } from './ClientDashboard';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
 import SidebarFooterActions from '../../components/layout/SidebarFooterActions';
 import { usePanelHiddenTabs } from '../../hooks/usePanelHiddenTabs';
+/* La definition de navigation vit hors de ce composant : le telephone la lit aussi. */
+import { BASE_SECTIONS, WELLNESS_SECTION } from './navigationClient';
 
 interface ClientSidebarProps {
   activeView: ClientActiveView;
@@ -29,52 +21,6 @@ interface ClientSidebarProps {
   hideTabsTargetUserId?: string | null;
   showSuiviCorporel?: boolean;
 }
-
-interface NavItem {
-  id: ClientActiveView;
-  label: string;
-  icon: React.ReactNode;
-}
-
-interface NavSection {
-  title: string;
-  items: NavItem[];
-}
-
-const BASE_SECTIONS: NavSection[] = [
-  {
-    title: 'G\u00e9n\u00e9ral',
-    items: [
-      { id: 'vue-ensemble', label: "Vue d'ensemble", icon: <LayoutDashboard className="w-4 h-4" /> },
-    ],
-  },
-  {
-    title: 'Communication',
-    items: [
-      { id: 'messagerie', label: 'Support', icon: <MessageCircle className="w-4 h-4" /> },
-    ],
-  },
-  {
-    title: 'Rendez-vous',
-    items: [
-      { id: 'agenda', label: 'Agenda', icon: <CalendarDays className="w-4 h-4" /> },
-      { id: 'propositions-rdv', label: 'Propositions RDV', icon: <CalendarClock className="w-4 h-4" /> },
-    ],
-  },
-  {
-    title: 'Ressources',
-    items: [
-      { id: 'tuto', label: 'Tuto', icon: <GraduationCap className="w-4 h-4" /> },
-    ],
-  },
-];
-
-const WELLNESS_SECTION: NavSection = {
-  title: 'Bien-\u00eatre',
-  items: [
-    { id: 'suivi-corporel', label: 'Suivi corporel', icon: <Activity className="w-4 h-4" /> },
-  ],
-};
 
 export default function ClientSidebar({ activeView, onNavigate, collapsed, onCollapse, onLogout, onBackToRoisAdmin, visuBadgeLabel, backLabel, canHideTabs, hideTabsTargetName, hideTabsTargetUserId, showSuiviCorporel }: ClientSidebarProps) {
   const tokens = useThemeTokens();

@@ -30,10 +30,26 @@ interface Props {
   onChat: () => void;
   /** Id Auth de la Societe effective : proprietaire du reglage. */
   ownerUserId?: string | null;
+  /*
+   * AUCUN FAUX BOUTON — la regle que ce depot s'est deja ecrite ailleurs
+   * (CentreTelechargement.tsx:26 : « un bouton n'est actif que si le manifeste... »).
+   *
+   * Ces deux cartes etaient declarees SANS CONDITION, alors que leurs deux callbacks
+   * remontent a des props OPTIONNELLES de ListeVendeurs. La coquille telephone, qui monte
+   * cette liste sans pouvoir prendre la main sur un commercial — src/App.tsx:248 la retire
+   * des qu'une impersonation est posee —, affichait donc « Se connecter en tant que » et
+   * « Message » comme des actions offertes : le menu se fermait, et rien ne se passait.
+   *
+   * Vrai par defaut : sur le bureau les deux poignees sont toujours fournies, donc rien ne
+   * change la. Ce n'est pas un droit, c'est la presence d'un cablage.
+   */
+  peutConnecter?: boolean;
+  peutDiscuter?: boolean;
 }
 
 export default function VendorActionModal({
   vendor, tokens, onClose, onDetail, onConnect, onChat, ownerUserId = null,
+  peutConnecter = true, peutDiscuter = true,
 }: Props) {
   const [hiddenListOpen, setHiddenListOpen] = useState(false);
   const name = [vendor.first_name, vendor.last_name].filter(Boolean).join(' ') || 'Commercial';
@@ -61,12 +77,23 @@ export default function VendorActionModal({
     },
   ];
 
-  const ids = actions.map(a => a.id);
+  /*
+   * On retire les cartes non cablees AVANT de calculer l'ordre et le masquage : sinon leurs
+   * ids resteraient dans `ids`, donc dans le reglage enregistre, et un bouton mort pourrait
+   * revenir d'un cache. Le filtre porte sur la presence du cablage, jamais sur un droit.
+   */
+  const actionsCablees = actions.filter(a => {
+    if (a.id === 'connect') return peutConnecter;
+    if (a.id === 'chat') return peutDiscuter;
+    return true;
+  });
+
+  const ids = actionsCablees.map(a => a.id);
   const order = useActionOrder(ownerUserId, ORDER_KEY, ids);
   // Meme regle que les autres modals du panel Societe.
   const vis = useActionVisibility(ownerUserId, HIDDEN_KEY, ids, true);
 
-  const byId = new Map(actions.map(a => [a.id, a]));
+  const byId = new Map(actionsCablees.map(a => [a.id, a]));
   // L'ordre s'applique d'abord, le masquage filtre ensuite : une action
   // reaffichee retrouve exactement sa place.
   const ordered = order.order.map(id => byId.get(id)).filter((a): a is ActionDef => !!a);

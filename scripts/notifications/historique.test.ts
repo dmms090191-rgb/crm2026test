@@ -388,7 +388,8 @@ console.log('\n=== 11. L ONGLET EST CABLE DANS SES QUATRE ENDROITS ===');
   const types = lire('../../src/pages/admin/adminDashboardTypes.ts');
   t('1/4 ActiveView connait l onglet', types.includes(`'${ID}'`));
 
-  const sidebar = lire('../../src/pages/admin/Sidebar.tsx');
+  /* La definition a quitte le composant le 27/10/2026 : navigationAdmin.tsx. */
+  const sidebar = lire('../../src/pages/admin/navigationAdmin.tsx');
   const sansCommentaires = sidebar.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 
   t('2/4 il est declare dans LAYOUT_SECTIONS',

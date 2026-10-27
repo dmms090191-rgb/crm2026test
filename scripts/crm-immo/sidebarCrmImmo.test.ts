@@ -113,19 +113,22 @@ test("une Societe SANS droit garde une configuration sans CRM Immo", () => {
 });
 
 test("le code source ne porte JAMAIS le droit dans un drapeau hidden", () => {
+  /* La DEFINITION de navigation a quitte le composant le 27/10/2026 (le telephone la lit
+     aussi) ; le RENDU est reste. Ce releve lit donc les deux, chacun pour ce qui le concerne. */
+  const navigation = readFileSync("src/pages/admin/navigationAdmin.tsx", "utf8");
   const sidebar = readFileSync("src/pages/admin/Sidebar.tsx", "utf8");
   const pur = readFileSync("src/lib/crmImmoSidebar.ts", "utf8");
 
   /* LAYOUT_SECTIONS est la declaration INCONDITIONNELLE : 'crm-immo' y serait emis pour
      toutes les Societes, droit ou pas. */
-  const debut = sidebar.indexOf("const LAYOUT_SECTIONS");
+  const debut = navigation.indexOf("const LAYOUT_SECTIONS");
   assert.ok(debut > 0, "le bloc LAYOUT_SECTIONS n a pas ete trouve");
-  const declaration = sidebar.slice(debut, sidebar.indexOf("\n];", debut));
+  const declaration = navigation.slice(debut, navigation.indexOf("\n];", debut));
   assert.ok(declaration.length > 100, "le bloc LAYOUT_SECTIONS est suspectement court");
   assert.ok(!declaration.includes("crm-immo"),
     "'crm-immo' est declare dans LAYOUT_SECTIONS : il serait emis sans droit");
 
-  for (const paire of [["Sidebar.tsx", sidebar], ["crmImmoSidebar.ts", pur]] as const) {
+  for (const paire of [["navigationAdmin.tsx", navigation], ["crmImmoSidebar.ts", pur]] as const) {
     const code = sansCommentaires(paire[1]);
     /* Garde-fou du garde-fou : si le retrait des commentaires avalait tout, l assertion
        suivante passerait sans rien verifier. */
@@ -136,7 +139,7 @@ test("le code source ne porte JAMAIS le droit dans un drapeau hidden", () => {
 
   /* L'icone doit etre dans ICONS : une icone oubliee ne leve AUCUNE erreur (ICONS est un
      Record<string, ReactNode>, pas Record<ActiveView, ...>) et rend un <span> vide. */
-  assert.ok(/'crm-immo':\s*<\w+/.test(sidebar), "l icone de 'crm-immo' manque dans ICONS");
+  assert.ok(/'crm-immo':\s*<\w+/.test(navigation), "l icone de 'crm-immo' manque dans ICONS");
 
   /* Le rendu doit attendre que le droit soit resolu avant de pouvoir enregistrer un ordre. */
   assert.ok(sidebar.includes("!layout.loaded || !crmImmoResolu"),

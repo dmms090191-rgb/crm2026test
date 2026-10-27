@@ -1,64 +1,17 @@
-import { lazy } from 'react';
-import {
-  LayoutDashboard, Database, MessageCircle, MessageSquare,
-  CalendarDays, CalendarCheck, Shield, UserCog,
-  Building2, Bot, Brain, Settings,
-} from 'lucide-react';
+import { lazy } from "react";
 
-export type UserRole = 'super_admin' | 'admin' | 'vendor' | 'client';
+/*
+ * LES VUES QUE LA COQUILLE TELEPHONE MONTE — et rien d autre.
+ *
+ * Ce fichier portait aussi deux listes d onglets ECRITES EN DUR (getTabsForRole,
+ * getMoreTabs) et, un temps, les sources de navigation. Les listes sont supprimees, les
+ * sources sont parties dans navigationMobileSources.ts : un .tsx qui exporte a la fois des
+ * composants et des constantes casse le Fast Refresh, et le greffon le signalait.
+ *
+ * Il ne reste donc ici que des composants. L ensemble des ids reellement rendables, lui,
+ * vit dans navigationMobile.ts, et un releve verifie que les deux concordent.
+ */
 
-export interface TabDef {
-  key: string;
-  label: string;
-  icon: React.ReactNode;
-}
-
-export function getTabsForRole(role: UserRole): TabDef[] {
-  const s = 18;
-  if (role === 'super_admin') return [
-    { key: 'dashboard', label: 'Accueil', icon: <LayoutDashboard size={s} /> },
-    { key: 'admins', label: 'Admins', icon: <UserCog size={s} /> },
-    { key: 'chat-admin', label: 'Messages', icon: <MessageSquare size={s} /> },
-    { key: 'crm-societe', label: 'Societes', icon: <Building2 size={s} /> },
-    { key: 'more', label: 'Plus', icon: <Settings size={s} /> },
-  ];
-  if (role === 'admin') return [
-    { key: 'vue-ensemble', label: 'Accueil', icon: <LayoutDashboard size={s} /> },
-    { key: 'crm', label: 'CRM', icon: <Database size={s} /> },
-    { key: 'chat-client', label: 'Clients', icon: <MessageCircle size={s} /> },
-    { key: 'agenda', label: 'Agenda', icon: <CalendarDays size={s} /> },
-    { key: 'more', label: 'Plus', icon: <Settings size={s} /> },
-  ];
-  if (role === 'vendor') return [
-    { key: 'vue-ensemble', label: 'Accueil', icon: <LayoutDashboard size={s} /> },
-    { key: 'leads', label: 'Leads', icon: <Database size={s} /> },
-    { key: 'chat-admin', label: 'Messages', icon: <MessageSquare size={s} /> },
-    { key: 'agenda', label: 'Agenda', icon: <CalendarDays size={s} /> },
-    { key: 'propositions-rdv', label: 'RDV', icon: <CalendarCheck size={s} /> },
-  ];
-  return [
-    { key: 'vue-ensemble', label: 'Accueil', icon: <LayoutDashboard size={s} /> },
-    { key: 'messagerie', label: 'Support', icon: <MessageCircle size={s} /> },
-    { key: 'agenda', label: 'Agenda', icon: <CalendarDays size={s} /> },
-    { key: 'propositions-rdv', label: 'RDV', icon: <CalendarCheck size={s} /> },
-  ];
-}
-
-export function getMoreTabs(role: UserRole): TabDef[] {
-  const s = 18;
-  if (role === 'super_admin') return [
-    { key: 'api-ia', label: 'API IA', icon: <Bot size={s} /> },
-    { key: 'cerveau-ia', label: 'Cerveau IA', icon: <Brain size={s} /> },
-    { key: 'statuts', label: 'Statuts', icon: <Settings size={s} /> },
-  ];
-  if (role === 'admin') return [
-    { key: 'chat-vendeur', label: 'Vendeurs', icon: <MessageSquare size={s} /> },
-    { key: 'chat-super-admin', label: 'Support', icon: <Shield size={s} /> },
-    { key: 'propositions-rdv', label: 'RDV', icon: <CalendarCheck size={s} /> },
-    { key: 'statuts', label: 'Statuts', icon: <Settings size={s} /> },
-  ];
-  return [];
-}
 
 export const SADashboard = lazy(() => import('../pages/superadmin/views/SADashboard'));
 export const SAAdmins = lazy(() => import('../pages/superadmin/views/SAAdmins'));
@@ -67,12 +20,6 @@ export const SACrmSociete = lazy(() => import('../pages/superadmin/views/crm-soc
 export const SAStatuts = lazy(() => import('../pages/superadmin/views/SAStatuts'));
 export const SAApiIa = lazy(() => import('../pages/superadmin/views/SAApiIa'));
 export const SACerveauIA = lazy(() => import('../pages/superadmin/views/cerveau-ia/SACerveauIA'));
-
-/*
- * Onglets reels de Talvex Administrateur que la coquille mobile ne savait pas rendre : elle
- * retombait sur le Dashboard, donc choisir « Systeme » affichait le Dashboard. Depuis que la
- * navigation vient de layout.visible, tous les onglets visibles doivent avoir leur vue.
- */
 export const SASuperAdmins = lazy(() => import('../pages/superadmin/views/super-admins/SASuperAdmins'));
 export const SAMonCompte = lazy(() => import('../pages/superadmin/views/SAMonCompte'));
 export const SASystem = lazy(() => import('../pages/admin/views/SystemPage'));
@@ -86,6 +33,20 @@ export const AdminChatSuperAdmin = lazy(() => import('../pages/admin/views/ChatS
 export const AdminAgenda = lazy(() => import('../pages/admin/views/Agenda'));
 export const AdminPropositionsRdv = lazy(() => import('../pages/admin/views/PropositionsRdv'));
 export const AdminStatuts = lazy(() => import('../pages/admin/views/Statuts'));
+
+/*
+ * Les quatre vues Societe ajoutees le 27/10/2026.
+ *
+ * Chacune a ete verifiee MONTABLE SEULE sous les seuls fournisseurs que la coquille pose —
+ * ThemeProvider, TimezoneProvider, CompanyIdProvider, SimulationProvider — c'est-a-dire
+ * sans AdminDashboard, et surtout verifiees sur ce qu'elles AFFICHENT — trois candidates
+ * ont ete disqualifiees a ce titre, motifs mesures dans navigationMobile.ts. ListeVendeurs
+ * avait deja son rendu telephone ecrit et jamais atteint (ListeVendeursMobileCard, md:hidden).
+ */
+export const AdminBoutiques = lazy(() => import('../pages/admin/views/Boutiques'));
+export const AdminCabinets = lazy(() => import('../pages/admin/views/Cabinets'));
+export const AdminListeVendeurs = lazy(() => import('../pages/admin/views/ListeVendeurs'));
+export const AdminAgendaEquipe = lazy(() => import('../pages/admin/views/AgendaEquipe'));
 
 export const VendorVueEnsemble = lazy(() => import('../pages/vendor/views/VendorVueEnsemble'));
 export const VendorLeads = lazy(() => import('../pages/vendor/views/VendorLeads'));

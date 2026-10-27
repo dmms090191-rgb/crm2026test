@@ -81,6 +81,10 @@ export default function ListeVendeursMobileCard({
           onDetail={() => { setActionsOpen(false); onDetail(vendor, true); }}
           onConnect={() => { setActionsOpen(false); onConnectAsVendor?.(vendor); }}
           onChat={() => { setActionsOpen(false); onOpenChat?.(vendor); }}
+          /* Aucun faux bouton : c'est la carte TELEPHONE, donc celle que la coquille rend,
+             et c'est precisement la que la prise de controle n'est pas cablable. */
+          peutConnecter={Boolean(onConnectAsVendor)}
+          peutDiscuter={Boolean(onOpenChat)}
         />
       )}
     </div>

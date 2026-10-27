@@ -185,7 +185,7 @@ function SuperAdminDashboardInner({ onLogout, onConnectAsAdmin, onConnectAsCompa
    */
   const largeEcran = useMediaQuery(TALIXY_ARC_QUERY);
   const arcMobile = talixy.active && !largeEcran;
-  const navMobile = useTalixyMobileNav(SA_SECTIONS, PROTECTED_TAB_IDS, activeView);
+  const navMobile = useTalixyMobileNav('super_admin', SA_SECTIONS, PROTECTED_TAB_IDS, activeView);
   const allerMobile = useCallback((id: string) => { handleNavigate(id as SAView); setMobileOpen(false); }, [handleNavigate]);
   const pasMobile = useNavStep(navMobile, allerMobile);
 

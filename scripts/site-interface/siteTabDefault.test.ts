@@ -15,7 +15,7 @@ function siteDefinition(file: string): string {
 }
 
 test('defauts reels : Site visible pour la Societe et pour le Groupe', () => {
-  assert.doesNotMatch(siteDefinition('src/pages/admin/Sidebar.tsx'), /hidden\s*:\s*true/);
+  assert.doesNotMatch(siteDefinition('src/pages/admin/navigationAdmin.tsx'), /hidden\s*:\s*true/);
   assert.doesNotMatch(siteDefinition('src/pages/company-super-admin/CSASidebar.tsx'), /hidden\s*:\s*true/);
 });
 

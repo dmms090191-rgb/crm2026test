@@ -219,7 +219,7 @@ test("D4 le centre ne lit aucun contexte de theme", () => {
 
 test("E1 l'onglet est declare partout ou il doit l'etre", () => {
   assert.match(lire("src/pages/admin/adminDashboardTypes.ts"), /\| 'telecharger'/, "ActiveView");
-  assert.match(lire("src/pages/admin/Sidebar.tsx"), /\{ id: 'telecharger', label: 'Télécharger' \}/, "barre laterale");
+  assert.match(lire("src/pages/admin/navigationAdmin.tsx"), /\{ id: 'telecharger', label: 'Télécharger' \}/, "barre laterale");
   assert.match(lire("src/pages/admin/dashboard/AdminViewRenderer.tsx"), /case 'telecharger':/, "renderer");
   assert.match(lire("src/pages/admin/adminDashboardConstants.ts"), /'telecharger': 'Télécharger'/, "fil d'Ariane");
 });
@@ -227,7 +227,7 @@ test("E1 l'onglet est declare partout ou il doit l'etre", () => {
 test("E2 l'onglet est VISIBLE par defaut", () => {
   // Declare hidden:true, il n'apparaitrait chez personne — et seul Talvex pourrait le
   // demasquer, ce qui est precisement le defaut de l'onglet « Application ».
-  const s = lire("src/pages/admin/Sidebar.tsx");
+  const s = lire("src/pages/admin/navigationAdmin.tsx");
   assert.ok(
     !/\{ id: 'telecharger',[^}]*hidden: true/.test(s),
     "l'onglet Telecharger est masque par defaut : Bellisimmo ne le verrait pas",
@@ -236,7 +236,7 @@ test("E2 l'onglet est VISIBLE par defaut", () => {
 
 test("E3 l'onglet « Application » n'a pas ete remplace", () => {
   // Demande explicite de David : il configure la PWA d'une societe et fait autre chose.
-  const s = lire("src/pages/admin/Sidebar.tsx");
+  const s = lire("src/pages/admin/navigationAdmin.tsx");
   assert.match(s, /\{ id: 'application', label: 'Application', hidden: true \}/, "l'onglet Application a ete modifie");
   assert.match(
     lire("src/pages/admin/dashboard/AdminViewRenderer.tsx"),
