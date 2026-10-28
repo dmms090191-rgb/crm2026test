@@ -9,6 +9,7 @@ import { enDateFrancaise } from '../../../../lib/crmImmoAlertes';
 import CrmImmoEcheancier from './CrmImmoEcheancier';
 import CrmImmoRenouvelerModal from './CrmImmoRenouvelerModal';
 import { useCrmImmoEcheancier, type EncaissementDossier } from './useCrmImmoEcheancier';
+import { useAlertesImmoPartagees } from '../../../../contexts/CrmImmoAlertesContext';
 import CrmImmoDocuments from './CrmImmoDocuments';
 import { useCrmImmoDocuments } from './useCrmImmoDocuments';
 import {
@@ -77,6 +78,7 @@ function versSaisie(d: DossierImmo): SaisieDossier {
     nom: d.nom, prenom: s(d.prenom), email: s(d.email), telephone: s(d.telephone),
     date_entree: s(d.date_entree), date_fin_contrat: s(d.date_fin_contrat),
     locataire: s(d.locataire), proprietaire: s(d.proprietaire),
+    telephone_proprietaire: s(d.telephone_proprietaire),
     jour_encaissement: d.jour_encaissement === null ? '' : String(d.jour_encaissement),
     commentaire: s(d.commentaire), mode_paiement: s(d.mode_paiement), valeurs,
   };
@@ -152,7 +154,19 @@ export default function CrmImmoDetailsModal({
    * statut viennent de crmImmoEcheancier, la meme fonction que lisent les
    * notifications. Ce hook ne fait que charger les periodes et les encaissements.
    */
-  const ech = useCrmImmoEcheancier(dossier.id);
+  /*
+   * L'HORLOGE VIENT DU CONTEXTE, ET PAS DE CETTE MODALE.
+   *
+   * Le jour de reference decide du statut « En retard ». Calcule ici, il etait fige au
+   * montage : une modale ouverte a cheval sur minuit gardait les statuts de la veille
+   * pendant que les cartes du tableau de bord avancaient. Le contexte porte l'horloge
+   * VIVANTE du module — une seule, donc pas de minuit franchi a deux instants.
+   *
+   * Le `?.` et le repli du crochet couvrent le cas ou la modale serait montee hors du
+   * fournisseur : elle retomberait sur un jour exact mais fige, comme avant.
+   */
+  const partageImmo = useAlertesImmoPartagees();
+  const ech = useCrmImmoEcheancier(dossier.id, partageImmo?.tableauDeBord?.aujourdhui);
   const [renouveler, setRenouveler] = useState(false);
   const [erreurEcheancier, setErreurEcheancier] = useState('');
   const [aAnnuler, setAAnnuler] = useState<EncaissementDossier | null>(null);

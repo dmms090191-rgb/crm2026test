@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 import {
-  CHAMPS_DOSSIER, TYPES_COLONNE, formatDateImmo,
+  CHAMPS_DOSSIER, GROUPES_FORMULAIRE, TYPES_COLONNE, formatDateImmo,
   type ColonneImmo, type SaisieDossier, type ChampSysteme,
 } from './crmImmoTypes';
 import {
@@ -36,6 +36,9 @@ const TYPE_HTML: Record<ChampSysteme, string> = {
   nom: 'text', prenom: 'text', email: 'email', telephone: 'tel',
   date_entree: 'date', date_fin_contrat: 'date',
   locataire: 'text', proprietaire: 'text',
+  /* `tel` comme celui du locataire : sur telephone, c'est ce qui fait monter le pave
+     numerique au lieu du clavier alphabetique. */
+  telephone_proprietaire: 'tel',
   jour_encaissement: 'number', commentaire: 'textarea',
   /* `select` et non `text` : cette valeur ne sert ici qu'a dire ce que le champ N'EST
      pas — ni une zone de texte, qui prendrait les deux colonnes de la grille, ni un
@@ -230,11 +233,51 @@ export default function CrmImmoChampsDossier({
     );
   };
 
+  /*
+   * ============ TROIS GROUPES, ET LE MEME MOTIF QUE « VOS COLONNES » ============
+   *
+   * Le formulaire rendait TOUS les champs par une seule boucle dans une seule grille :
+   * l'ordre a l'ecran etait celui de CHAMPS_DOSSIER, sans aucun repere. David, le
+   * 28/10/2026 : « je veux une presentation logique et compacte, pas des champs
+   * disperses ».
+   *
+   * Le motif de section n'est pas invente ici : c'est EXACTEMENT celui de « Vos colonnes »,
+   * quelques lignes plus bas — bordure haute, titre en petites capitales, puis la meme
+   * grille. Reemployer plutot qu'ajouter evite qu'un formulaire finisse avec deux facons
+   * de dessiner une section.
+   *
+   * DEUX PRECAUTIONS :
+   *   - un groupe VIDE ne se rend pas. `sansCommentaire` peut retirer un champ ; si c'etait
+   *     le dernier de son groupe, un titre nu resterait, a annoncer rien.
+   *   - le PREMIER groupe ne porte pas la bordure haute : elle separe des sections, elle
+   *     n'ouvre pas la premiere.
+   *
+   * Le helper champ() reste l'UNIQUE endroit qui ecrit les classes d'un champ. Sortir un
+   * champ a la main pour le placer dans un groupe rouvrirait le zoom automatique d'iOS a
+   * 375 px, que `max-md:text-base` existe pour empecher — et les releves de cible tactile
+   * balaient chaque ligne de classes du fichier, pas une simple presence.
+   */
+  const groupes = GROUPES_FORMULAIRE
+    .map(g => ({ ...g, champs: systeme.filter(d => d.groupe === g.cle) }))
+    .filter(g => g.champs.length > 0);
+
   return (
     <>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {systeme.map(d => champ(d.cle))}
-      </div>
+      {groupes.map((g, i) => (
+        <div
+          key={g.cle}
+          className={i === 0 ? '' : 'mt-5 pt-4'}
+          style={i === 0 ? undefined : { borderTop: `1px solid ${t.surface.borderLight}` }}
+          data-testid={`crm-immo-groupe-${g.cle}`}
+        >
+          <h3 className="text-xs font-semibold uppercase tracking-wide mb-3" style={{ color: t.label.hint }}>
+            {g.titre}
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {g.champs.map(d => champ(d.cle))}
+          </div>
+        </div>
+      ))}
 
       {/*
         * L'ECHEANCIER, CALCULE AVANT MEME D'ENREGISTRER.

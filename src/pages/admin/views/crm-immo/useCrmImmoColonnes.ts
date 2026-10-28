@@ -1,22 +1,37 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../../../lib/supabase';
 import { useCompanyId } from '../../../../hooks/useCompanyId';
-import { positionsApres, cleReglage, REGLAGE_VIDE, type ReglageLocal } from '../../../../lib/crmImmoColonnes';
+import {
+  positionsApres, cleReglage, reglageValide, REGLAGE_VIDE, type ReglageLocal,
+} from '../../../../lib/crmImmoColonnes';
+import { lireReglageDistant, ecrireReglageDistant } from '../../../../hooks/crmImmoReglageDistant';
 import type { ColonneImmo, TypeColonne } from './crmImmoTypes';
 
 /**
  * Couche de donnees des colonnes personnalisees — SEUL endroit qui parle a
  * `crm_immo_colonnes`, plus le reglage LOCAL des colonnes systeme.
  *
- * ---------- DEUX PERSISTANCES, ET C'EST VOULU ----------
+ * ---------- DEUX PERSISTANCES, ET UNE SEULE SOURCE PAR FAMILLE ----------
  *
  * Les colonnes PERSONNALISEES vivent en base : elles appartiennent a la Societe, tout le
  * monde doit voir les memes. Leur ordre et leur masquage y sont aussi (position, masquee).
  *
- * L'ordre et le masquage des colonnes SYSTEME vivent dans le navigateur. Elles n'ont pas
- * de ligne en base — ce sont de vraies colonnes de crm_immo_dossiers — donc nulle part ou
- * ranger leur rang. C'est exactement ce que font deja les quatre autres CRM du depot, et
- * ca evite une cinquieme migration pour un confort d'affichage.
+ * L'ordre et le masquage des colonnes SYSTEME vivaient dans le NAVIGATEUR, et c'etait le
+ * defaut corrige le 28/10/2026 : deux ordinateurs du meme compte affichaient des colonnes
+ * differentes, parce que le localStorage n'est jamais synchronise. Ils vivent desormais
+ * dans `user_preferences.sidebar_orders`, sous la cle crm_immo_colonnes:<companyId>, comme
+ * la barre laterale V2 et les preferences d'actions. Le localStorage est retrograde en
+ * CACHE : il peint tout de suite, la base fait autorite.
+ *
+ * TROIS REGLES, TRANCHEES PAR DAVID LE 28/10, ET QU'IL NE FAUT PAS ASSOUPLIR :
+ *
+ *   1. La base fait autorite SEULEMENT SI ELLE A QUELQUE CHOSE. Une base vide ne veut pas
+ *      dire « pas de colonnes » : elle veut dire « personne n'a encore range ».
+ *   2. AUCUN AMORCAGE AUTOMATIQUE. On ne promeut jamais le cache local vers la base au
+ *      chargement. Sinon le PREMIER POSTE A OUVRIR GAGNE et le reglage de l'autre est
+ *      detruit sans rattrapage — une course deciderait.
+ *   3. La base ne se remplit qu'au PREMIER GESTE EXPLICITE dans la modale Colonnes, c'est-
+ *      a-dire par enregistrerReglage, et par rien d'autre.
  *
  * ---------- LA LECTURE PORTE TOUJOURS LES DEUX CRITERES ----------
  *
@@ -24,23 +39,33 @@ import type { ColonneImmo, TypeColonne } from './crmImmoTypes';
  * pas unique en base (un glisser-deposer passe par un etat transitoire en doublon) :
  * avec `position` seul, deux colonnes de meme rang s'echangeraient a chaque rechargement.
  */
-export function useCrmImmoColonnes() {
+/**
+ * @param proprietaireReglage  Auth id de l'entite dont on lit et ecrit la preference de
+ *   colonnes. C'est l'entite VISUALISEE, pas l'observateur — la regle que le depot s'est
+ *   donnee (AppShell.tsx : « une preference suit l'entite VISUALISEE »), et celle que David
+ *   a confirmee le 28/10.
+ *
+ *   Il arrive en parametre et n'est PAS relu ici, volontairement : useAuthUserId appelle
+ *   supabase.auth.getUser(), un aller-retour serveur de 72 ms de mediane que le commit
+ *   ee04a89 (« CRM Immo : quatre allers-retours auth retires de l'ouverture ») a justement
+ *   chasse de ce chemin. AdminDashboard tient deja cet id, lu par getSession, donc sans
+ *   reseau : il descend jusqu'ici.
+ *
+ *   Nul tant que la session n'est pas resolue : dans cet etat on ne lit ni n'ecrit rien en
+ *   base, et le cache local suffit a peindre.
+ */
+export function useCrmImmoColonnes(proprietaireReglage: string | null) {
   const companyId = useCompanyId();
   const [colonnes, setColonnes] = useState<ColonneImmo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [reglage, setReglage] = useState<ReglageLocal>(REGLAGE_VIDE);
 
-  /* ---- Le reglage local, lu une fois par Societe ---- */
+  /* ---- Le CACHE local : il peint tout de suite, pour que le tableau ne clignote pas ---- */
   useEffect(() => {
     try {
       const brut = localStorage.getItem(cleReglage(companyId));
-      if (!brut) { setReglage(REGLAGE_VIDE); return; }
-      const lu = JSON.parse(brut) as Partial<ReglageLocal>;
-      setReglage({
-        ordreSysteme: Array.isArray(lu.ordreSysteme) ? lu.ordreSysteme.filter(x => typeof x === 'string') : [],
-        masqueesSysteme: Array.isArray(lu.masqueesSysteme) ? lu.masqueesSysteme.filter(x => typeof x === 'string') : [],
-      });
+      setReglage(brut ? (reglageValide(JSON.parse(brut)) ?? REGLAGE_VIDE) : REGLAGE_VIDE);
     } catch {
       /* Navigation privee, stockage bloque, JSON abime : on repart des defauts plutot
          que de casser la page pour un confort d'affichage. */
@@ -48,12 +73,47 @@ export function useCrmImmoColonnes() {
     }
   }, [companyId]);
 
+  /* ---- La BASE fait autorite, mais seulement si elle a quelque chose ---- */
+  useEffect(() => {
+    if (!proprietaireReglage || !companyId) return;
+    let vivant = true;
+    void lireReglageDistant(proprietaireReglage, companyId).then(distant => {
+      /*
+       * `!distant` couvre les deux cas qui doivent rester sans effet : la cle n'existe pas
+       * encore, et la lecture a echoue. Dans les deux, on GARDE ce que le cache a peint et
+       * on n'ecrit RIEN.
+       *
+       * C'est la regle 2 : pas d'amorcage. Appliquer un reglage distant nul — comme le fait
+       * useSidebarLayout — ecraserait ici la configuration locale par du vide, et comme on
+       * reecrit le cache juste apres, l'ordre d'origine n'existerait plus NULLE PART.
+       */
+      if (!vivant || !distant) return;
+      setReglage(distant);
+      try { localStorage.setItem(cleReglage(companyId), JSON.stringify(distant)); } catch { /* noop */ }
+    });
+    return () => { vivant = false; };
+  }, [proprietaireReglage, companyId]);
+
+  /**
+   * LE SEUL POINT D'ECRITURE, et c'est ce qui fait tenir la regle 3.
+   *
+   * Appele uniquement par la modale Colonnes (CrmImmo.tsx -> onReglage), donc uniquement
+   * sur un GESTE de l'utilisateur. Aucun effet de chargement n'ecrit en base.
+   *
+   * Le cache part en premier : l'utilisateur doit voir son geste pris meme hors ligne. La
+   * base suit, et son echec ne defait rien a l'ecran.
+   */
   const enregistrerReglage = useCallback((suivant: ReglageLocal) => {
     setReglage(suivant);
     try {
       localStorage.setItem(cleReglage(companyId), JSON.stringify(suivant));
     } catch { /* stockage indisponible : le reglage vit le temps de la session */ }
-  }, [companyId]);
+    /* Jamais de cle parasite : companyId se resout de facon asynchrone, et ecrire sous
+       `crm_immo_colonnes:none` polluerait la ligne de preferences pour toujours. */
+    if (proprietaireReglage && companyId) {
+      void ecrireReglageDistant(proprietaireReglage, companyId, suivant);
+    }
+  }, [companyId, proprietaireReglage]);
 
   /* ---- Les colonnes personnalisees, en base ---- */
   const load = useCallback(async () => {

@@ -354,11 +354,18 @@ console.log('\n=== 9. L ORDRE DES COLONNES DEMANDE PAR DAVID ===');
   /*
    * L ordre est celui du message du 23 octobre 2026, mot pour mot. Actions n y figure
    * pas : ce n est pas une colonne du modele, c est une colonne epinglee du tableau.
+   *
+   * Deux changements depuis, demandes par David le 27 octobre 2026 :
+   *   - « Telephone » devient « Telephone locataire ». Le libelle nu etait sans ambiguite
+   *     tant qu il n y avait qu un telephone ; il a cesse de l etre le jour ou le second
+   *     est arrive.
+   *   - « Telephone proprietaire » s insere JUSTE APRES « N/P proprietaire » : le tableau
+   *     se lit personne par personne.
    */
   t('l ordre est exactement celui demande',
     JSON.stringify(COLONNES_SYSTEME.map(c => c.libelle)) === JSON.stringify([
-      'N/P locataire', 'Email', 'Téléphone', "Date d'entrée", 'Fin de contrat',
-      'N/P propriétaire', 'Encaissement loyer', 'Commentaire', 'Mode de paiement',
+      'N/P locataire', 'Email', 'Téléphone locataire', "Date d'entrée", 'Fin de contrat',
+      'N/P propriétaire', 'Téléphone propriétaire', 'Encaissement loyer', 'Commentaire', 'Mode de paiement',
     ]));
   t('« N/P locataire » reste la seule colonne non masquable',
     COLONNES_SYSTEME.filter(c => !c.masquable).map(c => c.cle).join() === 'np_locataire');

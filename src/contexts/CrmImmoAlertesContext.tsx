@@ -66,6 +66,22 @@ export interface AlertesImmoPartagees {
     dossiersParCategorie: Record<CategorieImmo, Set<string>>;
     chargement: boolean;
     /**
+     * LE JOUR DE REFERENCE, ET IL EST VIVANT.
+     *
+     * 'AAAA-MM-JJ' en Asia/Jerusalem, avance par le minuteur du tableau de bord — une
+     * seule horloge pour tout le module, depuis le 28/10/2026.
+     *
+     * POURQUOI IL TRAVERSE. L'echeancier calculait le sien, dans un useMemo dont la seule
+     * dependance etait une constante de module : il etait donc FIGE au montage. Une modale
+     * laissee ouverte a cheval sur minuit gardait les statuts de la veille, pendant que les
+     * cartes, elles, avancaient. Deux horloges, deux verites.
+     *
+     * Et c'est bien le partage qu'il fallait, pas un second minuteur : une seconde horloge
+     * aurait pu franchir minuit a un autre instant que la premiere, et faire dire aux
+     * cartes et a la modale deux choses differentes pendant quelques secondes.
+     */
+    aujourdhui: string;
+    /**
      * Relit les periodes et les encaissements tout de suite.
      *
      * Le hook a son propre rythme — cinq minutes, plus le retour de visibilite. Apres

@@ -1,7 +1,9 @@
 import { Suspense, lazy } from 'react';
 import { Lock, RefreshCw } from 'lucide-react';
 import { useThemeTokens } from '../../../hooks/useThemeTokens';
-import { peutOuvrirCrmImmo, accesRefuse, type EtatAcces } from '../../../lib/crmImmoAccess';
+import {
+  peutOuvrirCrmImmo, accesRefuse, type EtatAcces, type DetailErreur,
+} from '../../../lib/crmImmoAccess';
 import { importCrmImmo } from './adminLazyViews';
 
 /*
@@ -78,16 +80,37 @@ function spinner(accent: string) {
 
 interface Props {
   etat: EtatAcces;
+  /*
+   * Le code et le message REELS de l'echec, quand il y en a un.
+   *
+   * POURQUOI ILS SONT A L'ECRAN. Le 26/10/2026, un porteur a vu « la verification a echoue »
+   * sur son telephone. Il a fallu une heure et les journaux du serveur pour apprendre que la
+   * requete avait en fait REUSSI — 200, corps `true` — mais en 23 secondes, et que le
+   * navigateur avait renonce avant. Le message generique ne disait pas de quel cote chercher.
+   * Avec « TypeError: Failed to fetch » a l'ecran, la reponse etait immediate.
+   *
+   * Optionnel a dessein : la Porte reste montable sans, et les appelants qui n'en ont pas
+   * n'ont rien a inventer.
+   */
+  detail?: DetailErreur | null;
   onReessayer: () => void;
+  /*
+   * Auth id de l'entite VISUALISEE, pour la preference de colonnes partagee (28/10/2026).
+   *
+   * La Porte ne s'en sert pas : elle le fait seulement DESCENDRE. Il traverse parce que
+   * AdminDashboard est le seul endroit qui le tient sans aller-retour serveur, et que
+   * CrmImmo est monte ici. Optionnel, comme `detail` : la Porte reste montable sans.
+   */
+  proprietaireReglage?: string | null;
 }
 
-export default function CrmImmoGate({ etat, onReessayer }: Props) {
+export default function CrmImmoGate({ etat, detail, onReessayer, proprietaireReglage = null }: Props) {
   const t = useThemeTokens();
 
   const chargement = spinner(t.accent.solid);
 
   if (peutOuvrirCrmImmo(etat)) {
-    return <Suspense fallback={chargement}><CrmImmo /></Suspense>;
+    return <Suspense fallback={chargement}><CrmImmo proprietaireReglage={proprietaireReglage} /></Suspense>;
   }
 
   /* 'inconnu' : la question est en vol. On attend, on n'accuse personne. */
@@ -119,8 +142,24 @@ export default function CrmImmoGate({ etat, onReessayer }: Props) {
         <p className="text-sm mt-2" style={{ color: t.label.muted }}>
           {refus
             ? 'Ce module n’est pas active pour votre societe. Contactez Talvex pour l’activer.'
-            : 'Le droit d’acces n’a pas pu etre lu. Ce n’est pas un refus : la verification a echoue.'}
+            : detail?.transport
+              /* Panne de transport : la reponse n'est jamais arrivee. On le dit en clair,
+                 parce que le geste utile n'est pas le meme — ici, reessayer suffit souvent. */
+              ? 'La reponse n’est pas arrivee jusqu’a vous. Ce n’est pas un refus : la connexion a ete trop lente ou interrompue.'
+              : 'Le droit d’acces n’a pas pu etre lu. Ce n’est pas un refus : la verification a echoue.'}
         </p>
+
+        {/* Le code et le message bruts : laids, et c'est voulu. C'est ce qui transforme un
+            signalement en diagnostic, sans avoir a ouvrir les journaux du serveur. */}
+        {!refus && detail && (
+          <p
+            data-testid="crm-immo-erreur-detail"
+            className="text-xs mt-2 font-mono break-words"
+            style={{ color: t.label.muted, opacity: 0.75 }}
+          >
+            {detail.code ? `${detail.code} — ${detail.message}` : detail.message}
+          </p>
+        )}
 
         {!refus && (
           <button

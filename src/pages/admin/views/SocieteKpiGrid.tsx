@@ -153,7 +153,11 @@ export function SocieteKpiGridImmo({ compteurs: c, chargement, tokens: t, onOuvr
 
   const kpis: Kpi[] = [
     { key: 'loyers-en-retard', label: 'Loyers en retard', sublabel: 'Échéance passée, non encaissée', value: v(c.loyersEnRetard), icon: <AlertTriangle className="w-4 h-4" />, accent: '#f87171', onClick: vers('loyers-en-retard') },
-    { key: 'loyers-a-encaisser', label: 'Loyers à encaisser', sublabel: 'Dus ce mois-ci', value: v(c.loyersAEncaisser), icon: <Banknote className="w-4 h-4" />, accent: '#f59e0b', onClick: vers('loyers-a-encaisser') },
+    /* Le 28/10/2026, la regle de retard est passee du MOIS au JOUR : cette carte ne compte
+       plus les loyers dus dans le mois, mais ceux dus AUJOURD'HUI. Son sous-titre disait
+       « Dus ce mois-ci » — il serait devenu faux, et un sous-titre faux est pire qu'absent,
+       parce qu'il explique le chiffre. */
+    { key: 'loyers-a-encaisser', label: 'À encaisser aujourd’hui', sublabel: 'Échéance du jour, non encaissée', value: v(c.loyersAEncaisser), icon: <Banknote className="w-4 h-4" />, accent: '#f59e0b', onClick: vers('loyers-a-encaisser') },
     { key: 'encaisses-ce-mois', label: 'Encaissés ce mois', sublabel: 'Reçus ce mois-ci, toute échéance', value: v(c.encaissesCeMois), icon: <BadgeCheck className="w-4 h-4" />, accent: '#34d399', onClick: vers('encaisses-ce-mois') },
     { key: 'contrats-a-renouveler', label: 'Contrats à renouveler', sublabel: 'Bail actif, fin sous 30 jours', value: v(c.contratsARenouveler), icon: <RefreshCw className="w-4 h-4" />, accent: '#22d3ee', onClick: vers('contrats-a-renouveler') },
     { key: 'baux-expires', label: 'Baux expirés', sublabel: 'Fin déjà passée, non renouvelés', value: v(c.bauxExpires), icon: <CalendarX className="w-4 h-4" />, accent: '#fb7185', onClick: vers('baux-expires') },

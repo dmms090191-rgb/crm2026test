@@ -7,7 +7,7 @@ import {
   peutSupprimer, peutMasquer, deplacer, positionsApres, nomDejaPris, nomHeurteSysteme,
   cleReglage, REGLAGE_VIDE, type ReglageLocal,
 } from "../../src/lib/crmImmoColonnes.ts";
-import { COLONNES_SYSTEME, type ColonneImmo } from "../../src/pages/admin/views/crm-immo/crmImmoTypes.ts";
+import { COLONNES_SYSTEME, CHAMPS_DOSSIER, type ColonneImmo } from "../../src/pages/admin/views/crm-immo/crmImmoTypes.ts";
 
 const perso = (over: Partial<ColonneImmo>): ColonneImmo => ({
   id: "c1", company_id: "co", nom: "Montant du loyer", type: "nombre",
@@ -69,10 +69,12 @@ test("une colonne SYSTEME n est JAMAIS supprimable", () => {
   const colonnes = toutesLesColonnes({ systeme: COLONNES_SYSTEME, perso: [perso({})], reglage: REGLAGE_VIDE });
   const sys = colonnes.filter(c => c.famille === "systeme");
   const pers = colonnes.filter(c => c.famille === "perso");
-  /* NEUF, et non plus dix : nom+prenom et locataire+proprietaire ne font plus qu une
-     colonne chacune a l affichage, et `mode_paiement` est arrive. Les champs reels,
-     eux, sont toujours onze — ils vivent dans CHAMPS_DOSSIER. */
-  assert.equal(sys.length, 9, "les 9 colonnes systeme du tableau");
+  /* DIX depuis le 27/10/2026. Neuf auparavant : nom+prenom et locataire+proprietaire ne
+     font qu une colonne chacune a l affichage, `mode_paiement` est arrive le 23/10, et
+     `telephone_proprietaire` le 27/10. Les champs reels, eux, sont DOUZE — ils vivent
+     dans CHAMPS_DOSSIER, ou le nom et le prenom restent separes. */
+  assert.equal(sys.length, 10, "les 10 colonnes systeme du tableau");
+  assert.equal(CHAMPS_DOSSIER.length, 12, "les 12 champs saisissables du formulaire");
   assert.equal(pers.length, 1);
   for (const c of sys) assert.equal(peutSupprimer(c), false, `${c.nom} ne doit pas etre supprimable`);
   for (const c of pers) assert.equal(peutSupprimer(c), true);
@@ -155,13 +157,16 @@ test("deux Societes ne partagent pas leur mise en page", () => {
   assert.equal(cleReglage(null), cleReglage(null), "stable quand la Societe est inconnue");
 });
 
-test("les 9 colonnes systeme sont celles du brief, dans l ordre, et une seule est non masquable", () => {
+test("les 10 colonnes systeme sont celles du brief, dans l ordre, et une seule est non masquable", () => {
   /* L ordre est celui demande par David le 23 octobre 2026. Les deux cles en `np_` ne
      designent AUCUNE colonne SQL : elles reunissent a l'affichage deux champs restes
-     separes en base, ce qui rend la fusion reversible sans migration. */
+     separes en base, ce qui rend la fusion reversible sans migration.
+     `telephone_proprietaire` est arrive le 27/10/2026, JUSTE APRES le N/P du proprietaire :
+     le tableau se lit personne par personne, pas champ par champ. */
   assert.deepEqual(COLONNES_SYSTEME.map(d => d.cle), [
     "np_locataire", "email", "telephone", "date_entree", "date_fin_contrat",
-    "np_proprietaire", "jour_encaissement", "commentaire", "mode_paiement",
+    "np_proprietaire", "telephone_proprietaire",
+    "jour_encaissement", "commentaire", "mode_paiement",
   ]);
   const nonMasquables = COLONNES_SYSTEME.filter(d => !d.masquable).map(d => d.cle);
   assert.deepEqual(nonMasquables, ["np_locataire"],

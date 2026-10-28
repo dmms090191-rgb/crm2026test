@@ -37,7 +37,9 @@ import { CATEGORIES_IMMO, type CategorieImmo } from '../../../../lib/crmImmoEche
  */
 const LIBELLES: Record<CategorieImmo, string> = {
   'loyers-en-retard': 'Loyers en retard',
-  'loyers-a-encaisser': 'Loyers à encaisser',
+  /* Meme libelle que la carte du tableau de bord : c'est la MEME categorie, et un filtre
+     qui ne porte pas le nom de la carte qui y mene se lit comme un autre filtre. */
+  'loyers-a-encaisser': 'À encaisser aujourd’hui',
   'encaisses-ce-mois': 'Encaissés ce mois',
   'contrats-a-renouveler': 'Contrats à renouveler',
   'baux-expires': 'Baux expirés',

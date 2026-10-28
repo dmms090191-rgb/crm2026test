@@ -154,21 +154,38 @@ export const LIBELLE_STATUT: Record<StatutLoyer, string> = {
 /**
  * L'etat d'une echeance.
  *
- * ---------- POURQUOI PAS DE DELAI DE GRACE ----------
+ * ---------- LA REGLE EST AU JOUR, DEPUIS LE 28/10/2026 ----------
  *
- * La tentation serait de dire << en retard apres cinq jours >>. Ce serait inventer une
- * regle que personne n'a posee, et qu'il faudrait ensuite defendre. La distinction
- * tranchee par David ne demande aucun reglage : un loyer du MOIS EN COURS est a
- * encaisser, un loyer d'un mois PASSE est en retard. C'est ainsi qu'un bailleur
- * raisonne, et c'est verifiable sans arbitrer un nombre de jours.
+ * David : « si l'echeance est aujourd'hui et non payee -> A encaisser aujourd'hui ; des
+ * que aujourd'hui > date d'echeance et que ce n'est pas paye -> En retard ».
+ *
+ * Elle etait au MOIS jusque-la, et c'etait assume : « un loyer du mois en cours est a
+ * encaisser, un loyer d'un mois passe est en retard ». Ce n'etait donc pas un oubli, mais
+ * une regle differente — une echeance du 12 octobre impayee restait « A encaisser » du 13
+ * au 31 octobre, et ne basculait que le 1er novembre. Le changement est volontaire, et ce
+ * commentaire est reecrit pour qu'on ne retablisse pas l'ancienne par megarde.
+ *
+ * ---------- TOUJOURS PAS DE DELAI DE GRACE ----------
+ *
+ * La tentation serait de dire << en retard apres cinq jours >>. Ce serait inventer un
+ * nombre que personne n'a pose, et qu'il faudrait ensuite defendre. La regle au jour n'en
+ * demande aucun.
+ *
+ * ---------- POURQUOI DES CHAINES, ET PAS DES DATES ----------
+ *
+ * La comparaison est LEXICOGRAPHIQUE sur 'AAAA-MM-JJ', et c'est ce qui la rend sure :
+ * construire un objet Date sur une date d'echeance rouvrirait le piege du fuseau —
+ * `new Date('2026-10-27')` est interprete en UTC, `new Date(2026, 9, 27)` en local, et un
+ * jour d'ecart en sort selon le poste. `aujourdhui` arrive deja calcule en Asia/Jerusalem
+ * (FUSEAU_ALERTES), pour que « en retard » veuille dire la meme chose pour tout le monde.
  *
  * `encaisse` passe avant tout le reste : un loyer paye n'est ni en retard, ni a venir.
  */
 export function statutDe(date: string, encaisse: boolean, aujourdhui: string): StatutLoyer {
   if (encaisse) return 'encaisse';
   if (date > aujourdhui) return 'a-venir';
-  /* Meme annee ET meme mois : les sept premiers caracteres de 'AAAA-MM-JJ'. */
-  return date.slice(0, 7) === aujourdhui.slice(0, 7) ? 'a-encaisser' : 'en-retard';
+  /* Ici la date est forcement <= aujourd'hui. Reste a separer AUJOURD'HUI du PASSE. */
+  return date < aujourdhui ? 'en-retard' : 'a-encaisser';
 }
 
 /**

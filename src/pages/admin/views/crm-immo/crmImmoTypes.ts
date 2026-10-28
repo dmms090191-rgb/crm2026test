@@ -29,6 +29,11 @@ export interface DossierImmo {
   date_fin_contrat: string | null;
   locataire: string | null;
   proprietaire: string | null;
+  /**
+   * Le telephone du PROPRIETAIRE — a ne pas confondre avec `telephone`, qui est celui du
+   * LOCATAIRE. Cette cle-ci dit ce qu'elle porte, contrairement aux deux du dessus.
+   */
+  telephone_proprietaire: string | null;
   /** Jour du mois, 1 a 31. V1 : mensuel. */
   jour_encaissement: number | null;
   commentaire: string | null;
@@ -81,7 +86,8 @@ export interface EtatImmo {
 export type ChampSysteme =
   | 'nom' | 'prenom' | 'email' | 'telephone'
   | 'date_entree' | 'date_fin_contrat'
-  | 'locataire' | 'proprietaire' | 'jour_encaissement' | 'commentaire'
+  | 'locataire' | 'proprietaire' | 'telephone_proprietaire'
+  | 'jour_encaissement' | 'commentaire'
   | 'mode_paiement';
 
 /**
@@ -133,8 +139,33 @@ interface DefinitionCommune {
  * on ne peut pas SAISIR une colonne composee, qui n'existe nulle part en SQL. Le type le
  * rend impossible, plutot que de compter sur la vigilance a l'ecriture.
  */
+/**
+ * Les trois groupes du formulaire, demandes par David le 28/10/2026 : « je veux une
+ * presentation logique et compacte, pas des champs disperses ».
+ *
+ * Le groupe ne touche A AUCUNE CLE SQL. C'est un fait d'affichage, pose AU-DESSUS des
+ * cles — y compris des deux qui mentent sur leur contenu (`locataire` = nom du
+ * proprietaire, `proprietaire` = son prenom). Les renommer exigerait une migration et
+ * casserait les sauvegardes deja prises ; les RANGER ne coute rien.
+ */
+export type GroupeChamp = 'locataire' | 'proprietaire' | 'contrat';
+
+export const GROUPES_FORMULAIRE: { cle: GroupeChamp; titre: string }[] = [
+  { cle: 'locataire', titre: 'Locataire' },
+  { cle: 'proprietaire', titre: 'Propriétaire' },
+  { cle: 'contrat', titre: 'Contrat et loyer' },
+];
+
 export interface DefinitionChamp extends DefinitionCommune {
   cle: ChampSysteme;
+  /**
+   * OBLIGATOIRE, et c'est tout l'interet.
+   *
+   * Un champ ajoute demain sans groupe ne compile pas. Rendu optionnel, il atterrirait en
+   * silence hors de toute section — ou pire, dans la premiere — et personne ne le verrait
+   * avant une capture d'ecran. Le compilateur fait ici le travail d'un releve, en amont.
+   */
+  groupe: GroupeChamp;
 }
 
 /** UNE COLONNE DU TABLEAU. Sa cle peut etre composee, et donc absente de la base. */
@@ -159,15 +190,25 @@ export type ColonneComposee = 'np_locataire' | 'np_proprietaire';
  * Le module suit un bail : il y a un LOCATAIRE et un PROPRIETAIRE, chacun avec un nom et
  * un prenom. Les quatre colonnes SQL sont :
  *
- *     nom          -> le nom    du LOCATAIRE
- *     prenom       -> le prenom du LOCATAIRE
- *     locataire    -> le nom    du PROPRIETAIRE     <-- la cle ne dit pas son contenu
- *     proprietaire -> le prenom du PROPRIETAIRE     <-- idem
+ *     nom                    -> le nom      du LOCATAIRE
+ *     prenom                 -> le prenom   du LOCATAIRE
+ *     telephone              -> le TELEPHONE du LOCATAIRE
+ *     locataire              -> le nom      du PROPRIETAIRE   <-- la cle ne dit pas son contenu
+ *     proprietaire           -> le prenom   du PROPRIETAIRE   <-- idem
+ *     telephone_proprietaire -> le TELEPHONE du PROPRIETAIRE
  *
- * Les deux dernieres cles ne disent PAS ce qu'elles portent, et c'est assume : les
+ * Les deux cles marquees ne disent PAS ce qu'elles portent, et c'est assume : les
  * renommer exigerait une migration, casserait les sauvegardes deja prises et les
  * restaurations qui les relisent, et ne changerait rien a ce que l'utilisateur lit.
  * Un libelle se corrige sans risque ; une colonne, non.
+ *
+ * `telephone_proprietaire`, ajoute le 27/10/2026, ne reprend PAS ce travers : sa cle dit
+ * son contenu. Reproduire l'ambiguite par souci de symetrie aurait ete le pire choix.
+ *
+ * CONSEQUENCE SUR LES LIBELLES : tant qu'il n'y avait qu'un telephone, « Telephone » se
+ * suffisait. Des qu'il y en a deux, le libelle nu devient ambigu — et c'est l'ajout qui
+ * cree l'ambiguite, donc c'est a lui de la lever. Les deux portent desormais la personne,
+ * comme « N/P locataire » et « N/P proprietaire » le faisaient deja.
  */
 
 /**
@@ -184,17 +225,34 @@ export type ColonneComposee = 'np_locataire' | 'np_proprietaire';
  * lisible : ici ce qu'on ecrit, plus bas ce qu'on lit.
  */
 export const CHAMPS_DOSSIER: DefinitionChamp[] = [
-  { cle: 'nom', libelle: 'Nom locataire', type: 'texte', masquable: false },
-  { cle: 'prenom', libelle: 'Prénom locataire', type: 'texte', masquable: true },
-  { cle: 'email', libelle: 'Email', type: 'texte', masquable: true },
-  { cle: 'telephone', libelle: 'Téléphone', type: 'texte', masquable: true },
-  { cle: 'date_entree', libelle: "Date d'entrée", type: 'date', masquable: true },
-  { cle: 'date_fin_contrat', libelle: 'Fin de contrat', type: 'date', masquable: true },
-  { cle: 'locataire', libelle: 'Nom propriétaire', type: 'texte', masquable: true },
-  { cle: 'proprietaire', libelle: 'Prénom propriétaire', type: 'texte', masquable: true },
-  { cle: 'jour_encaissement', libelle: 'Encaissement loyer', type: 'nombre', masquable: true },
-  { cle: 'commentaire', libelle: 'Commentaire', type: 'texte', masquable: true },
-  { cle: 'mode_paiement', libelle: 'Mode de paiement', type: 'texte', masquable: true, choix: MODES_PAIEMENT },
+  /* ---- Locataire ---- */
+  { cle: 'nom', libelle: 'Nom locataire', type: 'texte', masquable: false, groupe: 'locataire' },
+  { cle: 'prenom', libelle: 'Prénom locataire', type: 'texte', masquable: true, groupe: 'locataire' },
+  { cle: 'email', libelle: 'Email', type: 'texte', masquable: true, groupe: 'locataire' },
+  { cle: 'telephone', libelle: 'Téléphone locataire', type: 'texte', masquable: true, groupe: 'locataire' },
+
+  /* ---- Proprietaire. Rappel : `locataire` porte son NOM, `proprietaire` son PRENOM. ---- */
+  { cle: 'locataire', libelle: 'Nom propriétaire', type: 'texte', masquable: true, groupe: 'proprietaire' },
+  { cle: 'proprietaire', libelle: 'Prénom propriétaire', type: 'texte', masquable: true, groupe: 'proprietaire' },
+  { cle: 'telephone_proprietaire', libelle: 'Téléphone propriétaire', type: 'texte', masquable: true, groupe: 'proprietaire' },
+
+  /* ---- Contrat et loyer ----
+     LES DEUX DATES SONT CE QUI DISPERSAIT LA FICHE. Elles s'intercalaient entre le bloc
+     locataire et le bloc proprietaire : on lisait un nom, un prenom, puis deux dates de
+     bail, puis un autre nom. Les regrouper ici est ce qui regle reellement la plainte —
+     les titres ne font que le rendre visible.
+
+     `jour_encaissement` n'etait pas dans la liste de David du 28/10. Je le garde ici : le
+     retirer du formulaire supprimerait un champ existant, et il appartient manifestement a
+     ce groupe. A lui de dire s'il le voulait ailleurs.
+
+     `commentaire` reste DERNIER : seul textarea, donc seul champ en `sm:col-span-2`. Une
+     case pleine largeur au milieu d'un groupe casserait l'appariement des suivants. */
+  { cle: 'date_entree', libelle: "Date d'entrée", type: 'date', masquable: true, groupe: 'contrat' },
+  { cle: 'date_fin_contrat', libelle: 'Fin de contrat', type: 'date', masquable: true, groupe: 'contrat' },
+  { cle: 'jour_encaissement', libelle: 'Encaissement loyer', type: 'nombre', masquable: true, groupe: 'contrat' },
+  { cle: 'mode_paiement', libelle: 'Mode de paiement', type: 'texte', masquable: true, choix: MODES_PAIEMENT, groupe: 'contrat' },
+  { cle: 'commentaire', libelle: 'Commentaire', type: 'texte', masquable: true, groupe: 'contrat' },
 ];
 
 /**
@@ -221,7 +279,7 @@ export const COLONNES_SYSTEME: DefinitionSysteme[] = [
     composeDe: ['nom', 'prenom'],
   },
   { cle: 'email', libelle: 'Email', type: 'texte', masquable: true },
-  { cle: 'telephone', libelle: 'Téléphone', type: 'texte', masquable: true },
+  { cle: 'telephone', libelle: 'Téléphone locataire', type: 'texte', masquable: true },
   { cle: 'date_entree', libelle: "Date d'entrée", type: 'date', masquable: true },
   { cle: 'date_fin_contrat', libelle: 'Fin de contrat', type: 'date', masquable: true },
   {
@@ -230,6 +288,17 @@ export const COLONNES_SYSTEME: DefinitionSysteme[] = [
     cle: 'np_proprietaire', libelle: 'N/P propriétaire', type: 'texte', masquable: true,
     composeDe: ['locataire', 'proprietaire'],
   },
+  /*
+   * Juste apres le N/P du proprietaire, pour la meme raison que dans le formulaire : on
+   * lit une personne, pas une liste de champs.
+   *
+   * Libelle ECRIT EN ENTIER, ici comme dans le formulaire. J'avais d'abord abrege les
+   * en-tetes en « Tel. » pour gagner des pixels ; David a demande « telephone locataire »
+   * en toutes lettres. Un en-tete se lit en diagonale : l'abreviation economisait de la
+   * largeur dans un tableau qui defile deja horizontalement, donc elle ne reglait rien et
+   * coutait en lisibilite.
+   */
+  { cle: 'telephone_proprietaire', libelle: 'Téléphone propriétaire', type: 'texte', masquable: true },
   { cle: 'jour_encaissement', libelle: 'Encaissement loyer', type: 'nombre', masquable: true },
   { cle: 'commentaire', libelle: 'Commentaire', type: 'texte', masquable: true },
   { cle: 'mode_paiement', libelle: 'Mode de paiement', type: 'texte', masquable: true, choix: MODES_PAIEMENT },
@@ -263,6 +332,7 @@ export interface SaisieDossier {
   date_fin_contrat: string;
   locataire: string;
   proprietaire: string;
+  telephone_proprietaire: string;
   /** Chaine, parce qu'un champ de formulaire vide doit rester distinct de 0. */
   jour_encaissement: string;
   commentaire: string;
@@ -307,7 +377,8 @@ export function dateEtHeure(iso: string): string {
 export const SAISIE_VIDE: SaisieDossier = {
   nom: '', prenom: '', email: '', telephone: '',
   date_entree: '', date_fin_contrat: '',
-  locataire: '', proprietaire: '', jour_encaissement: '', commentaire: '',
+  locataire: '', proprietaire: '', telephone_proprietaire: '',
+  jour_encaissement: '', commentaire: '',
   mode_paiement: '',
   valeurs: {},
 };

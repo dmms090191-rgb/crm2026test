@@ -136,35 +136,54 @@ console.log('\n=== 5. LES QUATRE STATUTS ===');
   t('encaisse l emporte sur tout', statutDe('2026-01-05', true, AUJ) === 'encaisse');
   t('encaisse meme si a venir', statutDe('2026-12-05', true, AUJ) === 'encaisse');
   t('a venir : echeance future', statutDe('2026-06-20', false, AUJ) === 'a-venir');
-  t('a encaisser : echue, mois COURANT', statutDe('2026-06-05', false, AUJ) === 'a-encaisser');
   t('a encaisser : echue AUJOURD HUI meme', statutDe('2026-06-15', false, AUJ) === 'a-encaisser');
+  t('en retard : echue dans le mois courant', statutDe('2026-06-05', false, AUJ) === 'en-retard');
   t('en retard : echue, mois ANTERIEUR', statutDe('2026-05-05', false, AUJ) === 'en-retard');
   t('en retard : annee anterieure', statutDe('2025-12-05', false, AUJ) === 'en-retard');
 
-  /* La frontiere du mois, des deux cotes, au jour pres. */
-  t('le dernier jour du mois precedent est EN RETARD',
-    statutDe('2026-05-31', false, AUJ) === 'en-retard');
-  t('le premier jour du mois courant est A ENCAISSER',
-    statutDe('2026-06-01', false, AUJ) === 'a-encaisser');
+  /*
+   * ---------- LA FRONTIERE EST LE JOUR, ET PLUS LE MOIS ----------
+   *
+   * Regle posee par David le 28/10/2026 : « si l'echeance est aujourd'hui et non payee ->
+   * A encaisser aujourd'hui ; des que aujourd'hui > date d'echeance et que ce n'est pas
+   * paye -> En retard ».
+   *
+   * Elle etait au MOIS jusque-la, et c'etait assume et documente : une echeance du 12
+   * octobre impayee restait « a encaisser » du 13 au 31 octobre, et ne basculait que le
+   * 1er novembre. Ce n'etait donc pas un oubli, mais une AUTRE regle.
+   *
+   * Les trois releves ci-dessous tiennent la nouvelle frontiere des deux cotes. Ce sont
+   * eux qui empecheraient de retablir la granularite mois sans s'en apercevoir.
+   */
+  t('la VEILLE est en retard', statutDe('2026-06-14', false, AUJ) === 'en-retard');
+  t('le JOUR MEME est a encaisser', statutDe('2026-06-15', false, AUJ) === 'a-encaisser');
+  t('le LENDEMAIN est a venir', statutDe('2026-06-16', false, AUJ) === 'a-venir');
+
+  /* L'exemple de David, repris tel quel : une echeance du 12, consultee le 12 puis le 13. */
+  t('echeance du 12, consultee le 12 : a encaisser',
+    statutDe('2026-10-12', false, '2026-10-12') === 'a-encaisser');
+  t('echeance du 12, consultee le 13 : EN RETARD',
+    statutDe('2026-10-12', false, '2026-10-13') === 'en-retard');
 
   /*
    * AUCUN DELAI DE GRACE N EST INVENTE, et c est le point le plus facile a perdre.
    *
-   * Un loyer du 31 mai, consulte le 2 juin, n est en retard que de DEUX jours. La
-   * tentation serait de le laisser << a encaisser >> encore un peu. Ce serait inventer
-   * un reglage que personne n a pose, et qu il faudrait ensuite defendre : cinq jours ?
-   * dix ? La regle de David ne demande aucun arbitrage — mois passe, donc en retard.
-   *
-   * Ces deux relevés sont ce qui distingue sa regle d un delai de grace : sans eux,
-   * ajouter << sauf si moins de cinq jours >> passerait inapercu.
+   * La tentation serait de laisser une echeance << a encaisser >> encore un peu apres sa
+   * date. Ce serait inventer un reglage que personne n a pose, et qu il faudrait ensuite
+   * defendre : cinq jours ? dix ? La regle de David ne demande aucun arbitrage — date
+   * passee, donc en retard.
    */
-  t('un loyer du mois precedent, echu depuis DEUX jours, est deja en retard',
+  t('un loyer echu depuis DEUX jours est deja en retard',
     statutDe('2026-05-31', false, '2026-06-02') === 'en-retard');
-  t('un loyer du mois precedent, echu depuis UN jour, aussi',
+  t('un loyer echu depuis UN SEUL jour aussi',
     statutDe('2026-05-31', false, '2026-06-01') === 'en-retard');
-  /* Et a l inverse : trente jours de retard DANS le mois restent « a encaisser ». */
-  t('trente jours de retard dans le MEME mois restent « a encaisser »',
-    statutDe('2026-06-01', false, '2026-06-30') === 'a-encaisser');
+  /*
+   * CONTRE-TEMOIN DE L ANCIENNE REGLE. Trente jours de retard DANS le mois etaient
+   * << a encaisser >> ; ils ne le sont plus. Ce releve est la pour que le retour de la
+   * granularite mois rougisse, au lieu de passer pour une simplification.
+   */
+  t('trente jours de retard dans le MEME mois sont desormais en retard',
+    statutDe('2026-06-01', false, '2026-06-30') === 'en-retard');
 
   t('les quatre statuts ont un libelle', (['encaisse', 'a-venir', 'a-encaisser', 'en-retard'] as StatutLoyer[])
     .every(s => (LIBELLE_STATUT[s] ?? '').length > 0));
@@ -238,10 +257,13 @@ console.log('\n=== 7 bis. LE CYCLE ENCAISSE -> ANNULE -> RE-ENCAISSE ===');
   const an = ech('2026-01-09', '2026-12-09', 9);
   const AUJ = '2026-06-15';
 
+  /* Les trois dates couvrent les trois retours possibles, avec la regle au JOUR : une
+     echeance a venir, celle du jour meme, et une echeance passee. */
   for (const [date, attendu] of [
     ['2026-07-09', 'a-venir'],     // encore devant
-    ['2026-06-09', 'a-encaisser'], // echue, mois courant
-    ['2026-04-09', 'en-retard'],   // echue, mois passe
+    ['2026-06-15', 'a-encaisser'], // c'est AUJOURD HUI
+    ['2026-06-09', 'en-retard'],   // echue, meme si c'est le mois courant
+    ['2026-04-09', 'en-retard'],   // echue depuis longtemps
   ] as [string, StatutLoyer][]) {
     t(`${date} : encaisse`, statutDe(date, true, AUJ) === 'encaisse');
     t(`${date} : annule -> redevient « ${LIBELLE_STATUT[attendu]} »`,
@@ -277,12 +299,28 @@ console.log('\n=== 8. LES COMPTEURS ===');
   const payesAvantAvril = (d: string) => d < '2026-04-01';
   const c = compterParStatut(an, payesAvantAvril, '2026-05-20');
 
+  /*
+   * Echeances le 9 de chaque mois, consultees le 20 mai, payees jusqu'a fin mars.
+   *
+   * AVANT le 28/10/2026 (regle au MOIS) : 1 a encaisser (le 9 mai, echu mais du mois
+   * courant) et 1 en retard (le 9 avril). DEPUIS (regle au JOUR) : les deux sont echues,
+   * donc les DEUX sont en retard, et « a encaisser » ne compte plus que l'echeance du jour.
+   */
   t('3 encaisses (janvier a mars)', c.encaisse === 3);
-  t('1 a encaisser (mai, echu dans le mois)', c['a-encaisser'] === 1);
-  t('1 en retard (avril, mois passe)', c['en-retard'] === 1);
+  t('0 a encaisser : aucune echeance ne tombe le 20 mai', c['a-encaisser'] === 0);
+  t('2 en retard (avril ET mai : les deux dates sont passees)', c['en-retard'] === 2);
   t('7 a venir (juin a decembre)', c['a-venir'] === 7);
   t('le compte total retombe sur l echeancier',
     c.encaisse + c['a-encaisser'] + c['en-retard'] + c['a-venir'] === an.length);
+
+  /*
+   * ET « A ENCAISSER » EXISTE TOUJOURS — le meme echeancier, consulte LE JOUR d'une
+   * echeance. Sans ce releve, la mutation qui ferait disparaitre ce statut passerait,
+   * puisque le cas ci-dessus en compte zero.
+   */
+  const leJourMeme = compterParStatut(an, payesAvantAvril, '2026-05-09');
+  t('le jour d une echeance, elle est A ENCAISSER', leJourMeme['a-encaisser'] === 1);
+  t('et seule celle d avril est alors en retard', leJourMeme['en-retard'] === 1);
 }
 
 console.log('\n=== 8 bis. LES SEPT COMPTEURS DU TABLEAU DE BORD ===');
@@ -379,8 +417,12 @@ console.log('\n=== 8 bis. LES SEPT COMPTEURS DU TABLEAU DE BORD ===');
   const neufRetards = classerTableauDeBord({
     periodes: [periode('solo', '2026-01-05', '2026-12-05', 5)], encaissements: [], aujourdhui: AUJ,
   });
-  t('neuf loyers en retard pour UN SEUL dossier',
-    neufRetards.compteurs.loyersEnRetard === 9 && neufRetards.dossiers['loyers-en-retard'].size === 1);
+  /* DIX depuis la regle au jour, et non plus neuf : l'echeance du 5 octobre, consultee le
+     22, est passee — elle etait « a encaisser » tant que la regle raisonnait au mois. */
+  t('dix loyers en retard pour UN SEUL dossier',
+    neufRetards.compteurs.loyersEnRetard === 10 && neufRetards.dossiers['loyers-en-retard'].size === 1);
+  t('et plus aucun « a encaisser » : aucune echeance ne tombe le 22',
+    neufRetards.compteurs.loyersAEncaisser === 0);
 
   /*
    * CE QUI N'EST PAS UNE DATE NE SE RANGE NULLE PART.
@@ -431,10 +473,11 @@ console.log('\n=== 8 bis. LES SEPT COMPTEURS DU TABLEAU DE BORD ===');
   t('les loyers regles ne sont plus « en retard »', regles.loyersEnRetard === 7);
 
   /* Une annulation n'arrive jamais ici : le hook ne charge que les encaissements
-     actifs. Sans encaissement du tout, les neuf echeances echues sont dues. */
+     actifs. Sans encaissement du tout, les DIX echeances echues sont dues — dix et non
+     neuf depuis la regle au jour, celle du 5 octobre etant passee au 22. */
   const sansRien = compterTableauDeBord({ periodes: unAn, encaissements: [], aujourdhui: AUJ });
   t('sans encaissement, tout l echu est du',
-    sansRien.loyersEnRetard === 9 && sansRien.loyersAEncaisser === 1);
+    sansRien.loyersEnRetard === 10 && sansRien.loyersAEncaisser === 0);
   t('et rien n est compte comme encaisse', sansRien.encaissesCeMois === 0);
 
   /* Ce qui n'est pas calculable ne produit pas un chiffre invente. */

@@ -83,7 +83,8 @@ function idsDeclares(fichier: string, nomConst: string): { id: string; masque: b
   /* ATTENTION : le premier '[' apres le nom est celui de `LayoutDefaultSection[]`, pas celui
      du tableau. On part donc du '=' de l'affectation — ce piege m'a fait mesurer 0 onglet. */
   const eq = s.indexOf("=", i);
-  let prof = 0, debut = s.indexOf("[", eq), fin = -1;
+  const debut = s.indexOf("[", eq);
+  let prof = 0, fin = -1;
   for (let k = debut; k < s.length; k++) {
     if (s[k] === "[") prof++;
     else if (s[k] === "]") { prof--; if (prof === 0) { fin = k; break; } }

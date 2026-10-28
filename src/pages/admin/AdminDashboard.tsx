@@ -69,7 +69,13 @@ function AdminDashboardInner({ onLogout, onConnectAsVendor, onConnectAsClient, i
    * overrideCompanyId ?? authCompanyId), donc la Visu suit le droit de la Societe
    * chez qui Talvex ou un Groupe entre, sans une ligne de code en plus.
    */
-  const { etat: crmImmoAcces, recharger: rechargerCrmImmoAcces } = useCrmImmoAccess(companyId);
+  const {
+    etat: crmImmoAcces,
+    /* Le code et le message reels de l'echec : ils ne servent qu'a la Porte, qui les affiche.
+       La barre laterale n'en a pas besoin — elle ne sait que ouvrir ou cacher l'onglet. */
+    detail: crmImmoDetailErreur,
+    recharger: rechargerCrmImmoAcces,
+  } = useCrmImmoAccess(companyId);
   /*
    * ---------- LA SOURCE UNIQUE DES ALERTES CRM IMMO ----------
    *
@@ -138,6 +144,9 @@ function AdminDashboardInner({ onLogout, onConnectAsVendor, onConnectAsClient, i
           compteurs: tableauImmo.compteurs,
           dossiersParCategorie: tableauImmo.dossiersParCategorie,
           chargement: tableauImmo.chargement,
+          /* L'horloge VIVANTE du module, partagee avec l'echeancier : une seule, pour que
+             les cartes et la modale ne puissent pas franchir minuit a deux instants. */
+          aujourdhui: tableauImmo.aujourdhui,
           recharger: tableauImmo.recharger,
         }
       : null,
@@ -559,6 +568,7 @@ function AdminDashboardInner({ onLogout, onConnectAsVendor, onConnectAsClient, i
             impersonatedAdmin={impersonatedAdmin}
             isSAViewing={isSAViewing}
             crmImmoAcces={crmImmoAcces}
+            crmImmoDetailErreur={crmImmoDetailErreur}
             onReessayerCrmImmo={rechargerCrmImmoAcces}
             docInitialTab={docInitialTab}
             unreadClientConversations={unreadEntries.length}

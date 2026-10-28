@@ -70,3 +70,140 @@ export function accesResolu(etat: EtatAcces): boolean {
 export function accesRefuse(etat: EtatAcces): boolean {
   return etat === 'refuse';
 }
+
+/*
+ * ============== TRANSPORT CONTRE SERVEUR, ET POURQUOI LA DISTINCTION EXISTE ==============
+ *
+ * MESURE DU 26/10/2026, journaux Supabase. Un porteur voyait « CRM Immo n'a pas pu etre
+ * verifie » sur le site, dans un navigateur de telephone. L'enquete a montre que la requete
+ * ARRIVE au serveur, qu'elle REUSSIT, et qu'elle rend meme `true` : HTTP 200, corps de
+ * 4 octets. Elle met seulement 23 038 ms a le faire — jusqu'a 33 838 ms ailleurs — alors que
+ * la fonction elle-meme s'execute en 101 ms. L'attente n'est pas dans le calcul : le tableau
+ * de bord lance jusqu'a 21 requetes dans la meme seconde contre un lot de 5 connexions
+ * PostgREST, et celle-ci fait la queue. Le navigateur du telephone, lui, renonce avant.
+ *
+ * CE QUE VOIT LE CODE QUAND LE NAVIGATEUR RENONCE. postgrest-js n'echoue pas par un rejet de
+ * promesse : il attrape la panne de fetch et fabrique un objet error (PostgrestBuilder.js,
+ * `res.catch((fetchError) => ...)`). Cet objet a la MEME FORME qu'un refus du serveur, et
+ * lireReponseAcces, qui ne regarde que `if (error)`, rendait donc 'erreur' dans les deux cas.
+ * Un reseau qui renonce etait traite comme un refus de la base.
+ *
+ * LE DISCRIMINANT, ET IL EST FIABLE. PostgREST et PostgreSQL nomment TOUJOURS leur erreur :
+ * '42501' pour un droit refuse, 'PGRST301' pour un jeton rejete, '22P02' pour un uuid
+ * invalide. postgrest-js, lui, pose `code: ${fetchError?.code ?? ''}` — et une TypeError de
+ * fetch n'a pas de `.code`. Un code VIDE signifie donc : la reponse n'est jamais arrivee.
+ *
+ * CE QUE LA DISTINCTION AUTORISE. Un seul reessai, et seulement sur le transport. Reessayer
+ * un refus serait absurde — la reponse ne changera pas — et reessayer en boucle aggraverait
+ * precisement la file d'attente qui cause la panne. Un essai, un recul, puis on conclut.
+ */
+
+/** Ce que l'on sait de l'echec, quand il y en a un. Sert a l'ecran et a la decision. */
+export interface DetailErreur {
+  /** Le code PostgREST/PostgreSQL, ou null quand la reponse n'est jamais arrivee. */
+  code: string | null;
+  /** Le message tel quel, affiche a l'ecran : c'est lui qui rend un incident diagnosticable. */
+  message: string;
+  /** Vrai quand l'echec est un abandon du transport, et non une reponse du serveur. */
+  transport: boolean;
+}
+
+/** La forme minimale qu'on lit d'une erreur, sans dependre des types de supabase-js. */
+interface ErreurBrute {
+  code?: unknown;
+  message?: unknown;
+}
+
+/**
+ * Vrai quand l'echec vient du TRANSPORT et non du serveur.
+ *
+ * On teste le code, jamais le message : « Failed to fetch » est formule differemment par
+ * chaque navigateur et traduit dans la langue du systeme, alors que l'absence de code est
+ * structurelle. Se brancher sur le texte serait se brancher sur la langue du telephone.
+ */
+export function estErreurDeTransport(error: unknown): boolean {
+  if (!error) return false;
+  const code = (error as ErreurBrute).code;
+  return code === undefined || code === null || code === '';
+}
+
+/** Traduit une erreur brute en detail affichable. Ne rend rien quand il n'y a pas d'erreur. */
+export function decrireErreur(error: unknown): DetailErreur | null {
+  if (!error) return null;
+  const brute = error as ErreurBrute;
+  const code = typeof brute.code === 'string' && brute.code !== '' ? brute.code : null;
+  const message = typeof brute.message === 'string' && brute.message !== ''
+    ? brute.message
+    : 'Erreur inconnue';
+  return { code, message, transport: estErreurDeTransport(error) };
+}
+
+/** Le recul avant l'unique reessai. Assez long pour que la file se degage, assez court
+ *  pour que l'ecran ne paraisse pas fige. */
+export const RECUL_AVANT_REESSAI_MS = 2500;
+
+/** Ce que rend une demande : l'etat, le detail de l'echec s'il y en a, et le nombre d'essais. */
+export interface ResultatDemande {
+  etat: EtatAcces;
+  detail: DetailErreur | null;
+  essais: number;
+}
+
+/** La reponse brute d'un appel, reduite a ce dont la decision a besoin. */
+export interface ReponseBrute {
+  data: unknown;
+  error: unknown;
+}
+
+/**
+ * DEMANDE LE DROIT, AVEC UN SEUL REESSAI RESERVE AU TRANSPORT.
+ *
+ * `appeler` et `attendre` sont injectes pour que les releves exercent la SEQUENCE ENTIERE —
+ * premier echec, recul, second essai — sans reseau, sans React et sans attendre 2,5 secondes.
+ * Un releve qui devrait patienter serait un releve qu'on finit par desactiver.
+ *
+ * La regle tient en une phrase : on ne reessaie QUE si la reponse n'est jamais arrivee, et
+ * on ne le fait QU'UNE FOIS. Tout le reste — accorde, refuse, erreur nommee par le serveur —
+ * se conclut au premier essai.
+ */
+export async function demanderAcces(
+  appeler: () => Promise<ReponseBrute>,
+  attendre: (ms: number) => Promise<void>,
+  reculMs: number = RECUL_AVANT_REESSAI_MS,
+): Promise<ResultatDemande> {
+  let essais = 0;
+
+  for (;;) {
+    essais++;
+
+    /*
+     * UN REJET EST UNE PANNE DE TRANSPORT, ET DOIT ETRE TRAITE COMME TELLE.
+     *
+     * postgrest-js n'en produit pas aujourd'hui : il attrape la panne de fetch et rend un
+     * objet error. Mais un appelant qui leve — un `fetch` remplace, un intercepteur, une
+     * version future — ferait autrement rejeter cette fonction toute entiere. L'etat
+     * resterait alors 'inconnu' et la Porte afficherait un rond qui tourne SANS FIN :
+     * exactement la panne payee le 25/10/2026 sur le coffre Capacitor.
+     *
+     * On le convertit donc en erreur sans code, ce qui lui donne le bon traitement — un
+     * reessai, puis une conclusion — au lieu d'un silence.
+     */
+    let reponse: ReponseBrute;
+    try {
+      reponse = await appeler();
+    } catch (leve) {
+      const message = leve instanceof Error ? `${leve.name}: ${leve.message}` : String(leve);
+      reponse = { data: null, error: { code: '', message } };
+    }
+    const { data, error } = reponse;
+
+    // Un seul reessai, et seulement si la reponse n'est jamais arrivee. `essais === 1`
+    // borne la boucle : il n'existe aucun chemin qui repasse une troisieme fois.
+    if (error && estErreurDeTransport(error) && essais === 1) {
+      await attendre(reculMs);
+      continue;
+    }
+
+    return { etat: lireReponseAcces(data, error), detail: decrireErreur(error), essais };
+  }
+}

@@ -15,7 +15,7 @@ import {
 } from './adminLazyViews';
 import CrmImmoGate from './CrmImmoGate';
 import AdminTelechargerView from '../views/AdminTelechargerView';
-import type { EtatAcces } from '../../../lib/crmImmoAccess';
+import type { EtatAcces, DetailErreur } from '../../../lib/crmImmoAccess';
 import type { ImmoPourDashboard } from '../views/VueEnsemble';
 import type { CategorieImmo } from '../../../lib/crmImmoEcheancier';
 import { saveConnectReturnContext, saveChatReturnContext } from '../../../lib/connectReturnContext';
@@ -59,6 +59,9 @@ interface Props {
    * Le case 'crm-immo' existe toujours : c'est CrmImmoGate qui decide.
    */
   crmImmoAcces: EtatAcces;
+  /* Le code et le message reels quand la porte se ferme sur une panne. Traverse sans
+     etre lu : seule CrmImmoGate l'affiche. */
+  crmImmoDetailErreur?: DetailErreur | null;
   onReessayerCrmImmo: () => void;
   docInitialTab?: string;
   unreadClientConversations: number;
@@ -99,7 +102,7 @@ interface Props {
 
 export default function AdminViewRenderer({
   activeView, chatLead, chatVendor, rdvLead, effectiveAdminId, chatInitialSuperAdminId = null,
-  impersonatedAdmin, isSAViewing, crmImmoAcces, onReessayerCrmImmo, docInitialTab,
+  impersonatedAdmin, isSAViewing, crmImmoAcces, crmImmoDetailErreur, onReessayerCrmImmo, docInitialTab,
   immoDashboard = null, onOuvrirCrmImmo,
   unreadClientConversations, unreadVendorConversations,
   identityName = '', identityEmail = '', companyName = '', rdvCount = 0,
@@ -171,7 +174,10 @@ export default function AdminViewRenderer({
            * ci-dessous, qui ouvre la Vue d'ensemble : un refus deguise en reussite.
            */
           case 'historique-notifications': return <Suspense fallback={lazyFallback}><HistoriqueNotifications {...historique} /></Suspense>;
-          case 'crm-immo': return <CrmImmoGate etat={crmImmoAcces} onReessayer={onReessayerCrmImmo} />;
+          /* `effectiveAdminId` traverse jusqu'au module : c'est lui qui porte la preference
+             de colonnes partagee, et il designe l'entite VISUALISEE — en Visu, c'est la
+             Societe regardee, pas l'observateur. */
+          case 'crm-immo': return <CrmImmoGate etat={crmImmoAcces} detail={crmImmoDetailErreur} onReessayer={onReessayerCrmImmo} proprietaireReglage={effectiveAdminId} />;
           case 'tuto': return <div className="p-6"><p className="text-sm" style={{ color: 'inherit' }}>Tuto - Contenu a venir</p></div>;
           default: return <Suspense fallback={lazyFallback}><VueEnsemble immo={immoDashboard} onOuvrirCrmImmo={onOuvrirCrmImmo} unreadClientConversations={unreadClientConversations} unreadVendorConversations={unreadVendorConversations} fullName={identityName} companyName={companyName} email={identityEmail} rdvCount={rdvCount} /></Suspense>;
         }

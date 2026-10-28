@@ -64,7 +64,24 @@ export interface LigneEcheancier extends EcheanceLoyer {
   actuel: boolean;
 }
 
-export function useCrmImmoEcheancier(dossierId: string | null) {
+/**
+ * @param aujourdhuiPartage  Le jour de reference VIVANT du module, 'AAAA-MM-JJ' en
+ *   Asia/Jerusalem, avance par le minuteur du tableau de bord.
+ *
+ *   POURQUOI IL ARRIVE DE L'EXTERIEUR. Ce crochet calculait le sien, dans un useMemo dont
+ *   la seule dependance etait une constante de module : il etait donc FIGE au montage. Une
+ *   modale laissee ouverte a cheval sur minuit gardait les statuts de la veille, alors que
+ *   les cartes du tableau de bord, elles, avancaient toutes les 60 secondes. Le statut « En
+ *   retard » dependant du jour, c'est exactement ce qui empechait le basculement
+ *   AUTOMATIQUE que David demande.
+ *
+ *   On ne pose pas un second minuteur ici : deux horloges pourraient franchir minuit a deux
+ *   instants, et faire dire aux cartes et a la modale deux choses differentes.
+ *
+ *   Optionnel : sans lui, le crochet retombe sur son propre calcul — fige, comme avant,
+ *   mais exact au montage. C'est le repli d'un appelant qui n'aurait pas le contexte.
+ */
+export function useCrmImmoEcheancier(dossierId: string | null, aujourdhuiPartage?: string) {
   const companyId = useCompanyId();
   const [periodes, setPeriodes] = useState<PeriodeEnregistree[]>([]);
   const [encaissements, setEncaissements] = useState<EncaissementDossier[]>([]);
@@ -75,7 +92,13 @@ export function useCrmImmoEcheancier(dossierId: string | null) {
   /* Israel, et pas le poste : le statut << en retard >> d'une echeance doit etre le meme
      pour tout le monde. Voir FUSEAU_ALERTES. */
   const fuseau = FUSEAU_ALERTES;
-  const aujourdhui = useMemo(() => journeeDeReference(new Date(), fuseau), [fuseau]);
+  /*
+   * Le repli garde le MEME fuseau que l'horloge partagee : s'il calculait en heure locale,
+   * un appelant sans contexte verrait d'autres statuts qu'un appelant avec — et le fuseau
+   * est precisement ce que FUSEAU_ALERTES existe pour fixer.
+   */
+  const propre = useMemo(() => journeeDeReference(new Date(), fuseau), [fuseau]);
+  const aujourdhui = aujourdhuiPartage ?? propre;
 
   const charger = useCallback(async () => {
     if (!dossierId || !companyId) { setPeriodes([]); setEncaissements([]); setChargement(false); return; }

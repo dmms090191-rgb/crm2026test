@@ -46,9 +46,26 @@ export default function CrmImmoCards({
 }: Props) {
   const t = useThemeTokens();
 
-  /* Le nom tient l'entete ; les deux echeances tiennent le bandeau. Le reste va dans la
-     grille, sans les repeter. */
-  const DANS_L_ENTETE = new Set(['nom', 'prenom', 'date_fin_contrat', 'jour_encaissement']);
+  /*
+   * Le nom tient l'entete ; les deux echeances tiennent le bandeau. Le reste va dans la
+   * grille, SANS LES REPETER.
+   *
+   * ---------- CE SET A MENTI PENDANT CINQ JOURS ----------
+   *
+   * Il contenait 'nom' et 'prenom'. Or le 23/10/2026, ces deux cles ont disparu de
+   * COLONNES_SYSTEME : elles ont ete fusionnees en la colonne composee 'np_locataire'.
+   * L'exclusion ne correspondait donc plus a rien, et elle echouait EN SILENCE — aucun
+   * type ne verifie le contenu d'un Set de chaines face a des cles qui ont change.
+   *
+   * Resultat mesure le 27/10 : sur telephone, LE NOM DU LOCATAIRE S'AFFICHAIT DEUX FOIS
+   * par fiche — une fois en titre (ligne du dessous, `titre`), une fois dans la grille
+   * libelle/valeur. Les deux autres litteraux etant toujours valides, le defaut est passe
+   * inapercu.
+   *
+   * LA LECON : un renommage de cles laisse des litteraux derriere lui, et ceux-la ne
+   * levent pas. Chercher les anciens noms par grep fait partie du renommage.
+   */
+  const DANS_L_ENTETE = new Set(['np_locataire', 'date_fin_contrat', 'jour_encaissement']);
 
   function valeur(d: DossierImmo, c: Colonne): string {
     const brut = valeurAffichee(d, c);

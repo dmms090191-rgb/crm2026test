@@ -48,9 +48,84 @@ export interface ReglageLocal {
 
 export const REGLAGE_VIDE: ReglageLocal = { ordreSysteme: [], masqueesSysteme: [] };
 
-/** La cle de rangement, par Societe : deux Societes ne partagent pas leur mise en page. */
+/**
+ * La cle du CACHE LOCAL, par Societe.
+ *
+ * ---------- CE N'EST PLUS LA SOURCE, DEPUIS LE 28/10/2026 ----------
+ *
+ * Elle l'a ete, et c'etait le defaut : l'ordre et le masquage des colonnes systeme ne
+ * vivaient QUE dans le localStorage. La cle nommait bien la Societe, mais le support etait
+ * le NAVIGATEUR — elle distinguait deux Societes dans un meme navigateur, et ne rapprochait
+ * jamais deux navigateurs d'une meme Societe. David, le 27/10 : « pour une meme societe,
+ * l'ordre et/ou la visibilite des colonnes ne s'affichent pas pareil suivant l'ordinateur ».
+ *
+ * Mesure du 27/10 (role postgres, RLS ignoree) : `select count(*) from crm_immo_colonnes`
+ * rend 0. La moitie « en base, partagee par la Societe » existait dans le code mais etait
+ * VIDE dans les faits : 100 % des colonnes affichees etaient systeme, donc 100 % de la
+ * configuration vivait dans les navigateurs. Il n'y avait pas deux sources a reconcilier,
+ * il y en avait une, au mauvais endroit.
+ *
+ * La source est desormais `user_preferences.sidebar_orders`, sous cleReglagePartage. Cette
+ * cle-ci ne sert plus qu'a PEINDRE TOUT DE SUITE, pour que le tableau ne clignote pas en
+ * attendant la base.
+ */
 export function cleReglage(companyId: string | null): string {
   return `talvex_crm_immo_colonnes_${companyId ?? 'none'}`;
+}
+
+/**
+ * La cle de la preference PARTAGEE, dans `user_preferences.sidebar_orders`.
+ *
+ * ---------- POURQUOI LA SOCIETE Y FIGURE ----------
+ *
+ * La ligne appartient a une entite, mais une meme entite peut en VISUALISER plusieurs :
+ * useCompanyId() rend la Societe visualisee, pas celle du compte (CompanyIdContext). Sans
+ * le companyId dans la cle, un Talvex Administrateur qui visualise la Societe A puis la B
+ * ecraserait l'une avec l'autre.
+ *
+ * ---------- POURQUOI AUCUNE MIGRATION ----------
+ *
+ * `sidebar_orders` est un dictionnaire a cles LIBRES, deja porteur de neuf cles venues de
+ * trois moteurs differents (la barre laterale V2, les preferences d'actions, les cartes de
+ * notification). Y ajouter une dixieme n'est pas un changement de schema — c'est exactement
+ * ce que dit actionPrefsStorage.ts : « Aucune table, aucune colonne, aucune migration : le
+ * mecanisme existe deja. » La RLS (auth.uid() = user_id) et la cle primaire sont en place.
+ */
+export function cleReglagePartage(companyId: string): string {
+  return `crm_immo_colonnes:${companyId}`;
+}
+
+/**
+ * Valide ce qui sort d'un stockage — local OU distant — et rend null si c'est inexploitable.
+ *
+ * Le meme garde-fou pour les deux, et c'est voulu : il protegeait deja contre un JSON abime
+ * en navigation privee ; il protege desormais aussi contre une ligne abimee en base, ou
+ * contre une cle que quelqu'un aurait ecrite a la main. On FILTRE ce qui n'est pas une
+ * chaine au lieu de rejeter l'ensemble : une entree parasite ne doit pas faire perdre un
+ * rangement entier.
+ *
+ * Rend `null` — et non REGLAGE_VIDE — quand il n'y a rien d'exploitable, parce que
+ * l'appelant doit pouvoir distinguer « pas de reglage enregistre » de « reglage vide ». Ce
+ * sont deux etats differents : le premier veut dire « ne touche a rien ».
+ */
+export function reglageValide(brut: unknown): ReglageLocal | null {
+  if (brut === null || typeof brut !== 'object' || Array.isArray(brut)) return null;
+  const lu = brut as Partial<ReglageLocal>;
+  const ordre = Array.isArray(lu.ordreSysteme) ? lu.ordreSysteme.filter(x => typeof x === 'string') : null;
+  const masquees = Array.isArray(lu.masqueesSysteme) ? lu.masqueesSysteme.filter(x => typeof x === 'string') : null;
+  if (ordre === null && masquees === null) return null;
+  return { ordreSysteme: ordre ?? [], masqueesSysteme: masquees ?? [] };
+}
+
+/**
+ * Un reglage dit-il quelque chose ?
+ *
+ * Sert a UNE decision, et c'est la plus delicate de ce chantier : faut-il ecrire en base ?
+ * Un reglage aux deux listes vides n'apprend rien a personne — le promouvoir reviendrait a
+ * publier « je n'ai rien range » comme si c'etait un choix.
+ */
+export function reglageNonVide(r: ReglageLocal | null): boolean {
+  return r !== null && (r.ordreSysteme.length > 0 || r.masqueesSysteme.length > 0);
 }
 
 /**

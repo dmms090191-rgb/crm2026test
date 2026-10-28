@@ -604,11 +604,23 @@ test("la phrase de David, au caractere pres, pour les deux genres", () => {
    * Ce test est volontairement ecrit en DUR, sans reutiliser les constantes du module :
    * un test qui derive sa valeur attendue de la source ne verifie plus rien.
    */
+  /*
+   * LE CAS A DU ETRE RECOMPOSE LE 28/10/2026, et la raison vaut d'etre lue.
+   *
+   * Il consultait un bail du 01/11 au 15/12 (loyers les 05/11 et 05/12) a la date du
+   * 19 novembre. Sous la regle au MOIS, l'echeance du 5 novembre etait encore « a
+   * encaisser » le 19 — meme mois. Sous la regle au JOUR, elle est en retard des le 6.
+   *
+   * Pour tenir l'exigence d'origine — LES DEUX GENRES dans une seule derivation, avec un
+   * loyer « a encaisser » — il faut une date qui soit a la fois le JOUR d'une echeance et
+   * dans la fenetre d'alerte de fin de contrat. D'ou un bail court : du 01/12 au 15/12,
+   * loyer au 5, consulte LE 5. Une seule echeance, donc « 1er loyer sur 1 ».
+   */
   const a = deriver({
     dossiers: [dossier({
-      date_entree: "2026-11-01", date_fin_contrat: "2026-12-15", jour_encaissement: 5,
+      date_entree: "2026-12-01", date_fin_contrat: "2026-12-15", jour_encaissement: 5,
     })],
-    etats: [], aujourdhui: "2026-11-19",
+    etats: [], aujourdhui: "2026-12-05",
   });
   const fin = a.find(x => x.genre === "fin_contrat")!;
   const loyer = a.find(x => x.genre === "loyer")!;
@@ -619,10 +631,7 @@ test("la phrase de David, au caractere pres, pour les deux genres", () => {
   );
   assert.equal(
     libelleAlerte(loyer),
-    /* Un bail du 01/11 au 15/12 avec un loyer au 5 contient DEUX echeances : le 05/11 et
-       le 05/12. Le 19 novembre, celle de novembre est echue et impayee — c'est donc le
-       1er loyer sur 2. */
-    "Loyer à encaisser — 1er loyer sur 2 — Jean Dupont — pour Sarah Cohen — échéance le 05/11/2026",
+    "Loyer à encaisser — 1er loyer sur 1 — Jean Dupont — pour Sarah Cohen — échéance le 05/12/2026",
   );
 
   /* Un mois plus tard, novembre toujours impaye : la phrase dit le RETARD, et garde le
@@ -638,12 +647,20 @@ test("la phrase de David, au caractere pres, pour les deux genres", () => {
     "Loyer en retard — 1er loyer sur 2 — Jean Dupont — pour Sarah Cohen — échéance le 05/11/2026",
   );
 
-  /* Novembre encaisse : on passe au second, et il n'est plus en retard. */
+  /*
+   * Novembre encaisse : on passe au second, et il n'est plus en retard.
+   *
+   * La consultation a ete ramenee du 10 au 5 decembre le 28/10/2026. Sous la regle au
+   * MOIS, l'echeance du 5 decembre etait encore « a encaisser » le 10 ; sous la regle au
+   * JOUR, elle est en retard des le 6. Pour que ce releve dise toujours ce qu'il veut dire
+   * — « le second loyer n'est pas en retard » — il faut le consulter LE JOUR de son
+   * echeance. Le rang, lui, ne bouge pas : c'est bien le 2e sur 2.
+   */
   const suivant = deriver({
     dossiers: [dossier({
       date_entree: "2026-11-01", date_fin_contrat: "2026-12-15", jour_encaissement: 5,
     })],
-    etats: [], aujourdhui: "2026-12-10",
+    etats: [], aujourdhui: "2026-12-05",
     encaissements: [{ dossier_id: "d1", echeance: "2026-11-05" }],
   }).find(x => x.genre === "loyer")!;
   assert.equal(

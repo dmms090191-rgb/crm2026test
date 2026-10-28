@@ -90,6 +90,7 @@ export function useCrmImmoDossiers() {
       date_fin_contrat: vide(s.date_fin_contrat),
       locataire: vide(s.locataire),
       proprietaire: vide(s.proprietaire),
+      telephone_proprietaire: vide(s.telephone_proprietaire),
       /* Un champ vide doit rester null et non 0 : la base refuserait 0 (CHECK 1..31), et
          0 ne voudrait rien dire pour un jour du mois. */
       jour_encaissement: jour === '' ? null : Number(jour),

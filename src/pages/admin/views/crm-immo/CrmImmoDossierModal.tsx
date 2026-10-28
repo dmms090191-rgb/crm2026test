@@ -43,6 +43,7 @@ function versSaisie(d: DossierImmo): SaisieDossier {
     nom: d.nom, prenom: s(d.prenom), email: s(d.email), telephone: s(d.telephone),
     date_entree: s(d.date_entree), date_fin_contrat: s(d.date_fin_contrat),
     locataire: s(d.locataire), proprietaire: s(d.proprietaire),
+    telephone_proprietaire: s(d.telephone_proprietaire),
     jour_encaissement: d.jour_encaissement === null ? '' : String(d.jour_encaissement),
     commentaire: s(d.commentaire), mode_paiement: s(d.mode_paiement), valeurs,
   };

@@ -49,11 +49,28 @@ import CrmImmoCloche from './crm-immo/CrmImmoCloche';
  * hauteur le rompt en silence, et le defaut a deja ete mesure sur le site public. On
  * s'etend donc avec flex-1 et min-h-0, qui ne dependent d'aucun ancetre.
  */
-export default function CrmImmo() {
+interface Props {
+  /*
+   * Auth id de l'entite dont on lit et ecrit la preference de colonnes — l'entite
+   * VISUALISEE, pas l'observateur. Depuis le 28/10/2026, l'ordre et le masquage des
+   * colonnes systeme ne vivent plus dans le navigateur mais dans les preferences du compte,
+   * pour que deux ordinateurs d'une meme Societe affichent les memes colonnes.
+   *
+   * Il DESCEND au lieu d'etre relu ici : AdminDashboard le tient deja, lu par getSession,
+   * donc sans aller-retour serveur. Le relire avec getUser rendrait au module un cinquieme
+   * appel auth sur son chemin d'ouverture, que le commit ee04a89 a justement chasse.
+   *
+   * Optionnel : la vue reste montable sans, et le reglage retombe alors sur le seul cache
+   * local — exactement le comportement d'avant ce chantier.
+   */
+  proprietaireReglage?: string | null;
+}
+
+export default function CrmImmo({ proprietaireReglage = null }: Props) {
   const t = useThemeTokens();
   const tx = useTalixy();
   const dos = useCrmImmoDossiers();
-  const col = useCrmImmoColonnes();
+  const col = useCrmImmoColonnes(proprietaireReglage);
   /*
    * ---------- LA SOURCE UNIQUE ----------
    *
