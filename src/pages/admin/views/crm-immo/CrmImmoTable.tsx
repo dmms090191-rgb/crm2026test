@@ -4,6 +4,7 @@ import { cleColonne, type Colonne } from '../../../../lib/crmImmoColonnes';
 import { valeurAffichee, type Sens } from '../../../../lib/crmImmoRecherche';
 import { formatDateImmo, type DossierImmo } from './crmImmoTypes';
 import CrmImmoChoixCellule from './CrmImmoChoixCellule';
+import { nomCanonique } from '../../../../lib/crmImmoIdentite';
 
 /**
  * Le tableau DESKTOP des dossiers CRM Immo.
@@ -46,7 +47,7 @@ function BoutonCommentaires({ dossier, nombre, onOuvrir }: {
   dossier: DossierImmo; nombre: number; onOuvrir: () => void;
 }) {
   const t = useThemeTokens();
-  const nom = [dossier.prenom, dossier.nom].filter(Boolean).join(' ').trim() || dossier.nom;
+  const nom = nomCanonique(dossier.nom_complet_locataire, dossier.nom, dossier.prenom);
   return (
     <button type="button" onClick={onOuvrir}
       data-testid={`crm-immo-commentaires-${dossier.id}`}
@@ -184,7 +185,7 @@ export default function CrmImmoTable({
                         ? <CrmImmoChoixCellule
                             valeur={(d as unknown as Record<string, string | null>)[c.cle] ?? null}
                             choix={c.choix} libelleColonne={c.nom}
-                            nomDossier={[d.nom, d.prenom].filter(Boolean).join(' ').trim() || d.nom}
+                            nomDossier={nomCanonique(d.nom_complet_locataire, d.nom, d.prenom)}
                             testid={`crm-immo-choix-${c.cle}-${d.id}`}
                             onChoisir={v => onChoisir(d, c.cle, v)} />
                       : cellule(d, c)}
@@ -209,7 +210,7 @@ export default function CrmImmoTable({
                     </button>
                     <button type="button" onClick={() => onModifier(d)}
                       title="Modifier"
-                      aria-label={`Modifier le dossier de ${[d.prenom, d.nom].filter(Boolean).join(' ').trim() || d.nom}`}
+                      aria-label={`Modifier le dossier de ${nomCanonique(d.nom_complet_locataire, d.nom, d.prenom)}`}
                       data-testid={`crm-immo-modifier-${d.id}`}
                       className="p-1.5 rounded-lg transition-colors"
                       style={{ color: t.table.cellIcon }}>
@@ -217,7 +218,7 @@ export default function CrmImmoTable({
                     </button>
                     <button type="button" onClick={() => onSupprimer(d)}
                       title="Supprimer"
-                      aria-label={`Supprimer le dossier de ${[d.prenom, d.nom].filter(Boolean).join(' ').trim() || d.nom}`}
+                      aria-label={`Supprimer le dossier de ${nomCanonique(d.nom_complet_locataire, d.nom, d.prenom)}`}
                       data-testid={`crm-immo-supprimer-${d.id}`}
                       className="p-1.5 rounded-lg transition-colors"
                       style={{ color: t.danger.text }}>

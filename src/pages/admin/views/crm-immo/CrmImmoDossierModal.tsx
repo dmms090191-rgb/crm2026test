@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 import { useFermetureModale } from './useFermetureModale';
 import CrmImmoChampsDossier from './CrmImmoChampsDossier';
+import { nomCanonique } from '../../../../lib/crmImmoIdentite';
 import {
   problemeDeSaisie, SAISIE_VIDE,
   type DossierImmo, type ColonneImmo, type SaisieDossier,
@@ -43,6 +44,16 @@ function versSaisie(d: DossierImmo): SaisieDossier {
     nom: d.nom, prenom: s(d.prenom), email: s(d.email), telephone: s(d.telephone),
     date_entree: s(d.date_entree), date_fin_contrat: s(d.date_fin_contrat),
     locataire: s(d.locataire), proprietaire: s(d.proprietaire),
+    /*
+     * LE CHAMP UNIQUE SE PREREMPLIT PAR LA PRECEDENCE, jamais par une decoupe.
+     *
+     * Canonique si la base en porte une, sinon la COMPOSITION des deux anciennes
+     * colonnes — c'est-a-dire exactement la chaine que le tableau affiche deja pour ce
+     * dossier. L'utilisateur retrouve donc a l'identique ce qu'il voyait, et la garde de
+     * modification fait que ne rien toucher n'ecrit rien.
+     */
+    nom_complet_locataire: nomCanonique(d.nom_complet_locataire, d.nom, d.prenom),
+    nom_complet_proprietaire: nomCanonique(d.nom_complet_proprietaire, d.locataire, d.proprietaire),
     telephone_proprietaire: s(d.telephone_proprietaire),
     jour_encaissement: d.jour_encaissement === null ? '' : String(d.jour_encaissement),
     commentaire: s(d.commentaire), mode_paiement: s(d.mode_paiement), valeurs,
@@ -163,8 +174,29 @@ export default function CrmImmoDossierModal({
               style={{ background: t.surface.secondary, border: `1px solid ${t.surface.border}`, color: t.text.secondary }}>
               Annuler
             </button>
+            {/*
+              * LA GARDE DE MODIFICATION — c'est elle qui rend vraie la regle
+              * << ouverture puis sauvegarde sans modification = donnees STRICTEMENT
+              * inchangees >>, et elle la rend vraie PAR CONSTRUCTION.
+              *
+              * Le probleme qu'elle ferme : versLigne reconstruit les DOUZE champs
+              * systeme plus le jsonb `valeurs`, et les envoie en un seul UPDATE. Il n'y
+              * a aucune ecriture partielle dans ce chemin. Enregistrer sans avoir rien
+              * touche REECRIVAIT donc les quatre colonnes de personne — et, avec le
+              * champ unique, aurait pu y graver une valeur qui n'avait jamais ete
+              * saisie.
+              *
+              * `modifie` existait deja, calcule au-dessus par la MEME versSaisie que
+              * l'etat de depart — donc sans risque de divergence d'ordre de cles. Mais
+              * il n'etait consomme que par le garde-fou de fermeture. Le brancher ici
+              * ne coute rien et ne touche aucune donnee.
+              *
+              * UNIQUEMENT pour un dossier EXISTANT : a la creation il n'y a pas d'etat
+              * d'origine a preserver, et griser << Ajouter >> sur un formulaire vierge
+              * empecherait de creer quoi que ce soit.
+              */}
             <button type="button" onClick={() => onValider(saisie)}
-              disabled={enCours || probleme !== ''}
+              disabled={enCours || probleme !== '' || (dossier !== null && dossier !== undefined && !modifie)}
               data-testid="crm-immo-dossier-valider"
               className="px-4 py-2 max-md:py-3 rounded-lg text-sm font-semibold disabled:opacity-50"
               style={{ background: t.accent.solid, color: t.text.inverse }}>

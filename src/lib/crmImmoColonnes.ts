@@ -35,6 +35,8 @@ export type Colonne =
     masquee: boolean; masquable: boolean;
     /** Les deux champs reels qu'une colonne composee reunit a l'affichage. */
     composeDe?: readonly [string, string];
+    /** La colonne SQL de nom complet qui prime sur la composition, si elle est remplie. */
+    canonique?: string;
     /** La liste fermee des valeurs, quand la colonne en a une. */
     choix?: readonly { valeur: string; libelle: string }[];
   }
@@ -179,6 +181,7 @@ export function toutesLesColonnes(params: {
     masquee: d.masquable && masquees.has(d.cle as string),
     masquable: d.masquable,
     composeDe: d.composeDe,
+    canonique: d.canonique,
     choix: d.choix,
   }));
   const pers: Colonne[] = trierPerso(perso).map(c => ({

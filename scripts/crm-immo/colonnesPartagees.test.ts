@@ -8,6 +8,9 @@ import {
   ordonnerSysteme, toutesLesColonnes, REGLAGE_VIDE,
 } from "../../src/lib/crmImmoColonnes.ts";
 import { COLONNES_SYSTEME } from "../../src/pages/admin/views/crm-immo/crmImmoTypes.ts";
+import type { DossierImmo } from "../../src/pages/admin/views/crm-immo/crmImmoTypes.ts";
+import { valeurAffichee } from "../../src/lib/crmImmoRecherche.ts";
+import { nomCanonique } from "../../src/lib/crmImmoIdentite.ts";
 
 /*
  * ============== CE QUE CE FICHIER TIENT ==============
@@ -278,9 +281,33 @@ test("D2 le nom du locataire ne peut plus s'afficher deux fois", () => {
   assert.ok(cles.includes(titre.cle as string),
     `${titre.cle} n'est pas exclue de la grille : le nom du locataire s'afficherait deux fois`);
 
-  /* Et l'entete rend bien ce couple-la, sinon l'exclusion viserait a cote. */
-  assert.match(sansCommentaires(code), /const titre = \[d\.prenom, d\.nom\]/,
-    "l'entete ne rend plus le nom du locataire : l'exclusion n'a plus lieu d'etre");
+  /*
+   * REECRIT LE 28/10/2026 : ASSERTION DE COMPORTEMENT, PLUS DE SOURCE.
+   *
+   * Ce test epinglait la composition ecrite a la main dans le code de la carte. C etait
+   * fragile pour une raison de fond : il figeait un ORDRE que le module contredisait
+   * ailleurs. Le tableau joignait nom puis prenom, la carte prenom puis nom, et ce
+   * releve CERTIFIAIT le desaccord au lieu de l attraper.
+   *
+   * L invariant reel est ailleurs : l entete de la carte et la colonne du tableau
+   * doivent dire EXACTEMENT la meme chose. C est ce qu on verifie maintenant, et cela
+   * mord quel que soit l ordre choisi — ce qui est precisement l interet.
+   */
+  assert.match(sansCommentaires(code), /nomCanonique\(d\.nom_complet_locataire, d\.nom, d\.prenom\)/,
+    "l entete de la carte ne passe plus par la primitive d identite partagee");
+
+  const dossierTemoin = {
+    nom: 'Dupont', prenom: 'Jean', locataire: 'Cohen', proprietaire: 'Sarah',
+    nom_complet_locataire: null, nom_complet_proprietaire: null,
+  } as unknown as DossierImmo;
+  const colonneNP = toutesLesColonnes({
+    systeme: COLONNES_SYSTEME, perso: [], reglage: { ordreSysteme: [], masquees: [] },
+  }).find(c => c.famille === 'systeme' && c.cle === titre.cle);
+  assert.ok(colonneNP, 'la colonne N/P du locataire a disparu du tableau');
+  assert.equal(
+    nomCanonique(dossierTemoin.nom_complet_locataire, dossierTemoin.nom, dossierTemoin.prenom),
+    valeurAffichee(dossierTemoin, colonneNP),
+    'la carte et le tableau ne nomment plus le locataire de la meme facon');
 });
 
 // ===================== E. CE QUI NE DOIT PAS AVOIR BOUGE =====================

@@ -234,18 +234,29 @@ console.log('\n=== 6. LES LIBELLES DES QUATRE CHAMPS, COTE FORMULAIRE ===');
    * du FORMULAIRE : le tableau, lui, n en montre plus que deux colonnes fusionnees. La
    * distinction nom/prenom reste donc entiere la ou on SAISIT.
    */
+  /*
+   * REECRIT LE 28/10/2026 : le formulaire ne saisit plus les quatre cles, mais DEUX
+   * champs uniques de nom complet. Les cles SQL, elles, n ont pas bouge d un octet.
+   */
+  const DISPARUES = ['nom', 'prenom', 'locataire', 'proprietaire'];
+  for (const cle of DISPARUES) {
+    t(`${cle} a quitte le formulaire, sans quoi le nom se saisirait deux fois`,
+      CHAMPS_DOSSIER.every(c => c.cle !== cle));
+  }
   const attendus: [string, string][] = [
-    ['nom', 'Nom locataire'],
-    ['prenom', 'Prénom locataire'],
-    ['locataire', 'Nom propriétaire'],
-    ['proprietaire', 'Prénom propriétaire'],
+    ['nom_complet_locataire', 'Nom prénom locataire'],
+    ['nom_complet_proprietaire', 'Nom prénom propriétaire'],
   ];
   for (const [cle, libelle] of attendus) {
     const d = CHAMPS_DOSSIER.find(c => c.cle === cle);
     t(`le formulaire saisit ${cle} sous « ${libelle} »`, d?.libelle === libelle);
   }
-  t('les quatre libelles du formulaire sont tous differents',
-    new Set(attendus.map(a => a[1])).size === 4);
+  t('les deux libelles de nom du formulaire sont differents',
+    new Set(attendus.map(a => a[1])).size === 2);
+  /* Et le champ du locataire reste le SEUL non masquable : c est lui qui identifie la
+     ligne, le masquer viderait la fiche de ce qui la nomme. */
+  t('le nom du locataire reste obligatoire dans le formulaire',
+    CHAMPS_DOSSIER.find(c => c.cle === 'nom_complet_locataire')?.masquable === false);
   t('plus aucun libelle de champ ne dit « Nom du client »',
     CHAMPS_DOSSIER.every(c => c.libelle !== 'Nom du client'));
 

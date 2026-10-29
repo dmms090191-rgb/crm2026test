@@ -34,6 +34,34 @@ export interface DossierImmo {
    * LOCATAIRE. Cette cle-ci dit ce qu'elle porte, contrairement aux deux du dessus.
    */
   telephone_proprietaire: string | null;
+  /**
+   * LES DEUX COLONNES CANONIQUES DE NOM COMPLET — la source de verite du nom affiche.
+   *
+   * Elles portent la chaine TELLE QUE SAISIE dans le champ unique << Nom prenom
+   * locataire >> / << Nom prenom proprietaire >>. Aucune regle ne les decoupe, jamais :
+   * voir crmImmoIdentite.ts pour la mesure qui l'interdit.
+   *
+   * ---------- POURQUOI `?` ET POURQUOI ELLES SONT NULLES PARTOUT ----------
+   *
+   * David a choisi la garde de modification plutot qu'un backfill : AUCUNE donnee n'a
+   * ete ecrite a la migration. Tout dossier non renomme depuis porte donc null ici, et
+   * s'affiche par la COMPOSITION des quatre anciennes colonnes — c'est-a-dire
+   * exactement comme avant. La precedence est dans nomCanonique, et nulle part ailleurs.
+   *
+   * Le `?` n'est pas une coquetterie : il rend le code correct AVANT comme APRES la
+   * migration. Tant que la colonne n'existe pas, `select('*')` ne la rend pas, la valeur
+   * est `undefined`, et la composition reprend la main sans qu'une seule ligne change.
+   *
+   * ---------- LES QUATRE ANCIENNES COLONNES NE SONT PAS MORTES ----------
+   *
+   * `nom` reste NOT NULL avec un CHECK de non-vacuite : a la CREATION, la canonique y
+   * est recopiee VERBATIM (et dans `locataire` pour le proprietaire), les deux moities
+   * de prenom restant nulles. C'est la seule facon de respecter a la fois
+   * << aucun decoupage >> et la contrainte de la base. A l'UPDATE, en revanche, elles ne
+   * sont plus touchees.
+   */
+  nom_complet_locataire?: string | null;
+  nom_complet_proprietaire?: string | null;
   /** Jour du mois, 1 a 31. V1 : mensuel. */
   jour_encaissement: number | null;
   commentaire: string | null;
@@ -85,6 +113,10 @@ export interface EtatImmo {
 /** Les champs systeme reellement modifiables par le formulaire. */
 export type ChampSysteme =
   | 'nom' | 'prenom' | 'email' | 'telephone'
+  /* Les deux canoniques de nom complet, arrivees le 28/10/2026. Les quatre cles
+     ci-dessus RESTENT : elles existent en base, versSaisie les lit et versLigne les
+     recopie telles quelles. Elles ont seulement quitte le formulaire visible. */
+  | 'nom_complet_locataire' | 'nom_complet_proprietaire'
   | 'date_entree' | 'date_fin_contrat'
   | 'locataire' | 'proprietaire' | 'telephone_proprietaire'
   | 'jour_encaissement' | 'commentaire'
@@ -179,6 +211,14 @@ export interface DefinitionSysteme extends DefinitionCommune {
    * aucune migration n'a ete necessaire pour cette partie-la.
    */
   composeDe?: readonly [ChampSysteme, ChampSysteme];
+  /**
+   * La colonne SQL de nom complet qui PRIME sur la composition, quand elle est remplie.
+   *
+   * Une colonne composee en a une depuis le 28 octobre 2026 ; les autres n'en ont pas.
+   * La precedence est appliquee par valeurAffichee, et par elle seule : voir
+   * crmImmoRecherche.ts pour la raison exacte de ne PAS remplacer `composeDe`.
+   */
+  canonique?: ChampSysteme;
 }
 
 /** Les colonnes du tableau qui n'existent pas en base : elles en reunissent deux. */
@@ -225,15 +265,21 @@ export type ColonneComposee = 'np_locataire' | 'np_proprietaire';
  * lisible : ici ce qu'on ecrit, plus bas ce qu'on lit.
  */
 export const CHAMPS_DOSSIER: DefinitionChamp[] = [
-  /* ---- Locataire ---- */
-  { cle: 'nom', libelle: 'Nom locataire', type: 'texte', masquable: false, groupe: 'locataire' },
-  { cle: 'prenom', libelle: 'Prénom locataire', type: 'texte', masquable: true, groupe: 'locataire' },
+  /* ---- Locataire ----
+     UN SEUL CHAMP DE NOM, depuis le 28/10/2026. Les cles `nom` et `prenom` existent
+     toujours en base et ne sont PAS supprimees : elles ont quitte le formulaire, pas le
+     schema. Le champ unique ecrit `nom_complet_locataire` ; a la creation, sa valeur est
+     recopiee VERBATIM dans `nom` parce que cette colonne est NOT NULL avec un CHECK de
+     non-vacuite. Rien n'est jamais decoupe : voir crmImmoIdentite.ts. */
+  { cle: 'nom_complet_locataire', libelle: 'Nom prénom locataire', type: 'texte', masquable: false, groupe: 'locataire' },
   { cle: 'email', libelle: 'Email', type: 'texte', masquable: true, groupe: 'locataire' },
   { cle: 'telephone', libelle: 'Téléphone locataire', type: 'texte', masquable: true, groupe: 'locataire' },
 
-  /* ---- Proprietaire. Rappel : `locataire` porte son NOM, `proprietaire` son PRENOM. ---- */
-  { cle: 'locataire', libelle: 'Nom propriétaire', type: 'texte', masquable: true, groupe: 'proprietaire' },
-  { cle: 'proprietaire', libelle: 'Prénom propriétaire', type: 'texte', masquable: true, groupe: 'proprietaire' },
+  /* ---- Proprietaire ----
+     Meme principe. Les cles `locataire` et `proprietaire` — qui portent le NOM et le
+     PRENOM du proprietaire, et qu'on ne renomme JAMAIS — restent en base et ne sont plus
+     affichees. */
+  { cle: 'nom_complet_proprietaire', libelle: 'Nom prénom propriétaire', type: 'texte', masquable: true, groupe: 'proprietaire' },
   { cle: 'telephone_proprietaire', libelle: 'Téléphone propriétaire', type: 'texte', masquable: true, groupe: 'proprietaire' },
 
   /* ---- Contrat et loyer ----
@@ -276,7 +322,7 @@ export const CHAMPS_DOSSIER: DefinitionChamp[] = [
 export const COLONNES_SYSTEME: DefinitionSysteme[] = [
   {
     cle: 'np_locataire', libelle: 'N/P locataire', type: 'texte', masquable: false,
-    composeDe: ['nom', 'prenom'],
+    composeDe: ['nom', 'prenom'], canonique: 'nom_complet_locataire',
   },
   { cle: 'email', libelle: 'Email', type: 'texte', masquable: true },
   { cle: 'telephone', libelle: 'Téléphone locataire', type: 'texte', masquable: true },
@@ -286,7 +332,7 @@ export const COLONNES_SYSTEME: DefinitionSysteme[] = [
     /* Rappel du bloc ci-dessus : ce sont bien `locataire` et `proprietaire` qui portent
        le nom et le prenom du PROPRIETAIRE. L'ordre est nom puis prenom, comme « N/P ». */
     cle: 'np_proprietaire', libelle: 'N/P propriétaire', type: 'texte', masquable: true,
-    composeDe: ['locataire', 'proprietaire'],
+    composeDe: ['locataire', 'proprietaire'], canonique: 'nom_complet_proprietaire',
   },
   /*
    * Juste apres le N/P du proprietaire, pour la meme raison que dans le formulaire : on
@@ -333,6 +379,16 @@ export interface SaisieDossier {
   locataire: string;
   proprietaire: string;
   telephone_proprietaire: string;
+  /**
+   * LES DEUX CHAMPS UNIQUES, seuls noms que l'utilisateur voit et remplit.
+   *
+   * Les quatre champs ci-dessus restent dans ce type, et c'est VOULU : versSaisie les
+   * lit depuis la base et versLigne les recopie, donc un dossier ouvert puis enregistre
+   * les rend inchanges. Les retirer d'ici les ferait disparaitre de l'aller-retour, et
+   * l'UPDATE les aurait mis a null — exactement la perte qu'on refuse.
+   */
+  nom_complet_locataire: string;
+  nom_complet_proprietaire: string;
   /** Chaine, parce qu'un champ de formulaire vide doit rester distinct de 0. */
   jour_encaissement: string;
   commentaire: string;
@@ -352,7 +408,16 @@ export interface SaisieDossier {
  * diverger des contraintes qu'elle est censee annoncer.
  */
 export function problemeDeSaisie(s: SaisieDossier): string {
-  if (s.nom.trim() === '') return 'Le nom du client est obligatoire.';
+  /*
+   * C'EST LA CANONIQUE QU'ON VALIDE, plus `nom`.
+   *
+   * `nom` n'est plus saisi : a la creation il recoit la canonique, a la modification il
+   * n'est pas touche. Continuer a valider `nom` aurait grise le bouton Enregistrer EN
+   * PERMANENCE sur un dossier dont la canonique est remplie mais dont `nom` arriverait
+   * vide — et rien a l'ecran n'aurait explique pourquoi, les deux modales partageant
+   * cette seule validation.
+   */
+  if (s.nom_complet_locataire.trim() === '') return 'Le nom du locataire est obligatoire.';
   const j = s.jour_encaissement.trim();
   if (j !== '') {
     const n = Number(j);
@@ -378,6 +443,7 @@ export const SAISIE_VIDE: SaisieDossier = {
   nom: '', prenom: '', email: '', telephone: '',
   date_entree: '', date_fin_contrat: '',
   locataire: '', proprietaire: '', telephone_proprietaire: '',
+  nom_complet_locataire: '', nom_complet_proprietaire: '',
   jour_encaissement: '', commentaire: '',
   mode_paiement: '',
   valeurs: {},

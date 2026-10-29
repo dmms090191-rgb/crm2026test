@@ -321,13 +321,22 @@ test("D1 — quatre libelles explicites, sans toucher aux colonnes SQL", () => {
    */
   const types = lire(D + "crmImmoTypes.ts");
 
-  const ATTENDUS: [string, string][] = [
-    ["nom", "Nom locataire"],
-    ["prenom", "Prénom locataire"],
-    ["locataire", "Nom propriétaire"],
-    ["proprietaire", "Prénom propriétaire"],
+  /*
+   * REECRIT LE 28/10/2026. Les quatre cles ont quitte le formulaire au profit de deux
+   * champs uniques ; on verrouille desormais leur SURVIE dans l aller-retour de saisie,
+   * et non plus un libelle de formulaire qui n existe plus. Deux des quatre anciennes
+   * assertions etaient de toute facon de FAUX VERTS : les titres de GROUPES_FORMULAIRE
+   * portent les memes cles, donc le motif trouvait toujours de quoi mordre.
+   */
+  for (const cle of ["nom", "prenom", "locataire", "proprietaire"]) {
+    assert.match(types, new RegExp("^\\s+" + cle + ": string;$", "m"),
+      "la cle " + cle + " a disparu de SaisieDossier : l aller-retour ne la preserve plus");
+  }
+  const UNIQUES: [string, string][] = [
+    ["nom_complet_locataire", "Nom prénom locataire"],
+    ["nom_complet_proprietaire", "Nom prénom propriétaire"],
   ];
-  for (const [cle, libelle] of ATTENDUS) {
+  for (const [cle, libelle] of UNIQUES) {
     assert.match(types, new RegExp("cle: '" + cle + "', libelle: '" + libelle + "'"),
       "le libelle de " + cle + " n est pas << " + libelle + " >>");
   }
@@ -341,11 +350,17 @@ test("D1 — quatre libelles explicites, sans toucher aux colonnes SQL", () => {
       f + " affiche encore << Nom du client >>");
   }
 
-  /* Les CLES, elles, ne bougent pas : ce sont les colonnes de la base. */
-  assert.match(types, /cle: 'locataire'/, "la cle SQL locataire a ete renommee");
-  assert.match(types, /cle: 'proprietaire'/, "la cle SQL proprietaire a ete renommee");
-  assert.match(types, /cle: 'nom'/, "la cle SQL nom a ete renommee");
-  assert.match(types, /cle: 'prenom'/, "la cle SQL prenom a ete renommee");
+  /*
+   * Les CLES ne bougent pas — mais depuis le 28/10/2026 on ne les cherche plus sous la
+   * forme `cle: '...'`, parce qu'elles ont quitte CHAMPS_DOSSIER au profit des deux
+   * champs uniques. Deux de ces quatre assertions etaient de surcroit de FAUX VERTS :
+   * `cle: 'locataire'` et `cle: 'proprietaire'` sont AUSSI les identifiants de groupe de
+   * GROUPES_FORMULAIRE, donc le motif trouvait toujours de quoi mordre.
+   *
+   * La survie des quatre cles est desormais verrouillee juste au-dessus, sur
+   * SaisieDossier — l'aller-retour de saisie, c'est-a-dire ce qui garantit reellement
+   * qu'un enregistrement ne les perd pas.
+   */
 
   /* Et aucune migration ne renomme ces colonnes. */
   for (const f of readdirSync("supabase/migrations").filter(x => x.endsWith(".sql"))) {

@@ -40,6 +40,9 @@ export interface ResultatEcritureDossier {
   avertissement?: string;
 }
 
+/** Un champ de formulaire vide devient NULL en base, jamais la chaine vide. */
+const vide = (v: string) => (v.trim() === '' ? null : v.trim());
+
 export function useCrmImmoDossiers() {
   const companyId = useCompanyId();
   const [dossiers, setDossiers] = useState<DossierImmo[]>([]);
@@ -78,7 +81,6 @@ export function useCrmImmoDossiers() {
 
   /** Transforme la saisie du formulaire en ligne de base. Les champs vides deviennent null. */
   const versLigne = useCallback((s: SaisieDossier) => {
-    const vide = (v: string) => (v.trim() === '' ? null : v.trim());
     const jour = s.jour_encaissement.trim();
     return {
       company_id: companyId,
@@ -91,6 +93,20 @@ export function useCrmImmoDossiers() {
       locataire: vide(s.locataire),
       proprietaire: vide(s.proprietaire),
       telephone_proprietaire: vide(s.telephone_proprietaire),
+      /*
+       * LES DEUX CANONIQUES — la valeur telle que l'utilisateur l'a tapee.
+       *
+       * Aucun decoupage, nulle part : ni ici, ni ailleurs. La chaine entiere part dans
+       * UNE colonne. Mesure du 28/10/2026 : toute regle positionnelle serait fausse sur
+       * un dossier sur deux, et fausse EN SILENCE — la chaine recomposee reste
+       * identique au caractere pres, donc aucun ecran ne montrerait la corruption.
+       *
+       * Reserve a dire : `vide` applique .trim(), donc une saisie a espaces de BORD
+       * revient rognee. Les doubles espaces INTERIEURS, eux, survivent — et c'est le
+       * cas qui compte pour un nom compose.
+       */
+      nom_complet_locataire: vide(s.nom_complet_locataire),
+      nom_complet_proprietaire: vide(s.nom_complet_proprietaire),
       /* Un champ vide doit rester null et non 0 : la base refuserait 0 (CHECK 1..31), et
          0 ne voudrait rien dire pour un jour du mois. */
       jour_encaissement: jour === '' ? null : Number(jour),
@@ -108,11 +124,41 @@ export function useCrmImmoDossiers() {
 
   const creer = useCallback(async (s: SaisieDossier): Promise<ResultatEcritureDossier> => {
     if (!companyId) return { error: 'Société introuvable.' };
-    if (!s.nom.trim()) return { error: 'Le nom du client est obligatoire.' };
+    if (!s.nom_complet_locataire.trim()) return { error: 'Le nom du locataire est obligatoire.' };
+
+    /*
+     * ---------- A LA CREATION, LA CANONIQUE EST RECOPIEE VERBATIM ----------
+     *
+     * `nom` est NOT NULL avec CHECK (btrim(nom) <> '') : on ne peut PAS creer une ligne
+     * en le laissant vide. Et le formulaire ne le saisit plus. Trois issues etaient
+     * possibles, deux sont exclues :
+     *
+     *   - decouper la canonique pour remplir nom et prenom : INTERDIT, et mesure faux
+     *     sur un dossier sur deux ;
+     *   - mettre un bouche-trou dans `nom` : ce serait inventer une donnee, et elle
+     *     ressortirait a la moindre restauration d'une sauvegarde prise avant la
+     *     migration — puisque celle-ci ne porte pas les colonnes canoniques et laisse
+     *     donc l'affichage retomber sur `nom`.
+     *
+     * Reste la recopie VERBATIM. Elle ne decoupe rien, elle duplique. Son benefice n'est
+     * pas theorique : si les deux colonnes canoniques etaient retirees demain, la
+     * composition rendrait EXACTEMENT la chaine canonique pour toute ligne creee apres
+     * cette migration — le rollback resterait blanc.
+     *
+     * `prenom` et `proprietaire` restent NULL : y mettre quoi que ce soit supposerait une
+     * frontiere qu'on refuse de deviner.
+     */
+    const ligne = {
+      ...versLigne(s),
+      nom: s.nom_complet_locataire.trim(),
+      prenom: null,
+      locataire: vide(s.nom_complet_proprietaire),
+      proprietaire: null,
+    };
 
     const { data, error: err } = await supabase
       .from('crm_immo_dossiers')
-      .insert(versLigne(s))
+      .insert(ligne)
       .select('*')
       .single();
 
@@ -127,12 +173,34 @@ export function useCrmImmoDossiers() {
   const modifier = useCallback(async (
     id: string, s: SaisieDossier,
   ): Promise<ResultatEcritureDossier> => {
-    if (!s.nom.trim()) return { error: 'Le nom du client est obligatoire.' };
+    if (!s.nom_complet_locataire.trim()) return { error: 'Le nom du locataire est obligatoire.' };
 
     const ligne = versLigne(s);
     /* company_id ne se modifie pas : le WITH CHECK le refuserait, et deplacer un dossier
        d'une Societe a une autre n'est pas une operation du module. */
     delete (ligne as { company_id?: unknown }).company_id;
+
+    /*
+     * ---------- LES QUATRE ANCIENNES COLONNES SORTENT DE L'UPDATE ----------
+     *
+     * C'est ce qui tient la regle de David : << ouverture puis sauvegarde sans
+     * modification = donnees STRICTEMENT inchangees >>. Et c'est la seule facon de la
+     * tenir pour de bon, parce que la garde du bouton Enregistrer ne protege QUE le cas
+     * ou rien n'a bouge. Des que l'utilisateur corrige un telephone, l'UPDATE part — et
+     * s'il portait encore ces quatre colonnes, il y graverait la valeur PREREMPLIE du
+     * champ unique, c'est-a-dire une composition promue en douce au rang de donnee
+     * saisie.
+     *
+     * Elles ne sont pas supprimees pour autant : elles restent en base, intactes, et le
+     * formulaire les transporte toujours dans SaisieDossier. On refuse seulement de les
+     * REECRIRE. << Masquer, jamais supprimer >>.
+     *
+     * La canonique, elle, part bien : c'est desormais la source de verite du nom.
+     */
+    delete (ligne as { nom?: unknown }).nom;
+    delete (ligne as { prenom?: unknown }).prenom;
+    delete (ligne as { locataire?: unknown }).locataire;
+    delete (ligne as { proprietaire?: unknown }).proprietaire;
 
     const { data, error: err } = await supabase
       .from('crm_immo_dossiers')

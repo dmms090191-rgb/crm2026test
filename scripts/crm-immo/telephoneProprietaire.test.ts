@@ -141,8 +141,10 @@ test("C1 la colonne se place juste apres le N/P du proprietaire", () => {
   assert.equal(cles[cles.indexOf("np_proprietaire") + 1], CLE,
     "le telephone du proprietaire s'est eloigne de la personne qu'il designe");
   const champs = CHAMPS_DOSSIER.map(c => c.cle as string);
-  assert.equal(champs[champs.indexOf("proprietaire") + 1], CLE,
-    "dans le formulaire aussi, il doit suivre le prenom du proprietaire");
+  /* Depuis le 28/10/2026 le champ qui precede n est plus le PRENOM du proprietaire mais
+     le champ UNIQUE de nom complet : la personne se lit en un champ, son telephone suit. */
+  assert.equal(champs[champs.indexOf("nom_complet_proprietaire") + 1], CLE,
+    "dans le formulaire aussi, il doit suivre le nom du proprietaire");
 });
 
 test("C2 plus aucun libelle « Téléphone » nu : il est devenu ambigu", () => {

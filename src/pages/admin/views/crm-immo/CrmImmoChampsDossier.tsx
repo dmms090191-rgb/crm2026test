@@ -34,6 +34,10 @@ import { construireEcheancier } from '../../../../lib/crmImmoEcheancier';
 /** Le type de champ HTML qui convient a une colonne systeme. */
 const TYPE_HTML: Record<ChampSysteme, string> = {
   nom: 'text', prenom: 'text', email: 'email', telephone: 'tel',
+  /* Les deux champs uniques de nom. `text` et non `name` : l'autocompletion du
+     navigateur sur `name` proposerait l'identite du GESTIONNAIRE connecte, pas celle du
+     locataire qu'il saisit. */
+  nom_complet_locataire: 'text', nom_complet_proprietaire: 'text',
   date_entree: 'date', date_fin_contrat: 'date',
   locataire: 'text', proprietaire: 'text',
   /* `tel` comme celui du locataire : sur telephone, c'est ce qui fait monter le pave
@@ -176,8 +180,26 @@ export default function CrmImmoChampsDossier({
       className: 'w-full px-3 py-2 rounded-lg text-sm max-md:text-base outline-none',
       style: { background: t.modal.fieldBg, border: `1px solid ${t.modal.fieldBorder}`, color: t.modal.fieldValue },
     };
+    /*
+     * LES DEUX CHAMPS DE NOM PRENNENT TOUTE LA LARGEUR, comme le commentaire.
+     *
+     * Ce n'est pas une preference d'allure, c'est une consequence du champ unique. Une
+     * demi-colonne suffisait a << Nom locataire >> seul ; elle ne suffit plus a
+     * << de La Tour Marie Anne >>, et c'est precisement le genre de valeur que ce
+     * chantier rend possible — David a interdit toute decoupe parce que les noms composes
+     * existent dans ses donnees. Un nom tronque a l'oeil dans un champ etroit ferait
+     * douter de ce qui est enregistre.
+     *
+     * Et le libelle lui-meme est plus long qu'avant : << Nom prenom proprietaire >> passe
+     * a la ligne sur un telephone dans une demi-colonne.
+     */
+    const pleineLargeur = type === 'textarea'
+      || cle === 'nom_complet_locataire' || cle === 'nom_complet_proprietaire';
     return (
-      <label key={cle} className={type === 'textarea' ? 'sm:col-span-2' : ''}>
+      <label
+        key={cle}
+        className={pleineLargeur ? 'sm:col-span-2' : ''}
+      >
         <span className="block text-xs mb-1" style={{ color: t.modal.fieldLabel }}>
           {def.libelle}{cle === 'nom' && !lectureSeule && ' *'}
         </span>

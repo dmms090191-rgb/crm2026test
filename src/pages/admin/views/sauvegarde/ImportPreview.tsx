@@ -1,6 +1,9 @@
 import { X, FileJson, Database, AlertTriangle, RotateCcw } from 'lucide-react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 import type { ImportedBackup } from './types';
+import {
+  colonnesAbsentesDuLot, COLONNES_QUI_MASQUENT_UNE_RESTAURATION,
+} from './colonnesAbsentesDuLot';
 
 export function ImportPreview({
   backup,
@@ -13,6 +16,15 @@ export function ImportPreview({
 }) {
   const { metadata, data } = backup;
   const totalRows = Object.values(metadata.counts).reduce((sum, n) => sum + n, 0);
+
+  /*
+   * On lit la PREMIERE LIGNE du lot, exactement comme crm_immo_restaurer_lot le fera :
+   * elle derive ses colonnes de jsonb_object_keys(p_lignes -> 0). Une colonne absente du
+   * lot n'entre ni dans l'INSERT ni dans le ON CONFLICT DO UPDATE SET, donc elle GARDE sa
+   * valeur — et pour un nom complet, qui PRIME a l'affichage, cela veut dire que l'ecran
+   * montrera le contraire de ce que la restauration vient de faire.
+   */
+  const manques = colonnesAbsentesDuLot(data, COLONNES_QUI_MASQUENT_UNE_RESTAURATION);
 
   const stats: { label: string; value: number | string }[] = [
     { label: 'Tables exportees', value: metadata.exported_tables.length },
@@ -124,6 +136,44 @@ export function ImportPreview({
             ))}
           </div>
         </div>
+
+        {manques.length > 0 && (
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <AlertTriangle className="w-3.5 h-3.5" style={{ color: t.warning.text }} />
+              <span className="text-xs font-medium" style={{ color: t.warning.text }}>
+                Cette sauvegarde est anterieure a une colonne de nom
+              </span>
+            </div>
+            {manques.map(m => (
+              <div
+                key={m.table}
+                className="rounded-lg px-3 py-2.5 text-xs space-y-1 min-w-0"
+                style={{ background: t.warning.bg }}
+              >
+                <p className="font-mono font-medium break-all" style={{ color: t.warning.text }}>
+                  {m.table}
+                </p>
+                {/*
+                  * Le texte dit ce qui va SE PASSER, pas ce qui manque. Annoncer
+                  * << colonne absente >> n'aiderait personne : c'est le renversement qui
+                  * compte — l'ecran montrera le nom NEUF pendant que le bilan annoncera une
+                  * restauration reussie.
+                  */}
+                <p className="break-words" style={{ color: t.text.secondary }}>
+                  Les noms complets ne sont pas dans ce fichier. La restauration remettra en
+                  place le nom et le prenom d'origine, mais elle ne touchera pas au nom
+                  complet saisi depuis — et c'est celui-la qui s'affiche. Les dossiers
+                  renommes depuis cet export continueront donc d'afficher leur nom actuel,
+                  meme apres restauration.
+                </p>
+                <p className="break-words" style={{ color: t.text.tertiary }}>
+                  Colonnes concernees : {m.colonnes.join(', ')}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
 
         {metadata.failed_tables.length > 0 && (
           <div>

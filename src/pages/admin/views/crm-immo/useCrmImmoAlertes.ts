@@ -53,7 +53,31 @@ import {
    pouvait pas etre bornee par le DEBUT du bail, et un contrat a venir reclamait deja
    son loyer. Une colonne oubliee ici rend la regle muette sans qu'aucun type ne
    proteste — `date_entree` est optionnel dans DossierPourAlertes. */
-const CHAMPS_DOSSIER = 'id,nom,prenom,locataire,proprietaire,date_entree,date_fin_contrat,jour_encaissement';
+/*
+ * LES DEUX COLONNES CANONIQUES ONT REJOINT LA LISTE LE 28 OCTOBRE 2026, et leur oubli
+ * aurait ete le defaut le plus difficile a voir de tout ce chantier.
+ *
+ * Elles sont OPTIONNELLES dans DossierPourAlertes — elles doivent l'etre, puisque tout
+ * le stock d'avant la migration les porte a NULL. Les omettre ici n'aurait donc leve
+ * AUCUNE erreur : la valeur serait arrivee `undefined`, la precedence aurait sagement
+ * retombe sur la composition des anciennes colonnes, et la cloche aurait affiche
+ * l'ANCIEN nom indefiniment — y compris apres qu'un gestionnaire l'ait corrige a la
+ * main dans le formulaire. Il aurait vu son correctif dans le tableau et pas dans la
+ * cloche, sans qu'aucun message n'explique l'ecart.
+ *
+ * C'est exactement le defaut que `date_entree` a connu le 22 octobre 2026, et c'est
+ * pour cela que le releve nomCanonique.test.ts exige desormais que chaque champ lu par
+ * la derivation figure dans cette chaine.
+ *
+ * ---------- ET ELLE TIENT SUR UNE SEULE LIGNE, VOLONTAIREMENT ----------
+ *
+ * La couper en concatenation pour la lire plus facilement coute une erreur de typecheck :
+ * `select()` deduit le type de ses lignes du type LITTERAL de la chaine, et une
+ * concatenation — meme de litteraux — est elargie en `string`. Le constructeur de requete
+ * ne correspond alors plus a Page<DossierPourAlertes>. Mesure : 195 erreurs au lieu de
+ * 194. Cette ligne reste donc longue.
+ */
+const CHAMPS_DOSSIER = 'id,nom,prenom,locataire,proprietaire,nom_complet_locataire,nom_complet_proprietaire,date_entree,date_fin_contrat,jour_encaissement';
 
 const RYTHME_RESEAU = 300_000;
 

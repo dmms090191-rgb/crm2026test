@@ -31,6 +31,26 @@ export function valeurAffichee(dossier: DossierImmo, colonne: Colonne): string {
      * la recherche verrait comme un mot de plus et que le tri classerait a part.
      */
     if (colonne.composeDe !== undefined) {
+      /*
+       * LA CANONIQUE PRIME, MAIS ON NE REMPLACE PAS composeDe POUR AUTANT.
+       *
+       * La precedence est posee ICI, a l'interieur de la branche composee, et non en
+       * echangeant `composeDe` contre la cle de la colonne canonique. La difference
+       * n'est pas cosmetique : un dossier a canonique NULL — c'est-a-dire tout le stock
+       * d'avant la migration, puisque David a choisi la garde plutot qu'un backfill —
+       * rendrait alors la chaine VIDE. Or `comparer` envoie le vide EN FIN DE TRI dans
+       * les DEUX sens, et `rechercher` ne trouverait plus la ligne : elle sortirait du
+       * classement ET de la recherche, sans aucune erreur pour le dire.
+       *
+       * Ici, au contraire, la composition reste le repli : canonique vide, affichage
+       * inchange. Et les cles `np_locataire` / `np_proprietaire` ne bougent PAS —
+       * `ordonnerSysteme` jette en SILENCE les cles qu'il ne connait pas, et c'est
+       * exactement le defaut deja paye le 23 octobre 2026.
+       */
+      if (colonne.canonique !== undefined) {
+        const c = brut(dossier, colonne.canonique).trim();
+        if (c !== '') return c;
+      }
       return colonne.composeDe.map(c => brut(dossier, c)).filter(s => s !== '').join(' ');
     }
     const v = brut(dossier, colonne.cle);

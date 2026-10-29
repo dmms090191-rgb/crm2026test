@@ -42,6 +42,10 @@ import {
   echeancierDuDossier, loyerAAlerter, statutDe, rangDuLoyer,
   type StatutLoyer, type PeriodeDossier,
 } from './crmImmoEcheancier';
+/* La composition d'identite vit dans UN seul module : voir crmImmoIdentite.ts pour
+   la mesure qui a impose l'ordre NOM puis PRENOM, et pour l'interdiction de
+   decouper. */
+import { nomCanonique } from './crmImmoIdentite';
 
 /*
  * LES PRIMITIVES DE DATE VIVENT DESORMAIS DANS crmImmoEcheancier.
@@ -64,6 +68,17 @@ export interface DossierPourAlertes {
   prenom?: string | null;
   locataire?: string | null;
   proprietaire?: string | null;
+  /**
+   * Les deux colonnes canoniques de nom complet, quand le hook les a demandees.
+   *
+   * OPTIONNELLES, et c'est un piege a connaitre : si la liste de champs du hook les
+   * oublie, la valeur est `undefined`, la precedence retombe sur la composition, et la
+   * cloche affiche l'ANCIEN nom indefiniment — sans qu'aucun type ne proteste et sans
+   * qu'aucune erreur ne soit levee. C'est exactement le defaut que `date_entree` a
+   * connu le 22 octobre 2026. Un releve l'interdit desormais.
+   */
+  nom_complet_locataire?: string | null;
+  nom_complet_proprietaire?: string | null;
   /**
    * Le DEBUT du contrat, 'AAAA-MM-JJ' ou null.
    *
@@ -424,7 +439,6 @@ export function joursEntre(a: string, b: string): number | null {
   return Math.round(ms / 86_400_000);
 }
 
-const nom = (d: DossierPourAlertes) => [d.prenom, d.nom].filter(Boolean).join(' ').trim() || d.nom;
 
 /**
  * Les alertes a afficher aujourd'hui, pour un lot de dossiers.
@@ -503,8 +517,50 @@ export function deriverAlertes(params: {
   const alertes: Alerte[] = [];
 
   for (const d of dossiers) {
-    const locataire = (d.locataire || '').trim() || nom(d);
-    const proprietaire = (d.proprietaire || '').trim() || '—';
+    /*
+     * ---------- LES DEUX ROLES, ET L'ERREUR QU'ON VIENT DE REPARER ----------
+     *
+     * Jusqu'au 28 octobre 2026, ces deux lignes etaient :
+     *     const locataire = (d.locataire || '').trim() || nom(d);
+     *     const proprietaire = (d.proprietaire || '').trim() || '—';
+     *
+     * Elles lisaient la colonne `locataire` comme si elle portait le nom du
+     * LOCATAIRE. Elle porte le nom du PROPRIETAIRE — c'est ce que le formulaire
+     * ecrit sous le libelle << Nom proprietaire >>, et la colonne `proprietaire`
+     * porte son PRENOM sous << Prenom proprietaire >>.
+     *
+     * CE N'ETAIT PAS UNE INVERSION ENTRE DEUX PERSONNES. Les deux moities de
+     * chaque alerte designaient le MEME individu, le proprietaire : son nom dans
+     * la case << locataire >>, son prenom dans la case << proprietaire >>. Le vrai
+     * locataire n'etait JAMAIS nomme. Une personne disparaissait, l'autre etait
+     * coupee en deux par la phrase.
+     *
+     * L'INTENTION D'ORIGINE ETAIT JUSTE, et le repli le prouvait : `|| nom(d)`
+     * retombait sur nom+prenom, c'est-a-dire sur le locataire, avec la meme
+     * personne comme secours. Seulement la branche principale etait toujours
+     * prise — `locataire` est renseigne sur les deux dossiers existants — donc la
+     * seule branche qui mettait le vrai locataire a sa place ne s'executait
+     * jamais.
+     *
+     * Mesure du 28/10, role postgres, RLS ignoree : sur les 12 notifications
+     * d'historique rattachables, le segment identite du titre egalait la colonne
+     * `locataire` sur 12 sur 12, et le nom du locataire reel sur 0 sur 12. Le
+     * defaut etait deja grave en base, pas seulement a l'ecran.
+     *
+     * ---------- POURQUOI LA PRIMITIVE, ET PAS UNE JOINTURE ECRITE ICI ----------
+     *
+     * Corriger le ROLE en ecrivant la jointure sur place aurait cree un ecart
+     * d'ORDRE : le tableau dit << NOM Prenom >>, et cette ligne aurait dit
+     * << Prenom NOM >>. On aurait repare une erreur en en fabriquant une autre,
+     * contre la regle meme qu'on cherche a tenir : la meme valeur partout.
+     *
+     * LE REPLI A CHANGE DE COTE, ET C'EST LOGIQUE. Cote locataire il devient
+     * inutile : `nom` est NOT NULL avec un CHECK de non-vacuite, donc la
+     * composition ne peut pas rendre vide. Cote proprietaire il reste
+     * indispensable : ses deux colonnes sont nullables.
+     */
+    const locataire = nomCanonique(d.nom_complet_locataire, d.nom, d.prenom);
+    const proprietaire = nomCanonique(d.nom_complet_proprietaire, d.locataire, d.proprietaire) || '—';
 
     /* ---- FIN DE CONTRAT ---- */
     const fin = lireJour(d.date_fin_contrat);

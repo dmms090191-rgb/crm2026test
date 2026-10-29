@@ -4,6 +4,7 @@ import { cleColonne, type Colonne } from '../../../../lib/crmImmoColonnes';
 import { valeurAffichee } from '../../../../lib/crmImmoRecherche';
 import { formatDateImmo, type DossierImmo } from './crmImmoTypes';
 import CrmImmoChoixCellule from './CrmImmoChoixCellule';
+import { nomCanonique } from '../../../../lib/crmImmoIdentite';
 
 /**
  * LA PRESENTATION MOBILE : des fiches, pas un tableau comprime.
@@ -88,7 +89,7 @@ export default function CrmImmoCards({
       )}
 
       {!loading && dossiers.map(d => {
-        const titre = [d.prenom, d.nom].filter(Boolean).join(' ').trim() || d.nom;
+        const titre = nomCanonique(d.nom_complet_locataire, d.nom, d.prenom);
         /*
          * Le commentaire sort des paires libelle/valeur, comme il sort des cellules du
          * tableau : plusieurs lignes de texte dans une demi-colonne de 170 px rendaient

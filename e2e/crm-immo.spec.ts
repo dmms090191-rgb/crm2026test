@@ -107,14 +107,14 @@ test('Ajouter un client cree une ligne REELLE, avec ses 10 champs', async ({ pag
      facon (NOT NULL + CHECK btrim), mais un refus cote base revient en message Postgres. */
   await expect(page.getByTestId('crm-immo-dossier-valider')).toBeDisabled();
 
-  await page.getByTestId('crm-immo-champ-nom').fill(`${PREFIXE} Dupont`);
-  await page.getByTestId('crm-immo-champ-prenom').fill('Jean');
+  await page.getByTestId('crm-immo-champ-nom_complet_locataire').fill(`${PREFIXE} Dupont Jean`);
   await page.getByTestId('crm-immo-champ-email').fill('jean.dupont@exemple.fr');
   await page.getByTestId('crm-immo-champ-telephone').fill('0601020304');
   await page.getByTestId('crm-immo-champ-date_entree').fill('2025-01-01');
   await page.getByTestId('crm-immo-champ-date_fin_contrat').fill('2026-12-15');
-  await page.getByTestId('crm-immo-champ-locataire').fill('Jean Dupont');
-  await page.getByTestId('crm-immo-champ-proprietaire').fill('Sarah Cohen');
+  /* Le nom COMPLET du proprietaire, en un seul champ. Deux mots, pour que la ligne
+     prouve au passage qu'aucune decoupe n'a lieu. */
+  await page.getByTestId('crm-immo-champ-nom_complet_proprietaire').fill('Cohen Sarah');
   await page.getByTestId('crm-immo-champ-jour_encaissement').fill('5');
   await page.getByTestId('crm-immo-champ-commentaire').fill('bail 3 ans');
 
@@ -136,7 +136,7 @@ test('un jour d encaissement hors de 1-31 est refuse AVANT l aller-retour', asyn
   await allerAuCrmImmo(page);
 
   await page.getByTestId('crm-immo-ajouter').click();
-  await page.getByTestId('crm-immo-champ-nom').fill(`${PREFIXE} Refus`);
+  await page.getByTestId('crm-immo-champ-nom_complet_locataire').fill(`${PREFIXE} Refus`);
   await page.getByTestId('crm-immo-champ-jour_encaissement').fill('32');
   await expect(page.getByTestId('crm-immo-dossier-probleme')).toBeVisible();
   await expect(page.getByTestId('crm-immo-dossier-valider')).toBeDisabled();
@@ -162,12 +162,22 @@ test('la modification enregistre, et le declencheur refuse la date imposee', asy
 
   await page.getByTestId(`crm-immo-modifier-${id}`).click();
   await expect(page.getByTestId('crm-immo-dossier-modal')).toBeVisible();
-  await page.getByTestId('crm-immo-champ-proprietaire').fill('Marc Cohen');
+  await page.getByTestId('crm-immo-champ-nom_complet_proprietaire').fill('Cohen Marc');
   await page.getByTestId('crm-immo-dossier-valider').click();
   await expect(page.getByTestId('crm-immo-dossier-modal')).not.toBeVisible({ timeout: 15_000 });
 
   const apres = await dossiersEnBase(s!);
-  expect(apres[0].proprietaire, 'la modification n a pas atteint la base').toBe('Marc Cohen');
+  expect(apres[0].nom_complet_proprietaire, 'la modification n a pas atteint la base').toBe('Cohen Marc');
+  /*
+   * ET LA REGLE DE DAVID, VERIFIEE CONTRE LA VRAIE BASE : les quatre colonnes
+   * historiques sont STRICTEMENT inchangees par un UPDATE. Seule la canonique bouge.
+   * C'est ce que `delete (ligne as ...)` garantit dans useCrmImmoDossiers.modifier, et
+   * c'est le seul endroit du parc ou on peut le prouver contre PostgREST lui-meme.
+   */
+  for (const col of ['nom', 'prenom', 'locataire', 'proprietaire'] as const) {
+    expect(apres[0][col], `la colonne historique ${col} a ete reecrite par l UPDATE`)
+      .toBe(avant[0][col]);
+  }
   /* Le declencheur trg_crm_immo_dossiers_updated_at a ecrase la valeur : updated_at a
      AVANCE, sans que le client ait eu a la fournir. */
   expect(String(apres[0].updated_at) > String(majAvant), 'updated_at n a pas avance').toBe(true);
@@ -179,8 +189,7 @@ test('recherche, tri et filtres reduisent la liste sans la casser', async ({ pag
 
   /* Un second dossier, pour avoir de quoi filtrer. */
   await page.getByTestId('crm-immo-ajouter').click();
-  await page.getByTestId('crm-immo-champ-nom').fill(`${PREFIXE} Perrin`);
-  await page.getByTestId('crm-immo-champ-locataire').fill('Alice Perrin');
+  await page.getByTestId('crm-immo-champ-nom_complet_locataire').fill(`${PREFIXE} Perrin Alice`);
   await page.getByTestId('crm-immo-dossier-valider').click();
   await expect(page.getByTestId('crm-immo-dossier-modal')).not.toBeVisible({ timeout: 15_000 });
 

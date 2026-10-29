@@ -74,7 +74,13 @@ test("une colonne SYSTEME n est JAMAIS supprimable", () => {
      `telephone_proprietaire` le 27/10. Les champs reels, eux, sont DOUZE — ils vivent
      dans CHAMPS_DOSSIER, ou le nom et le prenom restent separes. */
   assert.equal(sys.length, 10, "les 10 colonnes systeme du tableau");
-  assert.equal(CHAMPS_DOSSIER.length, 12, "les 12 champs saisissables du formulaire");
+  /* Le FORMULAIRE passe de DOUZE champs a DIX le 28/10/2026 : le nom et le prenom de
+     chaque personne ont fusionne en un seul champ de saisie. Les quatre cles SQL n ont
+     pas disparu pour autant — elles ont quitte le FORMULAIRE, pas le schema, et
+     SaisieDossier les transporte toujours pour que l aller-retour les preserve.
+     Le compte des colonnes de TABLEAU, lui, ne bouge pas : les deux canoniques ne sont
+     pas des colonnes, elles alimentent np_locataire et np_proprietaire par precedence. */
+  assert.equal(CHAMPS_DOSSIER.length, 10, "les 10 champs saisissables du formulaire");
   assert.equal(pers.length, 1);
   for (const c of sys) assert.equal(peutSupprimer(c), false, `${c.nom} ne doit pas etre supprimable`);
   for (const c of pers) assert.equal(peutSupprimer(c), true);

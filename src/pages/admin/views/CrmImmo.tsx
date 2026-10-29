@@ -18,6 +18,7 @@ import CrmImmoColonnesModal from './crm-immo/CrmImmoColonnesModal';
 import CrmImmoDetailsModal, { type OngletDetails } from './crm-immo/CrmImmoDetailsModal';
 import { useCrmImmoNombreCommentaires } from './crm-immo/useCrmImmoCommentaires';
 import CrmImmoCloche from './crm-immo/CrmImmoCloche';
+import { nomCanonique } from '../../../lib/crmImmoIdentite';
 
 /**
  * Page « CRM Immo » du panel Societe.
@@ -465,7 +466,7 @@ export default function CrmImmo({ proprietaireReglage = null }: Props) {
 
       {aSupprimer && (
         <CrmImmoDeleteModal
-          nom={[aSupprimer.prenom, aSupprimer.nom].filter(Boolean).join(' ').trim() || aSupprimer.nom}
+          nom={nomCanonique(aSupprimer.nom_complet_locataire, aSupprimer.nom, aSupprimer.prenom)}
           enCours={enCours}
           erreur={erreurSuppression}
           onAnnuler={() => { if (!enCours) setASupprimer(null); }}

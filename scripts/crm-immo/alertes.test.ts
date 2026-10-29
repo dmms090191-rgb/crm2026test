@@ -37,8 +37,26 @@ const MOTIF_FIN = /^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$/;
  * Les tests qui veulent une vraie borne la posent explicitement.
  */
 const dossier = (over: Partial<DossierPourAlertes> = {}): DossierPourAlertes => ({
+  /*
+   * LA FIXTURE A ETE REECRITE LE 28 OCTOBRE 2026, ET C'EST LE POINT LE PLUS IMPORTANT
+   * DE CE RELEVE.
+   *
+   * Elle posait auparavant `locataire: "Jean Dupont"` — une COPIE de prenom + nom. Les
+   * deux moities de chaque phrase rendaient alors la MEME chaine, donc les quatre
+   * assertions de phrase ne pouvaient PAS distinguer le locataire du proprietaire :
+   * elles certifiaient un defaut au lieu de l'attraper. Le code lisait la colonne
+   * `locataire` comme le nom du LOCATAIRE alors qu'elle porte celui du PROPRIETAIRE, et
+   * ce releve etait vert.
+   *
+   * Les quatre valeurs sont desormais DEUX A DEUX DISTINCTES, et aucune n'est le
+   * prefixe d'une autre. Toute confusion de role fait donc rougir.
+   *
+   *   nom / prenom          -> le LOCATAIRE
+   *   locataire             -> le NOM du PROPRIETAIRE   (la cle ment, on ne la renomme pas)
+   *   proprietaire          -> son PRENOM
+   */
   id: "d1", nom: "Dupont", prenom: "Jean",
-  locataire: "Jean Dupont", proprietaire: "Sarah Cohen",
+  locataire: "Cohen", proprietaire: "Sarah",
   date_entree: "2026-11-01", date_fin_contrat: "2099-12-31",
   jour_encaissement: null, ...over,
 });
@@ -557,9 +575,12 @@ test("un etat qui ne correspond a aucune alerte derivee est inerte", () => {
 
 test("l ordre est le plus urgent d abord, et il est STABLE a egalite", () => {
   const d = [
-    dossier({ id: "z", locataire: "Zoe", jour_encaissement: 20 }),
-    dossier({ id: "a", locataire: "Albert", jour_encaissement: 20 }),
-    dossier({ id: "m", locataire: "Marc", date_fin_contrat: "2026-11-18" }),
+    /* On fait varier `nom`, et non `locataire` : depuis le 28/10/2026 le tri porte sur
+       le LOCATAIRE, donc sur nom + prenom. Varier `locataire` ne changerait plus rien a
+       l'ordre, et le releve ne prouverait plus ce qu'il annonce. */
+    dossier({ id: "z", nom: "Zoe", jour_encaissement: 20 }),
+    dossier({ id: "a", nom: "Albert", jour_encaissement: 20 }),
+    dossier({ id: "m", nom: "Marc", date_fin_contrat: "2026-11-18" }),
   ];
   const un = deriver({ dossiers: d, etats: [], aujourdhui: "2026-11-10" });
   const deux = deriver({ dossiers: [...d].reverse(), etats: [], aujourdhui: "2026-11-10" });
@@ -571,7 +592,11 @@ test("l ordre est le plus urgent d abord, et il est STABLE a egalite", () => {
 test("l affichage porte TOUJOURS locataire, proprietaire et echeance", () => {
   /* Exigence explicite de David : << je veux TOUJOURS pouvoir comprendre
      immediatement de quel locataire il s agit, pour quel proprietaire, et quelle
-     est la date >>. Un dossier sans locataire retombe sur le nom du client. */
+     est la date >>.
+     Ce dossier vide les DEUX colonnes du proprietaire. Depuis le 28/10/2026 le
+     locataire n en depend plus du tout — il vient de nom + prenom — et seul le
+     proprietaire devient inconnu. La phrase reste donc toujours lisible, ce qui est
+     l objet du relevé : aucune moitie ne peut etre VIDE. */
   const a = deriver({
     dossiers: [dossier({ locataire: null, proprietaire: null, jour_encaissement: 5, date_fin_contrat: "2026-11-20" })],
     /* Le 4 : la veille de l echeance de loyer (le 5), et bien apres le declenchement de
@@ -584,7 +609,10 @@ test("l affichage porte TOUJOURS locataire, proprietaire et echeance", () => {
     assert.ok(x.proprietaire.length > 0, "le proprietaire n est jamais vide");
     assert.match(x.echeance, MOTIF_FIN, "l echeance est toujours une date affichable");
   }
-  assert.equal(a[0].locataire, "Jean Dupont", "a defaut de locataire, le nom du client");
+  /* Le locataire vient TOUJOURS de nom + prenom, dans cet ordre. Il n'y a plus de
+     << repli >> : la colonne `locataire` n'a jamais porte le locataire. */
+  assert.equal(a[0].locataire, "Dupont Jean", "le locataire vient de nom + prenom, meme ici");
+  assert.equal(a[0].proprietaire, "—", "le proprietaire inconnu n est jamais une chaine vide");
 });
 
 /* -------------------------------------------------------------------------
@@ -627,11 +655,11 @@ test("la phrase de David, au caractere pres, pour les deux genres", () => {
 
   assert.equal(
     libelleAlerte(fin),
-    "Contrat bientôt terminé — Jean Dupont — propriétaire Sarah Cohen — échéance le 15/12/2026",
+    "Contrat bientôt terminé — Dupont Jean — propriétaire Cohen Sarah — échéance le 15/12/2026",
   );
   assert.equal(
     libelleAlerte(loyer),
-    "Loyer à encaisser — 1er loyer sur 1 — Jean Dupont — pour Sarah Cohen — échéance le 05/12/2026",
+    "Loyer à encaisser — 1er loyer sur 1 — Dupont Jean — pour Cohen Sarah — échéance le 05/12/2026",
   );
 
   /* Un mois plus tard, novembre toujours impaye : la phrase dit le RETARD, et garde le
@@ -644,7 +672,7 @@ test("la phrase de David, au caractere pres, pour les deux genres", () => {
   }).find(x => x.genre === "loyer")!;
   assert.equal(
     libelleAlerte(enRetard),
-    "Loyer en retard — 1er loyer sur 2 — Jean Dupont — pour Sarah Cohen — échéance le 05/11/2026",
+    "Loyer en retard — 1er loyer sur 2 — Dupont Jean — pour Cohen Sarah — échéance le 05/11/2026",
   );
 
   /*
@@ -665,7 +693,7 @@ test("la phrase de David, au caractere pres, pour les deux genres", () => {
   }).find(x => x.genre === "loyer")!;
   assert.equal(
     libelleAlerte(suivant),
-    "Loyer à encaisser — 2e loyer sur 2 — Jean Dupont — pour Sarah Cohen — échéance le 05/12/2026",
+    "Loyer à encaisser — 2e loyer sur 2 — Dupont Jean — pour Cohen Sarah — échéance le 05/12/2026",
   );
 });
 
@@ -711,4 +739,112 @@ test("une date est toujours jj/mm/aaaa, jamais la locale du poste", () => {
   assert.equal(enDateFrancaise("2026-12-15"), "15/12/2026");
   assert.equal(enDateFrancaise("2026-01-05"), "05/01/2026");
   assert.equal(enDateFrancaise("pas-une-date"), "—");
+});
+
+/* -------------------------------------------------------------------------
+ * L ATTRIBUTION DES ROLES — les contre-temoins qui manquaient le 28/10/2026
+ *
+ * Jusqu a cette date, la derivation lisait la colonne `locataire` comme si elle
+ * portait le nom du LOCATAIRE. Elle porte celui du PROPRIETAIRE. Les deux moities
+ * de chaque alerte designaient donc le MEME individu — le proprietaire, son nom
+ * dans une case, son prenom dans l autre — et le vrai locataire n etait JAMAIS
+ * nomme. Mesure du jour, role postgres, RLS ignoree : sur les 12 notifications
+ * d historique rattachables, le segment identite du titre egalait la colonne
+ * `locataire` sur 12 sur 12, et le nom du locataire reel sur 0 sur 12.
+ *
+ * Les quatre assertions ci-dessous auraient rougi. Aucune de celles d avant ne
+ * pouvait le faire : la fixture faisait coincider les deux branches.
+ * ------------------------------------------------------------------------- */
+
+test("le LOCATAIRE de l alerte ne vient JAMAIS des colonnes du proprietaire", () => {
+  const a = deriver({
+    dossiers: [dossier({ date_fin_contrat: "2026-12-15" })],
+    etats: [], aujourdhui: "2026-12-01",
+  });
+  assert.equal(a.length, 1);
+  /* Le defaut repare : ces deux valeurs etaient AUTREFOIS egales a la colonne
+     `locataire` et a la colonne `proprietaire` prises telles quelles. */
+  assert.equal(a[0].locataire, "Dupont Jean");
+  assert.equal(a[0].proprietaire, "Cohen Sarah");
+  /* Et le contre-temoin qui mord : aucune moitie ne doit porter la valeur de
+     l autre personne. */
+  assert.ok(!a[0].locataire.includes("Cohen"), "le locataire ne porte rien du proprietaire");
+  assert.ok(!a[0].proprietaire.includes("Dupont"), "le proprietaire ne porte rien du locataire");
+});
+
+test("vider les colonnes du proprietaire ne touche PAS au nom du locataire", () => {
+  /* C est le test qui distingue vraiment les deux chemins. Avant la correction, vider
+     `locataire` faisait retomber la phrase sur nom + prenom — donc le resultat etait
+     JUSTE par accident, et c etait la seule branche a l etre. Desormais le locataire
+     est juste dans les DEUX cas, et seul le proprietaire disparait. */
+  const a = deriver({
+    dossiers: [dossier({ locataire: null, proprietaire: null, date_fin_contrat: "2026-12-15" })],
+    etats: [], aujourdhui: "2026-12-01",
+  });
+  assert.equal(a.length, 1);
+  assert.equal(a[0].locataire, "Dupont Jean", "le locataire est inchange");
+  assert.equal(a[0].proprietaire, "—", "le proprietaire inconnu s affiche en tiret");
+});
+
+test("un nom COMPOSE n est jamais redecoupe, de part ni d autre", () => {
+  /*
+   * David a interdit toute decoupe sur les espaces le 28/10/2026, et la mesure lui
+   * donne raison : sur les deux dossiers reels, un porte DEUX mots dans `locataire` ET
+   * DEUX mots dans `proprietaire`. La frontiere y est 2|2 ; toute regle au premier
+   * espace rendrait 1|3.
+   *
+   * Ici le proprietaire porte une particule de trois mots et un prenom de deux. La
+   * chaine attendue fait CINQ mots, dans l ordre nom puis prenom, et sans aucune
+   * espace double malgre les deux jointures.
+   */
+  const a = deriver({
+    dossiers: [dossier({
+      nom: "de La Tour", prenom: "Marie Anne",
+      locataire: "Van der Berg", proprietaire: "Jean Pierre",
+      date_fin_contrat: "2026-12-15",
+    })],
+    etats: [], aujourdhui: "2026-12-01",
+  });
+  assert.equal(a[0].locataire, "de La Tour Marie Anne");
+  assert.equal(a[0].proprietaire, "Van der Berg Jean Pierre");
+  assert.ok(!a[0].locataire.includes("  "), "aucune espace double");
+  assert.ok(!a[0].proprietaire.includes("  "), "aucune espace double");
+});
+
+test("la colonne canonique PRIME sur la composition, quand elle est remplie", () => {
+  /*
+   * La precedence, de bout en bout. Les quatre anciennes colonnes gardent leur valeur ;
+   * c est la canonique qui s affiche. C est ce qui permet de corriger un nom sans
+   * toucher une seule colonne historique.
+   */
+  const a = deriver({
+    dossiers: [dossier({
+      nom_complet_locataire: "Dupont-Martin Jean-Luc",
+      nom_complet_proprietaire: "Cohen Sarah Deborah",
+      date_fin_contrat: "2026-12-15",
+    })],
+    etats: [], aujourdhui: "2026-12-01",
+  });
+  assert.equal(a[0].locataire, "Dupont-Martin Jean-Luc", "la canonique gagne");
+  assert.equal(a[0].proprietaire, "Cohen Sarah Deborah", "la canonique gagne");
+});
+
+test("une canonique VIDE ou blanche retombe sur la composition, jamais sur du vide", () => {
+  /*
+   * Le piege a l envers, et il serait MUET : une precedence qui prefererait une
+   * canonique vide afficherait une chaine vide. Or tout le stock d avant la migration a
+   * ses deux canoniques NULLES — David a choisi la garde de modification plutot qu un
+   * backfill. L ecran se serait vide d un coup.
+   */
+  for (const blanc of [null, "", "   "] as (string | null)[]) {
+    const a = deriver({
+      dossiers: [dossier({
+        nom_complet_locataire: blanc, nom_complet_proprietaire: blanc,
+        date_fin_contrat: "2026-12-15",
+      })],
+      etats: [], aujourdhui: "2026-12-01",
+    });
+    assert.equal(a[0].locataire, "Dupont Jean", `canonique ${JSON.stringify(blanc)}`);
+    assert.equal(a[0].proprietaire, "Cohen Sarah", `canonique ${JSON.stringify(blanc)}`);
+  }
 });

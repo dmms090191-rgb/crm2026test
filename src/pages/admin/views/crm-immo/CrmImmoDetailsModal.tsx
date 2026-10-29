@@ -15,6 +15,7 @@ import { useCrmImmoDocuments } from './useCrmImmoDocuments';
 import {
   problemeDeSaisie, SAISIE_VIDE, type DossierImmo, type ColonneImmo, type SaisieDossier
 } from './crmImmoTypes';
+import { nomCanonique } from '../../../../lib/crmImmoIdentite';
 
 /**
  * LA MODALE DETAILS — tout un dossier, en quatre onglets.
@@ -78,6 +79,16 @@ function versSaisie(d: DossierImmo): SaisieDossier {
     nom: d.nom, prenom: s(d.prenom), email: s(d.email), telephone: s(d.telephone),
     date_entree: s(d.date_entree), date_fin_contrat: s(d.date_fin_contrat),
     locataire: s(d.locataire), proprietaire: s(d.proprietaire),
+    /*
+     * LE CHAMP UNIQUE SE PREREMPLIT PAR LA PRECEDENCE, jamais par une decoupe.
+     *
+     * Canonique si la base en porte une, sinon la COMPOSITION des deux anciennes
+     * colonnes — c'est-a-dire exactement la chaine que le tableau affiche deja pour ce
+     * dossier. L'utilisateur retrouve donc a l'identique ce qu'il voyait, et la garde de
+     * modification fait que ne rien toucher n'ecrit rien.
+     */
+    nom_complet_locataire: nomCanonique(d.nom_complet_locataire, d.nom, d.prenom),
+    nom_complet_proprietaire: nomCanonique(d.nom_complet_proprietaire, d.locataire, d.proprietaire),
     telephone_proprietaire: s(d.telephone_proprietaire),
     jour_encaissement: d.jour_encaissement === null ? '' : String(d.jour_encaissement),
     commentaire: s(d.commentaire), mode_paiement: s(d.mode_paiement), valeurs,
@@ -233,7 +244,7 @@ export default function CrmImmoDetailsModal({
     fermeture.reinitialiser();
   }
 
-  const titre = [dossier.prenom, dossier.nom].filter(Boolean).join(' ').trim() || dossier.nom;
+  const titre = nomCanonique(dossier.nom_complet_locataire, dossier.nom, dossier.prenom);
   const nombre = commentaires.liste.length;
 
   const ONGLETS: { cle: OngletDetails; libelle: string; icone: typeof Info }[] = [
@@ -490,8 +501,19 @@ export default function CrmImmoDetailsModal({
                   style={{ background: t.surface.secondary, border: `1px solid ${t.surface.border}`, color: t.text.secondary }}>
                   Annuler
                 </button>
+                {/*
+                  * LA MEME GARDE QUE DANS LA MODALE DOSSIER, et pour la meme raison :
+                  * versLigne reecrit les douze champs plus le jsonb a chaque
+                  * enregistrement, donc une sauvegarde a blanc reecrivait les quatre
+                  * colonnes de personne. Voir le commentaire detaille dans
+                  * CrmImmoDossierModal.tsx.
+                  *
+                  * Ici `modifie` est deja conditionne par `edition` (plus haut), et ce
+                  * bouton ne se rend qu'en edition : pas de cas de creation a exempter,
+                  * cette modale recoit toujours un dossier existant.
+                  */}
                 <button type="button" onClick={() => onEnregistrer(saisie)}
-                  disabled={enCours || probleme !== ''}
+                  disabled={enCours || probleme !== '' || !modifie}
                   data-testid="crm-immo-details-enregistrer"
                   className="inline-flex items-center gap-1.5 px-4 py-2 max-md:py-3 rounded-lg text-sm font-semibold disabled:opacity-50"
                   style={{ background: t.accent.solid, color: t.text.inverse }}>

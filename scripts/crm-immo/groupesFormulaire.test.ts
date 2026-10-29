@@ -69,8 +69,11 @@ test("A3 la composition exacte de chaque groupe, dans l'ordre", () => {
    * a une exception, dite au relevé A4.
    */
   const parGroupe = (g: GroupeChamp) => CHAMPS_DOSSIER.filter(d => d.groupe === g).map(d => d.cle);
-  assert.deepEqual(parGroupe("locataire"), ["nom", "prenom", "email", "telephone"]);
-  assert.deepEqual(parGroupe("proprietaire"), ["locataire", "proprietaire", "telephone_proprietaire"]);
+  /* Depuis le 28/10/2026, UN SEUL champ de nom par personne. Les cles `nom`, `prenom`,
+     `locataire` et `proprietaire` ont quitte le FORMULAIRE — pas le schema : le relevé C1
+     verifie qu elles survivent dans ChampSysteme et dans SaisieDossier. */
+  assert.deepEqual(parGroupe("locataire"), ["nom_complet_locataire", "email", "telephone"]);
+  assert.deepEqual(parGroupe("proprietaire"), ["nom_complet_proprietaire", "telephone_proprietaire"]);
   assert.deepEqual(parGroupe("contrat"),
     ["date_entree", "date_fin_contrat", "jour_encaissement", "mode_paiement", "commentaire"]);
 });
@@ -85,7 +88,9 @@ test("A4 AUCUN champ n'a disparu au passage", () => {
    * au groupe « Contrat et loyer ». Ce releve est la pour que son retrait soit un choix, et
    * non un oubli de recopie.
    */
-  assert.equal(CHAMPS_DOSSIER.length, 12, "le nombre de champs du formulaire a change");
+  /* DIX depuis le 28/10/2026 : onze avant le 27/10, douze apres, et dix depuis que le
+     nom et le prenom de chaque personne ont fusionne en un champ unique. */
+  assert.equal(CHAMPS_DOSSIER.length, 10, "le nombre de champs du formulaire a change");
   assert.ok(CHAMPS_DOSSIER.some(d => d.cle === "jour_encaissement"),
     "jour_encaissement a ete retire du formulaire : c'est une decision, pas une consequence du regroupement");
   const cles = CHAMPS_DOSSIER.map(d => d.cle);
@@ -97,12 +102,17 @@ test("A4 AUCUN champ n'a disparu au passage", () => {
 test("B1 chaque personne tient d'un seul bloc", () => {
   const cles = CHAMPS_DOSSIER.map(d => d.cle as string);
   const bloc = (a: string, b: string) => Math.abs(cles.indexOf(a) - cles.indexOf(b));
-  /* Le locataire : nom, prenom, email, telephone se suivent. */
-  assert.equal(cles.indexOf("telephone") - cles.indexOf("nom"), 3, "le bloc locataire n'est plus contigu");
-  /* Le proprietaire : nom, prenom, telephone se suivent aussi. */
-  assert.equal(cles.indexOf("telephone_proprietaire") - cles.indexOf("locataire"), 2,
+  /* Le locataire : son nom complet, puis email, puis telephone — TROIS champs qui se
+     suivent depuis que le nom et le prenom ont fusionne. */
+  assert.equal(cles.indexOf("telephone") - cles.indexOf("nom_complet_locataire"), 2,
+    "le bloc locataire n'est plus contigu");
+  /* Le proprietaire : son nom complet, puis son telephone. DEUX champs adjacents. */
+  assert.equal(bloc("nom_complet_proprietaire", "telephone_proprietaire"), 1,
     "le bloc proprietaire n'est plus contigu");
-  assert.equal(bloc("locataire", "proprietaire"), 1, "le nom et le prenom du proprietaire se sont separes");
+  /* Et les deux personnes ne se chevauchent pas : tout le bloc locataire precede tout
+     le bloc proprietaire. */
+  assert.ok(cles.indexOf("telephone") < cles.indexOf("nom_complet_proprietaire"),
+    "les deux personnes se chevauchent dans le formulaire");
 });
 
 test("B2 les deux dates de contrat ne s'intercalent PLUS entre les deux personnes", () => {
@@ -123,17 +133,55 @@ test("B2 les deux dates de contrat ne s'intercalent PLUS entre les deux personne
   }
 });
 
-test("B3 le commentaire reste le DERNIER champ", () => {
+test("B3 aucun champ pleine largeur ne desapparie la grille de son groupe", () => {
   /*
-   * Il est le seul textarea, donc le seul rendu en `sm:col-span-2`. Une case pleine largeur
-   * au milieu d'un groupe casserait l'appariement des champs suivants dans la grille a deux
-   * colonnes — un champ se retrouverait seul sur sa ligne, sans raison visible.
+   * REECRIT LE 28/10/2026, ET LA PREMISSE AVAIT CHANGE.
+   *
+   * Ce releve disait << le commentaire est le seul textarea, donc le seul rendu en
+   * sm:col-span-2 >>, et epinglait la FORME EXACTE de la condition dans le code. Les deux
+   * champs uniques de nom prennent desormais aussi toute la largeur — un nom compose ne
+   * tient pas dans une demi-colonne — donc la premisse est fausse et le motif ne mord plus.
+   *
+   * L'INVARIANT REEL, lui, n'a pas bouge, et c'est celui qu'on verrouille maintenant : dans
+   * une grille a deux colonnes, un champ pleine largeur place AU MILIEU d'un groupe laisse
+   * un champ seul sur sa ligne, sans raison visible. Il doit donc etre en PREMIER ou en
+   * DERNIER de son groupe. Cette assertion mord quel que soit le nombre de champs larges,
+   * ce que l'ancienne ne faisait pas.
    */
   assert.equal(CHAMPS_DOSSIER[CHAMPS_DOSSIER.length - 1].cle, "commentaire",
     "le commentaire n'est plus en dernier : la grille va se desapparier");
+
   const code = sansCommentaires(lire(CHAMPS));
-  assert.match(code, /type === 'textarea' \? 'sm:col-span-2' : ''/,
-    "le commentaire ne prend plus toute la largeur, ou la regle a change de forme");
+  assert.match(code, /pleineLargeur \? 'sm:col-span-2' : ''/,
+    "la regle de pleine largeur a change de forme");
+  /* Les trois champs larges, nommement : le textarea et les deux noms. */
+  assert.match(code, /type === 'textarea'/, "le commentaire ne prend plus toute la largeur");
+  for (const cle of ["nom_complet_locataire", "nom_complet_proprietaire"]) {
+    assert.match(code, new RegExp("cle === '" + cle + "'"),
+      "le champ " + cle + " ne prend plus toute la largeur : un nom compose y serait tronque");
+  }
+
+  /*
+   * Et la position de chacun dans SON groupe.
+   *
+   * HONNETETE SUR CE QUE CECI GARDE : mesure du 28/10/2026, la mutation qui deplace le
+   * commentaire au milieu de son groupe a nombre de champs CONSTANT est tuee par A3, qui
+   * fige l'ordre exact de chaque groupe — pas par l'assertion ci-dessous. Elle est donc
+   * SUBSUMEE tant qu'A3 existe sous cette forme.
+   *
+   * On la garde quand meme, et pour une raison precise : A3 fige une LISTE, qu'il faudra
+   * forcement rallonger au prochain champ ajoute. Le jour ou quelqu'un la mettra a jour
+   * sans y penser, c'est cette regle-ci qui dira pourquoi l'ordre comptait.
+   */
+  const LARGES = new Set(["commentaire", "nom_complet_locataire", "nom_complet_proprietaire"]);
+  for (const g of GROUPES_FORMULAIRE) {
+    const cles = CHAMPS_DOSSIER.filter(d => d.groupe === g.cle).map(d => d.cle as string);
+    cles.forEach((cle, i) => {
+      if (!LARGES.has(cle)) return;
+      assert.ok(i === 0 || i === cles.length - 1,
+        `${cle} est large et au MILIEU du groupe « ${g.titre} » : un champ va rester seul sur sa ligne`);
+    });
+  }
 });
 
 // ===================== C. AUCUNE CLE SQL N'EST TOUCHEE =====================
@@ -145,17 +193,48 @@ test("C1 les deux cles qui mentent sur leur contenu n'ont PAS ete renommees", ()
    * migration, et elle casserait les sauvegardes deja prises ainsi que les restaurations
    * qui les relisent.
    */
+  /*
+   * REECRIT LE 28/10/2026, ET LE MOTIF COMPTE.
+   *
+   * Les quatre cles ont quitte le FORMULAIRE au profit de deux champs uniques de nom
+   * complet. Chercher leur libelle de formulaire ne prouverait donc plus rien.
+   *
+   * ET SURTOUT : les deux anciennes assertions etaient DEJA DE FAUX VERTS. Les motifs
+   * cherchaient cle: 'locataire' et cle: 'proprietaire', or ces deux chaines
+   * apparaissent AUSSI comme identifiants de GROUPE dans GROUPES_FORMULAIRE. Elles
+   * trouvaient donc toujours de quoi mordre, meme si les champs avaient ete renommes.
+   * Deux assertions sur quatre ne gardaient rien.
+   *
+   * Ce qui doit etre verrouille, c est que les cles survivent dans le MIROIR DU SCHEMA
+   * et dans l aller-retour de saisie : c est cela qui garantit qu aucune migration n a
+   * ete faite en douce et que les sauvegardes restent relisibles.
+   */
   const types = lire("src/pages/admin/views/crm-immo/crmImmoTypes.ts");
-  assert.match(types, /cle: 'locataire', libelle: 'Nom propriétaire'/,
-    "la cle `locataire` a ete renommee, ou son libelle a change");
-  assert.match(types, /cle: 'proprietaire', libelle: 'Prénom propriétaire'/,
-    "la cle `proprietaire` a ete renommee, ou son libelle a change");
+  for (const cle of ["nom", "prenom", "locataire", "proprietaire"]) {
+    assert.match(types, new RegExp("\\|\\s*'" + cle + "'"),
+      "la cle " + cle + " a disparu de ChampSysteme : une migration a ete faite");
+    assert.match(types, new RegExp("^\\s+" + cle + ": string;$", "m"),
+      "la cle " + cle + " a disparu de SaisieDossier : l aller-retour ne la preserve plus");
+  }
+  /* Et les DEUX champs uniques sont bien dans le formulaire, sous leurs libelles. */
+  assert.match(types, /cle: 'nom_complet_locataire', libelle: 'Nom prénom locataire'/,
+    "le champ unique du locataire a change de cle ou de libelle");
+  assert.match(types, /cle: 'nom_complet_proprietaire', libelle: 'Nom prénom propriétaire'/,
+    "le champ unique du proprietaire a change de cle ou de libelle");
 
-  /* Et ces deux cles sont bien RANGEES chez le proprietaire, malgre leur nom. */
+  /* Les deux champs uniques sont ranges chacun chez sa personne. Le piege des cles qui
+     mentent ne se voit plus dans le formulaire — c'est precisement ce que le champ
+     unique corrige a l'ecran — mais il reste entier en base, et les assertions
+     ci-dessus le verrouillent. */
   const parCle = new Map(CHAMPS_DOSSIER.map(d => [d.cle as string, d.groupe]));
-  assert.equal(parCle.get("locataire"), "proprietaire", "la cle `locataire` porte le NOM du proprietaire");
-  assert.equal(parCle.get("proprietaire"), "proprietaire", "la cle `proprietaire` porte son PRENOM");
-  assert.equal(parCle.get("nom"), "locataire", "la cle `nom` porte le nom du LOCATAIRE");
+  assert.equal(parCle.get("nom_complet_locataire"), "locataire");
+  assert.equal(parCle.get("nom_complet_proprietaire"), "proprietaire");
+  /* Et aucune des quatre cles menteuses ne traine dans le formulaire : les y laisser
+     ferait saisir le meme nom deux fois, dans deux conventions differentes. */
+  for (const cle of ["nom", "prenom", "locataire", "proprietaire"]) {
+    assert.equal(parCle.get(cle), undefined,
+      "la cle " + cle + " est revenue dans le formulaire : le nom se saisirait deux fois");
+  }
 });
 
 test("C2 aucune migration n'accompagne ce regroupement", () => {
