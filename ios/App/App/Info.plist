@@ -44,6 +44,29 @@
 	<string>Talvex accede a vos photos pour joindre des images a vos dossiers et conversations.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Talvex utilise l appareil photo pour prendre une photo a joindre a un dossier.</string>
+	<!--
+	  LA CONFORMITE A L EXPORT, declaree par David le 29/10/2026.
+
+	  Apple demande a chaque televersement si l application emploie un chiffrement sortant
+	  des exemptions standard. Repondre ici evite que la question soit reposee a la main a
+	  chaque envoi vers TestFlight — et une case cochee de travers, un jour de hate, est une
+	  fausse declaration.
+
+	  POURQUOI false, ET SUR QUELLE BASE. Talvex ne chiffre rien lui-meme. Tout ce qu il
+	  emploie est fourni par le systeme ou par le protocole, et tombe dans les exemptions :
+	    - HTTPS / TLS vers Supabase et Vercel, c est-a-dire le chiffrement du transport ;
+	    - le Keychain d iOS pour le jeton de session (@aparajita/capacitor-secure-storage),
+	      c est-a-dire le coffre du systeme.
+	  Aucun algorithme proprietaire, aucune bibliotheque de chiffrement embarquee, aucune
+	  cle gere par l application.
+
+	  CE QUI OBLIGERAIT A REVENIR ICI : embarquer une bibliotheque de chiffrement, chiffrer
+	  des donnees au repos autrement que par le coffre du systeme, ou ajouter un canal qui
+	  ne soit pas du TLS standard. Dans ces cas, la valeur devient true et Apple reclame des
+	  documents. Ce n est pas une case a recocher sans y penser : c est une declaration.
+	-->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

@@ -256,3 +256,128 @@ test("D2 le paquet web embarque n'entre pas dans le depot", () => {
   const ignore = lire("ios/.gitignore");
   assert.match(ignore, /App\/App\/public/, "la copie du paquet web n'est plus exclue");
 });
+
+/* ==================================================================================
+ * F. CE QU'APPLE RECLAME, ET QUE RIEN NE GARDAIT
+ *
+ * Ajoute le 29/10/2026 apres une mesure genante : ce fichier portait SEIZE releves sur le
+ * projet iOS, et ZERO sur les chaines d'usage de l'Info.plist comme sur la declaration de
+ * conformite a l'export. Un balayage de mutation l'a confirme en retirant la cle : tout
+ * restait vert.
+ * ================================================================================== */
+
+test("F1 les trois chaines d'usage sont presentes, SOUS leur cle, et redigees", () => {
+  /*
+   * Apple REFUSE un envoi qui emploie une permission sans sa chaine d'usage. Et la chaine
+   * est ce que l'utilisateur LIRA dans la demande d'autorisation : une phrase vide ou qui
+   * repete le nom de la permission fait refuser l'acces, ce qui casse la fonction.
+   *
+   * ON VERIFIE LA VALEUR SOUS SA CLE, pas sa presence n'importe ou dans le fichier : un
+   * motif qui cherche seulement la chaine resterait vert si la cle etait renommee et la
+   * phrase laissee ailleurs. C'est le defaut que portent A1 et B3 de ce fichier.
+   */
+  const plist = lire(INFO);
+  const CLES = [
+    ["NSMicrophoneUsageDescription", "micro"],
+    ["NSPhotoLibraryUsageDescription", "photo"],
+    ["NSCameraUsageDescription", "appareil photo"],
+  ] as const;
+  for (const [cle] of CLES) {
+    const m = new RegExp("<key>" + cle + "</key>\\s*<string>([^<]*)</string>").exec(plist);
+    assert.ok(m, `${cle} est absente ou n'est pas suivie de sa valeur : Apple refusera l'envoi`);
+    assert.ok(
+      m[1].trim().length > 30,
+      `${cle} porte une phrase trop courte pour expliquer l'usage : « ${m[1]} »`,
+    );
+    assert.ok(
+      !m[1].includes(cle),
+      `${cle} se contente de repeter son propre nom au lieu de dire a quoi ca sert`,
+    );
+  }
+});
+
+test("F2 la conformite a l'export est declaree, et c'est une DECLARATION", () => {
+  /*
+   * ITSAppUsesNonExemptEncryption repond d'avance a la question qu'Apple pose a chaque
+   * televersement. Sans elle, la question revient a la main a chaque envoi — et une case
+   * cochee de travers un jour de hate est une fausse declaration.
+   *
+   * La valeur false a ete declaree par David le 29/10/2026 : Talvex ne chiffre rien
+   * lui-meme, il n'emploie que TLS et le coffre du systeme, tous deux exemptes.
+   *
+   * CE RELEVE NE SE << CORRIGE >> PAS A LA LEGERE. S'il rougit parce que la valeur est
+   * passee a true, c'est qu'un chiffrement a ete ajoute : il faut alors revoir la
+   * declaration auprès d'Apple, pas ajuster le releve.
+   */
+  const plist = lire(INFO);
+  const m = /<key>ITSAppUsesNonExemptEncryption<\/key>\s*<(true|false)\/>/.exec(plist);
+  assert.ok(m, "la declaration de conformite a l'export a disparu : Apple reposera la question a chaque envoi");
+  assert.equal(
+    m[1],
+    "false",
+    "la conformite a l'export est passee a true : un chiffrement non exempte a-t-il ete ajoute ? "
+    + "Si oui, Apple reclame des documents, et ce n'est pas au releve de ceder.",
+  );
+});
+
+/* ==================================================================================
+ * G. LA CHAINE GRATUITE : un .ipa non signe, pour l iPhone de David et lui seul
+ *
+ * Ajoutee le 29/10/2026. Son interet tient a UNE chose : elle ne signe pas, donc elle
+ * n'exige aucune adhesion Apple Developer. Un reglage de signature qui reviendrait la
+ * dedans la rendrait payante EN SILENCE — la compilation echouerait en reclamant un
+ * certificat, et rien ne dirait pourquoi.
+ * ================================================================================== */
+
+test("G1 les deux chaines existent, et celle de l'iPhone personnel ne signe RIEN", () => {
+  const net = yamlNet();
+  assert.match(net, /^ {2}talvex-ios-perso:$/m, "la chaine gratuite a disparu");
+  assert.match(net, /^ {2}talvex-ios:$/m, "la chaine TestFlight a disparu");
+
+  /* On isole la chaine gratuite : tout ce qui suit sa declaration jusqu'a la suivante. */
+  const debut = net.indexOf("  talvex-ios-perso:");
+  const fin = net.indexOf("  talvex-ios:", debut);
+  assert.ok(debut >= 0 && fin > debut, "l'ordre des deux chaines a change : ce releve doit etre relu");
+  const perso = net.slice(debut, fin);
+
+  assert.doesNotMatch(
+    perso,
+    /ios_signing/,
+    "un bloc ios_signing est revenu dans la chaine gratuite : Codemagic chercherait un "
+    + "certificat chez Apple, donc une adhesion a 99 $/an",
+  );
+  assert.doesNotMatch(
+    perso,
+    /app_store_connect|submit_to_testflight|use-profiles/,
+    "la chaine gratuite s'est remise a parler a App Store Connect",
+  );
+  /* LES TROIS REGLAGES, et les trois sont necessaires : desarmer le seul CODE_SIGNING_ALLOWED
+     laisse encore la cible exiger une identite de signature. */
+  for (const reglage of ["CODE_SIGNING_ALLOWED=NO", "CODE_SIGNING_REQUIRED=NO", 'CODE_SIGN_IDENTITY=""']) {
+    assert.ok(
+      perso.includes(reglage),
+      `${reglage} a disparu : l'archive redemanderait une signature, donc une adhesion payante`,
+    );
+  }
+  assert.match(perso, /zip -qry/, "l'emballage en .ipa a disparu : il n'y aurait rien a telecharger");
+});
+
+test("G2 la chaine gratuite garde les memes garde-fous que la payante", () => {
+  /*
+   * Ne pas signer ne veut pas dire ne pas verifier. Les deux pieges mesures du projet
+   * (npm ci avant la resolution Swift, aucun pod install) valent pour les deux chaines, et
+   * les relevés de non-regression aussi : on ne pose pas sur son telephone une version dont
+   * les garde-fous sont rouges.
+   */
+  const net = yamlNet();
+  const debut = net.indexOf("  talvex-ios-perso:");
+  const fin = net.indexOf("  talvex-ios:", debut);
+  const perso = net.slice(debut, fin);
+  for (const etape of ["npm ci", "npm run build", "npx cap sync ios", "npm test"]) {
+    assert.ok(perso.includes(etape), `${etape} manque a la chaine gratuite`);
+  }
+  const iNpm = perso.indexOf("npm ci");
+  const iSync = perso.indexOf("npx cap sync ios");
+  assert.ok(iNpm < iSync, "npm ci doit preceder cap sync dans la chaine gratuite aussi");
+  assert.doesNotMatch(perso, /pod install/, "pod install est revenu dans la chaine gratuite");
+});
