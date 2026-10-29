@@ -2,6 +2,7 @@ import { useEffect, type MutableRefObject } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { consumeConnectReturnContext } from '../../../lib/connectReturnContext';
 import { importDocumentationCrm } from './adminLazyViews';
+import { planifierAuRepos } from '../../../lib/auRepos';
 import type { ActiveView } from '../AdminDashboard';
 
 interface Params {
@@ -93,9 +94,18 @@ export function useAdminDashboardEffects({
       .then(({ data }) => { if (data?.name) setCompanyName(data.name); });
   }, [companyId]);
 
-  useEffect(() => {
-    const id = requestIdleCallback(() => { importDocumentationCrm(); });
-    return () => cancelIdleCallback(id);
-  }, []);
+  /*
+   * ---------- C'EST CET APPEL QUI TUAIT LE PANEL SUR L'iPHONE ----------
+   *
+   * Il n'a aucune garde et aucune dependance : il partait donc a CHAQUE montage du panel
+   * admin, avant tout le reste. Sur Safari iOS, ou requestIdleCallback n'existe pas, la
+   * ReferenceError levee ici remontait a l'ErrorBoundary et remplacait l'interface entiere
+   * par « Une erreur est survenue » — pour un simple prechargement de la documentation.
+   *
+   * L'autre appel du panel (AdminDashboard.tsx) est garde par le droit CRM Immo : il ne
+   * plantait donc qu'une partie des Societes, et plus tard. Celui-ci plantait tout le
+   * monde, tout de suite. Les deux passent desormais par le meme helper.
+   */
+  useEffect(() => planifierAuRepos(() => { importDocumentationCrm(); }), []);
 
 }

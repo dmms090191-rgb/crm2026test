@@ -17,6 +17,7 @@ import type { CategorieImmo } from '../../lib/crmImmoEcheancier';
 import { CrmImmoAlertesProvider } from '../../contexts/CrmImmoAlertesContext';
 import { peutOuvrirCrmImmo } from '../../lib/crmImmoAccess';
 import { importCrmImmo } from './dashboard/adminLazyViews';
+import { planifierAuRepos } from '../../lib/auRepos';
 import { useActiveLogo } from '../../hooks/useActiveLogo';
 import { useAppIcon } from '../../hooks/useAppIcon';
 import { useUnreadClientMessages } from '../../hooks/useUnreadClientMessages';
@@ -98,13 +99,17 @@ function AdminDashboardInner({ onLogout, onConnectAsVendor, onConnectAsClient, i
    * montage du panel : le creneau au repos qui suit est gratuit, et le paquet y tient.
    *
    * Le declencheur est le DROIT et non le montage : une Societe sans le module ne
-   * telecharge rien. Et `requestIdleCallback` cede le pas a tout ce qui presse —
-   * le prelevement ne peut donc pas retarder l'affichage qu'il sert.
+   * telecharge rien. Et le creneau au repos cede le pas a tout ce qui presse — le
+   * prelevement ne peut donc pas retarder l'affichage qu'il sert.
+   *
+   * ON PASSE PAR planifierAuRepos, ET PAS PAR requestIdleCallback. L'appel nu levait une
+   * ReferenceError sur Safari iOS, ou cette fonction n'existe pas, et l'ErrorBoundary
+   * remplacait alors le panel par un ecran d'erreur. Voir src/lib/auRepos.ts : le repli
+   * garde l'intention — laisser passer ce qui presse — sans pretendre mesurer le repos.
    */
   useEffect(() => {
     if (!crmImmoOuvert) return;
-    const id = requestIdleCallback(() => { void importCrmImmo(); });
-    return () => cancelIdleCallback(id);
+    return planifierAuRepos(() => { void importCrmImmo(); });
   }, [crmImmoOuvert]);
   /*
    * ---------- L ORDRE DES DEUX HOOKS A ETE INVERSE LE 22 OCTOBRE 2026 ----------
