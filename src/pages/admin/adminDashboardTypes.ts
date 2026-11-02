@@ -34,6 +34,7 @@ export type ActiveView =
   | 'import-leads'
   | 'ajouter-leads'
   | 'crm'
+  | 'crm-prospection'
   | 'ajouter-vendeur'
   | 'liste-vendeurs'
   | 'chat-super-admin'

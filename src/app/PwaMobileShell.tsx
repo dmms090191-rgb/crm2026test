@@ -20,7 +20,7 @@ import {
   PwaSpinner,
   SADashboard, SAAdmins, SAchatAdmin, SACrmSociete, SAStatuts, SAApiIa, SACerveauIA,
   SASuperAdmins, SAMonCompte, SASystem, SADocumentationCrm,
-  AdminVueEnsemble, AdminCrm, AdminChatClient, AdminChatVendeur, AdminChatSuperAdmin, AdminAgenda, AdminPropositionsRdv, AdminStatuts,
+  AdminVueEnsemble, AdminCrm, AdminCrmProspection, AdminChatClient, AdminChatVendeur, AdminChatSuperAdmin, AdminAgenda, AdminPropositionsRdv, AdminStatuts,
   AdminBoutiques, AdminCabinets, AdminListeVendeurs, AdminAgendaEquipe,
   VendorVueEnsemble, VendorLeads, VendorChatAdmin, VendorChatClient, VendorAgenda, VendorPropositionsRdv,
   ClientVueEnsemble, ClientMessagerie, ClientAgenda, ClientPropositionsRdv,
@@ -227,6 +227,17 @@ export default function PwaMobileShell({ role, onLogout }: Props) {
       switch (activeTab) {
         case 'vue-ensemble': return <AdminVueEnsemble {...identite} />;
         case 'crm': return <AdminCrm />;
+        /*
+         * CRM PROSPECTION SUR TELEPHONE. Sa vue n'appelle AUCUN contexte que la coquille
+         * ne pose pas : elle n'utilise que Theme, CompanyId et Simulation. En
+         * particulier, PAS de useEditorMode() — son fournisseur n'est pose que par
+         * AdminDashboard, et l'appeler ici leverait au montage, remplacant tout l'ecran
+         * par l'ErrorBoundary, barre d'onglets comprise.
+         *
+         * Son rendu telephone est en CARTES (CrmProspectionCards, md:hidden) : David a
+         * tranche le 02/11/2026, en accord avec les trois autres CRM du depot.
+         */
+        case 'crm-prospection': return <AdminCrmProspection />;
         case 'statuts': return <AdminStatuts />;
         case 'chat-client': return <AdminChatClient />;
         case 'chat-super-admin': return <AdminChatSuperAdmin />;

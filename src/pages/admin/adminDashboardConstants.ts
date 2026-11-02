@@ -10,6 +10,7 @@ export const BREADCRUMB_LABELS: Record<ActiveView, string> = {
   'import-leads': 'Import de leads',
   'ajouter-leads': 'Ajouter leads',
   'crm': 'Crm',
+  'crm-prospection': 'CRM Prospection',
   'ajouter-vendeur': 'Ajouter vendeur',
   'liste-vendeurs': 'Liste vendeurs',
   'chat-client': 'Chat Client',

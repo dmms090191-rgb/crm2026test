@@ -155,6 +155,19 @@ export const VUES_TELEPHONE: Record<RoleTelephone, readonly string[]> = {
      * jamais atteint (ListeVendeursMobileCard, en md:hidden).
      */
     'boutique', 'cabinet', 'liste-vendeurs', 'agenda-equipe',
+    /*
+     * CRM Prospection, ajoute le 02/11/2026 avec le module lui-meme. David a demande
+     * « Desktop, tablette, mobile/PWA » des la V1.
+     *
+     * VERIFIE SUR LES TROIS POINTS QUI ONT DISQUALIFIE LES AUTRES :
+     *   ce qu'elle AFFICHE   la liste vient d'une requete bornee a company_id ; une
+     *                        liste vide affiche « aucun lead », jamais un chiffre faux.
+     *   ses FOURNISSEURS     elle n'utilise que Theme, CompanyId et Simulation, les
+     *                        seuls que la coquille pose. Aucun useEditorMode().
+     *   son RENDU telephone  CrmProspectionCards, en md:hidden, ecrit pour cet ecran et
+     *                        non un tableau comprime.
+     */
+    'crm-prospection',
   ],
   vendor: [
     /*

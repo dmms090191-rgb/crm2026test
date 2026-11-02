@@ -27,6 +27,7 @@ export const SADocumentationCrm = lazy(() => import('../pages/admin/views/Docume
 
 export const AdminVueEnsemble = lazy(() => import('../pages/admin/views/VueEnsemble'));
 export const AdminCrm = lazy(() => import('../pages/admin/views/Crm'));
+export const AdminCrmProspection = lazy(() => import('../pages/admin/views/CrmProspection'));
 export const AdminChatClient = lazy(() => import('../pages/admin/views/ChatClient'));
 export const AdminChatVendeur = lazy(() => import('../pages/admin/views/ChatVendeur'));
 export const AdminChatSuperAdmin = lazy(() => import('../pages/admin/views/ChatSuperAdmin'));

@@ -2,7 +2,7 @@ import {
   LayoutDashboard, Info, UserPlus, Upload, Users, Database, UserCheck, List,
   MessageCircle, MessageSquare, Shield, Calendar, CalendarRange, CalendarCheck,
   Settings, Globe, Brain, Image as ImageIcon, GraduationCap, Smartphone, Sparkles, CopySlash, Store,
-  Briefcase, Building2, History, Download,
+  Briefcase, Building2, History, Download, Target,
 } from 'lucide-react';
 import type { LayoutDefaultSection } from '../../lib/sidebarLayout';
 
@@ -57,6 +57,25 @@ export const LAYOUT_SECTIONS: LayoutDefaultSection[] = [
     { id: 'import-leads', label: 'Import CSV de leads' },
     { id: 'ajouter-leads', label: 'Nouveau lead' },
     { id: 'crm', label: 'CRM Leads' },
+    /*
+     * CRM PROSPECTION — declare ici, dans « Gestion des leads », juste apres CRM Leads et
+     * avant Statuts. Les trois se suivent dans l'ordre ou on les emploie : on prospecte,
+     * on convertit, et les deux CRM partagent le MEME catalogue de statuts, qui est le
+     * troisieme onglet.
+     *
+     * VISIBLE PAR DEFAUT POUR TOUTES LES SOCIETES, decision de David du 02/11/2026. Ce
+     * n'est donc PAS un module a droit comme CRM Immo : pas de table d'acces, pas de
+     * Porte, pas d'injection conditionnelle. Chaque Societe ne voit que SES leads —
+     * l'isolation est faite par la RLS et par company_id, pas par la visibilite de
+     * l'onglet.
+     *
+     * ET SURTOUT, PAS DE `hidden: true`. Le masquer « en attendant » se retournerait
+     * contre David : le bouton « Par defaut » de la reorganisation remplace le brouillon
+     * par la DECLARATION du code, drapeaux hidden compris, et le demasquage est reserve a
+     * Talvex (Sidebar.tsx passe canHide={canHideTabs === true}). Deux clics le
+     * remasqueraient chez lui, EN BASE, sans qu'il puisse le rouvrir seul.
+     */
+    { id: 'crm-prospection', label: 'CRM Prospection' },
     { id: 'statuts', label: 'Statuts' },
   ] },
   { title: 'Équipe commerciale', items: [
@@ -100,6 +119,7 @@ export const ICONS: Record<string, React.ReactNode> = {
   'import-leads': <Upload className="w-4 h-4" />,
   'ajouter-leads': <Users className="w-4 h-4" />,
   'crm': <Database className="w-4 h-4" />,
+  'crm-prospection': <Target className="w-4 h-4" />,
   'ajouter-vendeur': <UserCheck className="w-4 h-4" />,
   'liste-vendeurs': <List className="w-4 h-4" />,
   'chat-client': <MessageCircle className="w-4 h-4" />,

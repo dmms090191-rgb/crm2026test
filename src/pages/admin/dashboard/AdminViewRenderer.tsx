@@ -7,7 +7,7 @@ import InfoAdmin from '../views/InfoAdmin';
 import AgendaEquipe from '../views/AgendaEquipe';
 import {
   VueEnsemble, AdminSite, AdminLogoPage, Inscription, AjouterLeads, AjouterVendeur, ListeVendeurs,
-  ChatClient, ChatVendeur, ChatSuperAdmin, Agenda, PropositionsRdv, Statuts, Crm,
+  ChatClient, ChatVendeur, ChatSuperAdmin, Agenda, PropositionsRdv, Statuts, Crm, CrmProspection,
   HistoriqueNotifications,
   ImportLeads, DocumentationCrm, SauvegardeRestauration,
   SystemPage, AdminCerveauIA, AdminApplicationPage, EditeurIA, AdminCalquerLogo, AdminMesLogosRA,
@@ -148,6 +148,15 @@ export default function AdminViewRenderer({
           case 'import-leads': return <Suspense fallback={lazyFallback}><ImportLeads onNavigateToCrm={() => handleNavigate('crm')} /></Suspense>;
           case 'ajouter-leads': return <Suspense fallback={lazyFallback}><AjouterLeads /></Suspense>;
           case 'crm': return <Suspense fallback={lazyFallback}><Crm ownerUserId={effectiveAdminId} onConnectAsClient={(client) => { saveConnectReturnContext({ fromRole: 'admin', fromTab: 'crm', leadId: client.id, scrollY: window.scrollY }); onConnectAsClient?.(client); }} onOpenChat={(lead) => { saveChatReturnContext(lead.id, [lead.prenom, lead.nom].filter(Boolean).join(' ') || lead.email); setChatLead(lead); setChatClientMessageSent(false); setActiveView('chat-client'); }} onOpenRdv={(lead) => { setRdvLead(lead); setActiveView('propositions-rdv'); }} /></Suspense>;
+          /*
+           * CRM PROSPECTION. Le `case` existe TOUJOURS et n'est conditionne par rien :
+           * le module est visible par toutes les Societes, et l'isolation est faite par
+           * la RLS, pas par la visibilite de l'onglet. Le rendre conditionnel le ferait
+           * retomber dans le `default:` plus bas, qui ouvre la Vue d'ensemble — un refus
+           * deguise en reussite, sans erreur de console ni de build, et `npm run build`
+           * vaut `vite build` SEUL : Vercel deploierait le defaut.
+           */
+          case 'crm-prospection': return <Suspense fallback={lazyFallback}><CrmProspection /></Suspense>;
           case 'ajouter-vendeur': return <Suspense fallback={lazyFallback}><AjouterVendeur /></Suspense>;
           case 'liste-vendeurs': return <Suspense fallback={lazyFallback}><ListeVendeurs ownerUserId={effectiveAdminId} onConnectAsVendor={(vendor) => { saveConnectReturnContext({ fromRole: 'admin', fromTab: 'liste-vendeurs', vendorId: vendor.id, scrollY: window.scrollY }); onConnectAsVendor?.(vendor); }} onOpenChat={(vendor) => { setChatVendor(vendor); setChatVendorMessageSent(false); setActiveView('chat-vendeur'); }} /></Suspense>;
           case 'agenda': return <Suspense fallback={lazyFallback}><Agenda /></Suspense>;

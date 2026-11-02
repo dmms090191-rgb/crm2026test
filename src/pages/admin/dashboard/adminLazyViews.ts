@@ -15,6 +15,7 @@ export const Agenda = lazy(() => import('../views/Agenda'));
 export const PropositionsRdv = lazy(() => import('../views/PropositionsRdv'));
 export const Statuts = lazy(() => import('../views/Statuts'));
 export const Crm = lazy(() => import('../views/Crm'));
+export const CrmProspection = lazy(() => import('../views/CrmProspection'));
 export const ImportLeads = lazy(() => import('../views/ImportLeads'));
 export const importDocumentationCrm = () => import('../views/DocumentationCrm');
 export const DocumentationCrm = lazy(importDocumentationCrm);
