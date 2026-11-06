@@ -12,7 +12,13 @@ import {
   type SystemItem,
 } from '../../src/pages/admin/views/system/types.ts';
 
-const read = (file: string) => readFileSync(new URL(`../../${file}`, import.meta.url), 'utf8');
+/** Les fins de ligne CRLF sont ramenees a LF AVANT toute recherche. Ce depot porte
+ *  `core.autocrlf = true` et aucun `.gitattributes` : le depot principal est en LF, mais
+ *  tout clone ou worktree neuf recoit les sources en CRLF. Un motif ecrit avec un saut de
+ *  ligne simple n'y trouve alors plus rien, et le releve tombe SANS que le code ait change.
+ *  Mesure du 2026-11-06 : 3 echecs en worktree, 0 dans le depot principal, au meme commit. */
+const read = (file: string) =>
+  readFileSync(new URL(`../../${file}`, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
 /*
  * Copie fidele de l'arbre reel de David, avec des identifiants lisibles :

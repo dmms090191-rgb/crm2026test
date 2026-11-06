@@ -31,7 +31,12 @@ import { readFileSync } from "node:fs";
  *     resolution d'imports ne distingue pas les imports de type. D'ou le jumeau.
  */
 
-const lire = (f: string) => readFileSync(f, "utf8");
+/** Les fins de ligne CRLF sont ramenees a LF AVANT toute recherche. Ce depot porte
+ *  `core.autocrlf = true` et aucun `.gitattributes` : le depot principal est en LF, mais
+ *  tout clone ou worktree neuf recoit les sources en CRLF. Un motif ecrit avec un saut de
+ *  ligne simple n'y trouve alors plus rien, et le releve tombe SANS que le code ait change.
+ *  Mesure du 2026-11-06 : 3 echecs en worktree, 0 dans le depot principal, au meme commit. */
+const lire = (f: string) => readFileSync(f, "utf8").replace(/\r\n/g, "\n");
 
 // Les commentaires citent volontiers ce qu'ils interdisent : on les retire avant de
 // chercher un appel. Precedent du depot : alertesDansNotifications.test.ts.
