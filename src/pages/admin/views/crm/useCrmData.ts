@@ -3,6 +3,7 @@ import { useWorkMode } from '../../../../hooks/useWorkMode';
 import { useSimulation } from '../../../../contexts/SimulationContext';
 import { useCompanyId } from '../../../../hooks/useCompanyId';
 import { supabase } from '../../../../lib/supabase';
+import { telDuLead, telCorrespond } from '../../../../lib/formatTel';
 import type { ImportedLead, Vendor, StatutDef } from './types';
 
 export function useCrmData() {
@@ -89,7 +90,7 @@ export function useCrmData() {
     if (!companyId) return;
     const { data } = await supabase
       .from('leads')
-      .select('id, data, imported_at, statut, actif, vendor_id, ai_enabled')
+      .select('id, data, telephone, imported_at, statut, actif, vendor_id, ai_enabled')
       .eq('company_id', companyId)
       .order('imported_at', { ascending: false })
       .order('id', { ascending: true });
@@ -189,11 +190,13 @@ export function useCrmData() {
       const nom = (l.data['Nom'] ?? '').toLowerCase();
       const prenom = (l.data['Prenom'] ?? '').toLowerCase();
       const email = (l.data['Email'] ?? '').toLowerCase();
-      const tel = (l.data['Telephone'] ?? '').toLowerCase();
       if (filterNom && !nom.includes(filterNom.toLowerCase())) return false;
       if (filterPrenom && !prenom.includes(filterPrenom.toLowerCase())) return false;
       if (filterEmail && !email.includes(filterEmail.toLowerCase())) return false;
-      if (filterTel && !tel.includes(filterTel.toLowerCase())) return false;
+      /* La source passe par la cascade : le filtre voyait 13 numeros sur 33, il en voit
+         maintenant 33. Et la comparaison tolere le format, sinon recopier le numero affiche
+         en `+33` ne trouverait pas un lead stocke en `06 ...`. Purement additif. */
+      if (filterTel && !telCorrespond(telDuLead(l), filterTel)) return false;
       if (statutFilter === 'sans_statut') {
         const nomStatut = l.statut ?? '';
         if (nomStatut !== '' && nomStatut !== 'Nouveau') return false;

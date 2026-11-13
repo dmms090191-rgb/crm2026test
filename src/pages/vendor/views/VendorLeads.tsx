@@ -19,6 +19,7 @@ import { useActionMenuOrder } from '../../../components/action-menu/useActionMen
 import ToolbarOrganizerModal from '../../../components/toolbar/ToolbarOrganizerModal';
 import type { ToolbarItem } from '../../../components/toolbar/ToolbarOrganizerModal';
 import type { VendorLeadsProps } from './vendorLeadsTypes';
+import SelecteurFormatTel from '../../../components/telephone/SelecteurFormatTel';
 
 const VENDOR_LEADS_COLUMNS = [
   { key: 'hash', label: '#' },
@@ -139,6 +140,16 @@ export default function VendorLeads({ vendorId, onOpenChat, onConnectAsClient, o
         mobileFiltersOpen={d.mobileFiltersOpen} setMobileFiltersOpen={d.setMobileFiltersOpen}
         tokens={tokens}
       />
+
+      {/* LE SELECTEUR DE FORMAT, AU-DESSUS DES DEUX PRESENTATIONS.
+          Il est pose ICI, entre les filtres et la carte du tableau, et non dans la barre
+          d'outils : la barre est montee DEUX FOIS, une par branche `md:`, et le selecteur y
+          aurait existe en double. Un seul montage sert donc le tableau et les cartes, et le
+          reglage ne peut pas se desynchroniser entre les deux.
+
+          Rien ne s'affiche quand la liste est vide : un reglage de format d'appel devant zero
+          numero n'est pas un reglage, c'est du bruit. */}
+      {!showLoading && d.leads.length > 0 && <SelecteurFormatTel />}
 
       <div className="rounded-2xl overflow-hidden" style={{ background: tokens.card.bg, border: `1px solid ${tokens.card.border}`, boxShadow: tokens.card.shadow }}>
         {showLoading ? (

@@ -5,6 +5,8 @@ import { getStatutCfg, FALLBACK_COLOR } from '../../../admin/views/crm/utils';
 import MobileStatutModal from '../../../admin/views/crm/MobileStatutModal';
 import CheckBox from '../../../admin/views/crm/CheckBox';
 import CopyButton from '../../../../components/CopyButton';
+import { useFormatTel } from '../../../../hooks/useFormatTel';
+import { telDuLead, formaterTel } from '../../../../lib/formatTel';
 import VendorLeadActionModal from './VendorLeadActionModal';
 import type { ImportedLead, StatutDef } from '../vendorLeadsTypes';
 import type { ColumnDef } from '../../../../components/table/useColumnOrder';
@@ -63,7 +65,15 @@ const VendorLeadDesktopRow = forwardRef<HTMLTableRowElement, Props>(({
   const nom = lead.data['Nom'] ?? '';
   const prenom = lead.data['Prenom'] ?? '';
   const email = lead.data['Email'] ?? '';
-  const tel = lead.data['Telephone'] ?? '';
+  /* DEUX VARIABLES, ET LA DISTINCTION COMPTE.
+     `tel` est le numero tel qu'il est EN BASE, via la cascade qui regarde la colonne plate
+     avant le JSONB : c'est une DONNEE, et c'est elle qu'on transmet au chat, au rendez-vous
+     et a la fiche. `telAffiche` est la meme donnee REECRITE dans le format choisi : c'est de
+     l'affichage, et rien d'autre. Confondre les deux ferait voyager un format d'ecran dans
+     des enregistrements. Aucune des deux n'est jamais ecrite dans `leads`. */
+  const { format } = useFormatTel();
+  const tel = telDuLead(lead);
+  const telAffiche = formaterTel(tel, format);
   const statut = lead.statut || 'Nouveau';
   const isNeutral = statut === 'Nouveau';
   const statutDef = statutDefs.find(s => s.nom === statut);
@@ -144,7 +154,7 @@ const VendorLeadDesktopRow = forwardRef<HTMLTableRowElement, Props>(({
               {tel ? (
                 <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg" style={{ background: tokens.surface.secondary }}>
                   <Phone className="w-3 h-3 flex-shrink-0" style={{ color: tokens.table.cellIcon }} />
-                  <span className="text-xs" style={{ color: tokens.table.cellTextMuted }}>{tel}</span>
+                  <span className="text-xs" style={{ color: tokens.table.cellTextMuted }}>{telAffiche}</span>
                 </div>
               ) : (
                 <span className="text-xs" style={{ color: tokens.text.quaternary }}>{'\u2014'}</span>
@@ -182,7 +192,7 @@ const VendorLeadDesktopRow = forwardRef<HTMLTableRowElement, Props>(({
               </button>
               {actionsOpen && (
                 <VendorLeadActionModal
-                  lead={{ nom, prenom, email, tel }}
+                  lead={{ nom, prenom, email, tel: telAffiche }}
                   tokens={tokens}
                   onClose={() => setActionsOpen(false)}
                   onDetail={() => onDetail(lead, index)}

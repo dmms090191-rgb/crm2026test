@@ -23,6 +23,9 @@ import { useActionMenuOrder } from '../../../components/action-menu/useActionMen
 import ToolbarOrganizerModal from '../../../components/toolbar/ToolbarOrganizerModal';
 import type { ToolbarItem } from '../../../components/toolbar/ToolbarOrganizerModal';
 import { useVendorColumnConfig } from './crm/useVendorColumnConfig';
+import SelecteurFormatTel from '../../../components/telephone/SelecteurFormatTel';
+import { useFormatTel } from '../../../hooks/useFormatTel';
+import { telDuLead, formaterTel } from '../../../lib/formatTel';
 
 export type { ImpersonatedClient, ChatLead } from './crm/types';
 
@@ -49,6 +52,7 @@ export default function Crm({ ownerUserId = null, onConnectAsClient, onOpenChat,
   const displayColumns = useMemo(() => allColumns.map(c => colOrder.labelOverrides[c.key] ? { ...c, label: colOrder.labelOverrides[c.key] } : c), [allColumns, colOrder.labelOverrides]);
   const colMap = useMemo(() => new Map(displayColumns.map(c => [c.key, c])), [displayColumns]);
   const vendorTabConfig = useVendorColumnConfig(companyId);
+  const { format: formatTel } = useFormatTel();
 
   const CRM_TOOLBAR_DEFAULT = ['select', 'ia', 'workmode', 'columns', 'organize'];
   const tbOrder = useActionMenuOrder('talvex_toolbar_order_admin_crm', CRM_TOOLBAR_DEFAULT);
@@ -73,7 +77,10 @@ export default function Crm({ ownerUserId = null, onConnectAsClient, onOpenChat,
 
   function leadSummary(lead: ImportedLead) {
     const g = (k: string) => lead.data[k] ?? '';
-    return { id: lead.id, nom: g('Nom'), prenom: g('Prenom'), email: g('Email'), tel: g('Telephone') };
+    /* `telDuLead` et non `g('Telephone')` : ce chemin-la souffrait du meme aveuglement que
+       les lignes et les cartes. Le numero reste BRUT ici — c'est la donnee transmise au chat
+       et au rendez-vous ; seul l'affichage de la fiche le reecrit. */
+    return { id: lead.id, nom: g('Nom'), prenom: g('Prenom'), email: g('Email'), tel: telDuLead(lead) };
   }
 
   return (
@@ -93,6 +100,16 @@ export default function Crm({ ownerUserId = null, onConnectAsClient, onOpenChat,
         sortOrder={d.sortOrder} setSortOrder={d.setSortOrder}
         vendors={d.vendors} statutDefs={d.statutDefs} tokens={tokens}
       />
+
+      {/* LE SELECTEUR DE FORMAT, AU-DESSUS DES DEUX PRESENTATIONS.
+          Il est pose ICI, entre les filtres et la carte du tableau, et non dans la barre
+          d'outils : la barre est montee DEUX FOIS, une par branche `md:`, et le selecteur y
+          aurait existe en double. Un seul montage sert donc le tableau et les cartes, et le
+          reglage ne peut pas se desynchroniser entre les deux.
+
+          Rien ne s'affiche quand la liste est vide : un reglage de format d'appel devant zero
+          numero n'est pas un reglage, c'est du bruit. */}
+      {!d.loading && d.leads.length > 0 && <SelecteurFormatTel />}
 
       <div className="rounded-2xl overflow-hidden" style={{ background: `linear-gradient(135deg, ${tokens.surface.secondary}, ${tokens.surface.secondary}80)`, border: `1px solid ${tokens.surface.border}`, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), 0 1px 2px rgba(0,0,0,0.04)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
         {d.loading ? (
@@ -219,7 +236,7 @@ export default function Crm({ ownerUserId = null, onConnectAsClient, onOpenChat,
         const s = leadSummary(actionLeadModal.lead);
         return (
           <CrmActionModal
-            lead={{ nom: s.nom, prenom: s.prenom, email: s.email, tel: s.tel }} tokens={tokens}
+            lead={{ nom: s.nom, prenom: s.prenom, email: s.email, tel: formaterTel(s.tel, formatTel) }} tokens={tokens}
             onClose={() => setActionLeadModal(null)}
             onDetail={() => { const m = actionLeadModal; setActionLeadModal(null); d.setDetailLead({ lead: m.lead, index: m.index, fromActions: true }); }}
             onConnect={() => { onConnectAsClient?.({ id: s.id, nom: s.nom, prenom: s.prenom, email: s.email }); setActionLeadModal(null); }}

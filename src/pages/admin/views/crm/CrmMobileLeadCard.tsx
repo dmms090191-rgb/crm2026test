@@ -5,6 +5,9 @@ import { getInitials, gradients, getStatutCfg, FALLBACK_COLOR } from './utils';
 import CheckBox from './CheckBox';
 import MobileStatutModal from './MobileStatutModal';
 import CopyButton from '../../../../components/CopyButton';
+import BoutonAppel from '../../../../components/telephone/BoutonAppel';
+import { useFormatTel } from '../../../../hooks/useFormatTel';
+import { telDuLead, formaterTel } from '../../../../lib/formatTel';
 import CrmActionModal from './CrmActionModal';
 import type { ImportedLead, StatutDef, Vendor, ImpersonatedClient, ChatLead } from './types';
 
@@ -58,7 +61,15 @@ export default function CrmMobileLeadCard({
   const nom = lead.data['Nom'] ?? '';
   const prenom = lead.data['Prenom'] ?? '';
   const email = lead.data['Email'] ?? '';
-  const tel = lead.data['Telephone'] ?? '';
+  /* DEUX VARIABLES, ET LA DISTINCTION COMPTE.
+     `tel` est le numero tel qu'il est EN BASE, via la cascade qui regarde la colonne plate
+     avant le JSONB : c'est une DONNEE, et c'est elle qu'on transmet au chat, au rendez-vous
+     et a la fiche. `telAffiche` est la meme donnee REECRITE dans le format choisi : c'est de
+     l'affichage, et rien d'autre. Confondre les deux ferait voyager un format d'ecran dans
+     des enregistrements. Aucune des deux n'est jamais ecrite dans `leads`. */
+  const { format } = useFormatTel();
+  const tel = telDuLead(lead);
+  const telAffiche = formaterTel(tel, format);
   const statut = lead.statut || 'Nouveau';
   const initials = getInitials(nom, prenom);
   const grad = gradients[index % gradients.length];
@@ -132,7 +143,10 @@ export default function CrmMobileLeadCard({
         {tel && (
           <div className="flex items-center gap-2">
             <Phone className="w-3.5 h-3.5 flex-shrink-0" style={{ color: tokens.table.cellIcon }} />
-            <span className="text-xs" style={{ color: tokens.table.cellTextMuted }}>{tel}</span>
+            <span className="text-xs flex-1 min-w-0" style={{ color: tokens.table.cellTextMuted }}>{telAffiche}</span>
+            {/* A droite de la ligne, la ou la ligne email porte deja son bouton de copie :
+                le pouce trouve l'action au meme endroit d'une ligne a l'autre. */}
+            <BoutonAppel tel={tel} format={format} />
           </div>
         )}
       </div>
@@ -198,7 +212,7 @@ export default function CrmMobileLeadCard({
         </button>
         {actionsOpen && (
           <CrmActionModal
-            lead={{ nom, prenom, email, tel }}
+            lead={{ nom, prenom, email, tel: telAffiche }}
             tokens={tokens}
             onClose={() => setActionsOpen(false)}
             onDetail={() => onDetail(lead, index, true)}

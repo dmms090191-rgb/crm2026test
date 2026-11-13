@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '../../../../lib/supabase';
 import { useWorkMode } from '../../../../hooks/useWorkMode';
 import { useCompanyId } from '../../../../hooks/useCompanyId';
+import { telDuLead, telCorrespond } from '../../../../lib/formatTel';
 import type { ImportedLead, StatutDef } from '../vendorLeadsTypes';
 
 export function useVendorLeadsData(vendorId: string | null) {
@@ -40,7 +41,7 @@ export function useVendorLeadsData(vendorId: string | null) {
     const [leadsRes, statutsRes] = await Promise.all([
       supabase
         .from('leads')
-        .select('id, data, imported_at, statut, actif, vendor_id, ai_enabled')
+        .select('id, data, telephone, imported_at, statut, actif, vendor_id, ai_enabled')
         .eq('vendor_id', vendorId)
         .order('imported_at', { ascending: false })
         .order('id', { ascending: true }),
@@ -134,13 +135,14 @@ export function useVendorLeadsData(vendorId: string | null) {
     const fNom = filterNom.toLowerCase();
     const fPrenom = filterPrenom.toLowerCase();
     const fEmail = filterEmail.toLowerCase();
-    const fTel = filterTel.toLowerCase();
 
     const result = leads.filter(l => {
       if (fNom && !(l.data['Nom'] ?? '').toLowerCase().includes(fNom)) return false;
       if (fPrenom && !(l.data['Prenom'] ?? '').toLowerCase().includes(fPrenom)) return false;
       if (fEmail && !(l.data['Email'] ?? '').toLowerCase().includes(fEmail)) return false;
-      if (fTel && !(l.data['Telephone'] ?? '').toLowerCase().includes(fTel)) return false;
+      /* Meme correction que cote Societe : source en cascade, comparaison tolerante au
+         format. Voir `telCorrespond` dans `lib/formatTel.ts`. */
+      if (filterTel && !telCorrespond(telDuLead(l), filterTel)) return false;
       if (statutFilter === 'sans_statut') {
         const nomStatut = l.statut ?? '';
         if (nomStatut !== '' && nomStatut !== 'Nouveau') return false;
