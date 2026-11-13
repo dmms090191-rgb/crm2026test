@@ -68,7 +68,8 @@ export function useTalixyMobileNav(
   useEffect(() => {
     if (!actif) return;
     let vivant = true;
-    supabase.auth.getUser().then(({ data: { user } }) => { if (vivant && user) setUserId(user.id); });
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const user = session?.user; if (vivant && user) setUserId(user.id); });
     return () => { vivant = false; };
   }, [actif]);
 

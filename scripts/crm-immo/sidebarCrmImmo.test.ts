@@ -141,9 +141,34 @@ test("le code source ne porte JAMAIS le droit dans un drapeau hidden", () => {
      Record<string, ReactNode>, pas Record<ActiveView, ...>) et rend un <span> vide. */
   assert.ok(/'crm-immo':\s*<\w+/.test(navigation), "l icone de 'crm-immo' manque dans ICONS");
 
-  /* Le rendu doit attendre que le droit soit resolu avant de pouvoir enregistrer un ordre. */
-  assert.ok(sidebar.includes("!layout.loaded || !crmImmoResolu"),
-    "le rendu n attend pas que le droit soit resolu : une validation ecrirait un ordre sans CRM Immo");
+  /*
+   * AUCUN ORDRE NE PEUT ETRE ENREGISTRE TANT QUE LE DROIT N'EST PAS RESOLU.
+   *
+   * C'est l'intention de ce releve depuis le depart, et elle n'a pas bouge : valider un
+   * ordre pendant que `crm-immo` n'existe pas encore dans `sections` ecrirait un blob SANS
+   * lui, et reconcileLayout le re-ajouterait ensuite en fin de liste, hors de son
+   * compartiment.
+   *
+   * CE QUI A CHANGE LE 13/11/2026, C'EST LE MECANISME. Le rendu entier attendait
+   * `crmImmoResolu` — tout le menu de la Societe restait en squelette pendant une RPC que
+   * ce depot mesure lui-meme a 23 038 ms, et jusqu'a 33 838 ms, pour 101 ms de calcul.
+   * Onze autres onglets, qui ne dependent de rien, etaient caches avec lui ; et quand le
+   * navigateur du telephone renoncait avant la reponse, le menu ne revenait JAMAIS.
+   *
+   * La garde est donc posee a l'endroit du danger, qui est l'ECRITURE et non l'affichage :
+   * `onReorganize` n'est fourni qu'une fois le droit resolu, et SidebarFooterActions ne
+   * rend le bouton « Reorganiser » que si cette fonction existe. Sans ce bouton,
+   * `startReorder` n'est jamais appele, `reordering` reste faux, et `confirmReorder` —
+   * seul ecrivain — est hors d'atteinte. La chaine est fermee au premier maillon.
+   *
+   * On interroge donc le CODE prive de ses commentaires : l'explication ci-dessus, comme
+   * celle du composant, contient les mots qu'on verifie.
+   */
+  const sidebarCode = sansCommentaires(sidebar);
+  assert.ok(/onReorganize=\{crmImmoResolu \? [^}]*: undefined\}/.test(sidebarCode),
+    "le bouton Reorganiser n est pas garde par crmImmoResolu : une validation ecrirait un ordre sans CRM Immo");
+  assert.ok(!/\bonReorganize=\{layout\.startReorder\}/.test(sidebarCode),
+    "onReorganize est passe sans garde : le droit pourrait ne pas etre resolu au moment de la validation");
 });
 
 test("l entree exportee est bien celle attendue", () => {

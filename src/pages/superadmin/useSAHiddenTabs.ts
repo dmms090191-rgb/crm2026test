@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
 import { cacheKey, readCache, writeCache } from '../../lib/hiddenTabsCache';
+import { lireSaHiddenTabs } from '../../lib/preferencesUtilisateur';
 
 export const PROTECTED_TAB_IDS = ['dashboard', 'mon-compte', 'system'];
 const PROTECTED_TABS = new Set(PROTECTED_TAB_IDS);
@@ -34,14 +35,11 @@ export function useSAHiddenTabs(userId: string | null) {
   useEffect(() => {
     if (!userId) return;
     (async () => {
-      const { data } = await supabase
-        .from('user_preferences')
-        .select('sa_hidden_tabs')
-        .eq('user_id', userId)
-        .maybeSingle();
-      const resolved: string[] = (data?.sa_hidden_tabs && Array.isArray(data.sa_hidden_tabs))
-        ? (data.sa_hidden_tabs as string[])
-        : [];
+      /* Lecture mutualisee : cette colonne vit sur la MEME ligne que `sidebar_orders`,
+         que le menu lit au meme instant. Une seule requete sert donc les deux, au lieu
+         des deux qui partaient cote a cote. Voir src/lib/preferencesUtilisateur.ts. */
+      const brut = await lireSaHiddenTabs(userId);
+      const resolved: string[] = Array.isArray(brut) ? (brut as string[]) : [];
       const key = cacheKey('super_admin', null, userId);
       writeCache(key, resolved);
       setState({ key, tabs: sanitize(resolved), loaded: true });

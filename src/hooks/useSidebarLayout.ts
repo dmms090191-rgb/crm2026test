@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '../lib/supabase';
+import { lireSidebarOrders } from '../lib/preferencesUtilisateur';
 import {
   defaultEntries, reconcileLayout, visibleEntries, toLayout,
   moveEntry, addSectionEntry, addDividerEntry, removeEntry, renameEntry, toggleHiddenEntry,
@@ -39,13 +40,11 @@ function writeCache(key: string, layout: SidebarLayout) {
   try { localStorage.setItem(key, JSON.stringify(layout)); } catch { /* noop */ }
 }
 
+/* La LECTURE passe par le lecteur mutualise : cinq autres crochets demandent la meme
+   colonne de la meme ligne, et chacun envoyait sa propre requete. Voir
+   src/lib/preferencesUtilisateur.ts. L'ecriture, plus bas, garde sa relecture directe. */
 async function loadRemote(entity: string, panel: LayoutPanel): Promise<SidebarLayout | null> {
-  const { data } = await supabase
-    .from('user_preferences')
-    .select('sidebar_orders')
-    .eq('user_id', entity)
-    .maybeSingle();
-  const all = (data?.sidebar_orders ?? null) as Record<string, unknown> | null;
+  const all = await lireSidebarOrders(entity);
   const raw = all?.[layoutKey(panel)];
   return raw ? (raw as SidebarLayout) : null;
 }
@@ -95,7 +94,35 @@ export function useSidebarLayout({ panel, entityUserId, sections, protectedIds }
   const lsKey = entity ? cacheKey(panel, entity) : '';
 
   const [entries, setEntries] = useState<LayoutEntry[]>(defaults);
-  const [loaded, setLoaded] = useState(false);
+  /*
+   * ---------- `loaded` DIT « J'AI DE QUOI PEINDRE », PAS « LA BASE A REPONDU » ----------
+   *
+   * Il part donc a VRAI, et c'est le corps de ce hook qui le justifie : la ligne
+   * au-dessus a deja rempli `entries` avec les onglets par defaut, qui sont corrects —
+   * c'est la declaration du panel, pas un remplissage d'attente.
+   *
+   * L'ancien sens — « la base a repondu, ou le cache local existait » — avait un defaut
+   * qu'aucune relecture de CE fichier ne pouvait montrer : la cle du cache local, juste
+   * en dessous, contient l'identifiant du compte. Tant que l'appelant ne l'a pas,
+   * `lsKey` est vide, le bloc de relecture ne s'execute pas, et `loaded` reste faux.
+   * Le menu attendait donc le RESEAU pour afficher des onglets qui n'en dependaient
+   * pas — le cache-first etait neutralise par sa propre cle.
+   *
+   * MESURE DU 13/11/2026, harnais montant ce hook derriere un client instrumente aux
+   * latences de production : les 33 onglets du panel Talvex etaient calcules a 4 ms, et
+   * le menu n'apparaissait qu'a 813 ms. Les 809 ms d'ecart n'achetaient rien : aux deux
+   * instants, la liste peinte est la meme, a l'ordre personnalise pres.
+   *
+   * CE QUE CELA COUTE, ET POURQUOI C'EST LE BON COMPROMIS. A la toute premiere visite
+   * sur un appareil, le menu peut se reordonner une fois quand la base repond. Aux
+   * visites suivantes, le cache local porte deja l'ordre : aucun saut. L'alternative
+   * etait un ecran de squelette systematique, y compris pour un ordre jamais
+   * personnalise — donc pour rien, dans l'immense majorite des cas.
+   *
+   * La base reste seule autorite : elle ecrase ce qui est peint des qu'elle repond, et
+   * aucune ecriture ne part d'ici.
+   */
+  const [loaded, setLoaded] = useState(true);
   const [reordering, setReordering] = useState(false);
   const [draft, setDraft] = useState<LayoutEntry[]>([]);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -106,7 +133,6 @@ export function useSidebarLayout({ panel, entityUserId, sections, protectedIds }
     cacheRead.current = lsKey;
     const cached = readCache(lsKey);
     setEntries(reconcileLayout(defaults, cached, panel, entity));
-    setLoaded(cached !== null);
   }
 
   useEffect(() => {

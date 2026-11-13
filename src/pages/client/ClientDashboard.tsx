@@ -82,7 +82,8 @@ export default function ClientDashboard({ onLogout, impersonatedClient, onBackTo
       }
       return;
     }
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      const user = session?.user;
       if (!user) return;
       const email = user.email ?? '';
       setClientEmail(email);

@@ -139,14 +139,30 @@ export default function Sidebar({ activeView, onNavigate, collapsed, onCollapse,
         style={{ background: editorZone2Bg || t.sidebar.bg }}
       >
         {/*
-          On attend AUSSI que le droit soit resolu, et pas seulement le layout.
-          Valider un ordre d'onglets pendant que `crm-immo` n'existe pas encore dans
-          `sections` ecrirait un blob SANS lui ; reconcileLayout le re-ajouterait
-          ensuite en FIN de liste, hors de son compartiment, et la Societe ne saurait
-          pas pourquoi son onglet a demenage. La RPC part en parallele du chargement
-          du layout, qui interroge deja la base : le cout est de l'ordre du bruit.
+          ---------- LE MENU NE SE CACHE PLUS DERRIERE LE DROIT CRM IMMO ----------
+
+          L'ancienne redaction attendait `crmImmoResolu` pour peindre QUOI QUE CE SOIT, et
+          la raison en etait bonne : valider un ordre d'onglets pendant que `crm-immo`
+          n'existe pas encore dans `sections` ecrirait un blob SANS lui ; reconcileLayout
+          le re-ajouterait ensuite en FIN de liste, hors de son compartiment, et la
+          Societe ne saurait pas pourquoi son onglet a demenage.
+
+          Mais ce risque ne vient pas de l'AFFICHAGE : il vient de l'ECRITURE. Le prix
+          paye etait donc hors de proportion — ce depot mesure lui-meme cette RPC a
+          23 038 ms, et jusqu'a 33 838 ms, pour 101 ms de calcul (voir le bloc TRANSPORT
+          CONTRE SERVEUR de src/lib/crmImmoAccess.ts, releve du 26/10/2026). Tout le menu
+          de la Societe restait en squelette pendant ce temps, pour onze autres onglets
+          qui ne dependaient de rien.
+
+          On peint donc tout de suite, et on ferme la porte a l'endroit du danger :
+          `onReorganize` plus bas n'est fourni qu'une fois le droit resolu. Tant qu'il ne
+          l'est pas, le bouton « Reorganiser » n'existe pas (SidebarFooterActions ne le
+          rend que si la fonction est passee), donc aucun blob ne peut partir sans
+          `crm-immo`. L'onglet, lui, s'insere a sa place dans « Principal » des que la RPC
+          repond — meme mecanique que PwaMobileShell, qui peint deja sa barre d'onglets
+          sans CRM Immo en attendant.
         */}
-        {!layout.loaded || !crmImmoResolu ? (
+        {!layout.loaded ? (
           <SidebarSkeleton collapsed={collapsed} tokens={t} />
         ) : (
         <SidebarLayoutControls
@@ -183,7 +199,10 @@ export default function Sidebar({ activeView, onNavigate, collapsed, onCollapse,
           collapsed={collapsed}
           onLogout={onLogout}
           onCollapse={onCollapse}
-          onReorganize={layout.startReorder}
+          /* Pas de reorganisation tant que le droit CRM Immo n'est pas tranche : c'est
+             ICI, et non dans l'affichage, que se trouvait le vrai danger. Voir le bloc
+             d'explication au-dessus de SidebarSkeleton. */
+          onReorganize={crmImmoResolu ? layout.startReorder : undefined}
           reordering={layout.reordering}
           tokens={t}
           rdrFontFamily={rdrFont}

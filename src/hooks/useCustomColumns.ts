@@ -25,15 +25,32 @@ export function useCustomColumns(tableKey: string) {
   const [customValues, setCustomValues] = useState<Map<string, Map<string, string>>>(new Map());
   const [rawColumns, setRawColumns] = useState<CustomColumnRow[]>([]);
 
+  /*
+   * getSession et non getUser, et ce chemin-ci est le plus cher des trois.
+   *
+   * Ce crochet est monte par QUATRE vues — CRM de la Societe, CRM Societes de Talvex,
+   * Liste admins, Leads du Commercial — et son chargement part a chaque montage (effet
+   * plus bas). L'identifiant ne sert qu'a cadrer la requete suivante sur `owner_id` : il
+   * etait donc demande au serveur, puis attendu, AVANT que la requete des colonnes puisse
+   * seulement partir. Deux allers-retours en file indienne pour un identifiant deja
+   * present dans le jeton en stockage.
+   *
+   * Le cadrage ne change pas d'un caractere : `owner_id` reste filtre sur le meme
+   * identifiant, issu du meme jeton signe. Seul l'aller-retour qui allait le chercher
+   * disparait. Voir SuperAdminSidebar pour la mesure du verrou global de supabase-js.
+   *
+   * La ligne de `createColumn`, plus bas, n'est PAS modifiee : elle ne part pas au
+   * montage mais sur un geste explicite, ou un aller-retour ne coute rien a personne.
+   */
   const loadColumns = useCallback(async () => {
-    const { data: userData } = await supabase.auth.getUser();
-    if (!userData?.user) return;
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) return;
 
     const { data } = await supabase
       .from('custom_columns')
       .select('*')
       .eq('table_key', tableKey)
-      .eq('owner_id', userData.user.id)
+      .eq('owner_id', session.user.id)
       .order('position', { ascending: true });
 
     if (!data) return;

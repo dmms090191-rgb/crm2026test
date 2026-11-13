@@ -103,7 +103,8 @@ export default function SAAdmins({ onConnectAsAdmin, onOpenChat, cachedAdmins, r
   }, []);
 
   useEffect(() => { loadOrder(); }, [loadOrder]);
-  useEffect(() => { supabase.auth.getUser().then(({ data: { user } }) => { if (user) setCurrentUserId(user.id); }); }, []);
+  useEffect(() => { supabase.auth.getSession().then(({ data: { session } }) => {
+   const user = session?.user; if (user) setCurrentUserId(user.id); }); }, []);
 
   /* Qui possede CRM Immo. Lu a part, parce que list-admins ne le renvoie pas. */
   const { actives: crmImmoActives, recharger: rechargerCrmImmo } = useCrmImmoAcces();

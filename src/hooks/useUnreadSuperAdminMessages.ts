@@ -25,7 +25,8 @@ export function useUnreadSuperAdminMessages() {
   // jamais depender de la RLS pour leur cadrage.
   const [superAdminId, setSuperAdminId] = useState<string | null>(null);
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const user = session?.user;
       if (user) setSuperAdminId(user.id);
     });
   }, []);

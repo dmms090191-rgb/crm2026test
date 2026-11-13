@@ -82,14 +82,36 @@ test("A2 aucune migration : la preference entre dans une structure qui existe de
    * doivent viser la meme table, sinon on lit a un endroit et on ecrit a un autre.
    */
   const code = sansCommentaires(lire(DISTANT));
-  /* TROIS acces, et il faut les compter tous : la lecture, la relecture qui precede
-     l'ecriture, et l'upsert lui-meme. J'avais ecrit deux, en oubliant l'upsert — le releve
-     rougissait sur un fichier correct. Compter exige de savoir ce qu'on compte. */
+  /*
+   * DEUX acces directs depuis le 13/11/2026, et non plus trois : la relecture qui precede
+   * l'ecriture, et l'upsert lui-meme.
+   *
+   * La LECTURE est partie dans src/lib/preferencesUtilisateur.ts, le lecteur mutualise —
+   * six crochets demandaient la meme ligne de la meme table, chacun avec sa propre
+   * requete. Ce releve suit donc la lecture la ou elle est allee, plutot que de constater
+   * sa disparition : la regle qu'il protege n'a pas change d'un mot, lecture et ecriture
+   * doivent viser la MEME table, sinon on lit a un endroit et on ecrit a un autre.
+   *
+   * L'ecriture, elle, garde sa relecture DIRECTE et non mutualisee. C'est voulu : elle
+   * doit voir l'etat reel de la base avant de fusionner les neuf autres cles, sinon
+   * l'upsert repartirait avec des cles perimees. Les deux assertions ci-dessous verrouillent
+   * ce partage des roles — deux acces directs, pas un de plus, pas un de moins.
+   */
   const tables = (code.match(/from\('user_preferences'\)/g) ?? []).length;
-  assert.equal(tables, 3, `les TROIS acces doivent viser user_preferences, ${tables} trouve(s)`);
+  assert.equal(tables, 2, `les DEUX acces d ecriture doivent viser user_preferences, ${tables} trouve(s)`);
   assert.match(code, /select\('sidebar_orders'\)/, "la preference n'est plus rangee dans sidebar_orders");
   assert.ok(!/from\('(?!user_preferences)[^']+'\)/.test(code),
     "une autre table est interrogee : la preference a change de foyer");
+
+  /* La lecture passe par le lecteur mutualise, et ce lecteur vise bien user_preferences :
+     sans ce second maillon, la regle serait verifiee sur un fichier qui ne lit plus rien. */
+  assert.match(code, /lireSidebarOrders\(/,
+    "la lecture ne passe plus par le lecteur mutualise : ou lit-elle ?");
+  const lecteur = sansCommentaires(lire("src/lib/preferencesUtilisateur.ts"));
+  assert.match(lecteur, /from\('user_preferences'\)/,
+    "le lecteur mutualise n interroge plus user_preferences : lecture et ecriture ont diverge");
+  assert.ok(!/from\('(?!user_preferences)[^']+'\)/.test(lecteur),
+    "le lecteur mutualise interroge une autre table");
 });
 
 test("A3 la lecture d'un stockage abime ne vide pas le tableau", () => {

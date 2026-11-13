@@ -101,7 +101,8 @@ export default function VendorDashboard({ onLogout, impersonatedVendor, onBackTo
       setVendorDbId(impersonatedVendor.id);
       return;
     }
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      const user = session?.user;
       if (!user) return;
       if (user?.user_metadata) {
         const { first_name, last_name } = user.user_metadata;

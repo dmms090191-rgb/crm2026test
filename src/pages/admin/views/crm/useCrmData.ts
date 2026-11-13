@@ -98,8 +98,13 @@ export function useCrmData() {
     setLoading(false);
   }, [companyId]);
 
+  /* getSession et non getUser : seul l'identifiant est lu ici, et il est deja dans le jeton
+     en stockage. Le CRM est demonte et remonte a chaque changement d'onglet — un
+     aller-retour serveur ici se payait donc a CHAQUE passage, et retardait au passage toutes
+     les requetes du panel via le verrou global de supabase-js. Voir SuperAdminSidebar pour
+     la mesure complete. */
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => { if (data.user) setAuthUserId(data.user.id); });
+    supabase.auth.getSession().then(({ data: { session } }) => { if (session?.user) setAuthUserId(session.user.id); });
   }, []);
 
   useEffect(() => {

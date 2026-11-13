@@ -167,7 +167,8 @@ export default function PwaMobileShell({ role, onLogout }: Props) {
   }, [companyId]);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const user = session?.user;
       if (!user) return;
       setUserId(user.id);
       setUserEmail(user.email ?? '');
@@ -178,7 +179,8 @@ export default function PwaMobileShell({ role, onLogout }: Props) {
 
   useEffect(() => {
     if (role !== 'vendor') return;
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const user = session?.user;
       if (!user) return;
       supabase.from('vendors').select('id').eq('auth_user_id', user.id).maybeSingle()
         .then(({ data }) => { if (data) setVendorDbId(data.id); });

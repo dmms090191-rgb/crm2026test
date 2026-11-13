@@ -110,14 +110,38 @@ export default function SuperAdminSidebar({ activeView, onNavigate, collapsed, o
   const [userId, setUserId] = useState<string | null>(null);
   const [companyId, setCompanyId] = useState<string | null>(null);
 
+  /*
+   * getSession et non getUser — meme raison que Sidebar.tsx:50, et meme mesure.
+   *
+   * On ne veut d'ici que l'identifiant du compte et son company_id : tous deux sont DEJA
+   * dans le jeton en stockage, qu'il suffit donc de lire. getUser, lui, interroge le
+   * serveur, et tous les appels auth de supabase-js passent par un verrou global que
+   * chaque requete REST doit prendre a son tour pour obtenir son jeton.
+   *
+   * MESURE DU 13/11/2026, harnais montant ce menu derriere un client instrumente aux
+   * latences relevees en production (auth 398 ms, REST 408 ms) :
+   *   - avec getUser ... menu visible a 813 ms, les 33 onglets etant deja calcules a 4 ms ;
+   *   - avec getSession  menu visible a 411 ms, pour le MEME hook et le meme cache vide.
+   * Les 402 ms d'ecart sont l'aller-retour, et il est en SERIE devant la lecture des
+   * preferences, qui ne peut pas partir avant d'avoir l'identifiant.
+   *
+   * Sur le panel monte deux fois (tiroir mobile + colonne bureau, SuperAdminDashboard),
+   * les deux getUser se SERIALISENT sur ce verrou — 0->400 ms puis 0->799 ms au meme
+   * relevé — et repoussent les quatre lectures REST a 1208 ms, toutes finissant au meme
+   * instant. C'est la signature de paquet relevee dans les journaux de production.
+   *
+   * Aucune politique de session n'est touchee : getSession rend le jeton en stockage et
+   * le rafraichit lui-meme s'il a expire (autoRefreshToken). Il ne rend jamais un jeton
+   * perime ; il evite seulement l'aller-retour quand le jeton est encore valable.
+   */
   useEffect(() => {
-    (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const user = session?.user;
       if (!user) return;
       setUserId(user.id);
       const metaId = user.app_metadata?.company_id;
       if (metaId) setCompanyId(metaId);
-    })();
+    });
   }, []);
 
   const { url: activeLogo, scale: logoScale } = useActiveLogo(companyId);

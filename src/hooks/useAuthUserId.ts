@@ -12,7 +12,8 @@ export function useAuthUserId(): string | null {
   const [userId, setUserId] = useState<string | null>(null);
   useEffect(() => {
     let cancelled = false;
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const user = session?.user;
       if (!cancelled && user) setUserId(user.id);
     });
     return () => { cancelled = true; };

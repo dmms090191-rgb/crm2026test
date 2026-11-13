@@ -34,7 +34,8 @@ export default function VendorSidebar({
 
   useEffect(() => {
     if (vendorAuthId) { setAuthUserId(vendorAuthId); return; }
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const user = session?.user;
       if (user) setAuthUserId(user.id);
     });
   }, [vendorAuthId]);

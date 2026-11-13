@@ -140,7 +140,8 @@ function SuperAdminDashboardInner({ onLogout, onConnectAsAdmin, onConnectAsCompa
   const { cachedAdmins, adminsRefreshing, adminsError, fetchAdminsCache } = useAdminsCache();
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const user = session?.user;
       if (user) {
         const meta = user.user_metadata ?? {};
         if (meta.first_name) setSaFirstName(meta.first_name);

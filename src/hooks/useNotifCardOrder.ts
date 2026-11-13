@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
+import { lireSidebarOrders } from '../lib/preferencesUtilisateur';
 
 export interface NotifCardOrderData {
   order: string[];
@@ -27,14 +28,9 @@ function saveCache(key: string, data: NotifCardOrderData) {
   try { localStorage.setItem(key, JSON.stringify(data)); } catch {}
 }
 
+/* Lecture mutualisee — voir src/lib/preferencesUtilisateur.ts. L'ecriture garde la sienne. */
 async function loadFromDb(userId: string, concept: string): Promise<NotifCardOrderData | null> {
-  const { data, error } = await supabase
-    .from('user_preferences')
-    .select('sidebar_orders')
-    .eq('user_id', userId)
-    .maybeSingle();
-  if (error || !data) return null;
-  const orders = data.sidebar_orders as Record<string, unknown> | null;
+  const orders = await lireSidebarOrders(userId);
   if (!orders) return null;
   const entry = orders[concept] as NotifCardOrderData | undefined;
   if (!entry || !Array.isArray(entry.order)) return null;

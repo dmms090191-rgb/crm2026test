@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { lireSidebarOrders } from '../lib/preferencesUtilisateur';
 
 /**
  * Lecture / ecriture d'une petite liste d'ids dans les preferences d'un compte.
@@ -26,14 +27,12 @@ export function writePrefCache(key: string, value: string[]) {
   try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* noop */ }
 }
 
+/* Lecture mutualisee : `useActionOrder` et `useActionVisibility` sont montes COTE A COTE
+   dans chaque modale d'actions et appellent tous deux cette fonction au meme instant, pour
+   le meme compte. Deux requetes identiques partaient donc systematiquement. Voir
+   src/lib/preferencesUtilisateur.ts. */
 export async function loadPrefRemote(owner: string, storageKey: string): Promise<string[] | null> {
-  const { data, error } = await supabase
-    .from('user_preferences')
-    .select('sidebar_orders')
-    .eq('user_id', owner)
-    .maybeSingle();
-  if (error || !data) return null;
-  const all = data.sidebar_orders as Record<string, unknown> | null;
+  const all = await lireSidebarOrders(owner);
   const saved = all?.[storageKey];
   return Array.isArray(saved) && saved.every(x => typeof x === 'string') ? (saved as string[]) : null;
 }

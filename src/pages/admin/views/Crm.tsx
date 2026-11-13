@@ -88,6 +88,7 @@ export default function Crm({ ownerUserId = null, onConnectAsClient, onOpenChat,
       <CrmActionBar
         totalLeads={d.leads.length} selectedCount={selectMode ? d.selected.size : 0} deleting={d.deleting} tokens={tokens}
         onTransfer={() => d.setShowTransfer(true)} onDelete={d.handleDeleteSelected}
+        loading={d.loading}
       />
 
       <CrmFilters
@@ -112,11 +113,24 @@ export default function Crm({ ownerUserId = null, onConnectAsClient, onOpenChat,
       {!d.loading && d.leads.length > 0 && <SelecteurFormatTel />}
 
       <div className="rounded-2xl overflow-hidden" style={{ background: `linear-gradient(135deg, ${tokens.surface.secondary}, ${tokens.surface.secondary}80)`, border: `1px solid ${tokens.surface.border}`, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), 0 1px 2px rgba(0,0,0,0.04)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
-        {d.loading ? (
-          <div className="flex items-center justify-center py-16">
-            <div className="w-6 h-6 border-2 border-t-cyan-400 rounded-full animate-spin" style={{ borderColor: tokens.text.quaternary, borderTopColor: '#22d3ee' }} />
-          </div>
-        ) : d.leads.length === 0 ? (
+        {/*
+          ---------- LA STRUCTURE NE SE CACHE PLUS DERRIERE LE CHARGEMENT ----------
+
+          Le chargement enfermait ICI la barre de travail ET les en-tetes de colonnes : le
+          temps que la base reponde, l'utilisateur n'avait sous les yeux qu'un rond qui
+          tourne au milieu d'une carte vide, alors que la barre d'outils, les filtres et
+          les colonnes sont connus AVANT toute requete — ils ne dependent que des reglages
+          deja en memoire.
+
+          La condition ne porte donc plus que sur le cas reellement vide. Pendant le
+          chargement, `d.filtered` est vide : le tableau se rend avec ses en-tetes et un
+          corps sans ligne, et le rond qui tourne passe SOUS lui. On voit donc tout de
+          suite ou les donnees vont s'inscrire.
+
+          « Aucun lead importe » reste conditionne a `!d.loading` — ce message affirme un
+          fait sur la base, et il ne doit jamais s'afficher avant qu'elle ait repondu.
+        */}
+        {!d.loading && d.leads.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 gap-3">
             <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: tokens.modal.fieldBg }}>
               <Users className="w-5 h-5" style={{ color: tokens.label.hint }} />
@@ -216,8 +230,18 @@ export default function Crm({ ownerUserId = null, onConnectAsClient, onOpenChat,
               </div>
             </div>
 
-            <CrmFooterBar filteredCount={d.filtered.length} selectedCount={d.selected.size}
-              hasActiveFilters={!!(d.filterNom || d.filterPrenom || d.filterEmail || d.filterTel)} tokens={tokens} />
+            {d.loading && (
+              <div className="flex items-center justify-center py-16">
+                <div className="w-6 h-6 border-2 border-t-cyan-400 rounded-full animate-spin" style={{ borderColor: tokens.text.quaternary, borderTopColor: '#22d3ee' }} />
+              </div>
+            )}
+
+            {/* La barre de bas de page COMPTE des lignes. Avant la reponse de la base, ce
+                compte vaudrait zero sans que zero soit vrai : on ne l'affiche pas encore. */}
+            {!d.loading && (
+              <CrmFooterBar filteredCount={d.filtered.length} selectedCount={d.selected.size}
+                hasActiveFilters={!!(d.filterNom || d.filterPrenom || d.filterEmail || d.filterTel)} tokens={tokens} />
+            )}
           </>
         )}
       </div>

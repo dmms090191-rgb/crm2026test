@@ -76,7 +76,8 @@ export default function ClientTopBar({ breadcrumb, onMobileMenuToggle, clientNam
     return () => clearInterval(id);
   }, []);
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => { if (user) setClientUserId(user.id); });
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const user = session?.user; if (user) setClientUserId(user.id); });
   }, []);
 
   useEffect(() => {

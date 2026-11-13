@@ -152,12 +152,49 @@ function App() {
     })();
   }
 
+  /*
+   * ---------- L'ECRAN NE SE DECIDE PLUS SUR UN ALLER-RETOUR RESEAU ----------
+   *
+   * Cette fonction tient `loading`, et `loading` remplace TOUT l'ecran par
+   * <AppLoadingScreen/> (plus bas). Elle commencait par un refreshSession(), c'est-a-dire
+   * un POST /auth/v1/token : l'application entiere attendait donc le serveur avant de
+   * peindre quoi que ce soit, et le chunk differe du tableau de bord n'avait meme pas
+   * commence a se telecharger — deux attentes mises bout a bout au lieu d'etre menees
+   * ensemble. Sur le reseau mobile mesure le 13/11/2026, cette seule requete partait a
+   * 398 ms de mediane et jusqu'a 9 985 ms au maximum.
+   *
+   * On lit donc d'abord getSession(), qui ne touche PAS le reseau quand le jeton en
+   * stockage est encore valable : le role est connu, l'ecran est rendu. Le
+   * rafraichissement part ensuite, SANS retenir l'affichage.
+   *
+   * ---------- CE QUI N'A PAS CHANGE, ET POURQUOI C'EST SUR ----------
+   *
+   * 1. Aucun jeton perime n'est accepte. getSession() rafraichit LUI-MEME un jeton expire
+   *    avant de le rendre (autoRefreshToken, active dans src/lib/supabase.ts). Il n'y a
+   *    donc pas de fenetre ou l'on peindrait a partir d'un jeton mort.
+   * 2. Le rafraichissement a toujours lieu. Il est seulement devenu concurrent au lieu
+   *    d'etre prealable, et il reapplique la session quand les metadonnees ont bouge —
+   *    c'est par la qu'un changement de role decide par Talvex arrive au navigateur,
+   *    exactement comme avant.
+   * 3. Aucune regle d'acces n'est touchee : applySession, et lui seul, continue de
+   *    decider du role, du blocage et de l'autorisation.
+   */
   const detectRole = useCallback(async () => {
     try {
-      const { data: refreshed } = await supabase.auth.refreshSession();
-      const session = refreshed?.session ?? (await supabase.auth.getSession()).data.session;
+      const { data: { session } } = await supabase.auth.getSession();
       if (!session) { setRole(null); setAccessBlocked(false); setDomainBlocked(false); setUnauthorized(false); setLoading(false); return; }
       await applySession(session, customDomainCompanyId);
+      setLoading(false);
+
+      /* Le rafraichissement, maintenant que l'ecran est rendu. Il ne reapplique la session
+         que si le jeton a REELLEMENT change : sans ce garde, un applySession systematique
+         relancerait pour rien la resolution de societe a chaque demarrage. */
+      supabase.auth.refreshSession()
+        .then(({ data: { session: frais } }) => {
+          if (frais && frais.access_token !== session.access_token) applySession(frais, customDomainCompanyId);
+        })
+        .catch(() => { /* le jeton en stockage reste valable : rien a signaler a l'ecran */ });
+      return;
     } catch {
       setRole(null); setAccessBlocked(false); setDomainBlocked(false); setUnauthorized(false);
     }

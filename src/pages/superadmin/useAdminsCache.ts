@@ -4,7 +4,23 @@ import type { AdminUser } from './views/SAAdmins';
 
 export function useAdminsCache() {
   const [cachedAdmins, setCachedAdmins] = useState<AdminUser[]>([]);
-  const [adminsRefreshing, setAdminsRefreshing] = useState(false);
+  /*
+   * VRAI DES LE DEPART, et ce n'est pas un detail d'affichage.
+   *
+   * La liste part vide, et le chargement est lance par l'effet ci-dessous — donc APRES
+   * le premier rendu. Pendant ce rendu, le couple etait « zero societe, et je ne charge
+   * rien » : les ecrans qui lisent ce drapeau pour choisir entre un squelette et un
+   * chiffre affichaient donc « 0 Societes » avant meme que la question soit posee a la
+   * base. Releve du 13/11/2026 au harnais : compteur 0, en chargement faux, premier
+   * rendu a 0 ms, la reponse n'arrivant qu'a 411 ms.
+   *
+   * Un zero ne doit s'afficher que si la base a REELLEMENT repondu zero. Avant la
+   * premiere reponse, l'etat honnete n'est pas « zero », c'est « je ne sais pas encore ».
+   *
+   * Le drapeau retombe a faux dans le `finally` du chargement, succes comme echec : il
+   * ne peut donc pas rester bloque a vrai si la requete part en erreur.
+   */
+  const [adminsRefreshing, setAdminsRefreshing] = useState(true);
   const [adminsError, setAdminsError] = useState('');
   const adminsLoadedRef = useRef(false);
 

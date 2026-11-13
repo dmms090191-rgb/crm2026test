@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { cleReglagePartage, reglageValide, type ReglageLocal } from '../lib/crmImmoColonnes';
+import { lireSidebarOrders } from '../lib/preferencesUtilisateur';
 
 /*
  * L'ORDRE ET LE MASQUAGE DES COLONNES CRM IMMO, PARTAGES PAR LA SOCIETE.
@@ -47,13 +48,9 @@ export async function lireReglageDistant(
   proprietaire: string,
   companyId: string,
 ): Promise<ReglageLocal | null> {
-  const { data, error } = await supabase
-    .from('user_preferences')
-    .select('sidebar_orders')
-    .eq('user_id', proprietaire)
-    .maybeSingle();
-  if (error || !data) return null;
-  const tout = data.sidebar_orders as Record<string, unknown> | null;
+  /* Lecture mutualisee — voir src/lib/preferencesUtilisateur.ts. L'ECRITURE, plus bas,
+     garde sa propre relecture : elle doit voir l'etat reel avant de fusionner. */
+  const tout = await lireSidebarOrders(proprietaire);
   /*
    * `reglageValide` et non un cast : ce qui sort d'un jsonb n'est verifie par personne, et
    * une ligne abimee — ou ecrite a la main — ne doit pas vider le tableau de l'utilisateur.

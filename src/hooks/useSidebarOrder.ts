@@ -3,6 +3,7 @@ import type { SidebarEntry, SidebarSection, SidebarSaveData } from '../lib/sideb
 import { sectionsToEntries, applyOrder, entriesToSaveData, entryKey, splitHiddenEntries, mergeHiddenEntries } from '../lib/sidebarOrderTypes';
 import type { HiddenSlot } from '../lib/sidebarOrderTypes';
 import { supabase } from '../lib/supabase';
+import { lireSidebarOrders } from '../lib/preferencesUtilisateur';
 
 
 function scopeKey(role: string, companyId?: string | null): string {
@@ -30,14 +31,9 @@ function saveLocal(key: string, data: SidebarSaveData) {
   try { localStorage.setItem(key, JSON.stringify(data)); } catch { /* noop */ }
 }
 
+/* Lecture mutualisee — voir src/lib/preferencesUtilisateur.ts. L'ecriture garde la sienne. */
 async function loadFromSupabase(targetUserId: string, scope: string): Promise<SidebarSaveData | null> {
-  const { data, error } = await supabase
-    .from('user_preferences')
-    .select('sidebar_orders')
-    .eq('user_id', targetUserId)
-    .maybeSingle();
-  if (error || !data) return null;
-  const orders = data.sidebar_orders as Record<string, SidebarSaveData> | null;
+  const orders = await lireSidebarOrders(targetUserId) as Record<string, SidebarSaveData> | null;
   if (!orders || !orders[scope]) return null;
   const entry = orders[scope];
   return { order: entry.order ?? [], labels: entry.labels ?? {} };

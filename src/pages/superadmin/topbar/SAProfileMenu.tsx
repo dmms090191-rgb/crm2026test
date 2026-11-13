@@ -23,7 +23,8 @@ export default function SAProfileMenu({ tokens, firstName, lastName }: { tokens:
   const displayName = [firstName, lastName].filter(Boolean).join(' ') || 'ROIS ADMIN';
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const user = session?.user;
       if (user) setUserId(user.id);
     });
   }, []);
