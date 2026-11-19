@@ -30,6 +30,9 @@ interface SuperAdminSidebarProps {
   logoZoneRef?: React.RefObject<HTMLDivElement | null>;
   sidebarBodyRef?: React.RefObject<HTMLDivElement | null>;
   badgeCounts?: Record<string, number>;
+  /** Identite deja connue d'App : valeurs INITIALES de userId et companyId (le getSession reste). */
+  initialUserId?: string | null;
+  initialCompanyId?: string | null;
 }
 
 /* Compartiments et onglets par defaut. EXPORTES : la navigation mobile part de la meme base. */
@@ -102,13 +105,20 @@ export const ICONS: Record<string, React.ReactNode> = {
 };
 
 
-export default function SuperAdminSidebar({ activeView, onNavigate, collapsed, onCollapse, onLogout, editorZone1Bg, editorZone2Bg, logoZoneRef, sidebarBodyRef, badgeCounts }: SuperAdminSidebarProps) {
+export default function SuperAdminSidebar({ activeView, onNavigate, collapsed, onCollapse, onLogout, editorZone1Bg, editorZone2Bg, logoZoneRef, sidebarBodyRef, badgeCounts, initialUserId = null, initialCompanyId = null }: SuperAdminSidebarProps) {
   const t = useThemeTokens();
   const editorCtx = useEditorModeSafe();
   const { customThemeOverrides } = useTheme();
   const ctTextOverrides = customThemeOverrides?.text_overrides || {};
-  const [userId, setUserId] = useState<string | null>(null);
-  const [companyId, setCompanyId] = useState<string | null>(null);
+  /*
+   * GRAINES : l'identite qu'App connait deja. Sans elles, userId et companyId restaient nuls
+   * tant que le getSession ci-dessous attendait le verrou d'auth-js, tenu au demarrage par le
+   * refreshSession d'App (jusqu'a 46 s mesures le 19/11/2026) : le menu peignait alors les
+   * onglets PAR DEFAUT (le cache sbl2:super_admin:<id> n'a pas de cle sans identifiant) et le
+   * bouclier « ROIS ADMIN » faute de Societe pour le logo. Le getSession reste en place.
+   */
+  const [userId, setUserId] = useState<string | null>(initialUserId);
+  const [companyId, setCompanyId] = useState<string | null>(initialCompanyId);
 
   /*
    * getSession et non getUser — meme raison que Sidebar.tsx:50, et meme mesure.
@@ -140,11 +150,20 @@ export default function SuperAdminSidebar({ activeView, onNavigate, collapsed, o
       if (!user) return;
       setUserId(user.id);
       const metaId = user.app_metadata?.company_id;
-      if (metaId) setCompanyId(metaId);
+      /* La session fait foi, y compris quand elle n'a plus de Societe : la graine ne survit pas a un
+         jeton qui la contredit (avant les graines, companyId partait de null et y restait). */
+      setCompanyId(metaId ?? null);
     });
   }, []);
 
-  const { url: activeLogo, scale: logoScale } = useActiveLogo(companyId);
+  const { url: logoMemorise, scale: logoScale, lectures: lecturesLogo } = useActiveLogo(companyId, true);
+  /* Le logo peint au premier rendu vient du dernier connu (localStorage). Si son fichier a ete
+     supprime depuis, on retombe sur le bouclier au lieu d'une image cassee. Chaque lecture
+     reussie en base efface la marque : une image qui avait echoue pendant le reveil de la
+     plateforme est alors retentee, au lieu de laisser le bouclier jusqu'au rechargement. */
+  const [logoCasse, setLogoCasse] = useState<string | null>(null);
+  useEffect(() => { setLogoCasse(null); }, [lecturesLogo]);
+  const activeLogo = logoMemorise && logoMemorise !== logoCasse ? logoMemorise : null;
   const sections = useMemo(() => LAYOUT_SECTIONS, []);
   // Configuration propre au compte Talvex connecte : cle v2:super_admin.
   const layout = useSidebarLayout({ panel: 'super_admin', entityUserId: userId, sections, protectedIds: PROTECTED_TAB_IDS });
@@ -218,6 +237,7 @@ export default function SuperAdminSidebar({ activeView, onNavigate, collapsed, o
           <img
             src={activeLogo}
             alt="Logo"
+            onError={() => setLogoCasse(activeLogo)}
             className={`object-contain transition-transform duration-200 ${collapsed ? 'h-9 max-w-[40px]' : 'max-h-[44px] max-w-[180px]'}`}
             style={{ transform: `scale(${logoScale})` }}
           />

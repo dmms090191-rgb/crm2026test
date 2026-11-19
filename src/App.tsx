@@ -4,6 +4,7 @@ import type { ImpersonatedVendor } from './pages/vendor/VendorDashboard';
 import type { ImpersonatedClientInfo } from './pages/client/ClientDashboard';
 import { supabase } from './lib/supabase';
 import { deconnecterSupabase } from './lib/deconnexion';
+import { oublierGroupesConnus } from './lib/memoireGroupes';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { AppLoadingScreen, AppAccessBlocked, AppDomainBlocked } from './app/AppStatusScreens';
 import AppUnauthorizedPage from './app/AppUnauthorizedPage';
@@ -204,7 +205,9 @@ function App() {
   useEffect(() => {
     detectRole();
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!session) { setRole(null); setAccessBlocked(false); setDomainBlocked(false); setUnauthorized(false); }
+      // Session finie sans passer par un bouton (expiration, deconnexion d'un autre onglet) :
+      // la derniere liste des groupes ne lui survit pas non plus.
+      if (!session) { oublierGroupesConnus(); setRole(null); setAccessBlocked(false); setDomainBlocked(false); setUnauthorized(false); }
       else { applySession(session, null); }
     });
     return () => subscription.unsubscribe();
@@ -286,7 +289,7 @@ function App() {
       const panelRole = role === 'super_admin' ? 'super_admin' as const : role === 'vendor' ? 'vendor' as const : role === 'client' ? 'client' as const : 'admin' as const;
       return (
         <SessionTimeoutProvider value={sessionCtxValue}>
-          <AppShell panelRole={panelRole} useCompanyProvider={role !== 'super_admin'}>
+          <AppShell panelRole={panelRole} useCompanyProvider={role !== 'super_admin'} knownUserId={role === 'super_admin' ? saUserId : null}>
             {/*
              * SimulationProvider : SANS LUI, QUATRE ONGLETS SUR HUIT FONT PLANTER TOUT.
              *
@@ -308,7 +311,7 @@ function App() {
       <SessionTimeoutProvider value={sessionCtxValue}>
         <AppDashboardRouter
           key={sessionKey}
-          role={role} onLogout={handleLogout} saUserId={saUserId} saDisplayName={saDisplayName}
+          role={role} onLogout={handleLogout} saUserId={saUserId} userCompanyId={userCompanyId} saDisplayName={saDisplayName}
           impersonatedAdmin={impersonatedAdmin} impersonatedVendor={impersonatedVendor} impersonatedClient={impersonatedClient}
           impersonatedCompanySuperAdmin={impersonatedCompanySuperAdmin}
           directCSA={directCSA}

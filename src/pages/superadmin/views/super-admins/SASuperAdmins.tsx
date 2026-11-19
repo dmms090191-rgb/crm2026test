@@ -1,5 +1,4 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import { RefreshCw } from 'lucide-react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 import { useTalixy } from '../../../../talixy/useTalixy';
 import { useSuperAdminsData } from './useSuperAdminsData';
@@ -15,6 +14,7 @@ import SASuperAdminsHeader from './SASuperAdminsHeader';
 import SASuperAdminsNotices from './SASuperAdminsNotices';
 import { SASuperAdminsEmpty, SASuperAdminsNoMatch } from './SASuperAdminsEmpty';
 import SASuperAdminsModals from './SASuperAdminsModals';
+import SASuperAdminsSquelette from './SASuperAdminsSquelette';
 import { useSyncedFromList } from '../../../../hooks/useSyncedFromList';
 
 interface Props {
@@ -25,7 +25,7 @@ interface Props {
 export default function SASuperAdmins({ onConnectAsCompanySuperAdmin, onOpenChat }: Props) {
   const t = useThemeTokens();
   const tx = useTalixy();
-  const { list, loading, error, refresh, statuts, setGroupStatut } = useSuperAdminsData();
+  const { list, loading, connue, error, refresh, statuts, setGroupStatut } = useSuperAdminsData();
   const { saStatuts } = useSaStatuts();
   const [statutFor, setStatutFor] = useState<string | null>(null);
   const [statutRect, setStatutRect] = useState<{ top: number; left: number } | null>(null);
@@ -196,29 +196,31 @@ export default function SASuperAdmins({ onConnectAsCompanySuperAdmin, onOpenChat
         onToggleAllShown={toggleAllShown} tokens={t}
       />
 
-      {list.length > 0 && (
-        <ListFilters
-          search={search}
-          onSearchChange={setSearch}
-          statut={statutFilter}
-          onStatutChange={setStatutFilter}
-          saStatuts={saStatuts}
-          fields={fields}
-          onFieldChange={(k, v) => setFields(prev => ({ ...prev, [k]: v }))}
-          activeCount={activeFieldCount}
-          hasAnyFilter={hasAnyFilter}
-          onReset={resetAll}
-          tokens={t}
-          searchPlaceholder="Rechercher un groupe..."
-          companyLabel="Groupe"
-        />
-      )}
+      {/* Les filtres font partie de la STRUCTURE : ils sont peints tout de suite, liste connue ou pas. */}
+      <ListFilters
+        search={search}
+        onSearchChange={setSearch}
+        statut={statutFilter}
+        onStatutChange={setStatutFilter}
+        saStatuts={saStatuts}
+        fields={fields}
+        onFieldChange={(k, v) => setFields(prev => ({ ...prev, [k]: v }))}
+        activeCount={activeFieldCount}
+        hasAnyFilter={hasAnyFilter}
+        onReset={resetAll}
+        tokens={t}
+        searchPlaceholder="Rechercher un groupe..."
+        companyLabel="Groupe"
+      />
 
-      {loading && list.length === 0 ? (
-        <div className="flex-1 flex items-center justify-center">
-          <RefreshCw className="w-6 h-6 animate-spin" style={{ color: t.text.tertiary }} />
-        </div>
-      ) : list.length === 0 && !error ? (
+      {/* Plus de spinner central. La derniere liste connue (src/lib/memoireGroupes.ts) est peinte
+          tout de suite ; le squelette ne sert qu'au tout premier chargement d'une session. Une
+          erreur sans liste connue s'affiche dans la notice au-dessus, jamais comme « aucun
+          resultat » avec un bouton de filtres alors qu'aucun filtre n'est pose. Une liste connue,
+          meme vide, reste affichee a cote de la notice. */}
+      {loading && !connue ? (
+        <SASuperAdminsSquelette tokens={t} />
+      ) : !connue && list.length === 0 && error ? null : list.length === 0 ? (
         <SASuperAdminsEmpty tokens={t} onCreate={() => setShowCreate(true)} />
       ) : shown.length === 0 ? (
         <SASuperAdminsNoMatch tokens={t} onReset={resetAll} />
@@ -241,7 +243,10 @@ export default function SASuperAdmins({ onConnectAsCompanySuperAdmin, onOpenChat
         onCloseCreate={() => setShowCreate(false)}
         onCreated={() => { setShowCreate(false); refresh(); }}
         statutFor={statutFor} statutRect={statutRect} statuts={statuts} saStatuts={saStatuts}
-        onSelectStatut={async nom => { if (statutFor) await setGroupStatut(statutFor, nom); closeStatut(); }}
+        /* Le menu se ferme AVANT l'ecriture : elle peut attendre le verrou d'auth-js au demarrage, et
+           une fermeture tardive fermait le menu d'une autre ligne ouvert entre-temps. Un refus est
+           annule a l'ecran et signale par la notice (useSuperAdminsData). */
+        onSelectStatut={nom => { const id = statutFor; closeStatut(); if (id) void setGroupStatut(id, nom); }}
         onCloseStatut={closeStatut}
         deleteOpen={deleteOpen} selectedGroups={selectedGroups}
         onCloseDelete={() => setDeleteOpen(false)}
@@ -274,10 +279,16 @@ export default function SASuperAdmins({ onConnectAsCompanySuperAdmin, onOpenChat
         <header className="tx-page-head">
           <p className="tx-page-eyebrow">Gestion</p>
           <h1 className="tx-page-title">Liste des groupes</h1>
+          {/* Le sous-titre ne dit « aucun groupe » que d'une liste reellement lue : pendant le premier
+              chargement ou apres un echec sans liste connue, ce serait une affirmation fausse. */}
           <p className="tx-page-subtitle">
-            {n === 0
-              ? 'Aucun groupe actif sur votre plateforme Talvex.'
-              : `${n} groupe${n > 1 ? 's' : ''} actif${n > 1 ? 's' : ''} sur votre plateforme Talvex.`}
+            {loading && !connue
+              ? 'Chargement des groupes…'
+              : !connue && n === 0 && error
+                ? 'Liste des groupes indisponible pour le moment.'
+                : n === 0
+                  ? 'Aucun groupe actif sur votre plateforme Talvex.'
+                  : `${n} groupe${n > 1 ? 's' : ''} actif${n > 1 ? 's' : ''} sur votre plateforme Talvex.`}
           </p>
         </header>
         {contenu}

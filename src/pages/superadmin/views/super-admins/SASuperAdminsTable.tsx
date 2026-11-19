@@ -4,6 +4,7 @@ import { getStatutColor } from '../crm-societe/types';
 import type { SAStatut } from '../crm-societe/types';
 import type { CompanySuperAdmin } from './superAdminTypes';
 import type { ThemeTokens } from '../../../../lib/themeTokensTypes';
+import { COLONNES_GROUPES } from './colonnesGroupes';
 
 export type SortKey = 'first_name' | 'last_name' | 'company' | 'email' | 'statut';
 
@@ -32,7 +33,7 @@ interface Props {
 
 export default function SASuperAdminsTable({ list, tokens: t, onActions, saStatuts, statuts, onStatutClick, sortKey = null, sortDir = 'asc', onSort, selectMode = false, selected, onToggleSelect }: Props) {
   const btnRefs = useRef<Record<string, HTMLButtonElement | null>>({});
-  const columns = ['Prenom', 'Nom', 'Email', 'Groupe', 'Statut', 'Telephone', 'Role', 'Cree le', 'Acces', 'Actions'];
+  const columns = COLONNES_GROUPES;
 
   return (
     <div data-tx-table className="overflow-x-auto rounded-xl" style={{ border: `1px solid ${t.surface.border}` }}>

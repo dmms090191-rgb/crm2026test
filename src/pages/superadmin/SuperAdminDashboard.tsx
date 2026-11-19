@@ -38,6 +38,9 @@ interface SuperAdminDashboardProps {
   onLogout: () => void;
   onConnectAsAdmin?: (admin: AdminUser) => void;
   onConnectAsCompanySuperAdmin?: (sa: CompanySuperAdmin) => void;
+  /** Identite deja connue d'App (session lue avant ce rendu) : graine du menu, voir SuperAdminSidebar. */
+  initialUserId?: string | null;
+  initialCompanyId?: string | null;
 }
 
 export type EditorSubMode = null | 'onglet' | 'zone_droite';
@@ -55,7 +58,7 @@ export default function SuperAdminDashboard(props: SuperAdminDashboardProps) {
   );
 }
 
-function SuperAdminDashboardInner({ onLogout, onConnectAsAdmin, onConnectAsCompanySuperAdmin }: SuperAdminDashboardProps) {
+function SuperAdminDashboardInner({ onLogout, onConnectAsAdmin, onConnectAsCompanySuperAdmin, initialUserId = null, initialCompanyId = null }: SuperAdminDashboardProps) {
   const t = useThemeTokens();
   const talixy = useTalixy();
 
@@ -255,11 +258,11 @@ function SuperAdminDashboardInner({ onLogout, onConnectAsAdmin, onConnectAsCompa
       {mobileOpen && <div className="fixed inset-0 z-40 md:hidden" style={{ background: t.modal.overlayBg }} onClick={() => setMobileOpen(false)} />}
 
       <div className={`fixed inset-y-0 left-0 z-50 md:hidden transition-transform duration-300 ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-        <SuperAdminSidebar activeView={activeView} onNavigate={(v) => { handleNavigate(v); setMobileOpen(false); }} collapsed={false} onCollapse={() => setMobileOpen(false)} onLogout={onLogout} editorZone1Bg={zone1Bg} editorZone2Bg={zone2Bg} logoZoneRef={logoZoneRef} sidebarBodyRef={sidebarBodyRef} badgeCounts={sidebarBadgeCounts} />
+        <SuperAdminSidebar activeView={activeView} onNavigate={(v) => { handleNavigate(v); setMobileOpen(false); }} collapsed={false} onCollapse={() => setMobileOpen(false)} onLogout={onLogout} editorZone1Bg={zone1Bg} editorZone2Bg={zone2Bg} logoZoneRef={logoZoneRef} sidebarBodyRef={sidebarBodyRef} badgeCounts={sidebarBadgeCounts} initialUserId={initialUserId} initialCompanyId={initialCompanyId} />
       </div>
 
       <div className="hidden md:block relative z-[1]">
-        <SuperAdminSidebar activeView={activeView} onNavigate={handleNavigate} collapsed={sidebarCollapsed} onCollapse={() => setSidebarCollapsed(prev => !prev)} onLogout={onLogout} editorZone1Bg={zone1Bg} editorZone2Bg={zone2Bg} logoZoneRef={logoZoneRef} sidebarBodyRef={sidebarBodyRef} badgeCounts={sidebarBadgeCounts} />
+        <SuperAdminSidebar activeView={activeView} onNavigate={handleNavigate} collapsed={sidebarCollapsed} onCollapse={() => setSidebarCollapsed(prev => !prev)} onLogout={onLogout} editorZone1Bg={zone1Bg} editorZone2Bg={zone2Bg} logoZoneRef={logoZoneRef} sidebarBodyRef={sidebarBodyRef} badgeCounts={sidebarBadgeCounts} initialUserId={initialUserId} initialCompanyId={initialCompanyId} />
       </div>
 
       <div data-tx-mobile-body={arcMobile ? "" : undefined} className="flex-1 flex flex-col min-w-0 overflow-hidden relative z-[1]">

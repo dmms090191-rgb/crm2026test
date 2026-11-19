@@ -2,6 +2,7 @@ import { supabase } from './supabase';
 import { estApplicationInstallee } from './runtime';
 import { porteeDeconnexion } from './porteeDeconnexion';
 import { effacerJetonsSession } from './stockageSession';
+import { oublierGroupesConnus } from './memoireGroupes';
 
 /**
  * LA DECONNEXION, ET SA PORTEE SELON LE RUNTIME.
@@ -61,6 +62,9 @@ export async function deconnecterSupabase(): Promise<void> {
   } finally {
     // Dans un `finally` : signOut peut aussi bien RENDRE une erreur que LEVER. Dans les deux
     // cas, l'utilisateur a demande a sortir, et le jeton ne doit pas lui survivre.
+    // Ni la derniere liste des groupes (src/lib/memoireGroupes.ts) : vidée AVANT le jeton,
+    // car l'effacement du jeton peut lever (coffre mobile) et elle ne doit pas lui survivre.
+    oublierGroupesConnus();
     await effacerJetonsSession();
   }
 }

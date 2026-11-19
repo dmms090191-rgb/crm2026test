@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { useIdentiteConnue } from '../contexts/IdentiteConnueContext';
 import { useSidebarLayout } from '../hooks/useSidebarLayout';
 import { entryLabel, type LayoutDefaultSection, type LayoutPanel } from '../lib/sidebarLayout';
 import {
@@ -64,7 +65,11 @@ export function useTalixyMobileNav(
   actif: boolean = true,
   rendables?: readonly string[],
 ): TalixyMobileNav {
-  const [userId, setUserId] = useState<string | null>(null);
+  /* L'identite qu'App connait deja (src/contexts/IdentiteConnueContext.ts) : sans elle, les onglets
+     par defaut restaient peints tant que le getSession ci-dessous attendait le verrou d'auth-js.
+     Nulle pour tout role autre que le Talvex Administrateur, et ignoree quand le crochet est inactif. */
+  const identiteConnue = useIdentiteConnue();
+  const [userId, setUserId] = useState<string | null>(() => (actif ? identiteConnue : null));
   useEffect(() => {
     if (!actif) return;
     let vivant = true;

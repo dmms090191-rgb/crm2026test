@@ -19,6 +19,8 @@ interface Props {
   role: 'super_admin' | 'company_super_admin' | 'admin' | 'vendor' | 'client';
   onLogout: () => void;
   saUserId: string | null;
+  /** company_id du compte connecte, deja lu par App dans la session : graine du menu Talvex. */
+  userCompanyId?: string | null;
   saDisplayName: string;
   impersonatedAdmin: ImpersonatedAdmin | null;
   impersonatedVendor: ImpersonatedVendor | null;
@@ -40,7 +42,7 @@ export default function AppDashboardRouter(props: Props) {
 }
 
 function RouterInner({
-  role, onLogout, saUserId, saDisplayName,
+  role, onLogout, saUserId, userCompanyId = null, saDisplayName,
   impersonatedAdmin, impersonatedVendor, impersonatedClient, impersonatedCompanySuperAdmin,
   directCSA,
   setImpersonatedAdmin, setImpersonatedVendor, setImpersonatedClient, setImpersonatedCompanySuperAdmin,
@@ -156,7 +158,15 @@ function RouterInner({
     );
   }
   if (role === 'super_admin') {
-    return <AppShell panelRole="super_admin"><SuperAdminDashboard onLogout={onLogout} onConnectAsAdmin={connectAsAdmin} onConnectAsCompanySuperAdmin={connectAsCSA} /></AppShell>;
+    /* saUserId et userCompanyId sont DEJA connus d'App (lus dans la session avant ce rendu) :
+       les transmettre evite au theme et au menu d'attendre le verrou d'auth-js pour les
+       redemander. Diagnostic et mesures : ThemeProvider.knownUserId (ThemeContext.tsx). */
+    return (
+      <AppShell panelRole="super_admin" knownUserId={saUserId}>
+        <SuperAdminDashboard onLogout={onLogout} onConnectAsAdmin={connectAsAdmin} onConnectAsCompanySuperAdmin={connectAsCSA}
+          initialUserId={saUserId} initialCompanyId={userCompanyId} />
+      </AppShell>
+    );
   }
   if (role === 'client') {
     return <AppShell panelRole="client"><ClientDashboard onLogout={onLogout} /></AppShell>;
