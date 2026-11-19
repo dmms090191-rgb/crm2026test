@@ -6,17 +6,25 @@ import { telDuLead, telCorrespond } from '../../../../lib/formatTel';
 import { lireParCurseur } from '../../../../lib/lectureIntegrale';
 import { champContact } from '../../../../lib/identiteLead';
 import { leadCorrespond } from '../../../../lib/rechercheLeads';
-import { ONGLET_PRINCIPAL } from '../../../../lib/ongletsLeads';
+import { ONGLET_PRINCIPAL, comptesParOnglet, ongletEffectif } from '../../../../lib/ongletsLeads';
 import type { ImportedLead, StatutDef } from '../vendorLeadsTypes';
 
 interface VueLeads {
+  /** L'onglet RETENU par le compte (voir useOngletActif). */
   ongletActif?: string;
   dansOnglet?: (leadId: string, ongletId: string) => boolean;
+  /** lead -> onglets de la societe ; sert a compter les onglets DU commercial. */
+  appartenances?: ReadonlyMap<string, readonly string[]>;
+  /** Les onglets et leurs rattachements sont lus. */
+  ongletsLus?: boolean;
 }
 
+const AUCUNE_APPARTENANCE: ReadonlyMap<string, readonly string[]> = new Map();
+
 export function useVendorLeadsData(vendorId: string | null, vue: VueLeads = {}) {
-  const ongletActif = vue.ongletActif ?? ONGLET_PRINCIPAL;
+  const choisi = vue.ongletActif ?? ONGLET_PRINCIPAL;
   const dansOnglet = vue.dansOnglet;
+  const appartenances = vue.appartenances ?? AUCUNE_APPARTENANCE;
   const [recherche, setRecherche] = useState('');
   const companyId = useCompanyId();
   const [leads, setLeads] = useState<ImportedLead[]>([]);
@@ -144,6 +152,11 @@ export function useVendorLeadsData(vendorId: string | null, vue: VueLeads = {}) 
     recentUpdates.current.delete(id);
   };
 
+  /* SES onglets : ceux ou il a au moins un lead attribue, avec SES comptes. L'onglet montre
+     est le choix retenu tant qu'il y reste un de ses leads, sinon Principal. */
+  const comptesOnglets = useMemo(() => comptesParOnglet(leads.map(l => l.id), appartenances), [leads, appartenances]);
+  const ongletActif = ongletEffectif(choisi, comptesOnglets, !loading && (vue.ongletsLus ?? false));
+
   const filtered = useMemo(() => {
     const fNom = filterNom.toLowerCase();
     const fPrenom = filterPrenom.toLowerCase();
@@ -188,6 +201,7 @@ export function useVendorLeadsData(vendorId: string | null, vue: VueLeads = {}) 
 
   return {
     leads, statutDefs, loading, filtered, selected, setSelected,
+    ongletActif, comptesOnglets,
     recherche, setRecherche, rechercheActive: recherche.trim() !== '',
     allChecked, someChecked, toggleAll, toggleOne,
     filterEmail, setFilterEmail, filterTel, setFilterTel,

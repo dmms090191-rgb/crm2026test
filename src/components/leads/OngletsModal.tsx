@@ -114,11 +114,15 @@ export default function OngletsModal({ og, totalLeads, peutGerer, onClose, onGer
           <button type="button" onClick={onClose} aria-label="Fermer" className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: t.modal.closeBtnBg, color: t.modal.closeBtnText }}><X className="w-4 h-4" /></button>
         </div>
         <ul className="px-4 py-3 space-y-2 overflow-y-auto min-h-0">
-          {ligne(ONGLET_PRINCIPAL, 'Principal', `Tous les leads (${totalLeads}) · colonnes standard`)}
+          {ligne(ONGLET_PRINCIPAL, 'Principal', `${peutGerer ? 'Tous les leads' : 'Tous vos leads'} (${totalLeads}) · colonnes standard`)}
           {og.onglets.map(o => ligne(o.id, o.nom,
             `${compte(o.id)} lead${compte(o.id) > 1 ? 's' : ''} · ${(og.colonnesParOnglet.get(o.id) ?? []).filter(c => !c.systeme).length} colonnes du fichier`, o.origine))}
           {og.onglets.length === 0 && (
-            <li className="text-xs px-2 py-3" style={{ color: t.text.quaternary }}>Aucun onglet pour l'instant : un import CSV en crée un, ou créez-le ici.</li>
+            <li className="text-xs px-2 py-3" style={{ color: t.text.quaternary }}>
+              {peutGerer
+                ? 'Aucun onglet pour l\'instant : un import CSV en crée un, ou créez-le ici.'
+                : 'Aucun de vos leads n\'est rangé dans un onglet. Les onglets apparaissent ici dès qu\'on vous attribue des leads qui en font partie.'}
+            </li>
           )}
         </ul>
         {erreur && <p className="mx-5 mb-2 text-xs" role="alert" style={{ color: t.danger.text }}>{erreur}</p>}

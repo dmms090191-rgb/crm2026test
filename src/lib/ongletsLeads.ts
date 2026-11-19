@@ -107,6 +107,34 @@ export function colonnesDeLOnglet(lignes: ColonneOnglet[], registre: Map<string,
   return res;
 }
 
+/**
+ * LES ONGLETS D'UN COMMERCIAL : pour chaque onglet, combien de SES leads y sont rattaches.
+ *
+ * Le commercial ne cree aucun onglet : ses onglets sont ceux des leads qu'on lui attribue, et
+ * le compte est le SIEN (un onglet de 500 leads dont il a 25 compte 25 chez lui). Un onglet
+ * absent de la table n'a aucun de ses leads : il disparait de son selecteur, sans que rien
+ * ne change cote Societe.
+ */
+export function comptesParOnglet(
+  leadIds: Iterable<string>,
+  appartenances: ReadonlyMap<string, readonly string[]>,
+): Map<string, number> {
+  const m = new Map<string, number>();
+  for (const id of leadIds) for (const o of appartenances.get(id) ?? []) m.set(o, (m.get(o) ?? 0) + 1);
+  return m;
+}
+
+/**
+ * L'onglet a MONTRER au commercial : son choix retenu tant que cet onglet contient au moins
+ * un de ses leads, sinon Principal. Le choix retenu n'est pas efface : si des leads de cet
+ * onglet lui sont de nouveau attribues, il y revient. Tant que la lecture n'est pas finie
+ * (`pret` faux), on garde le choix — sinon Principal clignoterait a chaque ouverture.
+ */
+export function ongletEffectif(choisi: string, comptes: ReadonlyMap<string, number>, pret: boolean): string {
+  if (choisi === ONGLET_PRINCIPAL || !pret) return choisi;
+  return (comptes.get(choisi) ?? 0) > 0 ? choisi : ONGLET_PRINCIPAL;
+}
+
 /** « Onglet : X » ou « Onglets : X, Y » — ce qu'affiche la recherche globale pour un lead. */
 export function libelleOnglets(noms: string[]): string {
   if (noms.length === 0) return 'Principal';

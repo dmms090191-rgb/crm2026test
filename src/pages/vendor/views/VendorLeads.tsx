@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Users, Hash, User, Mail, Phone, CalendarDays, Signal, Settings, Lock, Bot, Columns3, CheckSquare, Briefcase, SlidersHorizontal } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { useThemeTokens } from '../../../hooks/useThemeTokens';
@@ -55,10 +55,43 @@ export default function VendorLeads({ vendorId, onOpenChat, onConnectAsClient, o
   const { timezone } = useTimezone();
   const companyId = useCompanyId();
   /* Les onglets de colonnes de la societe, en LECTURE : le commercial choisit l'onglet et
-     voit ses colonnes, mais ne cree, ne renomme ni n'archive rien (la RLS le refuse aussi). */
-  const og = useOngletsLeads(companyId);
-  const d = useVendorLeadsData(vendorId, { ongletActif: og.ongletActif, dansOnglet: og.dansOnglet });
-  const principal = og.ongletActif === ONGLET_PRINCIPAL;
+     voit ses colonnes, mais ne cree, ne renomme ni n'archive rien (la RLS le refuse aussi).
+     UNE SEULE SOURCE pour les colonnes : celles que la Societe a reglees pour l'onglet. */
+  const ogSociete = useOngletsLeads(companyId);
+  const d = useVendorLeadsData(vendorId, {
+    ongletActif: ogSociete.ongletActif, dansOnglet: ogSociete.dansOnglet,
+    appartenances: ogSociete.appartenances, ongletsLus: !ogSociete.chargement,
+  });
+  /* SES onglets seulement : ceux ou au moins un de SES leads est rattache. Ils apparaissent
+     quand on lui attribue des leads d'un onglet et disparaissent quand il n'en a plus aucun ;
+     l'onglet montre retombe alors sur Principal (voir ongletEffectif). */
+  const principal = d.ongletActif === ONGLET_PRINCIPAL;
+  const og = useMemo(() => ({
+    ...ogSociete,
+    onglets: ogSociete.onglets.filter(o => (d.comptesOnglets.get(o.id) ?? 0) > 0),
+    ongletActif: d.ongletActif,
+    ongletActifNom: principal ? 'Principal' : ogSociete.ongletActifNom,
+  }), [ogSociete, d.comptesOnglets, d.ongletActif, principal]);
+  /* Des leads lui arrivent (attribution en direct) : relire les onglets, au cas ou ils
+     viendraient d'un onglet cree apres l'ouverture de la page. Une seule relecture pour une
+     attribution de masse (les evenements arrivent un par un). */
+  const { recharger } = ogSociete;
+  const nbLeads = d.leads.length;
+  const nbConnu = useRef<number | null>(null);
+  useEffect(() => {
+    if (d.loading) return;
+    const avant = nbConnu.current;
+    nbConnu.current = nbLeads;
+    if (avant === null || nbLeads <= avant) return;
+    const t = setTimeout(() => { recharger(); }, 800);
+    return () => clearTimeout(t);
+  }, [nbLeads, d.loading, recharger]);
+  /* Retour sur la page : relire les onglets, pour suivre un reglage de colonnes fait entre-temps par la Societe. */
+  useEffect(() => {
+    const auRetour = () => { if (document.visibilityState === 'visible') recharger(); };
+    document.addEventListener('visibilitychange', auRetour);
+    return () => document.removeEventListener('visibilitychange', auRetour);
+  }, [recharger]);
   const [showOnglets, setShowOnglets] = useState(false);
   const [avis, setAvis] = useState('');
   const estBureau = useEstBureau();
@@ -156,13 +189,6 @@ export default function VendorLeads({ vendorId, onOpenChat, onConnectAsClient, o
     else if (recherche) setRecherche('');
     else leadMontre(leadDemande);
   }, [leadDemande, chargementVue, og, d.filtered, d.leads, recherche, setRecherche, inclure]);
-
-  /* Les comptes de la fenetre des onglets : les SIENS, pas ceux de toute la societe. */
-  const comptesCommercial = useMemo(() => {
-    const m = new Map<string, number>();
-    for (const l of d.leads) for (const o of og.appartenances.get(l.id) ?? []) m.set(o, (m.get(o) ?? 0) + 1);
-    return m;
-  }, [d.leads, og.appartenances]);
 
   const VENDOR_TOOLBAR_DEFAULT = ['select', 'workmode', 'columns', 'organize'];
   const tbOrder = useActionMenuOrder('talvex_toolbar_order_vendor_leads', VENDOR_TOOLBAR_DEFAULT);
@@ -396,7 +422,7 @@ export default function VendorLeads({ vendorId, onOpenChat, onConnectAsClient, o
 
       {showColModal && <ColumnOrganizerModal columns={displayColumns} orderedKeys={colOrder.orderedKeys} hiddenDesktopKeys={colOrder.hiddenDesktopKeys} tableKey="vendor_leads" onSave={colOrder.saveAll} onReset={colOrder.resetAll} onClose={() => setShowColModal(false)} onCreateCustomColumn={cc.createColumn} onDeleteCustomColumn={cc.deleteColumn} onRenameCustomColumn={cc.renameColumn} onRenameLabel={colOrder.renameLabel} mobileOrder={colMobile.mobileOrder} mobileCardStyle={colMobile.cardStyle} onSaveMobile={colMobile.saveMobile} onResetMobile={colMobile.resetMobile} />}
 
-      {showOnglets && <OngletsModal og={og} totalLeads={d.leads.length} comptes={comptesCommercial} peutGerer={false} onClose={() => setShowOnglets(false)} />}
+      {showOnglets && <OngletsModal og={og} totalLeads={d.leads.length} comptes={d.comptesOnglets} peutGerer={false} onClose={() => setShowOnglets(false)} />}
 
       {showOrgModal && <ToolbarOrganizerModal items={toolbarItems} order={tbOrder.order} onSave={tbOrder.save} onClose={() => setShowOrgModal(false)} t={tokens} />}
     </div>
