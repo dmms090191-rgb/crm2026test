@@ -1,8 +1,12 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { UserPlus, Check, Eye, EyeOff } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { useThemeTokens } from '../../../hooks/useThemeTokens';
 import { useCompanyId } from '../../../hooks/useCompanyId';
+import { useOngletActif } from '../../../hooks/useOngletActif';
+import { normalizeEmail, normalizePhone } from '../../../lib/phoneNormalizer';
+import { chargerStructureOnglets, rattacherLeads } from '../../../lib/ongletsDepot';
+import { ONGLET_PRINCIPAL, type Onglet } from '../../../lib/ongletsLeads';
 import type { ThemeTokens } from '../../../lib/themeTokens';
 
 
@@ -135,6 +139,31 @@ export default function AjouterLeads() {
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
+  /* L'ONGLET DE COLONNES : un lead saisi a la main rejoint l'onglet ouvert dans le CRM (case
+     cochee par defaut — decision de David), ou un autre choisi ici. Il reste dans Principal. */
+  const { ongletId: ongletActif } = useOngletActif(companyId);
+  const [onglets, setOnglets] = useState<Onglet[]>([]);
+  const [ongletCible, setOngletCible] = useState<string>('');
+  const [rattacher, setRattacher] = useState(false);
+
+  useEffect(() => {
+    if (!companyId) return;
+    let annule = false;
+    chargerStructureOnglets(companyId).then(({ data }) => {
+      if (annule || !data) return;
+      setOnglets(data.onglets);
+    });
+    return () => { annule = true; };
+  }, [companyId]);
+
+  /* Coche par defaut SEULEMENT si le CRM est ouvert sur un onglet : depuis Principal, un lead
+     saisi a la main n'a pas a atterrir dans le premier onglet venu. */
+  useEffect(() => {
+    const ouvert = ongletActif !== ONGLET_PRINCIPAL && onglets.some(o => o.id === ongletActif);
+    setRattacher(ouvert);
+    if (ouvert) setOngletCible(ongletActif);
+    else if (!onglets.some(o => o.id === ongletCible)) setOngletCible(onglets[0]?.id ?? '');
+  }, [ongletActif, onglets]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -142,6 +171,13 @@ export default function AjouterLeads() {
       setError('Le prénom et le nom sont requis.');
       return;
     }
+    /* Les colonnes PLATES sont remplies comme a l'import : c'est par elles qu'un import
+       ulterieur reconnaitra ce lead comme un doublon, au lieu d'en creer un second. */
+    const emailPlat = email.trim() ? normalizeEmail(email) : null;
+    if (email.trim() && !emailPlat) { setError("L'adresse email n'est pas valide."); return; }
+    const tel = normalizePhone(telephone);
+    if (telephone.trim() && !tel.valid) { setError("Le numéro de téléphone n'est pas reconnu."); return; }
+
     setSaving(true);
     setError('');
 
@@ -153,18 +189,30 @@ export default function AjouterLeads() {
       MotDePasse: pin.join(''),
     };
 
-    const { error: dbError } = await supabase.from('leads').insert({
+    const { data: cree, error: dbError } = await supabase.from('leads').insert({
       data,
       import_id: null,
+      prenom: prenom.trim(),
+      nom: nom.trim(),
+      email: emailPlat,
+      telephone: tel.canonical,
+      source: 'manuel',
       ...(companyId ? { company_id: companyId } : {}),
-    });
+    }).select('id').single();
 
-    setSaving(false);
-
-    if (dbError) {
-      setError('Une erreur est survenue. Veuillez réessayer.');
+    if (dbError || !cree) {
+      setSaving(false);
+      setError(dbError?.code === '23505'
+        ? 'Un lead avec cet email ou ce numéro existe déjà dans votre CRM.'
+        : 'Une erreur est survenue. Veuillez réessayer.');
       return;
     }
+
+    if (rattacher && ongletCible && companyId) {
+      const { error: errOnglet } = await rattacherLeads(companyId, ongletCible, [cree.id]);
+      if (errOnglet) setError("Lead créé, mais l'ajout à l'onglet a échoué : il est visible dans Principal.");
+    }
+    setSaving(false);
 
     setSuccess(true);
     setPrenom('');
@@ -235,8 +283,25 @@ export default function AjouterLeads() {
             <PinInput value={pin} onChange={setPin} tokens={tokens} />
           </div>
 
+          {onglets.length > 0 && (
+            <div className="space-y-2 rounded-xl p-3" style={{ background: tokens.surface.tertiary }}>
+              <label className="flex items-center gap-2 text-xs cursor-pointer min-h-[44px]" style={{ color: tokens.text.secondary }}>
+                <input type="checkbox" checked={rattacher} onChange={e => setRattacher(e.target.checked)} className="w-4 h-4" />
+                Ajouter aussi à l'onglet de colonnes
+              </label>
+              {rattacher && (
+                <select value={ongletCible} onChange={e => setOngletCible(e.target.value)} aria-label="Onglet de colonnes"
+                  className="w-full h-10 px-3 rounded-lg text-xs focus:outline-none"
+                  style={{ background: tokens.surface.secondary, border: `1px solid ${tokens.surface.border}`, color: tokens.input.text }}>
+                  {onglets.map(o => <option key={o.id} value={o.id}>{o.nom}</option>)}
+                </select>
+              )}
+              <p className="text-[10px]" style={{ color: tokens.text.quaternary }}>Le lead reste toujours visible dans « Principal ».</p>
+            </div>
+          )}
+
           {error && (
-            <p className="text-xs px-1" style={{ color: tokens.danger.text }}>{error}</p>
+            <p className="text-xs px-1" role="alert" style={{ color: tokens.danger.text }}>{error}</p>
           )}
         </div>
 

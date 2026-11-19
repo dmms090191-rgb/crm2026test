@@ -9,6 +9,10 @@ export interface ImportedLead {
    * sur 33. Voir `telDuLead` dans `lib/formatTel.ts` pour la cascade et le releve.
    */
   telephone?: string | null;
+  /** Colonnes PLATES remplies par l'import : lues avant le JSONB pour l'identite et la recherche. */
+  prenom?: string | null;
+  nom?: string | null;
+  email?: string | null;
   imported_at: string;
   statut?: string;
   actif?: boolean;

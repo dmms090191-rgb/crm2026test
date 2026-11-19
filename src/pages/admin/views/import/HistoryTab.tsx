@@ -1,4 +1,5 @@
 import { Clock, FileText, Download, Calendar, Users, ChevronRight } from 'lucide-react';
+import { LIBELLES_MODE } from '../../../../lib/importOnglet';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 import type { ImportRecord } from './importLeadsTypes';
 
@@ -59,7 +60,7 @@ export default function HistoryTab({ history, historyLoading, onPreview }: Histo
                   </span>
                   {record.import_mode && (
                     <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: tokens.surface.tertiary, color: tokens.text.tertiary, border: tokens.surface.borderLight }}>
-                      {record.import_mode}
+                      {LIBELLES_MODE[record.import_mode] ?? record.import_mode}
                     </span>
                   )}
                 </div>

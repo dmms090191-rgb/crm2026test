@@ -23,6 +23,9 @@ export default function ImportLeads({ onNavigateToCrm }: ImportLeadsProps) {
     history, historyLoading, previewRecord, counts, importableCount,
     setDragOver, setImportMode, setPreviewRecord,
     resetImport, handleFile, handleDrop, handleImport,
+    colonnes, basculerProposition, propositionsRefusees, avertissements,
+    onglets, structureErreur, choixOnglet, setChoixOnglet, nomNouvelOnglet, setNomNouvelOnglet,
+    erreurNomOnglet, choixValide, progression, ouvrirOnglet,
   } = useImportLeads(activeTab);
 
   const tabs = [
@@ -56,7 +59,7 @@ export default function ImportLeads({ onNavigateToCrm }: ImportLeadsProps) {
         {activeTab === 'import' && (
           <div className="space-y-4">
             {phase === 'done' && importResult && (
-              <ImportResult {...importResult} onNewImport={resetImport} onGoToCrm={() => { resetImport(); onNavigateToCrm?.(); }} />
+              <ImportResult {...importResult} onNewImport={resetImport} onGoToCrm={() => { ouvrirOnglet(importResult.ongletId); resetImport(); onNavigateToCrm?.(); }} />
             )}
 
             {phase === 'upload' && (
@@ -95,6 +98,11 @@ export default function ImportLeads({ onNavigateToCrm }: ImportLeadsProps) {
                 importMode={importMode}
                 onImportModeChange={setImportMode} importableCount={importableCount}
                 onReset={resetImport} onImport={handleImport}
+                colonnes={colonnes} propositionsRefusees={propositionsRefusees} onBasculerProposition={basculerProposition}
+                avertissements={avertissements} onglets={onglets} structureErreur={structureErreur}
+                choixOnglet={choixOnglet} onChoixOnglet={setChoixOnglet}
+                nomNouvelOnglet={nomNouvelOnglet} onNomNouvelOnglet={setNomNouvelOnglet}
+                erreurNomOnglet={erreurNomOnglet} choixValide={choixValide} erreur={parseError}
               />
             )}
 
@@ -105,7 +113,16 @@ export default function ImportLeads({ onNavigateToCrm }: ImportLeadsProps) {
                 </div>
                 <div className="text-center">
                   <p className="font-semibold text-sm" style={{ color: tokens.text.primary }}>Import en cours...</p>
-                  <p className="text-xs mt-1" style={{ color: tokens.text.quaternary }}>Envoi des donnees vers le CRM</p>
+                  <p className="text-xs mt-1" style={{ color: tokens.text.quaternary }}>Ne fermez pas cette page avant la fin.</p>
+                </div>
+                <div className="w-full max-w-xs" role="progressbar" aria-label="Lignes importées" aria-valuemin={0} aria-valuemax={progression.total} aria-valuenow={progression.faites}>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-[10px]" style={{ color: tokens.text.quaternary }}>Lignes envoyées</span>
+                    <span className="text-[10px] tabular-nums" style={{ color: tokens.text.tertiary }}>{progression.faites.toLocaleString('fr-FR')} / {progression.total.toLocaleString('fr-FR')}</span>
+                  </div>
+                  <div className="h-1.5 rounded-full overflow-hidden" style={{ background: tokens.surface.borderLight }}>
+                    <div className="h-full rounded-full transition-all duration-300" style={{ width: `${progression.total ? Math.round(progression.faites / progression.total * 100) : 0}%`, background: 'linear-gradient(90deg, #22d3ee, #0ea5e9)' }} />
+                  </div>
                 </div>
               </div>
             )}

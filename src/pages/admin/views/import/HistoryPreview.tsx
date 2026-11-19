@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { LIBELLES_MODE } from '../../../../lib/importOnglet';
 import { FileText, X } from 'lucide-react';
 import { supabase } from '../../../../lib/supabase';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
@@ -57,7 +58,7 @@ export default function HistoryPreview({ record, onClose }: HistoryPreviewProps)
                 <p className="text-xs" style={{ color: tokens.text.quaternary }}>{record.lead_count} leads · {new Date(record.imported_at).toLocaleDateString('fr-FR')} {new Date(record.imported_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</p>
                 {record.import_mode && (
                   <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold" style={{ background: tokens.accent.bg, color: tokens.accent.text, border: tokens.accent.border }}>
-                    {record.import_mode}
+                    {LIBELLES_MODE[record.import_mode] ?? record.import_mode}
                   </span>
                 )}
               </div>

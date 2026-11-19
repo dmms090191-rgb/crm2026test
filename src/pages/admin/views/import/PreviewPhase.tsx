@@ -1,11 +1,16 @@
 import { useState } from 'react';
-import { FileText, CheckCircle, Eye, X, Users, Hash, PenLine } from 'lucide-react';
+import { FileText, CheckCircle, Eye, X, Users, Hash, PenLine, AlertTriangle } from 'lucide-react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 import type { ProcessedRow, ColumnMapping } from '../../../../lib/csvImportPipeline';
 import ImportStats from './ImportStats';
 import ImportModeSelector, { type ImportMode } from './ImportModeSelector';
 import PreviewTable from './PreviewTable';
 import PhoneCleanModal from './PhoneCleanModal';
+import OngletImportChoix from './OngletImportChoix';
+import ColonnesApercu from './ColonnesApercu';
+import type { ApercuColonne, ChoixOngletUi } from './useImportLeads';
+import type { Onglet } from '../../../../lib/ongletsLeads';
+import type { AvertissementCsv } from '../../../../lib/csvLecture';
 
 interface PreviewPhaseProps {
   file: File | null;
@@ -19,11 +24,26 @@ interface PreviewPhaseProps {
   importableCount: number;
   onReset: () => void;
   onImport: () => void;
+  colonnes: ApercuColonne[];
+  propositionsRefusees: Set<string>;
+  onBasculerProposition: (entete: string) => void;
+  avertissements: { lignes: AvertissementCsv[]; guillemet: boolean; colonnesAjoutees: number; entetesCoupes: number };
+  onglets: Onglet[];
+  structureErreur: string;
+  choixOnglet: ChoixOngletUi;
+  onChoixOnglet: (c: ChoixOngletUi) => void;
+  nomNouvelOnglet: string;
+  onNomNouvelOnglet: (v: string) => void;
+  erreurNomOnglet: string | null;
+  choixValide: boolean;
+  erreur: string;
 }
 
 export default function PreviewPhase({
   file, counts, allColumns, mapping, processedRows, onProcessedRowsChange,
   importMode, onImportModeChange, importableCount, onReset, onImport,
+  colonnes, propositionsRefusees, onBasculerProposition, avertissements,
+  onglets, structureErreur, choixOnglet, onChoixOnglet, nomNouvelOnglet, onNomNouvelOnglet, erreurNomOnglet, choixValide, erreur,
 }: PreviewPhaseProps) {
   const tokens = useThemeTokens();
   const [showPhoneClean, setShowPhoneClean] = useState(false);
@@ -60,21 +80,42 @@ export default function PreviewPhase({
         ))}
       </div>
 
-      {/* Detected columns */}
-      {Object.values(mapping).some(Boolean) && (
-        <div className="flex items-start gap-2 flex-wrap px-3 sm:px-4 py-3 rounded-xl overflow-hidden" style={{ background: 'rgba(34,211,238,0.05)', border: tokens.accent.border }}>
-          <span className="text-[10px] font-bold tracking-widest uppercase shrink-0 mt-0.5" style={{ color: tokens.accent.text }}>Colonnes detectees</span>
-          <div className="flex items-center gap-2 flex-wrap">
-            {Object.entries(mapping).filter(([, v]) => v).map(([k, v]) => (
-              <span key={k} className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px]" style={{ background: tokens.accent.bg, color: tokens.accent.text, border: tokens.accent.border }}>
-                <span style={{ color: tokens.text.tertiary }}>{k}</span>
-                <span style={{ color: tokens.text.quaternary }}>{'\u2192'}</span>
-                <span>{v}</span>
-              </span>
-            ))}
+      {/* Les ecarts de structure du fichier : signales, jamais corriges en silence. */}
+      {(avertissements.lignes.length > 0 || avertissements.guillemet || avertissements.colonnesAjoutees > 0 || avertissements.entetesCoupes > 0) && (
+        <div className="flex items-start gap-2 px-3 sm:px-4 py-3 rounded-xl text-[11px]" role="status" style={{ background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.2)', color: tokens.text.secondary }}>
+          <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: '#fbbf24' }} />
+          <div className="space-y-0.5">
+            {avertissements.lignes.length > 0 && (
+              <p>{avertissements.lignes.length} ligne{avertissements.lignes.length > 1 ? 's' : ''} n'{avertissements.lignes.length > 1 ? 'ont' : 'a'} pas le même nombre de cellules que l'en-tête (ex. ligne {avertissements.lignes[0].ligne} : {avertissements.lignes[0].trouve} au lieu de {avertissements.lignes[0].attendu}). Les cellules manquantes sont lues comme vides.</p>
+            )}
+            {avertissements.colonnesAjoutees > 0 && (
+              <p>{avertissements.colonnesAjoutees} colonne{avertissements.colonnesAjoutees > 1 ? 's' : ''} sans en-tête {avertissements.colonnesAjoutees > 1 ? 'ont été ajoutées' : 'a été ajoutée'} (« Colonne N ») pour ne perdre aucune valeur.</p>
+            )}
+            {avertissements.entetesCoupes > 0 && (
+              <p>{avertissements.entetesCoupes} en-tête{avertissements.entetesCoupes > 1 ? 's' : ''} de plus de 190 caractères {avertissements.entetesCoupes > 1 ? 'ont été raccourcis' : 'a été raccourci'} ; les valeurs de ces colonnes sont toutes conservées.</p>
+            )}
           </div>
         </div>
       )}
+
+      {/* DECISION DE DAVID (19/11) : un client qui a son espace lit, par l'API, toutes les
+          informations de SA fiche. Tant que le chantier securite n'a pas cloisonne ces
+          donnees, on le dit avant l'import. */}
+      <p className="flex items-start gap-2 px-3 sm:px-4 py-3 rounded-xl text-[11px]" role="note" style={{ background: tokens.surface.tertiary, border: tokens.card.border, color: tokens.text.secondary }}>
+        <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: '#fbbf24' }} />
+        <span>Toutes les colonnes de ce fichier seront enregistrées dans la fiche de chaque lead. Un lead qui a un accès client peut voir les informations de sa propre fiche : n'importez pas de notes internes ou de données confidentielles.</span>
+      </p>
+
+      <OngletImportChoix
+        onglets={onglets} choix={choixOnglet} onChoix={onChoixOnglet}
+        nomNouvel={nomNouvelOnglet} onNomNouvel={onNomNouvelOnglet} erreurNom={erreurNomOnglet}
+        erreurChargement={structureErreur}
+      />
+
+      <ColonnesApercu
+        colonnes={colonnes} ongletExistant={choixOnglet?.type === 'existant'}
+        propositionsRefusees={propositionsRefusees} onBasculerProposition={onBasculerProposition}
+      />
 
       {/* Stats */}
       <ImportStats total={counts.total} valid={counts.valid} dupFile={counts.dup_file} dupCrm={counts.dup_crm} errors={counts.error} />
@@ -109,14 +150,19 @@ export default function PreviewPhase({
         />
       )}
 
+      {erreur && (
+        <p className="text-xs px-3 py-2 rounded-xl" role="alert" style={{ background: tokens.danger.bg, color: tokens.danger.text, border: tokens.danger.border }}>{erreur}</p>
+      )}
+
       {/* Action buttons */}
       <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3">
         <button onClick={onReset} className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all" style={{ color: tokens.text.tertiary, background: tokens.surface.tertiary, border: tokens.card.border }}>
           <X className="w-3.5 h-3.5" />Annuler
         </button>
-        <button onClick={onImport} disabled={importableCount === 0}
+        <button onClick={onImport} disabled={importableCount === 0 || !choixValide}
+          title={!choixValide ? "Choisissez d'abord l'onglet de colonnes" : undefined}
           className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all disabled:opacity-40 hover:brightness-110 disabled:cursor-not-allowed"
-          style={{ background: 'linear-gradient(135deg, #22d3ee, #0ea5e9)', color: '#050a10', boxShadow: importableCount > 0 ? '0 0 20px rgba(34,211,238,0.3)' : 'none' }}
+          style={{ background: 'linear-gradient(135deg, #22d3ee, #0ea5e9)', color: '#050a10', boxShadow: importableCount > 0 && choixValide ? '0 0 20px rgba(34,211,238,0.3)' : 'none' }}
         >
           <CheckCircle className="w-4 h-4" />Valider l'importation ({importableCount} lead{importableCount !== 1 ? 's' : ''})
         </button>

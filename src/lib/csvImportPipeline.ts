@@ -136,11 +136,14 @@ export function processRows(
     const nom = capitalizeName(rawNom);
 
     const emailNorm = normalizeEmail(rawEmail);
-    if (rawEmail.trim() !== '' && emailNorm === null) {
+    const telResult = normalizePhone(rawTel);
+    /* Un email mal ecrit ne fait plus rejeter une ligne qui a un TELEPHONE valide : le lead
+       reste joignable, et l'email du fichier est conserve tel quel dans ses donnees. La ligne
+       n'est refusee que si elle n'a aucun autre moyen de contact. */
+    if (rawEmail.trim() !== '' && emailNorm === null && !(telResult.valid && telResult.canonical)) {
       return { index, raw, prenom, nom, email: null, telephone: null, status: 'error' as RowStatus, errorReason: 'Email invalide' };
     }
 
-    const telResult = normalizePhone(rawTel);
     let telephone: string | null = null;
     if (telResult.valid) {
       telephone = telResult.canonical;

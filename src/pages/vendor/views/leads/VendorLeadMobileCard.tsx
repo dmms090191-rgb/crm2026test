@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Mail, Phone, ChevronDown, Undo2, Redo2, CheckCircle2, Calendar, RotateCcw, Bot, MoreHorizontal } from 'lucide-react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
-import { getInitials, gradients, getStatutCfg, FALLBACK_COLOR } from '../../../admin/views/crm/utils';
+import { gradients, getStatutCfg, FALLBACK_COLOR } from '../../../admin/views/crm/utils';
 import CheckBox from '../../../admin/views/crm/CheckBox';
 import MobileStatutModal from '../../../admin/views/crm/MobileStatutModal';
 import CopyButton from '../../../../components/CopyButton';
@@ -10,6 +10,9 @@ import { useFormatTel } from '../../../../hooks/useFormatTel';
 import { telDuLead, formaterTel } from '../../../../lib/formatTel';
 import VendorLeadActionModal from './VendorLeadActionModal';
 import type { ImportedLead, StatutDef } from '../vendorLeadsTypes';
+import ChampsOngletCarte from '../../../../components/leads/ChampsOngletCarte';
+import { champContact, identiteLead, initialesLead } from '../../../../lib/identiteLead';
+import { libelleOnglets, type ColonneAffichee } from '../../../../lib/ongletsLeads';
 
 function formatImportedAtShort(isoDate: string, tz: string): string {
   try {
@@ -19,6 +22,8 @@ function formatImportedAtShort(isoDate: string, tz: string): string {
 }
 
 interface Props {
+  champsOnglet?: ColonneAffichee[];
+  ongletsDuLead?: string[] | null;
   lead: ImportedLead;
   index: number;
   statutDefs: StatutDef[];
@@ -51,13 +56,15 @@ export default function VendorLeadMobileCard({
   workHistoryLength, workHistoryPosition, canUndo, canRedo,
   onWorkSelect, onWorkUndo, onWorkRedo, onWorkReset, onToggle, onStatutChange,
   onToggleActif, onToggleAi, onDetail, onOpenChat, onOpenRdv, onConnectAsClient, selectMode, cardRef,
+  champsOnglet, ongletsDuLead,
 }: Props) {
   const tokens = useThemeTokens();
   const [statutModalOpen, setStatutModalOpen] = useState(false);
   const [actionsOpen, setActionsOpen] = useState(false);
-  const nom = lead.data['Nom'] ?? '';
-  const prenom = lead.data['Prenom'] ?? '';
-  const email = lead.data['Email'] ?? '';
+  const nom = champContact(lead, 'nom');
+  const prenom = champContact(lead, 'prenom');
+  const email = champContact(lead, 'email');
+  const identite = identiteLead(lead);
   /* DEUX VARIABLES, ET LA DISTINCTION COMPTE.
      `tel` est le numero tel qu'il est EN BASE, via la cascade qui regarde la colonne plate
      avant le JSONB : c'est une DONNEE, et c'est elle qu'on transmet au chat, au rendez-vous
@@ -68,7 +75,7 @@ export default function VendorLeadMobileCard({
   const tel = telDuLead(lead);
   const telAffiche = formaterTel(tel, format);
   const statut = lead.statut || 'Nouveau';
-  const initials = getInitials(nom, prenom);
+  const initials = initialesLead(lead);
   const grad = gradients[index % gradients.length];
   const actif = lead.actif !== false;
   const aiEnabled = lead.ai_enabled === true;
@@ -110,7 +117,11 @@ export default function VendorLeadMobileCard({
         </div>
 
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold truncate" style={{ color: tokens.table.cellText }}>{prenom} {nom}</p>
+          <p className="text-sm font-semibold truncate" style={{ color: tokens.table.cellText }}>{identite.titre}</p>
+          {identite.source === 'contact' && identite.entreprise && (
+            <p className="text-[11px] truncate" style={{ color: tokens.text.tertiary }}>{identite.entreprise}</p>
+          )}
+          {ongletsDuLead && <p className="text-[10px] font-semibold truncate mt-0.5" style={{ color: tokens.accent.text }}>{libelleOnglets(ongletsDuLead)}</p>}
           {isWorkActive && workHistoryLength > 0 && (
             <div className="flex items-center gap-1 mt-0.5">
               <button onClick={onWorkUndo} disabled={!canUndo} className="w-5 h-5 rounded flex items-center justify-center disabled:opacity-30" style={{ color: '#f97316' }}><Undo2 className="w-3 h-3" /></button>
@@ -146,6 +157,10 @@ export default function VendorLeadMobileCard({
           </div>
         )}
       </div>
+
+      {champsOnglet && champsOnglet.length > 0 && (
+        <ChampsOngletCarte lead={lead} champs={champsOnglet} exclureEntreprise={identite.source === 'entreprise'} />
+      )}
 
       {/* Metadata: Statut, Date, Acces */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mb-3 text-[11px]" style={{ color: tokens.text.quaternary }}>
@@ -202,11 +217,11 @@ export default function VendorLeadMobileCard({
         </button>
         {actionsOpen && (
           <VendorLeadActionModal
-            lead={{ nom, prenom, email, tel: telAffiche }}
+            lead={{ nom: nom || (prenom ? '' : identite.titre), prenom, email, tel: telAffiche }}
             tokens={tokens}
             onClose={() => setActionsOpen(false)}
             onDetail={() => onDetail(lead, index)}
-            onConnect={() => onConnectAsClient?.({ id: lead.id, nom, prenom, email })}
+            onConnect={() => onConnectAsClient?.({ id: lead.id, nom, prenom, email: lead.data['Email'] ?? '' })}
             onChat={() => onOpenChat?.({ id: lead.id, nom, prenom, email, tel })}
             onRdv={() => onOpenRdv?.({ id: lead.id, nom, prenom, email, tel })}
           />

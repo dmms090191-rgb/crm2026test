@@ -3,9 +3,21 @@ import { supabase } from '../../../../lib/supabase';
 import { useWorkMode } from '../../../../hooks/useWorkMode';
 import { useCompanyId } from '../../../../hooks/useCompanyId';
 import { telDuLead, telCorrespond } from '../../../../lib/formatTel';
+import { lireParCurseur } from '../../../../lib/lectureIntegrale';
+import { champContact } from '../../../../lib/identiteLead';
+import { leadCorrespond } from '../../../../lib/rechercheLeads';
+import { ONGLET_PRINCIPAL } from '../../../../lib/ongletsLeads';
 import type { ImportedLead, StatutDef } from '../vendorLeadsTypes';
 
-export function useVendorLeadsData(vendorId: string | null) {
+interface VueLeads {
+  ongletActif?: string;
+  dansOnglet?: (leadId: string, ongletId: string) => boolean;
+}
+
+export function useVendorLeadsData(vendorId: string | null, vue: VueLeads = {}) {
+  const ongletActif = vue.ongletActif ?? ONGLET_PRINCIPAL;
+  const dansOnglet = vue.dansOnglet;
+  const [recherche, setRecherche] = useState('');
   const companyId = useCompanyId();
   const [leads, setLeads] = useState<ImportedLead[]>([]);
   const [statutDefs, setStatutDefs] = useState<StatutDef[]>([]);
@@ -38,13 +50,14 @@ export function useVendorLeadsData(vendorId: string | null) {
     if (companyId) statutsQuery.eq('company_id', companyId);
     statutsQuery.order('created_at', { ascending: true });
 
+    /* Toutes les pages : au-dela de 1 000 leads attribues, PostgREST tronquait en silence. */
     const [leadsRes, statutsRes] = await Promise.all([
-      supabase
-        .from('leads')
-        .select('id, data, telephone, imported_at, statut, actif, vendor_id, ai_enabled')
-        .eq('vendor_id', vendorId)
-        .order('imported_at', { ascending: false })
-        .order('id', { ascending: true }),
+      lireParCurseur<ImportedLead>((apres, taille) => {
+        const base = supabase.from('leads')
+          .select('id, data, prenom, nom, email, telephone, imported_at, statut, actif, vendor_id, ai_enabled')
+          .eq('vendor_id', vendorId);
+        return (apres ? base.gt('id', apres) : base).order('id', { ascending: true }).limit(taille);
+      }),
       statutsQuery,
     ]);
 
@@ -136,10 +149,14 @@ export function useVendorLeadsData(vendorId: string | null) {
     const fPrenom = filterPrenom.toLowerCase();
     const fEmail = filterEmail.toLowerCase();
 
+    const rechercheActive = recherche.trim() !== '';
     const result = leads.filter(l => {
-      if (fNom && !(l.data['Nom'] ?? '').toLowerCase().includes(fNom)) return false;
-      if (fPrenom && !(l.data['Prenom'] ?? '').toLowerCase().includes(fPrenom)) return false;
-      if (fEmail && !(l.data['Email'] ?? '').toLowerCase().includes(fEmail)) return false;
+      /* La recherche porte sur tous les leads du commercial ; sinon l'onglet ouvert borne la liste. */
+      if (rechercheActive) { if (!leadCorrespond(l, recherche)) return false; }
+      else if (ongletActif !== ONGLET_PRINCIPAL && !(dansOnglet?.(l.id, ongletActif) ?? false)) return false;
+      if (fNom && !champContact(l, 'nom').toLowerCase().includes(fNom)) return false;
+      if (fPrenom && !champContact(l, 'prenom').toLowerCase().includes(fPrenom)) return false;
+      if (fEmail && !champContact(l, 'email').toLowerCase().includes(fEmail)) return false;
       /* Meme correction que cote Societe : source en cascade, comparaison tolerante au
          format. Voir `telCorrespond` dans `lib/formatTel.ts`. */
       if (filterTel && !telCorrespond(telDuLead(l), filterTel)) return false;
@@ -158,7 +175,7 @@ export function useVendorLeadsData(vendorId: string | null) {
       return a.id.localeCompare(b.id);
     });
     return result;
-  }, [leads, filterNom, filterPrenom, filterEmail, filterTel, statutFilter, sortOrder]);
+  }, [leads, filterNom, filterPrenom, filterEmail, filterTel, statutFilter, sortOrder, recherche, ongletActif, dansOnglet]);
 
   const filteredIds = useMemo(() => filtered.map(l => l.id), [filtered]);
   const allChecked = filteredIds.length > 0 && filteredIds.every(id => selected.has(id));
@@ -171,6 +188,7 @@ export function useVendorLeadsData(vendorId: string | null) {
 
   return {
     leads, statutDefs, loading, filtered, selected, setSelected,
+    recherche, setRecherche, rechercheActive: recherche.trim() !== '',
     allChecked, someChecked, toggleAll, toggleOne,
     filterEmail, setFilterEmail, filterTel, setFilterTel,
     filterPrenom, setFilterPrenom, filterNom, setFilterNom,

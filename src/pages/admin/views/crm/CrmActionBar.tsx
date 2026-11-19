@@ -1,4 +1,4 @@
-import { Users, Trash2, ArrowRightLeft } from 'lucide-react';
+import { Users, Trash2, ArrowRightLeft, FolderInput, FolderMinus } from 'lucide-react';
 import type { ThemeTokens } from '../../../../lib/themeTokensTypes';
 
 interface CrmActionBarProps {
@@ -10,9 +10,13 @@ interface CrmActionBarProps {
   onDelete: () => void;
   /** Vrai tant que la base n'a pas repondu : le compte n'est pas encore CONNU. */
   loading?: boolean;
+  /** Ranger la selection dans un onglet de colonnes (sans dupliquer les leads). */
+  onAjouterOnglet?: () => void;
+  /** Retirer la selection de l'onglet ouvert : les leads restent dans Principal. */
+  onRetirerOnglet?: () => void;
 }
 
-export default function CrmActionBar({ totalLeads, selectedCount, deleting, tokens, onTransfer, onDelete, loading }: CrmActionBarProps) {
+export default function CrmActionBar({ totalLeads, selectedCount, deleting, tokens, onTransfer, onDelete, loading, onAjouterOnglet, onRetirerOnglet }: CrmActionBarProps) {
   /*
    * « 0 lead » n'est affiche que si la base a REELLEMENT repondu zero.
    *
@@ -47,6 +51,27 @@ export default function CrmActionBar({ totalLeads, selectedCount, deleting, toke
             <Trash2 className="w-3.5 h-3.5 flex-shrink-0" />
             <span className="truncate">Supprimer {selectedCount}</span>
           </button>
+          {onAjouterOnglet && (
+            <button
+              onClick={onAjouterOnglet}
+              className="flex items-center justify-center gap-1.5 px-2 py-2 md:px-3 md:py-1.5 rounded-xl text-[11px] md:text-xs font-semibold transition-all"
+              style={{ background: tokens.surface.secondary, color: tokens.text.secondary, border: `1px solid ${tokens.surface.border}` }}
+            >
+              <FolderInput className="w-3.5 h-3.5 flex-shrink-0" />
+              <span className="truncate">Ajouter à un onglet</span>
+            </button>
+          )}
+          {onRetirerOnglet && (
+            <button
+              onClick={onRetirerOnglet}
+              className="flex items-center justify-center gap-1.5 px-2 py-2 md:px-3 md:py-1.5 rounded-xl text-[11px] md:text-xs font-semibold transition-all"
+              style={{ background: tokens.surface.secondary, color: tokens.text.secondary, border: `1px solid ${tokens.surface.border}` }}
+              title="Les leads restent dans Principal et dans leurs autres onglets"
+            >
+              <FolderMinus className="w-3.5 h-3.5 flex-shrink-0" />
+              <span className="truncate">Retirer de l'onglet</span>
+            </button>
+          )}
           <div className="col-span-2 md:col-span-1 flex items-center justify-center gap-1.5 px-2 py-2 md:px-3 md:py-1.5 rounded-xl text-[11px] md:text-xs font-semibold" style={{ background: tokens.accent.bg, color: tokens.accent.text, border: `1px solid ${tokens.accent.border}` }}>
             <Users className="w-3.5 h-3.5 flex-shrink-0" />
             {compte}

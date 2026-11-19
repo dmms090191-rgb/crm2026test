@@ -4,7 +4,8 @@ import { X, LogIn } from 'lucide-react';
 import { useThemeTokens } from '../../../hooks/useThemeTokens';
 import type { ImpersonatedClientInfo } from '../../client/ClientDashboard';
 import type { ImportedLead, StatutDef } from './vendorLeadsTypes';
-import { getStatutCfg, FALLBACK_COLOR, getInitials, gradients } from '../../admin/views/crm/utils';
+import { getStatutCfg, FALLBACK_COLOR, gradients } from '../../admin/views/crm/utils';
+import { champContact, identiteLead, initialesLead } from '../../../lib/identiteLead';
 import CrmPinDisplay from '../../admin/views/crm/CrmPinDisplay';
 import CrmCommentsTab from '../../admin/views/crm/CrmCommentsTab';
 
@@ -29,13 +30,13 @@ export default function VendorLeadDetailModal({ lead, gradIndex, onClose, statut
     return () => { document.body.style.overflow = ''; };
   }, []);
 
-  const nom = lead.data['Nom'] ?? '';
-  const prenom = lead.data['Prenom'] ?? '';
-  const email = lead.data['Email'] ?? '';
+  const nom = champContact(lead, 'nom');
+  const prenom = champContact(lead, 'prenom');
+  const identite = identiteLead(lead);
   const statut = lead.statut ?? '';
   const statutDef = statutDefs.find(s => s.nom === statut);
   const cfg = getStatutCfg(statutDef?.couleur ?? FALLBACK_COLOR);
-  const initials = getInitials(nom, prenom);
+  const initials = initialesLead(lead);
   const grad = gradients[gradIndex % gradients.length];
   const mdp = leadData['MotDePasse'] ?? '';
 
@@ -93,7 +94,7 @@ export default function VendorLeadDetailModal({ lead, gradIndex, onClose, statut
           </div>
           <div className="min-w-0">
             <h3 className="text-lg font-bold leading-tight truncate" style={{ color: tokens.modal.title }}>
-              {prenom || ''} {nom || '\u2014'}
+              {identite.titre}
             </h3>
             <div className="flex items-center gap-2 mt-1">
               <span
@@ -138,7 +139,7 @@ export default function VendorLeadDetailModal({ lead, gradIndex, onClose, statut
         {/* Footer */}
         <div className="px-6 py-4 flex-shrink-0" style={{ borderTop: `1px solid ${tokens.surface.border}` }}>
           <button
-            onClick={() => onConnect({ id: lead.id, nom, prenom, email })}
+            onClick={() => onConnect({ id: lead.id, nom, prenom, email: lead.data['Email'] ?? '' })}
             className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition-all hover:scale-105"
             style={{ background: tokens.success.bg, border: `1px solid ${tokens.success.border}`, color: tokens.success.text }}
           >

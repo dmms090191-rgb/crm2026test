@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { Users, CheckSquare, Briefcase, Columns3, SlidersHorizontal, Bot } from 'lucide-react';
 import { useThemeTokens } from '../../../hooks/useThemeTokens';
 import { useTimezone } from '../../../hooks/useTimezone';
@@ -26,6 +26,16 @@ import { useVendorColumnConfig } from './crm/useVendorColumnConfig';
 import SelecteurFormatTel from '../../../components/telephone/SelecteurFormatTel';
 import { useFormatTel } from '../../../hooks/useFormatTel';
 import { telDuLead, formaterTel } from '../../../lib/formatTel';
+import { useOngletsLeads } from '../../../hooks/useOngletsLeads';
+import { useRenduProgressif } from '../../../hooks/useRenduProgressif';
+import { useEstBureau } from '../../../hooks/useEstBureau';
+import { champContact, identiteLead } from '../../../lib/identiteLead';
+import { ONGLET_PRINCIPAL, CLE_COLONNE_ONGLETS, type ColonneAffichee } from '../../../lib/ongletsLeads';
+import BarreOnglet from '../../../components/leads/BarreOnglet';
+import OngletsModal from '../../../components/leads/OngletsModal';
+import OngletColonnesModal from '../../../components/leads/OngletColonnesModal';
+import AjouterAOngletModal from '../../../components/leads/AjouterAOngletModal';
+import { useLeadDemande, leadMontre, defilerVersLead } from '../../../lib/leadAMontrer';
 
 export type { ImpersonatedClient, ChatLead } from './crm/types';
 
@@ -41,7 +51,15 @@ export default function Crm({ ownerUserId = null, onConnectAsClient, onOpenChat,
   const tokens = useThemeTokens();
   const { timezone } = useTimezone();
   const companyId = useCompanyId();
-  const d = useCrmData();
+  /* LES ONGLETS DE COLONNES : l'onglet ouvert decide a la fois des leads montres et des
+     colonnes du tableau. Principal = tous les leads, colonnes standard. */
+  const og = useOngletsLeads(companyId);
+  /* UN SEUL ARBRE MONTE. Les deux presentations etaient montees ensemble et l'une cachee
+     par CSS : avec 5 000 leads, cela faisait 10 000 lignes et cartes dans la page. Les
+     classes `md:` restent, elles servent encore de garde au premier rendu. */
+  const estBureau = useEstBureau();
+  const d = useCrmData({ ongletActif: og.ongletActif, dansOnglet: og.dansOnglet, estBureau });
+  const principal = og.ongletActif === ONGLET_PRINCIPAL;
   const colSep = { borderRight: `1px solid ${tokens.table.colSep}` };
   const cc = useCustomColumns('admin_crm');
   const allColumns = useMemo(() => [...CRM_COLUMNS, ...cc.customDefs], [cc.customDefs]);
@@ -49,10 +67,75 @@ export default function Crm({ ownerUserId = null, onConnectAsClient, onOpenChat,
   const colMobile = useColumnOrderMobile('talvex_columns_admin_crm', allColumns);
   const [showColModal, setShowColModal] = useState(false);
   const [showOrgModal, setShowOrgModal] = useState(false);
+  const [showOnglets, setShowOnglets] = useState(false);
+  const [colonnesEnEdition, setColonnesEnEdition] = useState<string | null>(null);
+  const [ajoutOnglet, setAjoutOnglet] = useState<string[] | null>(null);
+  const [annonce, setAnnonce] = useState('');
   const displayColumns = useMemo(() => allColumns.map(c => colOrder.labelOverrides[c.key] ? { ...c, label: colOrder.labelOverrides[c.key] } : c), [allColumns, colOrder.labelOverrides]);
   const colMap = useMemo(() => new Map(displayColumns.map(c => [c.key, c])), [displayColumns]);
   const vendorTabConfig = useVendorColumnConfig(companyId);
   const { format: formatTel } = useFormatTel();
+
+  const colonnesOnglet: ColonneAffichee[] = useMemo(
+    () => (principal ? [] : og.colonnesParOnglet.get(og.ongletActif) ?? []),
+    [principal, og.colonnesParOnglet, og.ongletActif],
+  );
+  const colonnesParCle = useMemo(() => new Map(colonnesOnglet.map(c => [c.cle, c])), [colonnesOnglet]);
+  const colonnesDyn = useMemo(() => new Map(colonnesOnglet.filter(c => !c.systeme).map(c => [c.cle, c])), [colonnesOnglet]);
+
+  /* Les colonnes du tableau : celles de Principal (reglables comme avant), celles de
+     l'onglet ouvert, ou — pendant une recherche globale — celles de Principal plus une
+     colonne « Onglets » qui dit d'ou vient chaque resultat. */
+  const clesAffichees = useMemo(() => {
+    if (d.rechercheActive) {
+      const base = colOrder.visibleOrderedKeys.filter(k => k !== CLE_COLONNE_ONGLETS);
+      const i = base.indexOf('nom');
+      return [...base.slice(0, i + 1), CLE_COLONNE_ONGLETS, ...base.slice(i + 1)];
+    }
+    if (principal) return colOrder.visibleOrderedKeys;
+    return colonnesOnglet.filter(c => c.visible).map(c => c.cle);
+  }, [d.rechercheActive, principal, colOrder.visibleOrderedKeys, colonnesOnglet]);
+
+  const libelleColonne = (cle: string) => {
+    if (cle === CLE_COLONNE_ONGLETS) return 'Onglets';
+    if (!principal && !d.rechercheActive) return colonnesParCle.get(cle)?.libelle ?? cle;
+    return colMap.get(cle)?.label ?? cle;
+  };
+
+  const champsCarte = useMemo(
+    () => (principal || d.rechercheActive ? undefined : colonnesOnglet.filter(c => c.visible && !c.systeme)),
+    [principal, d.rechercheActive, colonnesOnglet],
+  );
+  const registreListe = useMemo(() => [...og.registre.values()], [og.registre]);
+
+  const cleListe = [og.ongletActif, d.recherche, d.filterNom, d.filterPrenom, d.filterEmail, d.filterTel, d.statutFilter, d.filterVendor, d.sortOrder].join('|');
+  const rp = useRenduProgressif(d.filtered, cleListe);
+  const { inclure } = rp;
+
+  /* Le lead du mode travail doit etre MONTE pour qu'on puisse y defiler. */
+  useEffect(() => {
+    if (!d.workMode.activeId) return;
+    const i = d.filtered.findIndex(l => l.id === d.workMode.activeId);
+    if (i >= 0) inclure(i);
+  }, [d.workMode.activeId, d.filtered, inclure]);
+
+  const chargement = d.loading || (!principal && og.chargement);
+
+  /* « MONTRER CE LEAD » (retour du chat, d'une connexion client, d'un rendez-vous) : on monte
+     la tranche qui le contient ; s'il n'est pas dans l'onglet ouvert, on rouvre Principal,
+     puis on efface la recherche. Les filtres de l'utilisateur ne sont jamais touches : si ce
+     sont eux qui le cachent, on renonce plutot que de les defaire. */
+  const leadDemande = useLeadDemande();
+  const { recherche, setRecherche } = d;
+  useEffect(() => {
+    if (!leadDemande || chargement || og.chargement) return;
+    const i = d.filtered.findIndex(l => l.id === leadDemande);
+    if (i >= 0) { inclure(i); leadMontre(leadDemande); defilerVersLead(leadDemande); return; }
+    if (!d.leads.some(l => l.id === leadDemande)) { leadMontre(leadDemande); return; }
+    if (og.ongletActif !== ONGLET_PRINCIPAL) og.choisir(ONGLET_PRINCIPAL);
+    else if (recherche) setRecherche('');
+    else leadMontre(leadDemande);
+  }, [leadDemande, chargement, og, d.filtered, d.leads, recherche, setRecherche, inclure]);
 
   const CRM_TOOLBAR_DEFAULT = ['select', 'ia', 'workmode', 'columns', 'organize'];
   const tbOrder = useActionMenuOrder('talvex_toolbar_order_admin_crm', CRM_TOOLBAR_DEFAULT);
@@ -75,21 +158,65 @@ export default function Crm({ ownerUserId = null, onConnectAsClient, onOpenChat,
     });
   }, [d]);
 
+  /* « Colonnes » regle Principal comme avant ; dans un onglet, il ouvre SES colonnes. Pendant
+     une recherche, le tableau montre les colonnes de Principal : c'est elles qu'on regle. */
+  const ouvrirColonnes = () => {
+    if (principal || d.rechercheActive) setShowColModal(true);
+    else setColonnesEnEdition(og.ongletActif);
+  };
+
+  /* Les comptes de la fenetre des onglets, sur les leads PRESENTS : un lead supprime ne
+     compte plus dans son onglet sans attendre un rechargement. */
+  const comptesOnglets = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const l of d.leads) for (const o of og.appartenances.get(l.id) ?? []) m.set(o, (m.get(o) ?? 0) + 1);
+    return m;
+  }, [d.leads, og.appartenances]);
+
+  const retirerDeLOnglet = async () => {
+    const ids = d.idsSelectionnesAffiches();
+    if (ids.length === 0 || principal) return;
+    const { error } = await og.retirer(og.ongletActif, ids);
+    setAnnonce(error ? `Retrait impossible : ${error}` : `${ids.length} lead${ids.length > 1 ? 's' : ''} retiré${ids.length > 1 ? 's' : ''} de « ${og.ongletActifNom} ». Ils restent dans Principal.`);
+    if (!error) d.setSelected(new Set());
+  };
+
   function leadSummary(lead: ImportedLead) {
-    const g = (k: string) => lead.data[k] ?? '';
     /* `telDuLead` et non `g('Telephone')` : ce chemin-la souffrait du meme aveuglement que
        les lignes et les cartes. Le numero reste BRUT ici — c'est la donnee transmise au chat
        et au rendez-vous ; seul l'affichage de la fiche le reecrit. */
-    return { id: lead.id, nom: g('Nom'), prenom: g('Prenom'), email: g('Email'), tel: telDuLead(lead) };
+    return { id: lead.id, nom: champContact(lead, 'nom'), prenom: champContact(lead, 'prenom'), email: champContact(lead, 'email'), tel: telDuLead(lead) };
   }
+
+  const selection = selectMode ? d.idsSelectionnesAffiches().length : 0;
 
   return (
     <div className="space-y-5">
       <CrmActionBar
-        totalLeads={d.leads.length} selectedCount={selectMode ? d.selected.size : 0} deleting={d.deleting} tokens={tokens}
+        totalLeads={d.leads.length} selectedCount={selection} deleting={d.deleting} tokens={tokens}
         onTransfer={() => d.setShowTransfer(true)} onDelete={d.handleDeleteSelected}
         loading={d.loading}
+        onAjouterOnglet={og.onglets.length > 0 ? () => setAjoutOnglet(d.idsSelectionnesAffiches()) : undefined}
+        onRetirerOnglet={!principal && !d.rechercheActive ? retirerDeLOnglet : undefined}
       />
+
+      <BarreOnglet
+        ongletNom={og.ongletActifNom} principal={principal} onOuvrir={() => setShowOnglets(true)}
+        recherche={d.recherche} onRecherche={d.setRecherche}
+        resultats={d.rechercheActive && !d.loading ? d.filtered.length : null}
+      />
+
+      {annonce && (
+        <p className="text-xs px-3 py-2 rounded-xl flex items-center justify-between gap-2" role="status" style={{ background: tokens.accent.bg, color: tokens.accent.text, border: `1px solid ${tokens.accent.border}` }}>
+          {annonce}
+          <button type="button" onClick={() => setAnnonce('')} className="text-[11px] underline flex-shrink-0">OK</button>
+        </p>
+      )}
+      {(d.erreurChargement || og.erreur) && (
+        <p className="text-xs px-3 py-2 rounded-xl" role="alert" style={{ background: tokens.danger.bg, color: tokens.danger.text, border: `1px solid ${tokens.danger.border}` }}>
+          Lecture incomplète : {d.erreurChargement || og.erreur}. Rechargez la page.
+        </p>
+      )}
 
       <CrmFilters
         filterVendor={d.filterVendor} setFilterVendor={d.setFilterVendor}
@@ -122,11 +249,6 @@ export default function Crm({ ownerUserId = null, onConnectAsClient, onOpenChat,
           les colonnes sont connus AVANT toute requete — ils ne dependent que des reglages
           deja en memoire.
 
-          La condition ne porte donc plus que sur le cas reellement vide. Pendant le
-          chargement, `d.filtered` est vide : le tableau se rend avec ses en-tetes et un
-          corps sans ligne, et le rond qui tourne passe SOUS lui. On voit donc tout de
-          suite ou les donnees vont s'inscrire.
-
           « Aucun lead importe » reste conditionne a `!d.loading` — ce message affirme un
           fait sur la base, et il ne doit jamais s'afficher avant qu'elle ait repondu.
         */}
@@ -140,6 +262,7 @@ export default function Crm({ ownerUserId = null, onConnectAsClient, onOpenChat,
           </div>
         ) : (
           <>
+            {estBureau ? (
             <div className="hidden md:block">
               <CrmWorkModeBar
                 allChecked={d.allChecked} someChecked={d.someChecked} toggleAll={d.toggleAll}
@@ -150,7 +273,7 @@ export default function Crm({ ownerUserId = null, onConnectAsClient, onOpenChat,
                 onLocate={() => { if (d.workMode.activeId) d.rowRefsMap.current.get(d.workMode.activeId)?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }}
                 canLocate={!!d.workMode.activeId && d.filtered.some(l => l.id === d.workMode.activeId)}
                 onResetHistory={d.workMode.resetHistory} allAiEnabled={allAiEnabled} onGlobalAiToggle={d.handleGlobalAiToggle}
-                onOpenColumns={() => setShowColModal(true)} onOpenOrganize={() => setShowOrgModal(true)} toolbarOrder={tbOrder.order}
+                onOpenColumns={ouvrirColonnes} onOpenOrganize={() => setShowOrgModal(true)} toolbarOrder={tbOrder.order}
               />
               <div ref={d.topScrollRef} onScroll={d.handleTopScroll} className="dual-scroll-top">
                 <div ref={d.topInnerRef} className="dual-scroll-top-inner" />
@@ -160,14 +283,13 @@ export default function Crm({ ownerUserId = null, onConnectAsClient, onOpenChat,
                   <thead>
                     <tr className="sticky top-0 z-10" style={{ background: tokens.table.headerBg }}>
                       {(selectMode || d.workMode.enabled) && <th className="px-3 py-4 w-12" style={{ borderBottom: `2px solid ${tokens.accent.solid}` }}></th>}
-                      {colOrder.visibleOrderedKeys.map(key => {
-                        const col = colMap.get(key);
+                      {clesAffichees.map(key => {
                         const Icon = CRM_HEADER_ICONS[key];
                         return (
                           <th key={key} className={`text-left px-5 py-4 ${key === 'hash' ? 'w-12' : ''}`} style={{ borderBottom: `2px solid ${tokens.accent.solid}` }}>
                             <div className="flex items-center gap-2">
                               {Icon && <Icon className="w-3 h-3 flex-shrink-0" style={{ color: tokens.accent.text, opacity: 0.6 }} />}
-                              <span className="text-[10px] font-bold tracking-[0.1em] uppercase" style={{ color: tokens.table.headerText }}>{col?.label ?? key}</span>
+                              <span className="text-[10px] font-bold tracking-[0.1em] uppercase whitespace-nowrap" style={{ color: tokens.table.headerText }}>{libelleColonne(key)}</span>
                             </div>
                           </th>
                         );
@@ -175,7 +297,7 @@ export default function Crm({ ownerUserId = null, onConnectAsClient, onOpenChat,
                     </tr>
                   </thead>
                   <tbody>
-                    {d.filtered.map((lead, i) => (
+                    {rp.visibles.map((lead, i) => (
                       <CrmTableRow
                         key={lead.id}
                         ref={el => { if (el) d.rowRefsMap.current.set(lead.id, el); else d.rowRefsMap.current.delete(lead.id); }}
@@ -189,15 +311,17 @@ export default function Crm({ ownerUserId = null, onConnectAsClient, onOpenChat,
                         onWorkSelect={d.workMode.select} onWorkUndo={d.workMode.undo} onWorkRedo={d.workMode.redo}
                         canWorkUndo={d.workMode.canUndo} canWorkRedo={d.workMode.canRedo}
                         workHistoryPosition={d.workMode.historyPosition} workHistoryLength={d.workMode.historyLength}
-                        columnOrder={colOrder.visibleOrderedKeys}
+                        columnOrder={clesAffichees}
                         customColumnDefs={cc.customDefs} customColumnValues={cc.getValuesForRow(lead.id)}
+                        colonnesDyn={colonnesDyn}
+                        ongletsDuLead={d.rechercheActive ? og.nomsOngletsDuLead(lead.id) : undefined}
                       />
                     ))}
                   </tbody>
                 </table>
               </div>
             </div>
-
+            ) : (
             <div className="md:hidden">
               <CrmWorkModeBar
                 allChecked={d.allChecked} someChecked={d.someChecked} toggleAll={d.toggleAll}
@@ -208,10 +332,10 @@ export default function Crm({ ownerUserId = null, onConnectAsClient, onOpenChat,
                 onLocate={() => { if (d.workMode.activeId) d.cardRefsMap.current.get(d.workMode.activeId)?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }}
                 canLocate={!!d.workMode.activeId && d.filtered.some(l => l.id === d.workMode.activeId)}
                 onResetHistory={d.workMode.resetHistory} allAiEnabled={allAiEnabled} onGlobalAiToggle={d.handleGlobalAiToggle}
-                onOpenColumns={() => setShowColModal(true)} onOpenOrganize={() => setShowOrgModal(true)} toolbarOrder={tbOrder.order}
+                onOpenColumns={ouvrirColonnes} onOpenOrganize={() => setShowOrgModal(true)} toolbarOrder={tbOrder.order}
               />
               <div className="divide-y" style={{ borderColor: tokens.table.rowBorder }}>
-                {d.filtered.map((lead, i) => (
+                {rp.visibles.map((lead, i) => (
                   <CrmMobileLeadCard
                     key={lead.id}
                     lead={lead} index={i} statutDefs={d.statutDefs} vendors={d.vendors} timezone={timezone}
@@ -225,12 +349,30 @@ export default function Crm({ ownerUserId = null, onConnectAsClient, onOpenChat,
                     onOpenChat={onOpenChat} onOpenRdv={onOpenRdv} onConnectAsClient={onConnectAsClient} ownerUserId={ownerUserId}
                     selectMode={selectMode}
                     cardRef={el => { if (el) d.cardRefsMap.current.set(lead.id, el); else d.cardRefsMap.current.delete(lead.id); }}
+                    champsOnglet={champsCarte}
+                    ongletsDuLead={d.rechercheActive ? og.nomsOngletsDuLead(lead.id) : null}
                   />
                 ))}
               </div>
             </div>
+            )}
 
-            {d.loading && (
+            {!chargement && rp.restant > 0 && (
+              <div ref={rp.sentinelle} className="flex items-center justify-center py-4">
+                <button type="button" onClick={rp.afficherPlus} className="min-h-[44px] px-4 rounded-xl text-xs font-semibold"
+                  style={{ background: tokens.accent.bg, color: tokens.accent.text, border: `1px solid ${tokens.accent.border}` }}>
+                  Afficher plus ({rp.restant.toLocaleString('fr-FR')} restant{rp.restant > 1 ? 's' : ''})
+                </button>
+              </div>
+            )}
+
+            {!chargement && d.leads.length > 0 && d.filtered.length === 0 && (
+              <p className="text-center text-xs py-10" style={{ color: tokens.text.quaternary }}>
+                {d.rechercheActive ? 'Aucun lead ne correspond à cette recherche.' : principal ? 'Aucun lead pour ces filtres.' : `Aucun lead dans l'onglet « ${og.ongletActifNom} » pour ces filtres.`}
+              </p>
+            )}
+
+            {chargement && (
               <div className="flex items-center justify-center py-16">
                 <div className="w-6 h-6 border-2 border-t-cyan-400 rounded-full animate-spin" style={{ borderColor: tokens.text.quaternary, borderTopColor: '#22d3ee' }} />
               </div>
@@ -238,9 +380,9 @@ export default function Crm({ ownerUserId = null, onConnectAsClient, onOpenChat,
 
             {/* La barre de bas de page COMPTE des lignes. Avant la reponse de la base, ce
                 compte vaudrait zero sans que zero soit vrai : on ne l'affiche pas encore. */}
-            {!d.loading && (
-              <CrmFooterBar filteredCount={d.filtered.length} selectedCount={d.selected.size}
-                hasActiveFilters={!!(d.filterNom || d.filterPrenom || d.filterEmail || d.filterTel)} tokens={tokens} />
+            {!chargement && (
+              <CrmFooterBar filteredCount={d.filtered.length} selectedCount={selection}
+                hasActiveFilters={!!(d.filterNom || d.filterPrenom || d.filterEmail || d.filterTel || d.recherche)} tokens={tokens} />
             )}
           </>
         )}
@@ -248,6 +390,7 @@ export default function Crm({ ownerUserId = null, onConnectAsClient, onOpenChat,
 
       {d.detailLead && (
         <DetailModal lead={d.detailLead.lead} gradIndex={d.detailLead.index} onClose={() => d.setDetailLead(null)} statutDefs={d.statutDefs}
+          registre={registreListe}
           onBack={d.detailLead.fromActions ? () => {
             const { lead, index: idx } = d.detailLead!;
             d.setDetailLead(null);
@@ -258,12 +401,13 @@ export default function Crm({ ownerUserId = null, onConnectAsClient, onOpenChat,
 
       {actionLeadModal && (() => {
         const s = leadSummary(actionLeadModal.lead);
+        const titre = s.nom || (s.prenom ? '' : identiteLead(actionLeadModal.lead).titre);
         return (
           <CrmActionModal
-            lead={{ nom: s.nom, prenom: s.prenom, email: s.email, tel: formaterTel(s.tel, formatTel) }} tokens={tokens}
+            lead={{ nom: titre, prenom: s.prenom, email: s.email, tel: formaterTel(s.tel, formatTel) }} tokens={tokens}
             onClose={() => setActionLeadModal(null)}
             onDetail={() => { const m = actionLeadModal; setActionLeadModal(null); d.setDetailLead({ lead: m.lead, index: m.index, fromActions: true }); }}
-            onConnect={() => { onConnectAsClient?.({ id: s.id, nom: s.nom, prenom: s.prenom, email: s.email }); setActionLeadModal(null); }}
+            onConnect={() => { onConnectAsClient?.({ id: s.id, nom: s.nom, prenom: s.prenom, email: actionLeadModal.lead.data['Email'] ?? '' }); setActionLeadModal(null); }}
             onChat={() => { onOpenChat?.(s); setActionLeadModal(null); }}
             onRdv={() => { onOpenRdv?.(s); setActionLeadModal(null); }}
             ownerUserId={ownerUserId}
@@ -271,7 +415,7 @@ export default function Crm({ ownerUserId = null, onConnectAsClient, onOpenChat,
         );
       })()}
 
-      {d.showTransfer && <TransferModal count={d.selected.size} onClose={() => d.setShowTransfer(false)} onConfirm={d.handleTransfer} />}
+      {d.showTransfer && <TransferModal count={selection} onClose={() => d.setShowTransfer(false)} onConfirm={d.handleTransfer} />}
 
       {showColModal && (
         <ColumnOrganizerModal columns={displayColumns} orderedKeys={colOrder.orderedKeys} hiddenDesktopKeys={colOrder.hiddenDesktopKeys}
@@ -282,6 +426,16 @@ export default function Crm({ ownerUserId = null, onConnectAsClient, onOpenChat,
       )}
 
       {showOrgModal && <ToolbarOrganizerModal items={toolbarItems} order={tbOrder.order} onSave={tbOrder.save} onClose={() => setShowOrgModal(false)} t={tokens} />}
+
+      {showOnglets && (
+        <OngletsModal og={og} totalLeads={d.leads.length} comptes={comptesOnglets} peutGerer onClose={() => setShowOnglets(false)}
+          onGererColonnes={id => setColonnesEnEdition(id)} />
+      )}
+      {colonnesEnEdition && <OngletColonnesModal og={og} ongletId={colonnesEnEdition} onClose={() => setColonnesEnEdition(null)} />}
+      {ajoutOnglet && (
+        <AjouterAOngletModal og={og} leadIds={ajoutOnglet} sauf={principal || d.rechercheActive ? undefined : og.ongletActif}
+          onClose={msg => { setAjoutOnglet(null); if (msg) { setAnnonce(msg); d.setSelected(new Set()); } }} />
+      )}
     </div>
   );
 }

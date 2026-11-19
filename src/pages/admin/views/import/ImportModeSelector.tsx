@@ -1,28 +1,38 @@
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
+import type { ModeImport } from '../../../../lib/importOnglet';
 
-export type ImportMode = 'ignore' | 'update' | 'force';
+/* L'ancien type reste exporte sous son nom : d'autres fichiers l'importent. */
+export type ImportMode = ModeImport;
 
 interface ImportModeSelectorProps {
-  value: ImportMode;
-  onChange: (mode: ImportMode) => void;
+  value: ModeImport;
+  onChange: (mode: ModeImport) => void;
   dupCrmCount: number;
 }
 
-const modes: { key: ImportMode; label: string; description: string }[] = [
+/*
+ * TROIS MODES, ET AUCUN NE CREE DE DOUBLON.
+ *
+ * L'ancien mode « Forcer l'import » inserait les doublons comme nouveaux leads : il a
+ * disparu. Un lead deja present (meme email, ou meme telephone) n'est JAMAIS duplique ; le
+ * mode ne decide que de ce qu'on fait de SES valeurs. Dans les trois cas il est rattache a
+ * l'onglet choisi, et dans les trois cas un email deja connu n'est jamais remplace.
+ */
+const modes: { key: ModeImport; label: string; description: string }[] = [
   {
-    key: 'ignore',
+    key: 'ignorer',
     label: 'Ignorer les doublons',
-    description: 'Insère uniquement les nouveaux leads. Les doublons (fichier et CRM) sont ignorés.',
+    description: 'Crée les nouveaux leads. Les leads déjà présents ne sont pas modifiés, ils sont seulement ajoutés à l\'onglet.',
   },
   {
-    key: 'update',
-    label: 'Mettre à jour les doublons CRM',
-    description: 'Insère les nouveaux leads et met à jour les champs des doublons CRM existants.',
+    key: 'completer',
+    label: 'Compléter les doublons',
+    description: 'Crée les nouveaux leads. Pour les leads déjà présents, remplit seulement les champs vides avec les valeurs du fichier.',
   },
   {
-    key: 'force',
-    label: 'Forcer l\'import',
-    description: 'Insère toutes les lignes valides y compris les doublons. Les erreurs de validation restent exclues.',
+    key: 'mettre_a_jour',
+    label: 'Mettre à jour les doublons',
+    description: 'Crée les nouveaux leads. Pour les leads déjà présents, les valeurs non vides du fichier remplacent les anciennes ; une cellule vide n\'efface jamais rien.',
   },
 ];
 
@@ -34,22 +44,26 @@ export default function ImportModeSelector({ value, onChange, dupCrmCount }: Imp
       className="rounded-2xl p-3 sm:p-4 space-y-3"
       style={{ background: tokens.card.bg, border: tokens.card.border }}
     >
-      <p className="text-xs font-bold tracking-widest uppercase" style={{ color: tokens.text.tertiary }}>Mode d'import</p>
-      <div className="space-y-2">
+      <div className="flex items-baseline justify-between gap-2 flex-wrap">
+        <p className="text-xs font-bold tracking-widest uppercase" style={{ color: tokens.text.tertiary }}>Doublons</p>
+        <p className="text-[10px]" style={{ color: tokens.text.quaternary }}>
+          {dupCrmCount > 0 ? `${dupCrmCount} lead${dupCrmCount > 1 ? 's' : ''} déjà présent${dupCrmCount > 1 ? 's' : ''} repéré${dupCrmCount > 1 ? 's' : ''}` : 'Aucun doublon repéré à l\'aperçu'}
+        </p>
+      </div>
+      <div className="space-y-2" role="radiogroup" aria-label="Que faire des leads déjà présents">
         {modes.map(m => {
           const isActive = value === m.key;
-          const isDisabled = m.key === 'update' && dupCrmCount === 0;
           return (
             <button
               key={m.key}
-              onClick={() => !isDisabled && onChange(m.key)}
-              disabled={isDisabled}
+              type="button"
+              role="radio"
+              aria-checked={isActive}
+              onClick={() => onChange(m.key)}
               className="w-full text-left flex items-start gap-2.5 sm:gap-3 px-3 sm:px-3.5 py-2.5 sm:py-3 rounded-xl transition-all"
               style={{
                 background: isActive ? 'rgba(34,211,238,0.06)' : tokens.surface.tertiary,
                 border: isActive ? tokens.accent.border : tokens.surface.borderLight,
-                opacity: isDisabled ? 0.4 : 1,
-                cursor: isDisabled ? 'not-allowed' : 'pointer',
               }}
             >
               <div
@@ -60,7 +74,7 @@ export default function ImportModeSelector({ value, onChange, dupCrmCount }: Imp
                 }}
               />
               <div>
-                <p className="text-xs font-semibold" style={{ color: isActive ? tokens.accent.text : tokens.text.secondary }}>{m.label}</p>
+                <p className="text-xs" style={{ color: isActive ? tokens.accent.text : tokens.text.secondary, fontWeight: isActive ? 700 : 600 }}>{m.label}</p>
                 <p className="text-[10px] mt-0.5" style={{ color: tokens.text.tertiary }}>{m.description}</p>
               </div>
             </button>

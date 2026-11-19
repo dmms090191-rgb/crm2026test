@@ -39,6 +39,13 @@ export function normalizePhone(raw: string): PhoneNormResult {
     }
   }
 
+  /* « +33 (0)6 12 34 56 78 » : le zero national garde derriere l'indicatif donnait
+     +330612345678, une AUTRE forme que +33612345678 — et un doublon a l'import. Meme regle
+     que public.lead_tel_canonique (migration 20261119091523). */
+  if (/^\+330\d{9}$/.test(cleaned)) {
+    cleaned = DEFAULT_COUNTRY_CODE + cleaned.slice(4);
+  }
+
   if (!cleaned.startsWith('+')) {
     if (/^\d{10,15}$/.test(cleaned)) {
       cleaned = '+' + cleaned;

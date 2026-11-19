@@ -3,11 +3,14 @@ import { createPortal } from 'react-dom';
 import { X, LogIn, ArrowLeft } from 'lucide-react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 import type { ImportedLead, StatutDef } from './types';
-import { getStatutCfg, FALLBACK_COLOR, getInitials, gradients } from './utils';
+import { getStatutCfg, FALLBACK_COLOR, gradients } from './utils';
 import CrmPinDisplay from './CrmPinDisplay';
 import CrmCommentsTab from './CrmCommentsTab';
+import InformationsLead from '../../../../components/leads/InformationsLead';
+import { champContact, identiteLead, initialesLead } from '../../../../lib/identiteLead';
+import type { ColonneRegistre } from '../../../../lib/ongletsLeads';
 
-type TabId = 'mot-de-passe' | 'commentaires';
+type TabId = 'informations' | 'mot-de-passe' | 'commentaires';
 
 interface DetailModalProps {
   lead: ImportedLead;
@@ -15,9 +18,11 @@ interface DetailModalProps {
   onClose: () => void;
   statutDefs: StatutDef[];
   onBack?: () => void;
+  /** Le registre des colonnes de la societe : libelles et types des valeurs importees. */
+  registre?: Iterable<ColonneRegistre>;
 }
 
-export default function DetailModal({ lead, gradIndex, onClose, statutDefs, onBack }: DetailModalProps) {
+export default function DetailModal({ lead, gradIndex, onClose, statutDefs, onBack, registre }: DetailModalProps) {
   const tokens = useThemeTokens();
   const [tab, setTab] = useState<TabId>('commentaires');
   const [leadData, setLeadData] = useState<Record<string, string>>(lead.data);
@@ -28,18 +33,18 @@ export default function DetailModal({ lead, gradIndex, onClose, statutDefs, onBa
     return () => { document.body.style.overflow = ''; };
   }, []);
 
-  const nom = lead.data['Nom'] ?? '';
-  const prenom = lead.data['Prenom'] ?? '';
-  const email = lead.data['Email'] ?? '';
+  const email = champContact(lead, 'email');
+  const identite = identiteLead(lead);
   const statut = lead.statut ?? '';
   const statutDef = statutDefs.find(s => s.nom === statut);
   const cfg = getStatutCfg(statutDef?.couleur ?? FALLBACK_COLOR);
-  const initials = getInitials(nom, prenom);
+  const initials = initialesLead(lead);
   const grad = gradients[gradIndex % gradients.length];
   const mdp = leadData['MotDePasse'] ?? '';
 
   const tabs: { id: TabId; label: string }[] = [
     { id: 'commentaires', label: 'Commentaires' },
+    { id: 'informations', label: 'Informations' },
     { id: 'mot-de-passe', label: 'Mot de passe' },
   ];
 
@@ -107,8 +112,11 @@ export default function DetailModal({ lead, gradIndex, onClose, statutDefs, onBa
           </div>
           <div className="min-w-0">
             <h3 className="text-lg font-bold leading-tight truncate" style={{ color: tokens.modal.title }}>
-              {prenom || ''} {nom || '\u2014'}
+              {identite.titre}
             </h3>
+            {identite.source === 'contact' && identite.entreprise && (
+              <p className="text-xs truncate" style={{ color: tokens.text.tertiary }}>{identite.entreprise}</p>
+            )}
             <div className="flex items-center gap-2 mt-1">
               <span
                 className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs font-semibold"
@@ -143,6 +151,9 @@ export default function DetailModal({ lead, gradIndex, onClose, statutDefs, onBa
         <div className="px-6 py-5 flex-1 overflow-y-auto min-h-0">
           {tab === 'commentaires' && (
             <CrmCommentsTab leadId={lead.id} leadData={leadData} onDataUpdate={setLeadData} />
+          )}
+          {tab === 'informations' && (
+            <InformationsLead lead={{ ...lead, data: leadData }} registre={registre} />
           )}
           {tab === 'mot-de-passe' && (
             <CrmPinDisplay password={mdp} leadId={lead.id} leadData={leadData} onPasswordUpdate={setLeadData} />

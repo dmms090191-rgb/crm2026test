@@ -10,6 +10,9 @@ import { telDuLead, formaterTel } from '../../../../lib/formatTel';
 import VendorLeadActionModal from './VendorLeadActionModal';
 import type { ImportedLead, StatutDef } from '../vendorLeadsTypes';
 import type { ColumnDef } from '../../../../components/table/useColumnOrder';
+import ValeurLead from '../../../../components/leads/ValeurLead';
+import { champContact, identiteLead } from '../../../../lib/identiteLead';
+import { CLE_COLONNE_ONGLETS, estCleDyn, libelleOnglets, valeurDyn, type ColonneAffichee } from '../../../../lib/ongletsLeads';
 
 function formatImportedAt(isoDate: string, tz: string): string {
   try {
@@ -47,6 +50,8 @@ interface Props {
   columnOrder?: string[];
   customColumnDefs?: ColumnDef[];
   customColumnValues?: Record<string, string>;
+  colonnesDyn?: Map<string, ColonneAffichee>;
+  ongletsDuLead?: string[];
 }
 
 const DEFAULT_VENDOR_COLUMN_ORDER = ['hash', 'nom', 'prenom', 'email', 'telephone', 'date_ajout', 'statut', 'actions', 'acces', 'ia'];
@@ -56,15 +61,18 @@ const VendorLeadDesktopRow = forwardRef<HTMLTableRowElement, Props>(({
   workHistoryLength, workHistoryPosition, canUndo, canRedo,
   onWorkSelect, onWorkUndo, onWorkRedo, onToggle, onStatutChange,
   onToggleActif, onToggleAi, onDetail, onOpenChat, onOpenRdv, onConnectAsClient, columnOrder,
-  customColumnDefs, customColumnValues,
+  customColumnDefs, customColumnValues, colonnesDyn, ongletsDuLead,
 }, ref) => {
   const cols = columnOrder ?? DEFAULT_VENDOR_COLUMN_ORDER;
   const tokens = useThemeTokens();
   const [statutModalOpen, setStatutModalOpen] = useState(false);
   const [actionsOpen, setActionsOpen] = useState(false);
-  const nom = lead.data['Nom'] ?? '';
-  const prenom = lead.data['Prenom'] ?? '';
-  const email = lead.data['Email'] ?? '';
+  const nom = champContact(lead, 'nom');
+  const prenom = champContact(lead, 'prenom');
+  const email = champContact(lead, 'email');
+  /* Sans contact, la cellule Nom montre l'ENTREPRISE du fichier — affichage seulement. */
+  const identite = identiteLead(lead);
+  const nomAffiche = nom || (!prenom && identite.source === 'entreprise' ? identite.titre : '');
   /* DEUX VARIABLES, ET LA DISTINCTION COMPTE.
      `tel` est le numero tel qu'il est EN BASE, via la cascade qui regarde la colonne plate
      avant le JSONB : c'est une DONNEE, et c'est elle qu'on transmet au chat, au rendez-vous
@@ -136,7 +144,7 @@ const VendorLeadDesktopRow = forwardRef<HTMLTableRowElement, Props>(({
       {cols.map(key => {
         switch (key) {
           case 'hash': return <td key={key} className="px-5 py-5 text-xs tabular-nums font-medium" style={{ color: tokens.table.indexText }}>{index + 1}</td>;
-          case 'nom': return <td key={key} className="px-5 py-5"><span className="text-[13px] font-semibold" style={{ color: tokens.table.cellText }}>{nom || '\u2014'}</span></td>;
+          case 'nom': return <td key={key} className="px-5 py-5"><span className="text-[13px] font-semibold" style={{ color: tokens.table.cellText }}>{nomAffiche || '\u2014'}</span></td>;
           case 'prenom': return <td key={key} className="px-5 py-5"><span className="text-[13px]" style={{ color: tokens.text.secondary }}>{prenom || '\u2014'}</span></td>;
           case 'email': return (
             <td key={key} className="px-5 py-5">
@@ -192,11 +200,11 @@ const VendorLeadDesktopRow = forwardRef<HTMLTableRowElement, Props>(({
               </button>
               {actionsOpen && (
                 <VendorLeadActionModal
-                  lead={{ nom, prenom, email, tel: telAffiche }}
+                  lead={{ nom: nom || (prenom ? '' : identite.titre), prenom, email, tel: telAffiche }}
                   tokens={tokens}
                   onClose={() => setActionsOpen(false)}
                   onDetail={() => onDetail(lead, index)}
-                  onConnect={() => onConnectAsClient?.({ id: lead.id, nom, prenom, email })}
+                  onConnect={() => onConnectAsClient?.({ id: lead.id, nom, prenom, email: lead.data['Email'] ?? '' })}
                   onChat={() => onOpenChat?.({ id: lead.id, nom, prenom, email, tel })}
                   onRdv={() => onOpenRdv?.({ id: lead.id, nom, prenom, email, tel })}
                 />
@@ -231,6 +239,17 @@ const VendorLeadDesktopRow = forwardRef<HTMLTableRowElement, Props>(({
             </td>
           );
           default: {
+            if (key === CLE_COLONNE_ONGLETS) {
+              return (
+                <td key={key} className="px-5 py-5">
+                  <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap" style={{ background: tokens.surface.tertiary, color: tokens.text.secondary }}>{libelleOnglets(ongletsDuLead ?? [])}</span>
+                </td>
+              );
+            }
+            if (estCleDyn(key)) {
+              const col = colonnesDyn?.get(key);
+              return <td key={key} className="px-5 py-5"><ValeurLead valeur={valeurDyn(lead.data, col?.cleData ?? null)} type={col?.type ?? 'texte'} /></td>;
+            }
             const customDef = customColumnDefs?.find(c => c.key === key);
             const val = customColumnValues?.[key] ?? '';
             if (customDef?.fieldType === 'url' && val) {

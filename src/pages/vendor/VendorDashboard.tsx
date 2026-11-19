@@ -16,6 +16,7 @@ import type { VendorClientNotifEntry } from './VendorTopBar';
 import DemoEmitterLayer from '../../components/demo/DemoEmitterLayer';
 import DemoReceiverLayer from '../../components/demo/DemoReceiverLayer';
 import { useDemoSessionSafe } from '../../components/demo/DemoSessionContext';
+import { demanderLeadVisible } from '../../lib/leadAMontrer';
 
 export interface ImpersonatedVendor {
   id: string;
@@ -80,10 +81,12 @@ export default function VendorDashboard({ onLogout, impersonatedVendor, onBackTo
     const { leadId, scrollY } = pendingScrollRef.current;
     pendingScrollRef.current = null;
     if (!leadId) { window.scrollTo({ top: scrollY, behavior: 'smooth' }); return; }
+    /* Meme raison que cote Societe : le CRM monte ses leads par tranches et par onglet. */
+    demanderLeadVisible(leadId);
     let n = 0;
     const poll = () => {
       const el = document.querySelector(`[data-row-id="${leadId}"]`);
-      if (!el) { if (++n < 30) setTimeout(poll, 150); return; }
+      if (!el) { if (++n < 60) setTimeout(poll, 150); return; }
       requestAnimationFrame(() => {
         const main = el.closest('main');
         if (main) { const r = el.getBoundingClientRect(), m = main.getBoundingClientRect(); main.scrollTo({ top: Math.max(0, r.top - m.top + main.scrollTop - main.clientHeight / 2 + r.height / 2), behavior: 'smooth' }); }

@@ -4,6 +4,7 @@ import { consumeConnectReturnContext } from '../../../lib/connectReturnContext';
 import { importDocumentationCrm } from './adminLazyViews';
 import { planifierAuRepos } from '../../../lib/auRepos';
 import type { ActiveView } from '../AdminDashboard';
+import { demanderLeadVisible } from '../../../lib/leadAMontrer';
 
 interface Params {
   companyId: string | null;
@@ -46,10 +47,14 @@ export function useAdminDashboardEffects({
     pendingScrollRef.current = null;
     const targetId = leadId || vendorId;
     if (!targetId) { window.scrollTo({ top: scrollY, behavior: 'smooth' }); return; }
+    /* Le CRM ne monte ses leads que par tranches et seulement ceux de l'onglet ouvert : on
+       lui DEMANDE ce lead pour que sa ligne existe (voir lib/leadAMontrer). Et on la cherche
+       plus longtemps (9 s) : avec des milliers de leads, la lecture prend plus de 4 s. */
+    if (leadId) demanderLeadVisible(leadId);
     let n = 0;
     const poll = () => {
       const el = document.querySelector(`[data-row-id="${targetId}"]`);
-      if (!el) { if (++n < 30) setTimeout(poll, 150); return; }
+      if (!el) { if (++n < 60) setTimeout(poll, 150); return; }
       requestAnimationFrame(() => {
         const main = el.closest('main');
         if (main) { const r = el.getBoundingClientRect(), m = main.getBoundingClientRect(); main.scrollTo({ top: Math.max(0, r.top - m.top + main.scrollTop - main.clientHeight / 2 + r.height / 2), behavior: 'smooth' }); }

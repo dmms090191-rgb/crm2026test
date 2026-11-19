@@ -100,3 +100,32 @@ export async function lireToutesLesLignes<T>(
 
   return { data: tout, error: null };
 }
+
+/**
+ * LIRE TOUTES LES LIGNES D'UNE TABLE QUI BOUGE PENDANT LA LECTURE — par curseur sur `id`.
+ *
+ * La pagination par DECALAGE (range) se trompe quand des lignes arrivent entre deux pages :
+ * un import qui insere pendant que le CRM lit decale tout, et la lecture rend des DOUBLONS et
+ * des ABSENTS sans aucune erreur (le compte final tombe juste). Un curseur (« les id plus
+ * grands que le dernier lu ») ne depend pas de ce qui a ete insere avant lui. Une ligne inseree
+ * derriere le curseur pendant la lecture arrive par le temps reel.
+ *
+ * @param page Rend au plus `taille` lignes d'id strictement superieur a `apres` (ou depuis le
+ *             debut si null), TRIEES PAR id croissant.
+ */
+export async function lireParCurseur<T extends { id: string }>(
+  page: (apres: string | null, taille: number) => PromiseLike<{ data: T[] | null; error: PostgrestError | null }>,
+  taille: number = TAILLE_PAGE,
+): Promise<{ data: T[] | null; error: PostgrestError | null }> {
+  const tout: T[] = [];
+  let apres: string | null = null;
+  for (let i = 0; i < PAGES_MAX; i++) {
+    const { data, error } = await page(apres, taille);
+    if (error) return { data: null, error };
+    const lignes = data ?? [];
+    tout.push(...lignes);
+    if (lignes.length < taille) return { data: tout, error: null };
+    apres = lignes[lignes.length - 1].id;
+  }
+  return { data: null, error: { message: `Lecture arretee apres ${PAGES_MAX} pages`, details: '', hint: '', code: 'PGRST_CURSEUR' } as PostgrestError };
+}

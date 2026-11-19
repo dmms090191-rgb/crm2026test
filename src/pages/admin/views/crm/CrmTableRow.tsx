@@ -1,5 +1,5 @@
 import { forwardRef, useState } from 'react';
-import { Phone, Mail, ChevronDown, CheckCircle2, Undo2, Redo2, MoreHorizontal, ExternalLink } from 'lucide-react';
+import { Phone, Mail, ChevronDown, CheckCircle2, Undo2, Redo2, MoreHorizontal, ExternalLink, Building2 } from 'lucide-react';
 import type { ImportedLead, Vendor, StatutDef, ImpersonatedClient, ChatLead } from './types';
 import type { ThemeTokens } from '../../../../lib/themeTokens';
 import { getStatutCfg, FALLBACK_COLOR } from './utils';
@@ -10,6 +10,9 @@ import { useFormatTel } from '../../../../hooks/useFormatTel';
 import { telDuLead, formaterTel } from '../../../../lib/formatTel';
 import CrmActionModal from './CrmActionModal';
 import type { ColumnDef } from '../../../../components/table/useColumnOrder';
+import ValeurLead from '../../../../components/leads/ValeurLead';
+import { champContact, identiteLead } from '../../../../lib/identiteLead';
+import { CLE_COLONNE_ONGLETS, estCleDyn, libelleOnglets, valeurDyn, type ColonneAffichee } from '../../../../lib/ongletsLeads';
 
 function formatImportedAt(isoDate: string, tz: string): string {
   try {
@@ -51,19 +54,34 @@ interface Props {
   columnOrder?: string[];
   customColumnDefs?: ColumnDef[];
   customColumnValues?: Record<string, string>;
+  /** Les colonnes DYNAMIQUES de l'onglet ouvert, par cle `dyn:<id>`. */
+  colonnesDyn?: Map<string, ColonneAffichee>;
+  /** Pendant une recherche globale : les onglets du lead (colonne virtuelle « Onglets »). */
+  ongletsDuLead?: string[];
 }
 
 const DEFAULT_COLUMN_ORDER = ['hash', 'nom', 'prenom', 'email', 'telephone', 'date_ajout', 'statut', 'actions', 'acces', 'ia', 'vendeur'];
 
 const CrmTableRow = forwardRef<HTMLTableRowElement, Props>(function CrmTableRow(props, ref) {
-  const { lead, index, isSelected, statutDefs, vendors, tokens, timezone, onToggle, onStatutChange, onToggleActif, onToggleAi, onDetail, onConnectAsClient, onOpenChat, onOpenRdv, ownerUserId, selectMode, workModeEnabled, isWorkActive, onWorkSelect, onWorkUndo, onWorkRedo, canWorkUndo, canWorkRedo, workHistoryPosition, workHistoryLength, columnOrder, customColumnDefs, customColumnValues } = props;
+  const { lead, index, isSelected, statutDefs, vendors, tokens, timezone, onToggle, onStatutChange, onToggleActif, onToggleAi, onDetail, onConnectAsClient, onOpenChat, onOpenRdv, ownerUserId, selectMode, workModeEnabled, isWorkActive, onWorkSelect, onWorkUndo, onWorkRedo, canWorkUndo, canWorkRedo, workHistoryPosition, workHistoryLength, columnOrder, customColumnDefs, customColumnValues, colonnesDyn, ongletsDuLead } = props;
   const cols = columnOrder ?? DEFAULT_COLUMN_ORDER;
   const [statutModalOpen, setStatutModalOpen] = useState(false);
   const [actionsOpen, setActionsOpen] = useState(false);
 
-  const nom = lead.data['Nom'] ?? '';
-  const prenom = lead.data['Prenom'] ?? '';
-  const email = lead.data['Email'] ?? '';
+  /* La colonne PLATE d'abord (ce que l'import normalise), puis le JSONB. */
+  const nom = champContact(lead, 'nom');
+  const prenom = champContact(lead, 'prenom');
+  const email = champContact(lead, 'email');
+  /* Sans nom ni prenom, la cellule Nom montre l'ENTREPRISE du fichier (« Encre Fictive
+     Rennes ») : on n'invente rien, et rien n'est ecrit en base — c'est de l'affichage. */
+  const identite = identiteLead(lead);
+  const nomParEntreprise = !nom && !prenom && identite.source === 'entreprise';
+  const nomModale = nom || (prenom ? '' : identite.titre);
+  /* Pour « se connecter en tant que client », l'email transmis reste celui de data, comme
+     avant ce chantier : ClientDashboard cherche le lead par cet email SANS borne de societe, et
+     l'email plat d'un lead importe ferait viser, en Visu Super Admin, le lead d'une autre
+     societe portant le meme email (defaut releve a la contre-verification du 19/11). */
+  const emailConnexion = lead.data['Email'] ?? '';
   /* DEUX VARIABLES, ET LA DISTINCTION COMPTE.
      `tel` est le numero tel qu'il est EN BASE, via la cascade qui regarde la colonne plate
      avant le JSONB : c'est une DONNEE, et c'est elle qu'on transmet au chat, au rendez-vous
@@ -136,7 +154,17 @@ const CrmTableRow = forwardRef<HTMLTableRowElement, Props>(function CrmTableRow(
       {cols.map(key => {
         switch (key) {
           case 'hash': return <td key={key} className="px-5 py-5 text-xs tabular-nums font-medium" style={{ color: tokens.table.indexText }}>{index + 1}</td>;
-          case 'nom': return <td key={key} className="px-5 py-5"><span className="text-[13px] font-semibold" style={{ color: tokens.table.cellText }}>{nom || '\u2014'}</span></td>;
+          case 'nom': return (
+            <td key={key} className="px-5 py-5">
+              {nomParEntreprise ? (
+                <span className="inline-flex items-center gap-1.5 text-[13px] font-semibold" style={{ color: tokens.table.cellText }} title="Entreprise (aucun nom de contact dans le fichier)">
+                  <Building2 className="w-3.5 h-3.5 flex-shrink-0" style={{ color: tokens.table.cellIcon }} />{identite.titre}
+                </span>
+              ) : (
+                <span className="text-[13px] font-semibold" style={{ color: tokens.table.cellText }}>{nom || '\u2014'}</span>
+              )}
+            </td>
+          );
           case 'prenom': return <td key={key} className="px-5 py-5"><span className="text-[13px]" style={{ color: tokens.text.secondary }}>{prenom || '\u2014'}</span></td>;
           case 'email': return (
             <td key={key} className="px-5 py-5">
@@ -192,11 +220,11 @@ const CrmTableRow = forwardRef<HTMLTableRowElement, Props>(function CrmTableRow(
               </button>
               {actionsOpen && (
                 <CrmActionModal
-                  lead={{ nom, prenom, email, tel: telAffiche }}
+                  lead={{ nom: nomModale, prenom, email, tel: telAffiche }}
                   tokens={tokens}
                   onClose={() => setActionsOpen(false)}
                   onDetail={() => onDetail(lead, index, true)}
-                  onConnect={() => onConnectAsClient?.({ id: lead.id, nom, prenom, email })}
+                  onConnect={() => onConnectAsClient?.({ id: lead.id, nom, prenom, email: emailConnexion })}
                   onChat={() => onOpenChat?.({ id: lead.id, nom, prenom, email, tel })}
                   onRdv={() => onOpenRdv?.({ id: lead.id, nom, prenom, email, tel })}
                   ownerUserId={ownerUserId}
@@ -238,6 +266,23 @@ const CrmTableRow = forwardRef<HTMLTableRowElement, Props>(function CrmTableRow(
             </td>
           );
           default: {
+            if (key === CLE_COLONNE_ONGLETS) {
+              return (
+                <td key={key} className="px-5 py-5">
+                  <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap" style={{ background: tokens.surface.tertiary, color: tokens.text.secondary }}>
+                    {libelleOnglets(ongletsDuLead ?? [])}
+                  </span>
+                </td>
+              );
+            }
+            if (estCleDyn(key)) {
+              const col = colonnesDyn?.get(key);
+              return (
+                <td key={key} className="px-5 py-5">
+                  <ValeurLead valeur={valeurDyn(lead.data, col?.cleData ?? null)} type={col?.type ?? 'texte'} />
+                </td>
+              );
+            }
             const customDef = customColumnDefs?.find(c => c.key === key);
             const val = customColumnValues?.[key] ?? '';
             if (customDef?.fieldType === 'url' && val) {

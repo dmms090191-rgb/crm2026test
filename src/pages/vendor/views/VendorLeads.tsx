@@ -20,6 +20,13 @@ import ToolbarOrganizerModal from '../../../components/toolbar/ToolbarOrganizerM
 import type { ToolbarItem } from '../../../components/toolbar/ToolbarOrganizerModal';
 import type { VendorLeadsProps } from './vendorLeadsTypes';
 import SelecteurFormatTel from '../../../components/telephone/SelecteurFormatTel';
+import { useOngletsLeads } from '../../../hooks/useOngletsLeads';
+import { useRenduProgressif } from '../../../hooks/useRenduProgressif';
+import { useEstBureau } from '../../../hooks/useEstBureau';
+import { ONGLET_PRINCIPAL, CLE_COLONNE_ONGLETS } from '../../../lib/ongletsLeads';
+import BarreOnglet from '../../../components/leads/BarreOnglet';
+import OngletsModal from '../../../components/leads/OngletsModal';
+import { useLeadDemande, leadMontre, defilerVersLead } from '../../../lib/leadAMontrer';
 
 const VENDOR_LEADS_COLUMNS = [
   { key: 'hash', label: '#' },
@@ -47,7 +54,14 @@ export default function VendorLeads({ vendorId, onOpenChat, onConnectAsClient, o
   const tokens = useThemeTokens();
   const { timezone } = useTimezone();
   const companyId = useCompanyId();
-  const d = useVendorLeadsData(vendorId);
+  /* Les onglets de colonnes de la societe, en LECTURE : le commercial choisit l'onglet et
+     voit ses colonnes, mais ne cree, ne renomme ni n'archive rien (la RLS le refuse aussi). */
+  const og = useOngletsLeads(companyId);
+  const d = useVendorLeadsData(vendorId, { ongletActif: og.ongletActif, dansOnglet: og.dansOnglet });
+  const principal = og.ongletActif === ONGLET_PRINCIPAL;
+  const [showOnglets, setShowOnglets] = useState(false);
+  const [avis, setAvis] = useState('');
+  const estBureau = useEstBureau();
   const colSep = { borderRight: `1px solid ${tokens.table.colSep}` };
   const showLoading = d.loading || !vendorId;
   const cc = useCustomColumns('vendor_leads');
@@ -94,6 +108,61 @@ export default function VendorLeads({ vendorId, onOpenChat, onConnectAsClient, o
   }, [vendorId]);
   const displayColumns = useMemo(() => allColumns.map(c => colOrder.labelOverrides[c.key] ? { ...c, label: colOrder.labelOverrides[c.key] } : c), [allColumns, colOrder.labelOverrides]);
   const colMap = useMemo(() => new Map(displayColumns.map(c => [c.key, c])), [displayColumns]);
+  const colonnesOnglet = useMemo(() => (principal ? [] : og.colonnesParOnglet.get(og.ongletActif) ?? []), [principal, og.colonnesParOnglet, og.ongletActif]);
+  const colonnesParCle = useMemo(() => new Map(colonnesOnglet.map(c => [c.cle, c])), [colonnesOnglet]);
+  const colonnesDyn = useMemo(() => new Map(colonnesOnglet.filter(c => !c.systeme).map(c => [c.cle, c])), [colonnesOnglet]);
+  /* La colonne Vendeur n'existe pas cote commercial : elle est ecartee d'un onglet qui l'a. */
+  const clesAffichees = useMemo(() => {
+    if (d.rechercheActive) {
+      const base = colOrder.visibleOrderedKeys;
+      const i = base.indexOf('nom');
+      return [...base.slice(0, i + 1), CLE_COLONNE_ONGLETS, ...base.slice(i + 1)];
+    }
+    if (principal) return colOrder.visibleOrderedKeys;
+    return colonnesOnglet.filter(c => c.visible && c.systeme !== 'vendeur').map(c => c.cle);
+  }, [d.rechercheActive, principal, colOrder.visibleOrderedKeys, colonnesOnglet]);
+  const libelleColonne = (cle: string) => {
+    if (cle === CLE_COLONNE_ONGLETS) return 'Onglets';
+    if (!principal && !d.rechercheActive) return colonnesParCle.get(cle)?.libelle ?? cle;
+    return colMap.get(cle)?.label ?? cle;
+  };
+  const champsCarte = principal || d.rechercheActive ? undefined : colonnesOnglet.filter(c => c.visible && !c.systeme);
+  const rp = useRenduProgressif(d.filtered, [og.ongletActif, d.recherche, d.filterNom, d.filterPrenom, d.filterEmail, d.filterTel, d.statutFilter, d.sortOrder].join('|'));
+  const chargementVue = showLoading || (!principal && og.chargement);
+  /* Dans un onglet, les colonnes sont celles que la Societe a reglees pour cet onglet : le
+     reglage personnel ne s'y applique pas. On le dit plutot que d'ouvrir un reglage sans effet. */
+  const ouvrirColonnes = () => {
+    if (!principal && !d.rechercheActive) { setAvis('Les colonnes de cet onglet sont réglées par votre société. Votre réglage personnel s\'applique à « Principal ».'); return; }
+    if (canCustomizeColumns) setShowColModal(true);
+  };
+  const { inclure } = rp;
+
+  /* Le lead du mode travail doit etre MONTE pour qu'on puisse y defiler (« Localiser »). */
+  useEffect(() => {
+    if (!d.workMode.activeId) return;
+    const i = d.filtered.findIndex(l => l.id === d.workMode.activeId);
+    if (i >= 0) inclure(i);
+  }, [d.workMode.activeId, d.filtered, inclure]);
+
+  /* « Montrer ce lead » : meme regle que cote Societe (voir lib/leadAMontrer). */
+  const leadDemande = useLeadDemande();
+  const { recherche, setRecherche } = d;
+  useEffect(() => {
+    if (!leadDemande || chargementVue || og.chargement) return;
+    const i = d.filtered.findIndex(l => l.id === leadDemande);
+    if (i >= 0) { inclure(i); leadMontre(leadDemande); defilerVersLead(leadDemande); return; }
+    if (!d.leads.some(l => l.id === leadDemande)) { leadMontre(leadDemande); return; }
+    if (og.ongletActif !== ONGLET_PRINCIPAL) og.choisir(ONGLET_PRINCIPAL);
+    else if (recherche) setRecherche('');
+    else leadMontre(leadDemande);
+  }, [leadDemande, chargementVue, og, d.filtered, d.leads, recherche, setRecherche, inclure]);
+
+  /* Les comptes de la fenetre des onglets : les SIENS, pas ceux de toute la societe. */
+  const comptesCommercial = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const l of d.leads) for (const o of og.appartenances.get(l.id) ?? []) m.set(o, (m.get(o) ?? 0) + 1);
+    return m;
+  }, [d.leads, og.appartenances]);
 
   const VENDOR_TOOLBAR_DEFAULT = ['select', 'workmode', 'columns', 'organize'];
   const tbOrder = useActionMenuOrder('talvex_toolbar_order_vendor_leads', VENDOR_TOOLBAR_DEFAULT);
@@ -129,6 +198,19 @@ export default function VendorLeads({ vendorId, onOpenChat, onConnectAsClient, o
         </div>
       </div>
 
+      <BarreOnglet
+        ongletNom={og.ongletActifNom} principal={principal} onOuvrir={() => setShowOnglets(true)}
+        recherche={d.recherche} onRecherche={d.setRecherche}
+        resultats={d.rechercheActive && !showLoading ? d.filtered.length : null}
+      />
+
+      {avis && (
+        <p className="text-xs px-3 py-2 rounded-xl flex items-center justify-between gap-2" role="status" style={{ background: tokens.accent.bg, color: tokens.accent.text, border: `1px solid ${tokens.accent.border}` }}>
+          {avis}
+          <button type="button" onClick={() => setAvis('')} className="text-[11px] underline flex-shrink-0">OK</button>
+        </p>
+      )}
+
       <VendorLeadsFilters
         filterEmail={d.filterEmail} setFilterEmail={d.setFilterEmail}
         filterTel={d.filterTel} setFilterTel={d.setFilterTel}
@@ -152,7 +234,7 @@ export default function VendorLeads({ vendorId, onOpenChat, onConnectAsClient, o
       {!showLoading && d.leads.length > 0 && <SelecteurFormatTel />}
 
       <div className="rounded-2xl overflow-hidden" style={{ background: tokens.card.bg, border: `1px solid ${tokens.card.border}`, boxShadow: tokens.card.shadow }}>
-        {showLoading ? (
+        {chargementVue ? (
           <div className="px-4 md:px-5 py-4 space-y-3 animate-pulse">
             {[1, 2, 3].map(i => (
               <div key={i} className="flex items-center gap-3">
@@ -174,7 +256,8 @@ export default function VendorLeads({ vendorId, onOpenChat, onConnectAsClient, o
           </div>
         ) : (
           <>
-            {/* Desktop table */}
+            {/* Desktop table — un seul arbre monte, selon la largeur */}
+            {estBureau ? (
             <div className="hidden md:block">
               <VendorLeadWorkModeBar
                 allChecked={d.allChecked} someChecked={d.someChecked} toggleAll={d.toggleAll}
@@ -185,7 +268,7 @@ export default function VendorLeads({ vendorId, onOpenChat, onConnectAsClient, o
                 onLocate={() => { if (d.workMode.activeId) d.rowRefsMap.current.get(d.workMode.activeId)?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }}
                 canLocate={!!d.workMode.activeId && d.filtered.some(l => l.id === d.workMode.activeId)}
                 onResetHistory={d.workMode.resetHistory}
-                onOpenColumns={() => { if (canCustomizeColumns) setShowColModal(true); }}
+                onOpenColumns={ouvrirColonnes}
                 onOpenOrganize={() => setShowOrgModal(true)}
                 toolbarOrder={tbOrder.order}
                 columnsLocked={!canCustomizeColumns}
@@ -195,14 +278,13 @@ export default function VendorLeads({ vendorId, onOpenChat, onConnectAsClient, o
                   <thead>
                     <tr className="sticky top-0 z-10" style={{ background: tokens.table.headerBg }}>
                       {(selectMode || d.workMode.enabled) && <th className="px-3 py-4 w-12" style={{ borderBottom: `2px solid ${tokens.accent.solid}` }}></th>}
-                      {colOrder.visibleOrderedKeys.map(key => {
-                        const col = colMap.get(key);
+                      {clesAffichees.map(key => {
                         const Icon = VENDOR_HEADER_ICONS[key];
                         return (
                           <th key={key} className={`text-left px-5 py-4 ${key === 'hash' ? 'w-12' : ''}`} style={{ borderBottom: `2px solid ${tokens.accent.solid}` }}>
                             <div className="flex items-center gap-2">
                               {Icon && <Icon className="w-3 h-3 flex-shrink-0" style={{ color: tokens.accent.text, opacity: 0.6 }} />}
-                              <span className="text-[10px] font-bold tracking-[0.1em] uppercase" style={{ color: tokens.table.headerText }}>{col?.label ?? key}</span>
+                              <span className="text-[10px] font-bold tracking-[0.1em] uppercase whitespace-nowrap" style={{ color: tokens.table.headerText }}>{libelleColonne(key)}</span>
                             </div>
                           </th>
                         );
@@ -210,7 +292,7 @@ export default function VendorLeads({ vendorId, onOpenChat, onConnectAsClient, o
                     </tr>
                   </thead>
                   <tbody>
-                    {d.filtered.map((lead, i) => (
+                    {rp.visibles.map((lead, i) => (
                       <VendorLeadDesktopRow
                         key={lead.id}
                         ref={el => { if (el) d.rowRefsMap.current.set(lead.id, el); else d.rowRefsMap.current.delete(lead.id); }}
@@ -223,17 +305,18 @@ export default function VendorLeads({ vendorId, onOpenChat, onConnectAsClient, o
                         onToggle={d.toggleOne} onStatutChange={d.handleStatut} onToggleActif={d.handleToggleActif} onToggleAi={d.handleToggleAi}
                         onDetail={(l, idx) => d.setDetailLead({ lead: l, index: idx })}
                         onOpenChat={onOpenChat} onOpenRdv={onOpenRdv} onConnectAsClient={onConnectAsClient}
-                        columnOrder={colOrder.visibleOrderedKeys}
+                        columnOrder={clesAffichees}
                         customColumnDefs={cc.customDefs}
                         customColumnValues={cc.getValuesForRow(lead.id)}
+                        colonnesDyn={colonnesDyn}
+                        ongletsDuLead={d.rechercheActive ? og.nomsOngletsDuLead(lead.id) : undefined}
                       />
                     ))}
                   </tbody>
                 </table>
               </DualScrollWrapper>
             </div>
-
-            {/* Mobile */}
+            ) : (
             <div className="md:hidden">
               <VendorLeadWorkModeBar
                 allChecked={d.allChecked} someChecked={d.someChecked} toggleAll={d.toggleAll}
@@ -244,13 +327,13 @@ export default function VendorLeads({ vendorId, onOpenChat, onConnectAsClient, o
                 onLocate={() => { if (d.workMode.activeId) d.cardRefsMap.current.get(d.workMode.activeId)?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }}
                 canLocate={!!d.workMode.activeId && d.filtered.some(l => l.id === d.workMode.activeId)}
                 onResetHistory={d.workMode.resetHistory}
-                onOpenColumns={() => { if (canCustomizeColumns) setShowColModal(true); }}
+                onOpenColumns={ouvrirColonnes}
                 onOpenOrganize={() => setShowOrgModal(true)}
                 toolbarOrder={tbOrder.order}
                 columnsLocked={!canCustomizeColumns}
               />
               <div className="divide-y" style={{ borderColor: tokens.table.rowBorder }}>
-                {d.filtered.map((lead, i) => (
+                {rp.visibles.map((lead, i) => (
                   <VendorLeadMobileCard
                     key={lead.id}
                     lead={lead} index={i} statutDefs={d.statutDefs} timezone={timezone} isSelected={d.selected.has(lead.id)}
@@ -263,10 +346,28 @@ export default function VendorLeads({ vendorId, onOpenChat, onConnectAsClient, o
                     onDetail={(l, idx) => d.setDetailLead({ lead: l, index: idx })}
                     onOpenChat={onOpenChat} onOpenRdv={onOpenRdv} onConnectAsClient={onConnectAsClient}
                     cardRef={el => { if (el) d.cardRefsMap.current.set(lead.id, el); else d.cardRefsMap.current.delete(lead.id); }}
+                    champsOnglet={champsCarte}
+                    ongletsDuLead={d.rechercheActive ? og.nomsOngletsDuLead(lead.id) : null}
                   />
                 ))}
               </div>
             </div>
+            )}
+
+            {rp.restant > 0 && (
+              <div ref={rp.sentinelle} className="flex items-center justify-center py-4">
+                <button type="button" onClick={rp.afficherPlus} className="min-h-[44px] px-4 rounded-xl text-xs font-semibold"
+                  style={{ background: tokens.accent.bg, color: tokens.accent.text, border: `1px solid ${tokens.accent.border}` }}>
+                  Afficher plus ({rp.restant.toLocaleString('fr-FR')} restant{rp.restant > 1 ? 's' : ''})
+                </button>
+              </div>
+            )}
+
+            {d.filtered.length === 0 && (
+              <p className="text-center text-xs py-10" style={{ color: tokens.text.quaternary }}>
+                {d.rechercheActive ? 'Aucun lead ne correspond à cette recherche.' : principal ? 'Aucun lead pour ces filtres.' : `Aucun de vos leads dans l'onglet « ${og.ongletActifNom} ».`}
+              </p>
+            )}
 
             <div className="flex items-center justify-between px-6 py-3.5" style={{ borderTop: `1px solid ${tokens.surface.border}`, background: tokens.table.headerBg }}>
               <div className="flex items-center gap-2">
@@ -294,6 +395,8 @@ export default function VendorLeads({ vendorId, onOpenChat, onConnectAsClient, o
       )}
 
       {showColModal && <ColumnOrganizerModal columns={displayColumns} orderedKeys={colOrder.orderedKeys} hiddenDesktopKeys={colOrder.hiddenDesktopKeys} tableKey="vendor_leads" onSave={colOrder.saveAll} onReset={colOrder.resetAll} onClose={() => setShowColModal(false)} onCreateCustomColumn={cc.createColumn} onDeleteCustomColumn={cc.deleteColumn} onRenameCustomColumn={cc.renameColumn} onRenameLabel={colOrder.renameLabel} mobileOrder={colMobile.mobileOrder} mobileCardStyle={colMobile.cardStyle} onSaveMobile={colMobile.saveMobile} onResetMobile={colMobile.resetMobile} />}
+
+      {showOnglets && <OngletsModal og={og} totalLeads={d.leads.length} comptes={comptesCommercial} peutGerer={false} onClose={() => setShowOnglets(false)} />}
 
       {showOrgModal && <ToolbarOrganizerModal items={toolbarItems} order={tbOrder.order} onSave={tbOrder.save} onClose={() => setShowOrgModal(false)} t={tokens} />}
     </div>

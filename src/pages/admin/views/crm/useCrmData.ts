@@ -1,12 +1,33 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useWorkMode } from '../../../../hooks/useWorkMode';
 import { useSimulation } from '../../../../contexts/SimulationContext';
 import { useCompanyId } from '../../../../hooks/useCompanyId';
 import { supabase } from '../../../../lib/supabase';
 import { telDuLead, telCorrespond } from '../../../../lib/formatTel';
+import { lireParCurseur } from '../../../../lib/lectureIntegrale';
+import { champContact } from '../../../../lib/identiteLead';
+import { leadCorrespond } from '../../../../lib/rechercheLeads';
+import { ONGLET_PRINCIPAL } from '../../../../lib/ongletsLeads';
 import type { ImportedLead, Vendor, StatutDef } from './types';
 
-export function useCrmData() {
+/** Les colonnes lues pour chaque lead : les colonnes PLATES aussi, pour l'identite et la recherche. */
+export const COLONNES_LEAD_CRM = 'id, data, prenom, nom, email, telephone, imported_at, statut, actif, vendor_id, ai_enabled';
+
+interface VueCrm {
+  /** L'onglet de colonnes ouvert : ses leads seulement (Principal = tous). */
+  ongletActif?: string;
+  dansOnglet?: (leadId: string, ongletId: string) => boolean;
+  /** Vrai quand le TABLEAU est monte (un seul arbre) : la barre de defilement du haut se recale. */
+  estBureau?: boolean;
+}
+
+/** Plus recents d'abord, puis par id : l'ordre de la lecture par curseur n'est pas celui de l'ecran. */
+const parDateDecroissante = (a: ImportedLead, b: ImportedLead) =>
+  (a.imported_at < b.imported_at ? 1 : a.imported_at > b.imported_at ? -1 : 0) || a.id.localeCompare(b.id);
+
+export function useCrmData(vue: VueCrm = {}) {
+  const ongletActif = vue.ongletActif ?? ONGLET_PRINCIPAL;
+  const dansOnglet = vue.dansOnglet;
   const { isSimulating } = useSimulation();
   const companyId = useCompanyId();
   const [leads, setLeads] = useState<ImportedLead[]>([]);
@@ -19,6 +40,8 @@ export function useCrmData() {
   const [filterNom, setFilterNom] = useState('');
   const [statutFilter, setStatutFilter] = useState<string>('Tous');
   const [sortOrder, setSortOrder] = useState<'recent' | 'ancien'>('recent');
+  const [recherche, setRecherche] = useState('');
+  const [erreurChargement, setErreurChargement] = useState('');
 
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -30,6 +53,9 @@ export function useCrmData() {
   const cardRefsMap = useRef<Map<string, HTMLDivElement>>(new Map());
   const rowRefsMap = useRef<Map<string, HTMLTableRowElement>>(new Map());
   const recentUpdates = useRef<Map<string, number>>(new Map());
+  /* Ce que le temps reel apporte PENDANT la lecture : sans cela, la liste lue (plus ancienne)
+     ecraserait a son arrivee les leads inseres, modifies ou supprimes entre-temps. */
+  const pendantLecture = useRef<{ ajouts: Map<string, Partial<ImportedLead> & { id: string }>; retraits: Set<string> } | null>(null);
 
   const topScrollRef = useRef<HTMLDivElement>(null);
   const bottomScrollRef = useRef<HTMLDivElement>(null);
@@ -48,7 +74,7 @@ export function useCrmData() {
     const mo = new MutationObserver(sync);
     mo.observe(el, { childList: true, subtree: true });
     return () => { ro.disconnect(); mo.disconnect(); };
-  }, [loading, leads.length]);
+  }, [loading, leads.length, vue.estBureau]);
 
   const handleTopScroll = () => {
     if (syncingRef.current === 'bottom') { syncingRef.current = null; return; }
@@ -78,23 +104,46 @@ export function useCrmData() {
   }, [companyId]);
 
   const handleTransfer = async (vendorId: string | null) => {
-    if (isSimulating) return;
-    const ids = Array.from(selected);
-    await supabase.from('leads').update({ vendor_id: vendorId }).in('id', ids);
-    setLeads(prev => prev.map(l => selected.has(l.id) ? { ...l, vendor_id: vendorId } : l));
+    if (isSimulating || !companyId) return;
+    /* Seuls les leads SELECTIONNES ET AFFICHES : une case cochee dans un autre onglet, ou
+       masquee par un filtre, n'est plus sous les yeux — on n'agit pas sur ce qu'on ne voit pas. */
+    const ids = idsSelectionnesAffiches();
+    if (ids.length === 0) return;
+    /* Par lots de 150 : la liste part dans l'URL, et au-dela d'environ 410 identifiants la
+       requete depasse la taille acceptee et echouait sans message. */
+    const faits = new Set<string>();
+    for (let i = 0; i < ids.length; i += 150) {
+      const lot = ids.slice(i, i + 150);
+      const { error } = await supabase.from('leads').update({ vendor_id: vendorId }).in('id', lot).eq('company_id', companyId);
+      if (error) break;
+      lot.forEach(id => faits.add(id));
+    }
+    setLeads(prev => prev.map(l => faits.has(l.id) ? { ...l, vendor_id: vendorId } : l));
     setSelected(new Set());
     setShowTransfer(false);
   };
 
+  /* TOUS les leads, par pages de 1 000 et PAR CURSEUR sur l'id : PostgREST tronque une
+     reponse au-dela de son plafond sans le dire, et une pagination par decalage rendait des
+     doublons et des absents des qu'un import inserait pendant la lecture (contre-verification
+     du 19/11). Ce que le temps reel a apporte pendant la lecture est reapplique a la fin. */
   const load = useCallback(async () => {
     if (!companyId) return;
-    const { data } = await supabase
-      .from('leads')
-      .select('id, data, telephone, imported_at, statut, actif, vendor_id, ai_enabled')
-      .eq('company_id', companyId)
-      .order('imported_at', { ascending: false })
-      .order('id', { ascending: true });
-    setLeads((data ?? []) as ImportedLead[]);
+    pendantLecture.current = { ajouts: new Map(), retraits: new Set() };
+    const { data, error } = await lireParCurseur<ImportedLead>((apres, taille) => {
+      const base = supabase.from('leads').select(COLONNES_LEAD_CRM).eq('company_id', companyId);
+      return (apres ? base.gt('id', apres) : base).order('id', { ascending: true }).limit(taille);
+    });
+    const recus = pendantLecture.current;
+    pendantLecture.current = null;
+    if (error) setErreurChargement(error.message);
+    else {
+      const parId = new Map((data ?? []).map(l => [l.id, l]));
+      for (const [id, l] of recus?.ajouts ?? []) parId.set(id, { ...(parId.get(id) ?? {}), ...l } as ImportedLead);
+      for (const id of recus?.retraits ?? []) parId.delete(id);
+      setErreurChargement('');
+      setLeads([...parId.values()].sort(parDateDecroissante));
+    }
     setLoading(false);
   }, [companyId]);
 
@@ -119,20 +168,29 @@ export function useCrmData() {
   useEffect(() => { load(); loadStatuts(); loadVendors(); }, [load, loadStatuts, loadVendors]);
 
   useEffect(() => {
+    if (!companyId) return;
+    /* Le canal ne recoit que les leads de LA societe affichee : sans ce filtre, un Super
+       Admin recevait chaque insertion de toutes les societes, et un import de 5 000 lignes
+       ailleurs faisait recalculer ce CRM 5 000 fois. */
+    const filtre = `company_id=eq.${companyId}`;
     const leadsChannel = supabase
-      .channel('leads-crm')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'leads' }, (payload) => {
+      .channel(`leads-crm-${companyId}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'leads', filter: filtre }, (payload) => {
         const inserted = payload.new as ImportedLead & { company_id?: string };
-        if (companyId && inserted.company_id !== companyId) return;
+        if (inserted.company_id !== companyId) return;
+        pendantLecture.current?.ajouts.set(inserted.id, inserted);
         setLeads(prev => prev.some(l => l.id === inserted.id) ? prev : [inserted, ...prev]);
       })
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'leads' }, (payload) => {
-        setLeads(prev => prev.filter(l => l.id !== (payload.old as { id: string }).id));
+        const retire = (payload.old as { id: string }).id;
+        pendantLecture.current?.retraits.add(retire);
+        setLeads(prev => prev.filter(l => l.id !== retire));
       })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'leads' }, (payload) => {
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'leads', filter: filtre }, (payload) => {
         const updated = payload.new as ImportedLead;
         const lockedUntil = recentUpdates.current.get(updated.id);
         if (lockedUntil && Date.now() < lockedUntil) return;
+        if (pendantLecture.current) pendantLecture.current.ajouts.set(updated.id, { ...(pendantLecture.current.ajouts.get(updated.id) ?? {}), ...updated });
         setLeads(prev => prev.map(l => l.id === updated.id ? { ...l, ...updated } : l));
       })
       .subscribe();
@@ -144,7 +202,7 @@ export function useCrmData() {
       supabase.removeChannel(leadsChannel);
       supabase.removeChannel(statutsChannel);
     };
-  }, [loadStatuts]);
+  }, [companyId, loadStatuts]);
 
   const handleStatut = async (id: string, statut: string) => {
     if (isSimulating) return;
@@ -180,21 +238,32 @@ export function useCrmData() {
   };
 
   const handleDeleteSelected = async () => {
-    if (isSimulating) return;
-    if (selected.size === 0) return;
+    if (isSimulating || !companyId) return;
+    const ids = idsSelectionnesAffiches();
+    if (ids.length === 0) return;
     setDeleting(true);
-    const ids = Array.from(selected);
-    await supabase.from('leads').delete().in('id', ids);
-    setLeads(prev => prev.filter(l => !selected.has(l.id)));
+    const faits = new Set<string>();
+    for (let i = 0; i < ids.length; i += 150) {
+      const lot = ids.slice(i, i + 150);
+      const { error } = await supabase.from('leads').delete().in('id', lot).eq('company_id', companyId);
+      if (error) break;
+      lot.forEach(id => faits.add(id));
+    }
+    setLeads(prev => prev.filter(l => !faits.has(l.id)));
     setSelected(new Set());
     setDeleting(false);
   };
 
-  const filtered = leads
+  const rechercheActive = recherche.trim() !== '';
+
+  const filtered = useMemo(() => leads
     .filter(l => {
-      const nom = (l.data['Nom'] ?? '').toLowerCase();
-      const prenom = (l.data['Prenom'] ?? '').toLowerCase();
-      const email = (l.data['Email'] ?? '').toLowerCase();
+      /* La recherche globale traverse TOUS les onglets ; sinon, l'onglet ouvert borne la liste. */
+      if (rechercheActive) { if (!leadCorrespond(l, recherche)) return false; }
+      else if (ongletActif !== ONGLET_PRINCIPAL && !(dansOnglet?.(l.id, ongletActif) ?? false)) return false;
+      const nom = champContact(l, 'nom').toLowerCase();
+      const prenom = champContact(l, 'prenom').toLowerCase();
+      const email = champContact(l, 'email').toLowerCase();
       if (filterNom && !nom.includes(filterNom.toLowerCase())) return false;
       if (filterPrenom && !prenom.includes(filterPrenom.toLowerCase())) return false;
       if (filterEmail && !email.includes(filterEmail.toLowerCase())) return false;
@@ -216,9 +285,10 @@ export function useCrmData() {
       const diff = sortOrder === 'recent' ? db - da : da - db;
       if (diff !== 0) return diff;
       return a.id.localeCompare(b.id);
-    });
+    }), [leads, rechercheActive, recherche, ongletActif, dansOnglet, filterNom, filterPrenom, filterEmail, filterTel, statutFilter, filterVendor, sortOrder]);
 
   const filteredIds = filtered.map(l => l.id);
+  function idsSelectionnesAffiches() { return filteredIds.filter(id => selected.has(id)); }
   const allChecked = filteredIds.length > 0 && filteredIds.every(id => selected.has(id));
   const someChecked = filteredIds.some(id => selected.has(id));
 
@@ -236,6 +306,7 @@ export function useCrmData() {
 
   return {
     leads, statutDefs, vendors, loading, filtered, selected, setSelected, deleting,
+    recherche, setRecherche, rechercheActive, erreurChargement, idsSelectionnesAffiches, reload: load,
     allChecked, someChecked, toggleAll, toggleOne,
     filterVendor, setFilterVendor,
     filterEmail, setFilterEmail, filterTel, setFilterTel,
