@@ -65,15 +65,17 @@ export function useHistoriqueNotifications(o: Options): PaquetHistorique {
   const trouverLead = useCallback(async (clientAuthId: string): Promise<ChatLead | null> => {
     if (!o.companyId) return null;
     /*
-     * L'identifiant Auth d'un client vit soit dans la colonne `id` du lead, soit dans son
-     * JSON `data` — c'est la regle de lecture de useUnreadClientMessages, reprise ici
-     * telle quelle pour que les deux chemins ouvrent la MEME conversation.
+     * L'identifiant de conversation d'un lead est son `id`, et rien d'autre : c'est la regle
+     * unique de src/lib/conversationLead.ts, que suivent aussi useUnreadClientMessages et les
+     * deux messageries, pour que tous les chemins ouvrent la MEME conversation. Les cles de
+     * `data` ne sont jamais lues : un fichier importe pouvait y ecrire « AuthId » et faire
+     * endosser la conversation d'un autre lead.
      */
     const { data } = await supabase
       .from('leads')
       .select('id, prenom, nom, email, data')
       .eq('company_id', o.companyId)
-      .or(`id.eq.${clientAuthId},data->>AuthId.eq.${clientAuthId},data->>auth_id.eq.${clientAuthId}`)
+      .eq('id', clientAuthId)
       .limit(1);
 
     const l = data?.[0];

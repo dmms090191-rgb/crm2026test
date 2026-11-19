@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '../../../../lib/supabase';
 import { useCompanyId } from '../../../../hooks/useCompanyId';
+import { idConversationLead } from '../../../../lib/conversationLead';
 
 export interface OrphanScanResult {
   orphanIds: string[];
@@ -78,10 +79,11 @@ export function useOrphanCleanup() {
           .eq('company_id', companyId)
           .eq('actif', true);
 
+        /* L'identifiant de conversation est l'id du lead, et rien d'autre : une cle de `data`
+           (« AuthId » venue d'un fichier) faisait passer la VRAIE conversation pour orpheline,
+           donc proposee a la suppression. Voir src/lib/conversationLead.ts. */
         const leadAuthIds = new Set(
-          (leadsData ?? []).map((l: { id: string; data: Record<string, string> }) =>
-            l.data['AuthId'] ?? l.data['auth_id'] ?? l.id
-          )
+          (leadsData ?? []).map((l: { id: string }) => idConversationLead(l))
         );
         linkedAuthIds = uniqueAuthIds.filter(id => leadAuthIds.has(id));
       }

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
+import { idConversationLead } from '../lib/conversationLead';
 
 export interface VendorClientNotifEntry {
   clientAuthId: string;
@@ -67,7 +68,7 @@ export function useUnreadVendorClientMessages(vendorDbId: string | null) {
     const authIds = [...grouped.keys()];
     const entries: VendorClientNotifEntry[] = [];
     for (const lead of leads ?? []) {
-      const authId = lead.data?.['AuthId'] ?? lead.data?.['auth_id'] ?? lead.id;
+      const authId = idConversationLead(lead);
       if (authIds.includes(authId)) {
         const g = grouped.get(authId)!;
         entries.push({

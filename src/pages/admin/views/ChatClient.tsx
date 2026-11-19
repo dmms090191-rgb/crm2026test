@@ -7,6 +7,7 @@ import { useCompanyId } from '../../../hooks/useCompanyId';
 import { peekChatReturnContext } from '../../../lib/connectReturnContext';
 import { useSimulation } from '../../../contexts/SimulationContext';
 import { sendPushForMessage } from '../../../lib/sendPushForMessage';
+import { idConversationLead } from '../../../lib/conversationLead';
 import ChatClientHeader from './chat-client/ChatClientHeader';
 import ChatClientDeleteModal from './chat-client/ChatClientDeleteModal';
 
@@ -62,14 +63,14 @@ export default function ChatClient({ initialLead, onMessageSent, onClientViewed,
       const filtered = allLeads.filter(l => {
         if (l.vendor_id) return false;
         if (initialLead && l.id === initialLead.id) return true;
-        const authId = l.data['AuthId'] ?? l.data['auth_id'] ?? l.id;
+        const authId = idConversationLead(l);
         return authIds.includes(authId);
       });
 
       setLeads(filtered);
       setContactLoading(false);
 
-      const filteredAuthIds = filtered.map(l => l.data['AuthId'] ?? l.data['auth_id'] ?? l.id);
+      const filteredAuthIds = filtered.map(l => idConversationLead(l));
       if (filteredAuthIds.length > 0) {
         const { data: lastMsgs } = await supabase
           .from('client_messages')
@@ -98,7 +99,7 @@ export default function ChatClient({ initialLead, onMessageSent, onClientViewed,
   }, [initialLead, leads]);
 
   const selectedLead = leads.find(l => l.id === selectedId) ?? null;
-  const clientAuthId = selectedLead ? (selectedLead.data['AuthId'] ?? selectedLead.data['auth_id'] ?? selectedLead.id) : null;
+  const clientAuthId = selectedLead ? idConversationLead(selectedLead) : null;
 
   const loadMessages = useCallback(async (showLoader = true) => {
     if (!clientAuthId) return;
@@ -148,18 +149,25 @@ export default function ChatClient({ initialLead, onMessageSent, onClientViewed,
     onMessageSent?.();
   }, [clientAuthId, onMessageSent, loadMessages, isSimulating]);
 
+  /*
+   * Toute suppression de message est bornee a la Societe affichee. Pour un admin, la RLS le
+   * fait deja ; en Visu, Talvex agit avec SA propre RLS, qui couvre toutes les Societes : sans
+   * cette borne, une suppression par client_auth_id ne serait limitee par rien. Si la Societe
+   * n'est pas encore connue, on ne retire rien de l'ecran plutot que d'afficher une
+   * suppression qui n'aurait pas eu lieu en base.
+   */
   const handleDelete = useCallback(async (id: string) => {
-    if (isSimulating) return;
+    if (isSimulating || !companyId) return;
     setMessages(prev => prev.filter(m => m.id !== id));
-    supabase.from('client_messages').delete().eq('id', id);
-  }, [isSimulating]);
+    supabase.from('client_messages').delete().eq('id', id).eq('company_id', companyId);
+  }, [isSimulating, companyId]);
 
   const handleReset = useCallback(async () => {
-    if (isSimulating) return;
+    if (isSimulating || !companyId) return;
     if (!clientAuthId) return;
-    await supabase.from('client_messages').delete().eq('client_auth_id', clientAuthId);
+    await supabase.from('client_messages').delete().eq('client_auth_id', clientAuthId).eq('company_id', companyId);
     setMessages([]);
-  }, [clientAuthId, isSimulating]);
+  }, [clientAuthId, isSimulating, companyId]);
 
   const [selectMode, setSelectMode] = useState(false);
   const [selectedConvos, setSelectedConvos] = useState<Set<string>>(new Set());
@@ -192,13 +200,14 @@ export default function ChatClient({ initialLead, onMessageSent, onClientViewed,
   const handleDeleteConvos = useCallback(() => { setConfirmDelete(true); }, []);
 
   const handleConfirmDeleteConvos = useCallback(async () => {
+    if (!companyId) return;
     const ids = [...selectedConvos];
     const authIdsToDelete = ids.map(id => {
       const lead = leads.find(l => l.id === id);
-      return lead ? (lead.data['AuthId'] ?? lead.data['auth_id'] ?? lead.id) : id;
+      return lead ? idConversationLead(lead) : id;
     });
     await Promise.all(authIdsToDelete.map(authId =>
-      supabase.from('client_messages').delete().eq('client_auth_id', authId)
+      supabase.from('client_messages').delete().eq('client_auth_id', authId).eq('company_id', companyId)
     ));
     if (selectedId && ids.includes(selectedId)) {
       setMessages([]);
@@ -213,7 +222,7 @@ export default function ChatClient({ initialLead, onMessageSent, onClientViewed,
     setSelectedConvos(new Set());
     setSelectMode(false);
     setConfirmDelete(false);
-  }, [selectedConvos, selectedId, leads]);
+  }, [selectedConvos, selectedId, leads, companyId]);
 
   const selectedConvoIds = useMemo(() => selectedConvos, [selectedConvos]);
 
@@ -223,7 +232,7 @@ export default function ChatClient({ initialLead, onMessageSent, onClientViewed,
     const email = l.data['Email'] ?? l.data['email'] ?? '';
     const displayName = [prenom, nom].filter(Boolean).join(' ') || email || l.id.slice(0, 8);
     const initial = (prenom || email || 'C').charAt(0).toUpperCase();
-    const authId = l.data['AuthId'] ?? l.data['auth_id'] ?? l.id;
+    const authId = idConversationLead(l);
     const lastMsg = lastMessages[authId];
     return {
       id: l.id,

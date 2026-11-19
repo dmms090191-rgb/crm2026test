@@ -7,6 +7,7 @@ import { useThemeTokens } from '../../../hooks/useThemeTokens';
 import { useCompanyId } from '../../../hooks/useCompanyId';
 import { peekChatReturnContext } from '../../../lib/connectReturnContext';
 import { sendPushForMessage } from '../../../lib/sendPushForMessage';
+import { idConversationLead } from '../../../lib/conversationLead';
 
 interface LeadRow {
   id: string;
@@ -48,7 +49,7 @@ export default function VendorChatClient({ vendorName, vendorDbId, initialLead, 
         .order('imported_at', { ascending: false });
       const allLeads = (data ?? []) as LeadRow[];
 
-      const authIds = allLeads.map(l => l.data['AuthId'] ?? l.data['auth_id'] ?? l.id);
+      const authIds = allLeads.map(l => idConversationLead(l));
       let authIdsWithMessages: string[] = [];
       const map: Record<string, { content: string; created_at: string; sender: string }> = {};
 
@@ -67,7 +68,7 @@ export default function VendorChatClient({ vendorName, vendorDbId, initialLead, 
 
       const filtered = allLeads.filter(l => {
         if (initialLead && l.id === initialLead.id) return true;
-        const authId = l.data['AuthId'] ?? l.data['auth_id'] ?? l.id;
+        const authId = idConversationLead(l);
         return authIdsWithMessages.includes(authId);
       });
 
@@ -82,9 +83,7 @@ export default function VendorChatClient({ vendorName, vendorDbId, initialLead, 
   }, [initialLead]);
 
   const selectedLead = leads.find(l => l.id === selectedId) ?? null;
-  const clientAuthId = selectedLead
-    ? (selectedLead.data['AuthId'] ?? selectedLead.data['auth_id'] ?? selectedLead.id)
-    : null;
+  const clientAuthId = selectedLead ? idConversationLead(selectedLead) : null;
 
   useEffect(() => {
     if (clientAuthId) onClientViewed?.(clientAuthId);
@@ -160,10 +159,12 @@ export default function VendorChatClient({ vendorName, vendorDbId, initialLead, 
     }
   }, [clientAuthId, vendorDbId, loadMessages]);
 
+  /* Suppressions bornees a la Societe : meme regle et meme raison que ChatClient. */
   const handleDelete = useCallback(async (id: string) => {
+    if (!companyId) return;
     setMessages(prev => prev.filter(m => m.id !== id));
-    supabase.from('client_messages').delete().eq('id', id);
-  }, []);
+    supabase.from('client_messages').delete().eq('id', id).eq('company_id', companyId);
+  }, [companyId]);
 
   const [selectMode, setSelectMode] = useState(false);
   const [selectedConvos, setSelectedConvos] = useState<Set<string>>(new Set());
@@ -181,13 +182,14 @@ export default function VendorChatClient({ vendorName, vendorDbId, initialLead, 
   }, [leads]);
   const handleDeleteConvos = useCallback(() => { setConfirmDelete(true); }, []);
   const handleConfirmDeleteConvos = useCallback(async () => {
+    if (!companyId) return;
     const ids = [...selectedConvos];
     const authIdsToDelete = ids.map(id => {
       const lead = leads.find(l => l.id === id);
-      return lead ? (lead.data['AuthId'] ?? lead.data['auth_id'] ?? lead.id) : id;
+      return lead ? idConversationLead(lead) : id;
     });
     await Promise.all(authIdsToDelete.map(authId =>
-      supabase.from('client_messages').delete().eq('client_auth_id', authId)
+      supabase.from('client_messages').delete().eq('client_auth_id', authId).eq('company_id', companyId)
     ));
     if (selectedId && ids.includes(selectedId)) { setMessages([]); setSelectedId(null); }
     setLeads(prev => prev.filter(l => !ids.includes(l.id)));
@@ -195,7 +197,7 @@ export default function VendorChatClient({ vendorName, vendorDbId, initialLead, 
     setSelectedConvos(new Set());
     setSelectMode(false);
     setConfirmDelete(false);
-  }, [selectedConvos, selectedId, leads]);
+  }, [selectedConvos, selectedId, leads, companyId]);
 
   const selectedConvoIds = useMemo(() => selectedConvos, [selectedConvos]);
 
@@ -205,7 +207,7 @@ export default function VendorChatClient({ vendorName, vendorDbId, initialLead, 
     const email = l.data['Email'] ?? l.data['email'] ?? '';
     const displayName = [prenom, nom].filter(Boolean).join(' ') || email || l.id.slice(0, 8);
     const initial = (prenom || email || 'C').charAt(0).toUpperCase();
-    const authId = l.data['AuthId'] ?? l.data['auth_id'] ?? l.id;
+    const authId = idConversationLead(l);
     const lastMsg = lastMessages[authId];
     return {
       id: l.id,

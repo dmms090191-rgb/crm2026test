@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { useCompanyId } from './useCompanyId';
+import { idConversationLead } from '../lib/conversationLead';
 
 interface UnreadEntry {
   clientAuthId: string;
@@ -77,7 +78,7 @@ export function useUnreadClientMessages() {
 
     const entries: UnreadEntry[] = [];
     for (const lead of leads ?? []) {
-      const authId = lead.data?.['AuthId'] ?? lead.data?.['auth_id'] ?? lead.id;
+      const authId = idConversationLead(lead);
       if (authIds.includes(authId)) {
         const g = grouped.get(authId)!;
         entries.push({
