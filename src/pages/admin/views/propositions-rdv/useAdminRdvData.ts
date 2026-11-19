@@ -51,7 +51,9 @@ export function useAdminRdvData(
       supabase.from('rdv_proposals').select('*').eq('company_id', companyId).order('created_at', { ascending: false }),
       supabase.from('vendors').select('id, first_name, last_name').eq('company_id', companyId).order('first_name'),
     ]);
-    if (rdvData) setRdvs(rdvData as RdvProposal[]);
+    /* Les RDV directs (fixes par un commercial, sans validation client) vivent dans l'agenda,
+       pas ici. Filtre cote navigateur : il vaut avant comme apres la migration rdv_kind. */
+    if (rdvData) setRdvs((rdvData as RdvProposal[]).filter(r => r.rdv_kind !== 'direct'));
     if (vendorData) setVendors(vendorData as VendorOption[]);
     setLoading(false);
   }, [companyId]);

@@ -18,7 +18,7 @@ import { useCustomColumns } from '../../../hooks/useCustomColumns';
 import { useActionMenuOrder } from '../../../components/action-menu/useActionMenuOrder';
 import ToolbarOrganizerModal from '../../../components/toolbar/ToolbarOrganizerModal';
 import type { ToolbarItem } from '../../../components/toolbar/ToolbarOrganizerModal';
-import type { VendorLeadsProps } from './vendorLeadsTypes';
+import type { VendorLeadsProps, ImportedLead } from './vendorLeadsTypes';
 import SelecteurFormatTel from '../../../components/telephone/SelecteurFormatTel';
 import { useOngletsLeads } from '../../../hooks/useOngletsLeads';
 import { useRenduProgressif } from '../../../hooks/useRenduProgressif';
@@ -27,6 +27,10 @@ import { ONGLET_PRINCIPAL, CLE_COLONNE_ONGLETS } from '../../../lib/ongletsLeads
 import BarreOnglet from '../../../components/leads/BarreOnglet';
 import OngletsModal from '../../../components/leads/OngletsModal';
 import { useLeadDemande, leadMontre, defilerVersLead } from '../../../lib/leadAMontrer';
+import RdvDirectModal from '../../../components/agenda/RdvDirectModal';
+import { chargerRdvDirectsDuCommercial, rdvDirectsAVenir, dateHeureRdv, type RdvDirect } from '../../../lib/rdvDirect';
+import { identiteLead, champContact } from '../../../lib/identiteLead';
+import { telDuLead } from '../../../lib/formatTel';
 
 const VENDOR_LEADS_COLUMNS = [
   { key: 'hash', label: '#' },
@@ -52,7 +56,7 @@ const SYNC_TS_KEY = 'talvex_columns_vendor_leads_sync_ts';
 
 export default function VendorLeads({ vendorId, onOpenChat, onConnectAsClient, onOpenRdv }: VendorLeadsProps) {
   const tokens = useThemeTokens();
-  const { timezone } = useTimezone();
+  const { timezone, userName } = useTimezone();
   const companyId = useCompanyId();
   /* Les onglets de colonnes de la societe, en LECTURE : le commercial choisit l'onglet et
      voit ses colonnes, mais ne cree, ne renomme ni n'archive rien (la RLS le refuse aussi).
@@ -86,12 +90,41 @@ export default function VendorLeads({ vendorId, onOpenChat, onConnectAsClient, o
     const t = setTimeout(() => { recharger(); }, 800);
     return () => clearTimeout(t);
   }, [nbLeads, d.loading, recharger]);
-  /* Retour sur la page : relire les onglets, pour suivre un reglage de colonnes fait entre-temps par la Societe. */
+  /* LES RDV DIRECTS du commercial (fixes par lui, sans validation client) : une seule
+     requete pour toutes ses lignes ; chaque ligne affiche le prochain. */
+  const [rdvDirects, setRdvDirects] = useState<RdvDirect[]>([]);
+  const [rdvDirectLead, setRdvDirectLead] = useState<ImportedLead | null>(null);
+  const [nomCommercial, setNomCommercial] = useState('');
+  const rechargerRdvDirects = useCallback(() => {
+    if (vendorId) chargerRdvDirectsDuCommercial(vendorId).then(setRdvDirects);
+  }, [vendorId]);
+  useEffect(() => { rechargerRdvDirects(); }, [rechargerRdvDirects]);
+  /* Une horloge a la minute : un RDV dont l'heure est passee cesse d'etre « a venir » sans
+     attendre un rechargement. */
+  const [minute, setMinute] = useState(() => Date.now());
+  useEffect(() => { const t = setInterval(() => setMinute(Date.now()), 60_000); return () => clearInterval(t); }, []);
+  const rdvDirectsParLead = useMemo(() => {
+    const m = new Map<string, RdvDirect[]>();
+    for (const r of rdvDirectsAVenir(rdvDirects, minute)) {
+      if (!r.lead_id) continue;
+      const l = m.get(r.lead_id);
+      if (l) l.push(r); else m.set(r.lead_id, [r]);
+    }
+    return m;
+  }, [rdvDirects, minute]);
+  const prochainRdvDirect = (leadId: string): string | null => {
+    const r = rdvDirectsParLead.get(leadId)?.[0];
+    if (!r) return null;
+    const { date, heure } = dateHeureRdv(r, timezone);
+    return `${date.slice(0, 5)} ${heure}`;
+  };
+  /* Retour sur la page : relire les onglets (reglage de colonnes fait entre-temps par la
+     Societe) et les RDV directs (modifies depuis l'agenda). */
   useEffect(() => {
-    const auRetour = () => { if (document.visibilityState === 'visible') recharger(); };
+    const auRetour = () => { if (document.visibilityState === 'visible') { recharger(); rechargerRdvDirects(); } };
     document.addEventListener('visibilitychange', auRetour);
     return () => document.removeEventListener('visibilitychange', auRetour);
-  }, [recharger]);
+  }, [recharger, rechargerRdvDirects]);
   const [showOnglets, setShowOnglets] = useState(false);
   const [avis, setAvis] = useState('');
   const estBureau = useEstBureau();
@@ -135,8 +168,10 @@ export default function VendorLeads({ vendorId, onOpenChat, onConnectAsClient, o
 
   useEffect(() => {
     if (!vendorId) return;
-    supabase.from('vendors').select('can_customize_columns').eq('id', vendorId).maybeSingle().then(({ data }) => {
+    supabase.from('vendors').select('can_customize_columns, first_name, last_name').eq('id', vendorId).maybeSingle().then(({ data }) => {
       if (data) setCanCustomizeColumns(data.can_customize_columns !== false);
+      /* Le nom du COMMERCIAL de ce panel : en Visu, c'est lui, pas l'admin qui regarde. */
+      if (data) setNomCommercial([data.first_name, data.last_name].filter(Boolean).join(' '));
     });
   }, [vendorId]);
   const displayColumns = useMemo(() => allColumns.map(c => colOrder.labelOverrides[c.key] ? { ...c, label: colOrder.labelOverrides[c.key] } : c), [allColumns, colOrder.labelOverrides]);
@@ -160,7 +195,7 @@ export default function VendorLeads({ vendorId, onOpenChat, onConnectAsClient, o
     return colMap.get(cle)?.label ?? cle;
   };
   const champsCarte = principal || d.rechercheActive ? undefined : colonnesOnglet.filter(c => c.visible && !c.systeme);
-  const rp = useRenduProgressif(d.filtered, [og.ongletActif, d.recherche, d.filterNom, d.filterPrenom, d.filterEmail, d.filterTel, d.statutFilter, d.sortOrder].join('|'));
+  const rp = useRenduProgressif(d.filtered, [og.ongletActif, d.recherche, d.filterNom, d.filterPrenom, d.filterTel, d.statutFilter, d.sortOrder].join('|'));
   const chargementVue = showLoading || (!principal && og.chargement);
   /* Dans un onglet, les colonnes sont celles que la Societe a reglees pour cet onglet : le
      reglage personnel ne s'y applique pas. On le dit plutot que d'ouvrir un reglage sans effet. */
@@ -228,6 +263,7 @@ export default function VendorLeads({ vendorId, onOpenChat, onConnectAsClient, o
         ongletNom={og.ongletActifNom} principal={principal} onOuvrir={() => setShowOnglets(true)}
         recherche={d.recherche} onRecherche={d.setRecherche}
         resultats={d.rechercheActive && !showLoading ? d.filtered.length : null}
+        placeholder="Rechercher : nom, prénom, entreprise, email ou téléphone…"
       />
 
       {avis && (
@@ -238,7 +274,6 @@ export default function VendorLeads({ vendorId, onOpenChat, onConnectAsClient, o
       )}
 
       <VendorLeadsFilters
-        filterEmail={d.filterEmail} setFilterEmail={d.setFilterEmail}
         filterTel={d.filterTel} setFilterTel={d.setFilterTel}
         filterPrenom={d.filterPrenom} setFilterPrenom={d.setFilterPrenom}
         filterNom={d.filterNom} setFilterNom={d.setFilterNom}
@@ -336,6 +371,8 @@ export default function VendorLeads({ vendorId, onOpenChat, onConnectAsClient, o
                         customColumnValues={cc.getValuesForRow(lead.id)}
                         colonnesDyn={colonnesDyn}
                         ongletsDuLead={d.rechercheActive ? og.nomsOngletsDuLead(lead.id) : undefined}
+                        rdvDirectProchain={prochainRdvDirect(lead.id)}
+                        onRdvDirect={() => setRdvDirectLead(lead)}
                       />
                     ))}
                   </tbody>
@@ -374,6 +411,8 @@ export default function VendorLeads({ vendorId, onOpenChat, onConnectAsClient, o
                     cardRef={el => { if (el) d.cardRefsMap.current.set(lead.id, el); else d.cardRefsMap.current.delete(lead.id); }}
                     champsOnglet={champsCarte}
                     ongletsDuLead={d.rechercheActive ? og.nomsOngletsDuLead(lead.id) : null}
+                    rdvDirectProchain={prochainRdvDirect(lead.id)}
+                    onRdvDirect={() => setRdvDirectLead(lead)}
                   />
                 ))}
               </div>
@@ -423,6 +462,23 @@ export default function VendorLeads({ vendorId, onOpenChat, onConnectAsClient, o
       {showColModal && <ColumnOrganizerModal columns={displayColumns} orderedKeys={colOrder.orderedKeys} hiddenDesktopKeys={colOrder.hiddenDesktopKeys} tableKey="vendor_leads" onSave={colOrder.saveAll} onReset={colOrder.resetAll} onClose={() => setShowColModal(false)} onCreateCustomColumn={cc.createColumn} onDeleteCustomColumn={cc.deleteColumn} onRenameCustomColumn={cc.renameColumn} onRenameLabel={colOrder.renameLabel} mobileOrder={colMobile.mobileOrder} mobileCardStyle={colMobile.cardStyle} onSaveMobile={colMobile.saveMobile} onResetMobile={colMobile.resetMobile} />}
 
       {showOnglets && <OngletsModal og={og} totalLeads={d.leads.length} comptes={d.comptesOnglets} peutGerer={false} onClose={() => setShowOnglets(false)} />}
+
+      {rdvDirectLead && vendorId && companyId && (
+        <RdvDirectModal
+          titre={identiteLead(rdvDirectLead).titre}
+          timezone={timezone}
+          rdvs={rdvDirectsParLead.get(rdvDirectLead.id) ?? []}
+          creation={{
+            leadId: rdvDirectLead.id, vendorId, companyId,
+            leadName: identiteLead(rdvDirectLead).titre,
+            leadPhone: telDuLead(rdvDirectLead),
+            leadEmail: champContact(rdvDirectLead, 'email'),
+            createdByName: nomCommercial || userName || '',
+          }}
+          onClose={() => setRdvDirectLead(null)}
+          onFait={m => { setAvis(m); rechargerRdvDirects(); }}
+        />
+      )}
 
       {showOrgModal && <ToolbarOrganizerModal items={toolbarItems} order={tbOrder.order} onSave={tbOrder.save} onClose={() => setShowOrgModal(false)} t={tokens} />}
     </div>

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Mail, Phone, ChevronDown, Undo2, Redo2, CheckCircle2, Calendar, RotateCcw, Bot, MoreHorizontal } from 'lucide-react';
+import { Mail, Phone, ChevronDown, Undo2, Redo2, CheckCircle2, Calendar, RotateCcw, Bot, MoreHorizontal, CalendarClock } from 'lucide-react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 import { gradients, getStatutCfg, FALLBACK_COLOR } from '../../../admin/views/crm/utils';
 import CheckBox from '../../../admin/views/crm/CheckBox';
@@ -24,6 +24,10 @@ function formatImportedAtShort(isoDate: string, tz: string): string {
 interface Props {
   champsOnglet?: ColonneAffichee[];
   ongletsDuLead?: string[] | null;
+  /** Le prochain RDV direct du lead (« 20/11 15:00 »), ou null. */
+  rdvDirectProchain?: string | null;
+  /** Ouvrir « RDV direct » : fixe par le commercial, sans validation client. */
+  onRdvDirect?: () => void;
   lead: ImportedLead;
   index: number;
   statutDefs: StatutDef[];
@@ -56,7 +60,7 @@ export default function VendorLeadMobileCard({
   workHistoryLength, workHistoryPosition, canUndo, canRedo,
   onWorkSelect, onWorkUndo, onWorkRedo, onWorkReset, onToggle, onStatutChange,
   onToggleActif, onToggleAi, onDetail, onOpenChat, onOpenRdv, onConnectAsClient, selectMode, cardRef,
-  champsOnglet, ongletsDuLead,
+  champsOnglet, ongletsDuLead, rdvDirectProchain, onRdvDirect,
 }: Props) {
   const tokens = useThemeTokens();
   const [statutModalOpen, setStatutModalOpen] = useState(false);
@@ -206,15 +210,26 @@ export default function VendorLeadMobileCard({
         </div>
       </div>
 
-      {/* Actions */}
-      <div>
+      {/* Actions, et RDV DIRECT (fixe par le commercial, sans validation client) a cote */}
+      <div className="flex items-center gap-2 flex-wrap">
         <button
           onClick={() => setActionsOpen(true)}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-[11px] font-semibold transition-all active:scale-95"
+          className="flex items-center gap-1.5 px-3 min-h-[44px] rounded-lg text-[11px] font-semibold transition-all active:scale-95"
           style={{ background: tokens.accent.bg, border: `1px solid ${tokens.accent.border}`, color: tokens.accent.text }}
         >
           <MoreHorizontal className="w-3.5 h-3.5" />Actions
         </button>
+        {onRdvDirect && (
+          <button
+            type="button"
+            onClick={onRdvDirect}
+            className="flex items-center gap-1.5 px-3 min-h-[44px] rounded-lg text-[11px] font-semibold transition-all active:scale-95"
+            style={{ background: tokens.surface.secondary, border: `1px solid ${rdvDirectProchain ? tokens.accent.border : tokens.surface.border}`, color: tokens.text.secondary }}
+          >
+            <CalendarClock className="w-3.5 h-3.5" style={{ color: tokens.accent.text }} />RDV direct
+            {rdvDirectProchain && <span className="text-[10px] font-medium tabular-nums" style={{ color: tokens.accent.text }}>· {rdvDirectProchain}</span>}
+          </button>
+        )}
         {actionsOpen && (
           <VendorLeadActionModal
             lead={{ nom: nom || (prenom ? '' : identite.titre), prenom, email, tel: telAffiche }}

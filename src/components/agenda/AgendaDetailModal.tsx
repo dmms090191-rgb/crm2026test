@@ -1,4 +1,4 @@
-import { X, Clock, Phone, Mail, Briefcase, FileText, AlignLeft, Globe, UserPlus, CheckCircle2 } from 'lucide-react';
+import { X, Clock, Phone, Mail, Briefcase, FileText, AlignLeft, Globe, UserPlus, CheckCircle2, CalendarClock, ArrowRight, Pencil } from 'lucide-react';
 import { useThemeTokens } from '../../hooks/useThemeTokens';
 import type { RdvProposal } from './agendaTypes';
 import { STATUS_CFG } from './agendaTypes';
@@ -19,6 +19,10 @@ interface RdvDetailModalProps {
   canDelete?: boolean;
   userTimezone: string;
   clientTimezone?: string;
+  /** « Voir le lead » : revenir sur la ligne du lead dans le CRM. */
+  onGoToLead?: (leadId: string) => void;
+  /** Modifier ou annuler un RDV DIRECT (jamais via RdvEditModal, qui ecrit au client). */
+  onModifierDirect?: (rdv: RdvProposal) => void;
 }
 
 function createdByLabel(role: string) {
@@ -28,9 +32,13 @@ function createdByLabel(role: string) {
   return role;
 }
 
-export default function RdvDetailModal({ rdv, onClose, onDelete, onStatusChange, onTreat, canTreat, readonly, canDelete = !readonly, userTimezone, clientTimezone }: RdvDetailModalProps) {
+export default function RdvDetailModal({ rdv, onClose, onDelete, onStatusChange, onTreat, canTreat, readonly, canDelete = !readonly, userTimezone, clientTimezone, onGoToLead, onModifierDirect }: RdvDetailModalProps) {
   const tokens = useThemeTokens();
   const cfg = STATUS_CFG[rdv.status] ?? STATUS_CFG.pending;
+  /* RDV direct : fixe par le commercial, sans proposition ni validation client. Il se modifie
+     et s'annule par son propre formulaire ; « En attente » (statut d'une proposition) ne lui
+     est pas propose, et le commercial l'annule au lieu de le supprimer. */
+  const direct = rdv.rdv_kind === 'direct';
   const isPast = rdv.status === 'confirmed' && isRdvPast(rdv);
   const isTreated = !!rdv.treated_at;
 
@@ -76,6 +84,13 @@ export default function RdvDetailModal({ rdv, onClose, onDelete, onStatusChange,
               >
                 {cfg.label}
               </span>
+              {direct && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold mt-0.5 ml-1.5"
+                  title="Fixé par le vendeur, sans proposition ni validation du client"
+                  style={{ background: tokens.accent.bg, color: tokens.accent.text, border: `1px solid ${tokens.accent.border}` }}>
+                  <CalendarClock className="w-3 h-3" />RDV direct
+                </span>
+              )}
             </div>
           </div>
           <button
@@ -160,7 +175,7 @@ export default function RdvDetailModal({ rdv, onClose, onDelete, onStatusChange,
             <div className="flex items-start gap-2.5">
               <AlignLeft className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: tokens.text.tertiary }} />
               <div>
-                <p className="text-[10px] font-bold tracking-wider uppercase mb-0.5" style={{ color: tokens.text.quaternary }}>Description</p>
+                <p className="text-[10px] font-bold tracking-wider uppercase mb-0.5" style={{ color: tokens.text.quaternary }}>{direct ? 'Note' : 'Description'}</p>
                 <p className="text-sm leading-relaxed" style={{ color: tokens.text.secondary }}>{rdv.description}</p>
               </div>
             </div>
@@ -231,9 +246,28 @@ export default function RdvDetailModal({ rdv, onClose, onDelete, onStatusChange,
             </div>
           )}
 
-          {(!readonly || canDelete) && (
+          {((onGoToLead && rdv.lead_id) || (direct && onModifierDirect)) && (
+            <div className="flex flex-wrap gap-2">
+              {onGoToLead && rdv.lead_id && (
+                <button type="button" onClick={() => { onGoToLead(rdv.lead_id!); onClose(); }}
+                  className="inline-flex items-center gap-1.5 min-h-[40px] px-3 rounded-lg text-xs font-semibold"
+                  style={{ background: tokens.accent.bg, color: tokens.accent.text, border: `1px solid ${tokens.accent.border}` }}>
+                  <ArrowRight className="w-3.5 h-3.5" />Voir le lead
+                </button>
+              )}
+              {direct && onModifierDirect && (
+                <button type="button" onClick={() => onModifierDirect(rdv)}
+                  className="inline-flex items-center gap-1.5 min-h-[40px] px-3 rounded-lg text-xs font-semibold"
+                  style={{ background: tokens.surface.secondary, color: tokens.text.secondary, border: `1px solid ${tokens.surface.border}` }}>
+                  <Pencil className="w-3.5 h-3.5" />Modifier ou annuler
+                </button>
+              )}
+            </div>
+          )}
+
+          {(!readonly || canDelete) && !(direct && onModifierDirect) && (
             <div className="flex flex-wrap gap-2 pt-2" style={{ borderTop: `1px solid ${tokens.surface.borderLight}` }}>
-              {!readonly && Object.entries(STATUS_CFG).filter(([k]) => k !== rdv.status).map(([k, v]) => (
+              {!readonly && Object.entries(STATUS_CFG).filter(([k]) => k !== rdv.status && !(direct && k === 'pending')).map(([k, v]) => (
                 <button
                   key={k}
                   onClick={() => { onStatusChange(rdv.id, k); onClose(); }}
@@ -243,7 +277,17 @@ export default function RdvDetailModal({ rdv, onClose, onDelete, onStatusChange,
                   {v.label}
                 </button>
               ))}
-              {canDelete && (
+              {/* Un RDV direct ne se SUPPRIME pas (son historique disparaitrait) : il s'annule. */}
+              {canDelete && direct && readonly && rdv.status !== 'cancelled' && (
+                <button
+                  onClick={() => { onStatusChange(rdv.id, 'cancelled'); onClose(); }}
+                  className="px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105 ml-auto"
+                  style={{ background: tokens.danger.bg, color: tokens.danger.text, border: `1px solid ${tokens.danger.border}` }}
+                >
+                  Annuler le RDV direct
+                </button>
+              )}
+              {canDelete && !direct && (
                 <button
                   onClick={() => { onDelete(rdv.id); onClose(); }}
                   className="px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105 ml-auto"

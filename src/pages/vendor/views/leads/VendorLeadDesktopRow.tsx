@@ -1,5 +1,5 @@
 import { forwardRef, useState } from 'react';
-import { Mail, Phone, ChevronDown, Undo2, Redo2, CheckCircle2, ExternalLink, Bot, MoreHorizontal } from 'lucide-react';
+import { Mail, Phone, ChevronDown, Undo2, Redo2, CheckCircle2, ExternalLink, Bot, MoreHorizontal, CalendarClock } from 'lucide-react';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
 import { getStatutCfg, FALLBACK_COLOR } from '../../../admin/views/crm/utils';
 import MobileStatutModal from '../../../admin/views/crm/MobileStatutModal';
@@ -52,6 +52,10 @@ interface Props {
   customColumnValues?: Record<string, string>;
   colonnesDyn?: Map<string, ColonneAffichee>;
   ongletsDuLead?: string[];
+  /** Le prochain RDV direct du lead (« 20/11 15:00 »), ou null. */
+  rdvDirectProchain?: string | null;
+  /** Ouvrir « RDV direct » : fixe par le commercial, sans validation client. */
+  onRdvDirect?: () => void;
 }
 
 const DEFAULT_VENDOR_COLUMN_ORDER = ['hash', 'nom', 'prenom', 'email', 'telephone', 'date_ajout', 'statut', 'actions', 'acces', 'ia'];
@@ -61,7 +65,7 @@ const VendorLeadDesktopRow = forwardRef<HTMLTableRowElement, Props>(({
   workHistoryLength, workHistoryPosition, canUndo, canRedo,
   onWorkSelect, onWorkUndo, onWorkRedo, onToggle, onStatutChange,
   onToggleActif, onToggleAi, onDetail, onOpenChat, onOpenRdv, onConnectAsClient, columnOrder,
-  customColumnDefs, customColumnValues, colonnesDyn, ongletsDuLead,
+  customColumnDefs, customColumnValues, colonnesDyn, ongletsDuLead, rdvDirectProchain, onRdvDirect,
 }, ref) => {
   const cols = columnOrder ?? DEFAULT_VENDOR_COLUMN_ORDER;
   const tokens = useThemeTokens();
@@ -189,6 +193,7 @@ const VendorLeadDesktopRow = forwardRef<HTMLTableRowElement, Props>(({
           );
           case 'actions': return (
             <td key={key} className="px-5 py-5">
+              <div className="inline-flex items-center gap-2 whitespace-nowrap">
               <button
                 onClick={() => setActionsOpen(true)}
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold transition-all duration-200"
@@ -198,6 +203,21 @@ const VendorLeadDesktopRow = forwardRef<HTMLTableRowElement, Props>(({
               >
                 <MoreHorizontal className="w-3.5 h-3.5" />Actions
               </button>
+              {/* RDV DIRECT : fixe par le commercial, sans proposition ni validation client
+                  (la proposition au client reste dans Actions). */}
+              {onRdvDirect && (
+                <button
+                  type="button"
+                  onClick={onRdvDirect}
+                  title={rdvDirectProchain ? `Prochain RDV direct : ${rdvDirectProchain}` : 'Fixer un RDV directement, sans validation du client'}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-semibold transition-all duration-200"
+                  style={{ background: tokens.surface.secondary, border: `1px solid ${rdvDirectProchain ? tokens.accent.border : tokens.surface.border}`, color: tokens.text.secondary }}
+                >
+                  <CalendarClock className="w-3.5 h-3.5" style={{ color: tokens.accent.text }} />RDV direct
+                  {rdvDirectProchain && <span className="text-[10px] font-medium tabular-nums" style={{ color: tokens.accent.text }}>· {rdvDirectProchain}</span>}
+                </button>
+              )}
+              </div>
               {actionsOpen && (
                 <VendorLeadActionModal
                   lead={{ nom: nom || (prenom ? '' : identite.titre), prenom, email, tel: telAffiche }}

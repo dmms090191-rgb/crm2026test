@@ -30,7 +30,6 @@ export function useVendorLeadsData(vendorId: string | null, vue: VueLeads = {}) 
   const [leads, setLeads] = useState<ImportedLead[]>([]);
   const [statutDefs, setStatutDefs] = useState<StatutDef[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filterEmail, setFilterEmail] = useState('');
   const [filterTel, setFilterTel] = useState('');
   const [filterPrenom, setFilterPrenom] = useState('');
   const [filterNom, setFilterNom] = useState('');
@@ -160,7 +159,6 @@ export function useVendorLeadsData(vendorId: string | null, vue: VueLeads = {}) 
   const filtered = useMemo(() => {
     const fNom = filterNom.toLowerCase();
     const fPrenom = filterPrenom.toLowerCase();
-    const fEmail = filterEmail.toLowerCase();
 
     const rechercheActive = recherche.trim() !== '';
     const result = leads.filter(l => {
@@ -169,7 +167,6 @@ export function useVendorLeadsData(vendorId: string | null, vue: VueLeads = {}) 
       else if (ongletActif !== ONGLET_PRINCIPAL && !(dansOnglet?.(l.id, ongletActif) ?? false)) return false;
       if (fNom && !champContact(l, 'nom').toLowerCase().includes(fNom)) return false;
       if (fPrenom && !champContact(l, 'prenom').toLowerCase().includes(fPrenom)) return false;
-      if (fEmail && !champContact(l, 'email').toLowerCase().includes(fEmail)) return false;
       /* Meme correction que cote Societe : source en cascade, comparaison tolerante au
          format. Voir `telCorrespond` dans `lib/formatTel.ts`. */
       if (filterTel && !telCorrespond(telDuLead(l), filterTel)) return false;
@@ -188,7 +185,7 @@ export function useVendorLeadsData(vendorId: string | null, vue: VueLeads = {}) 
       return a.id.localeCompare(b.id);
     });
     return result;
-  }, [leads, filterNom, filterPrenom, filterEmail, filterTel, statutFilter, sortOrder, recherche, ongletActif, dansOnglet]);
+  }, [leads, filterNom, filterPrenom, filterTel, statutFilter, sortOrder, recherche, ongletActif, dansOnglet]);
 
   const filteredIds = useMemo(() => filtered.map(l => l.id), [filtered]);
   const allChecked = filteredIds.length > 0 && filteredIds.every(id => selected.has(id));
@@ -204,7 +201,7 @@ export function useVendorLeadsData(vendorId: string | null, vue: VueLeads = {}) 
     ongletActif, comptesOnglets,
     recherche, setRecherche, rechercheActive: recherche.trim() !== '',
     allChecked, someChecked, toggleAll, toggleOne,
-    filterEmail, setFilterEmail, filterTel, setFilterTel,
+    filterTel, setFilterTel,
     filterPrenom, setFilterPrenom, filterNom, setFilterNom,
     statutFilter, setStatutFilter, sortOrder, setSortOrder,
     mobileFiltersOpen, setMobileFiltersOpen,

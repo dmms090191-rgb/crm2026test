@@ -22,6 +22,8 @@ export interface RdvProposal {
   source_timezone?: string;
   created_by_name?: string;
   treated_at?: string | null;
+  /** 'direct' : fixe par le commercial, sans proposition ni validation client (voir lib/rdvDirect). */
+  rdv_kind?: 'proposition' | 'direct';
 }
 
 export const STATUS_CFG: Record<string, { label: string; color: string; bg: string; border: string; dot: string }> = {

@@ -9,6 +9,8 @@ interface Props {
   onRecherche: (v: string) => void;
   /** Resultats de la recherche globale, ou null hors recherche. */
   resultats: number | null;
+  /** Le texte d'invite du champ de recherche (le Commercial a le sien). */
+  placeholder?: string;
 }
 
 /*
@@ -21,7 +23,7 @@ interface Props {
  * une ligne d'un onglet. Pendant qu'elle est active, la liste montre a quel(s) onglet(s)
  * appartient chaque resultat.
  */
-export default function BarreOnglet({ ongletNom, principal, onOuvrir, recherche, onRecherche, resultats }: Props) {
+export default function BarreOnglet({ ongletNom, principal, onOuvrir, recherche, onRecherche, resultats, placeholder }: Props) {
   const t = useThemeTokens();
   return (
     <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
@@ -47,7 +49,7 @@ export default function BarreOnglet({ ongletNom, principal, onOuvrir, recherche,
           type="search"
           value={recherche}
           onChange={e => onRecherche(e.target.value)}
-          placeholder="Rechercher dans tous les leads : nom, prénom, entreprise, email, téléphone"
+          placeholder={placeholder ?? 'Rechercher dans tous les leads : nom, prénom, entreprise, email, téléphone'}
           aria-label="Rechercher dans tous les leads"
           className="w-full h-11 pl-10 pr-10 rounded-xl text-[13px] focus:outline-none"
           style={{ background: recherche ? t.accent.bg : t.surface.secondary, border: `1px solid ${recherche ? t.accent.border : t.surface.border}`, color: t.input.text, caretColor: t.input.text }}

@@ -54,7 +54,9 @@ export function useClientRdvData({ clientEmail, onMount }: UseClientRdvDataOptio
       }
     }
     results.sort((a, b) => b.created_at.localeCompare(a.created_at));
-    setRdvs(results);
+    /* Jamais de RDV DIRECT dans les propositions du client (voir ClientAgenda : la base le
+       refuse au vrai client ; ce filtre couvre « se connecter en tant que client »). */
+    setRdvs(results.filter(r => (r as { rdv_kind?: string }).rdv_kind !== 'direct'));
     setLoading(false);
   }, [clientEmail]);
 

@@ -37,7 +37,10 @@ export function useVendorRdvData(vendorDbId?: string | null, initialLead?: RdvLe
       .from('rdv_proposals')
       .select('*')
       .order('created_at', { ascending: false });
-    if (data) setRdvs(data as RdvProposal[]);
+    /* Les RDV DIRECTS (fixes par le commercial, sans validation client) ne sont pas des
+       propositions : ils vivent dans l'agenda, pas dans cette liste. Filtre cote navigateur :
+       il vaut avant comme apres la migration qui ajoute rdv_kind. */
+    if (data) setRdvs((data as RdvProposal[]).filter(r => r.rdv_kind !== 'direct'));
     setLoading(false);
   }, []);
 

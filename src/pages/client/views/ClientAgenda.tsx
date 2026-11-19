@@ -50,7 +50,10 @@ export default function ClientAgenda({ clientEmail }: ClientAgendaProps) {
       }
     }
     results.sort((a, b) => a.proposed_date.localeCompare(b.proposed_date) || a.proposed_time.localeCompare(b.proposed_time));
-    setRdvs(results);
+    /* Jamais de RDV DIRECT ici (fixe par le commercial, sans validation client). Pour un vrai
+       client la base le refuse deja ; ce filtre couvre « se connecter en tant que client »,
+       ou la session est celle du commercial ou de l'admin. */
+    setRdvs(results.filter(r => r.rdv_kind !== 'direct'));
   }, [clientEmail]);
 
   useEffect(() => { load(); }, [load]);

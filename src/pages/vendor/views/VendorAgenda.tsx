@@ -5,9 +5,11 @@ import { useTimezone } from '../../../hooks/useTimezone';
 
 interface VendorAgendaProps {
   vendorId?: string | null;
+  /** « Voir le lead » depuis le detail d'un RDV. */
+  onGoToLead?: (leadId: string) => void;
 }
 
-export default function VendorAgenda({ vendorId }: VendorAgendaProps) {
+export default function VendorAgenda({ vendorId, onGoToLead }: VendorAgendaProps) {
   const { timezone } = useTimezone();
   const [rdvs, setRdvs] = useState<RdvProposal[]>([]);
 
@@ -34,5 +36,5 @@ export default function VendorAgenda({ vendorId }: VendorAgendaProps) {
     return () => { supabase.removeChannel(ch); };
   }, [load, vendorId]);
 
-  return <AgendaView rdvs={rdvs} onReload={load} canAdd={false} canDelete={true} canTreat={true} accentColor="#22d3ee" accentRgb="34,211,238" userTimezone={timezone} />;
+  return <AgendaView rdvs={rdvs} onReload={load} canAdd={false} canDelete={true} canTreat={true} accentColor="#22d3ee" accentRgb="34,211,238" userTimezone={timezone} onGoToLead={onGoToLead} peutModifierDirect />;
 }

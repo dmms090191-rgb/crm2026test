@@ -46,6 +46,7 @@ interface RdvRow {
   lead_email?: string;
   status: string;
   treated_at?: string | null;
+  rdv_kind?: string;
 }
 
 /**
@@ -171,9 +172,10 @@ export function useAgendaNotifications(
       const seenSet = new Set<string>();
       const leadIds = allLeads.filter(l => { if (seenSet.has(l.id)) return false; seenSet.add(l.id); return true; }).map(l => l.id);
 
+      /* `*` : lit rdv_kind quand la colonne existe, sans casser avant la migration. */
       const { data: byEmail } = await supabase
         .from('rdv_proposals')
-        .select('id, lead_name, proposed_date, proposed_time, appointment_utc, vendor_id, lead_email, status, treated_at')
+        .select('*')
         .eq('status', 'confirmed')
         .eq('lead_email', userId);
 
@@ -181,7 +183,7 @@ export function useAgendaNotifications(
       if (leadIds.length > 0) {
         const { data: byLeadId } = await supabase
           .from('rdv_proposals')
-          .select('id, lead_name, proposed_date, proposed_time, appointment_utc, vendor_id, lead_email, status, treated_at')
+          .select('*')
           .eq('status', 'confirmed')
           .in('lead_id', leadIds);
         if (byLeadId) {
@@ -191,7 +193,9 @@ export function useAgendaNotifications(
           }
         }
       }
-      rdvsRef.current = results;
+      /* Jamais de rappel client pour un RDV DIRECT (fixe par le commercial, sans validation
+         client) : la base le refuse au vrai client, ce filtre couvre « se connecter en tant que client ». */
+      rdvsRef.current = results.filter(r => r.rdv_kind !== 'direct');
     } else {
       let query = supabase
         .from('rdv_proposals')

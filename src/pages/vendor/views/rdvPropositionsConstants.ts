@@ -2,6 +2,8 @@ export interface RdvProposal {
   id: string;
   vendor_id: string | null;
   lead_id: string | null;
+  /** 'direct' : RDV fixe par le commercial, sans validation client — jamais une proposition. */
+  rdv_kind?: string;
   lead_name: string;
   lead_phone: string;
   lead_email: string;

@@ -1,7 +1,9 @@
-import { useState, useEffect } from 'react';
-import { Trash2, MessageSquarePlus } from 'lucide-react';
+import { useState, useEffect, useContext } from 'react';
+import { Trash2, MessageSquarePlus, CalendarClock } from 'lucide-react';
 import { supabase } from '../../../../lib/supabase';
 import { useThemeTokens } from '../../../../hooks/useThemeTokens';
+import { TimezoneContext } from '../../../../contexts/TimezoneContext';
+import { chargerRdvDirectsDuLead, libelleRdvDirect, type RdvDirect } from '../../../../lib/rdvDirect';
 
 interface Comment {
   id: string;
@@ -27,6 +29,21 @@ export default function CrmCommentsTab({ leadId, leadData, onDataUpdate }: CrmCo
   const [newComment, setNewComment] = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
+  /* LES RDV DIRECTS DU LEAD, LUS depuis leur ligne (rdv_proposals) : jamais copies dans
+     leads.data. L'entree suit donc toute modification ou annulation, ne se supprime pas
+     d'ici, et rien de plus n'est expose au client. */
+  const tz = useContext(TimezoneContext)?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Paris';
+  const [rdvDirects, setRdvDirects] = useState<RdvDirect[]>([]);
+  useEffect(() => {
+    let actif = true;
+    chargerRdvDirectsDuLead(leadId).then(r => { if (actif) setRdvDirects(r); });
+    return () => { actif = false; };
+  }, [leadId]);
+  const fil = [
+    ...rdvDirects.map(r => ({ type: 'rdv' as const, id: 'rdv-' + r.id, created_at: r.created_at, rdv: r })),
+    ...comments.map(c => ({ type: 'commentaire' as const, id: c.id, created_at: c.created_at, c })),
+  /* Le plus recent d'abord ; l'ancien commentaire unique (sans vraie date) reste en fin de fil. */
+  ].sort((a, b) => (a.id === 'legacy-comment' ? 1 : 0) - (b.id === 'legacy-comment' ? 1 : 0) || b.created_at.localeCompare(a.created_at));
 
   useEffect(() => {
     const stored: Comment[] = (() => {
@@ -166,10 +183,21 @@ export default function CrmCommentsTab({ leadId, leadData, onDataUpdate }: CrmCo
       )}
 
       <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-        {comments.length === 0 ? (
+        {fil.length === 0 ? (
           <p className="text-xs text-center py-4" style={{ color: tokens.input.placeholder }}>Aucun commentaire</p>
         ) : (
-          comments.map(c => (
+          fil.map(e => e.type === 'rdv' ? (
+            <div key={e.id} className="flex items-start gap-3 px-3 py-2.5 rounded-xl" data-rdv-direct=""
+              style={{ background: tokens.accent.bg, border: `1px solid ${tokens.accent.border}`, opacity: e.rdv.status === 'cancelled' ? 0.65 : 1 }}>
+              <CalendarClock className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: tokens.accent.text }} />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm break-words" style={{ color: tokens.text.secondary, textDecoration: e.rdv.status === 'cancelled' ? 'line-through' : undefined }}>{libelleRdvDirect(e.rdv, tz)}</p>
+                <p className="text-[10px] mt-1" style={{ color: tokens.input.placeholder }}>
+                  Fixé{e.rdv.created_by_name ? ` par ${e.rdv.created_by_name}` : ' par le vendeur'} le {formatDate(e.rdv.created_at)} · sans validation client
+                </p>
+              </div>
+            </div>
+          ) : (() => { const c = e.c; return (
             <div
               key={c.id}
               onClick={() => toggleSelect(c.id)}
@@ -191,7 +219,7 @@ export default function CrmCommentsTab({ leadId, leadData, onDataUpdate }: CrmCo
                 <p className="text-[10px] mt-1" style={{ color: tokens.input.placeholder }}>{formatDate(c.created_at)}</p>
               </div>
             </div>
-          ))
+          ); })())
         )}
       </div>
     </div>

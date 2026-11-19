@@ -15,6 +15,8 @@ import MonthView from './AgendaMonthView';
 import WeekView from './AgendaWeekView';
 import DayView from './AgendaDayView';
 import { getRdvLocalDate, getRdvLocalTime } from '../../lib/timezoneUtils';
+import RdvDirectModal from './RdvDirectModal';
+import type { RdvDirect } from '../../lib/rdvDirect';
 
 export type { RdvProposal } from './agendaTypes';
 export { STATUS_CFG } from './agendaTypes';
@@ -30,9 +32,13 @@ interface AgendaViewProps {
   userTimezone?: string;
   clientTimezone?: string;
   title?: string;
+  /** Revenir au lead d'un RDV (bouton « Voir le lead » du detail). */
+  onGoToLead?: (leadId: string) => void;
+  /** Le commercial peut modifier ou annuler SES RDV directs depuis l'agenda. */
+  peutModifierDirect?: boolean;
 }
 
-export default function AgendaView({ rdvs, onReload, canAdd = true, canDelete, canTreat = false, accentColor = '#22d3ee', accentRgb = '34,211,238', userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC', clientTimezone, title = 'Agenda' }: AgendaViewProps) {
+export default function AgendaView({ rdvs, onReload, canAdd = true, canDelete, canTreat = false, accentColor = '#22d3ee', accentRgb = '34,211,238', userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC', clientTimezone, title = 'Agenda', onGoToLead, peutModifierDirect = false }: AgendaViewProps) {
   const tokens = useThemeTokens();
 
   const today = new Date();
@@ -47,6 +53,7 @@ export default function AgendaView({ rdvs, onReload, canAdd = true, canDelete, c
   const [showAdd, setShowAdd] = useState(false);
   const [addDefault, setAddDefault] = useState<string | undefined>();
   const [detailRdv, setDetailRdv] = useState<RdvProposal | null>(null);
+  const [directEnEdition, setDirectEnEdition] = useState<RdvProposal | null>(null);
   const [, setTick] = useState(0);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -285,7 +292,14 @@ export default function AgendaView({ rdvs, onReload, canAdd = true, canDelete, c
       </div>
 
       {showAdd && <AddRdvModal defaultDate={addDefault} onClose={() => setShowAdd(false)} onSaved={onReload} />}
-      {detailRdv && <RdvDetailModal rdv={detailRdv} onClose={() => setDetailRdv(null)} onDelete={handleDelete} onStatusChange={handleStatusChange} onTreat={handleTreat} canTreat={canTreat} readonly={!canAdd} canDelete={canDelete ?? canAdd} userTimezone={userTimezone} clientTimezone={clientTimezone} />}
+      {detailRdv && <RdvDetailModal rdv={detailRdv} onClose={() => setDetailRdv(null)} onDelete={handleDelete} onStatusChange={handleStatusChange} onTreat={handleTreat} canTreat={canTreat} readonly={!canAdd} canDelete={canDelete ?? canAdd} userTimezone={userTimezone} clientTimezone={clientTimezone}
+        onGoToLead={onGoToLead}
+        onModifierDirect={peutModifierDirect ? (r) => { setDetailRdv(null); setDirectEnEdition(r); } : undefined} />}
+      {directEnEdition && (
+        <RdvDirectModal titre={directEnEdition.lead_name || 'Rendez-vous'} timezone={userTimezone}
+          rdvs={[directEnEdition as unknown as RdvDirect]} enEdition={directEnEdition.id}
+          onClose={() => setDirectEnEdition(null)} onFait={() => onReload()} />
+      )}
     </div>
   );
 }
